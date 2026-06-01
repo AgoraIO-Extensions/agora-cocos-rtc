@@ -1,0 +1,21 @@
+{
+  "android": {
+    "dependencies": [
+      "io.agora.rtc:full-sdk:4.5.3",
+      "io.agora.rtc:full-screen-sharing:4.5.3"
+    ],
+    "gradlePluginVersion": "8.13.1",
+    "gradleDistributionUrl": "https\\://services.gradle.org/distributions/gradle-8.13-bin.zip",
+    "localMavenRelativePath": "../../../local-maven",
+    "targetPackageName": "io.agora.cocosbasiccall"
+  },
+  "ios": {
+    "packageUrl": "https://github.com/AgoraIO/AgoraRtcEngine_iOS.git",
+    "packageVersion": "4.5.3",
+    "packageProduct": "AgoraRtcEngine_iOS",
+    "swiftVersion": "5.0",
+    "podName": "AgoraRtcEngine_iOS",
+    "deploymentTarget": "13.0",
+    "integrationMode": "cocoapods"
+  }
+}

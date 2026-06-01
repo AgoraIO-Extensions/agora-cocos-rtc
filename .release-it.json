@@ -1,0 +1,30 @@
+{
+  "git": {
+    "commit": true,
+    "commitMessage": "chore: release ${version}",
+    "tag": true,
+    "tagName": "${version}",
+    "push": false,
+    "requireCleanWorkingDir": true
+  },
+  "github": {
+    "release": false
+  },
+  "npm": false,
+  "hooks": {
+    "before:init": "npm run typecheck && npm run test",
+    "after:bump": "npm run sync:version"
+  },
+  "plugins": {
+    "@release-it/bumper": {
+      "in": "sdk/agora-rtc/package.json",
+      "out": "sdk/agora-rtc/package.json"
+    },
+    "@release-it/conventional-changelog": {
+      "infile": "CHANGELOG.md",
+      "preset": {
+        "name": "conventionalcommits"
+      }
+    }
+  }
+}

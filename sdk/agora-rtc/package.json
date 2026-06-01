@@ -1,0 +1,11 @@
+{
+  "name": "agora-rtc",
+  "version": "0.1.0",
+  "package_version": 2,
+  "description": "Agora RTC native plugin for Cocos Creator 3.8.x",
+  "main": "./dist/main.js",
+  "author": "Codex",
+  "contributions": {
+    "builder": "./dist/builder.js"
+  }
+}

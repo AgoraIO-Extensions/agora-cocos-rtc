@@ -1,0 +1,53 @@
+# macOS / editor noise
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Node / npm
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local build and package output
+dist/
+tmp/
+.worktrees/
+
+# Cocos Creator project cache and generated output
+# Based on the Cocos Creator 3.8 template .gitignore, with this repo's
+# command-line build output folders added.
+example/basic-call/library/
+example/basic-call/temp/
+example/basic-call/local/
+example/basic-call/profiles/
+example/basic-call/build/
+example/basic-call/build-android/
+example/basic-call/build-ios/
+example/basic-call/build-logs
+example/basic-call/build-android-logs
+example/basic-call/build-ios-logs
+example/basic-call/local-maven/
+example/basic-call/native/engine/
+example/basic-call/native/engine/android/**/*/assets
+
+# prepare-example.sh creates this local symlink to the SDK package.
+example/basic-call/extensions/agora-rtc
+
+# SDK/package caches
+sdk/agora-rtc/dist-cache/
+
+# Local secrets and machine-specific config
+.env
+.env.*
+*.mobileprovision
+*.p12
+*.keystore
+*.jks
+GoogleService-Info.plist
+google-services.json
+
+# AI/development handoff notes that should not ship as project docs
+docs/

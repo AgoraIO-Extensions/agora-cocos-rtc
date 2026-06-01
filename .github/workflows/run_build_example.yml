@@ -1,0 +1,68 @@
+name: 'run: build example'
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Target branch. Defaults to the branch that triggered this workflow.'
+        type: string
+        required: false
+        default: ''
+      run_cocos_prepare:
+        description: 'Run prepare-example before packaging.'
+        type: boolean
+        required: false
+        default: true
+  workflow_call:
+    inputs:
+      target_branch:
+        type: string
+        required: false
+        default: ''
+      run_cocos_prepare:
+        type: boolean
+        required: false
+        default: true
+
+jobs:
+  build_example:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_branch || github.ref_name }}
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare example
+        if: ${{ inputs.run_cocos_prepare }}
+        run: ./scripts/prepare-example.sh
+
+      - name: Verify
+        run: npm run verify
+
+      - name: Package customer delivery
+        run: ./scripts/package-customer-delivery.sh ./dist/customer-delivery
+
+      - name: Upload SDK package
+        uses: actions/upload-artifact@v4
+        with:
+          name: agora-rtc-cocos-plugin
+          path: dist/agora-rtc-cocos-plugin.zip
+          if-no-files-found: error
+
+      - name: Upload customer delivery
+        uses: actions/upload-artifact@v4
+        with:
+          name: agora-cocos-customer-delivery
+          path: dist/customer-delivery
+          if-no-files-found: error

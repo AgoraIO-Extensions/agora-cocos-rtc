@@ -1,0 +1,73 @@
+name: 'run: update dependencies'
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Target branch. Defaults to the branch that triggered this workflow.'
+        type: string
+        required: false
+        default: ''
+      android_version:
+        description: 'Android Agora RTC Maven version, for example 4.5.3.'
+        type: string
+        required: false
+        default: ''
+      android_dependencies:
+        description: 'Comma-separated Android Maven coordinates. Overrides android_version when set.'
+        type: string
+        required: false
+        default: ''
+      ios_version:
+        description: 'iOS AgoraRtcEngine_iOS Swift Package/CocoaPods version, for example 4.5.3.'
+        type: string
+        required: false
+        default: ''
+
+jobs:
+  update_deps:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_branch || github.ref_name }}
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update native dependency config
+        run: |
+          node ./scripts/update-native-deps.mjs \
+            --android-version "${{ inputs.android_version }}" \
+            --android-dependencies "${{ inputs.android_dependencies }}" \
+            --ios-version "${{ inputs.ios_version }}"
+
+      - name: Sync derived SDK version files
+        run: npm run sync:version
+
+      - name: Verify
+        run: npm run verify
+
+      - name: Commit and create pull request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: update native dependencies'
+          branch: deps/native-sdk-update
+          base: ${{ inputs.target_branch || github.ref_name }}
+          delete-branch: true
+          title: 'chore: update native dependencies'
+          body: |
+            Updates Agora native dependency versions in `sdk/agora-rtc/sdk-config.json`.
+
+            Android version: `${{ inputs.android_version }}`
+            Android dependencies: `${{ inputs.android_dependencies }}`
+            iOS version: `${{ inputs.ios_version }}`

@@ -1,0 +1,7 @@
+{
+  "appId": "<YOUR_AGORA_APP_ID>",
+  "token": "",
+  "channelId": "<YOUR_CHANNEL_ID>",
+  "uid": 1001,
+  "renderBackend": "engine-texture"
+}

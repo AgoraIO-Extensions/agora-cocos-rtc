@@ -1,0 +1,12 @@
+{
+  "platform": "ios",
+  "buildPath": "project://build-ios",
+  "debug": true,
+  "startScene": "fc1b7f53-7712-4b8c-bd75-c3f7ec540001",
+  "logDest": "project://build-ios-logs",
+  "packages": {
+    "ios": {
+      "packageName": "io.agora.cocos.example"
+    }
+  }
+}
