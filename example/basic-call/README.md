@@ -1,18 +1,19 @@
 # Basic Call Example
+*English*
 
-这是一个供 `Cocos Creator 3.8.x` 打开的示例工程骨架。
+This is a Cocos Creator 3.8.x example project for the Agora RTC Cocos plugin.
 
-## 使用方式
+## Usage
 
-1. 在仓库根目录执行 `./scripts/prepare-example.sh`
-2. 用 `Cocos Creator 3.8.8` 打开当前目录
-3. 创建一个场景并挂载 `assets/scripts/AgoraRtcExampleController.ts`
-4. 填入 `appId`、`token`、`channelId`、`uid`
-5. 导出到 iOS 或 Android 验证最小 RTC 流程
+1. Run `./scripts/prepare-example.sh` from the repository root.
+2. Open this directory with Cocos Creator 3.8.8.
+3. Configure `assets/resources/agora-config.json`.
+4. Export to Android or iOS.
+5. Use the built-in QA panel to initialize the engine, join a channel, test audio/video controls, and inspect runtime events.
 
 ## Capability Demo
 
-示例场景现在是一个 QA 风格测试面板，保留这些直接入口：
+The example scene is a QA console instead of a minimal visual demo. It exposes direct entries for:
 
 - `Initialize`
 - `Join`
@@ -38,7 +39,7 @@
 - `Effect`
 - `Diag`
 
-`Demo` 会顺序触发分组调用：
+`Full Demo` runs the grouped API probes in sequence:
 
 - `runChannelRoleDemo()`
 - `runAudioControlDemo()`
@@ -47,7 +48,7 @@
 - `runEffectDemo()`
 - `runDiagnosticsDemo()`
 
-API 到示例入口的映射：
+## API Mapping
 
 - `getSdkVersion` / `setChannelProfile` / `setClientRole` / `renewToken`
   - `runChannelRoleDemo()`
@@ -70,7 +71,9 @@ API 到示例入口的映射：
 - `getErrorDescription` / `setLogFilter` / `setLogFile` / `setParameters`
   - `runDiagnosticsDemo()`
 
-运行时事件日志还会展示：
+## Runtime Events
+
+The event log displays:
 
 - `volumeIndication`
 - `rtcStats`
@@ -80,23 +83,12 @@ API 到示例入口的映射：
 - `audioMixingFinished` / `audioMixingStateChanged`
 - `contentInspectResult`
 
-面板上还会显示结构化状态：
+## QA Helpers
 
-- 当前 backend
-- initialized / joined / preview
-- 本地音频 / 本地视频 / speakerphone
-- remote uid / local view / remote view
-- local / remote texture slot
-- 最近一次 `rtcStats`
-- 最近一次 `volumeIndication`
-- 最近一次 `error`
+- Direct backend switching for `surface-view`, `texture-view`, and `engine-texture`.
+- Cycling controls for channel profile, client role, and video encoder presets.
+- Separate speaker, mic, camera, and preview probes.
+- Runtime log controls for `Freeze` and `Clear`.
+- Per-action status feedback through `OK` and `FAIL` markers.
 
-QA 辅助能力：
-
-- backend 直达切换，不再只靠循环切换
-- channel profile / client role / video encoder preset 可轮换
-- speaker / mic / cam / preview 可单独点测
-- 日志支持 `Freeze` 和 `Clear`
-- 每个动作按钮会显示最近一次结果态：`OK` / `FAIL`
-
-所有分组调用都会把结果写入状态日志区。当前平台暂未实现的 API 会在日志区显示显式失败，而不是静默成功。
+All grouped probes write their results into the status log. APIs that are not implemented on a platform report explicit failures instead of silent success.

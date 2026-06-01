@@ -67,7 +67,7 @@ const LOG_PAGE_BODY_NODE_NAME = '__log_page_body';
 const LOG_BODY_VIEWPORT_NODE_NAME = '__log_body_viewport';
 const LOG_BODY_CLIP_NODE_NAME = '__log_body_clip';
 const LOG_PAGE_CONTENT_NAME = '__log_page_content';
-const MAX_LOG_LINES = 80; // 限制行数，防止单 Label 纹理高度超过移动端 GPU 纹理上限(2048/4096)导致被强制压缩和拉伸
+const MAX_LOG_LINES = 80; // Keep one Label texture below common mobile GPU texture limits.
 const MAIN_LOG_PREVIEW_LINES = 2;
 const LOG_LINE_HEIGHT = 18;
 const LOG_BODY_PAD = 10;
@@ -212,48 +212,48 @@ const SETTINGS_ROWS = [
 ] as const;
 const BUTTON_BG_NODE_NAME = '__btn_bg';
 const BUTTON_LABEL_NODE_NAME = '__btn_label';
-const SETTING_LABEL_ZH: Record<string, string> = {
-  Backend: '渲染',
-  Profile: '场景',
-  Role: '角色',
-  Encoder: '编码',
+const SETTING_LABELS: Record<string, string> = {
+  Backend: 'Render',
+  Profile: 'Profile',
+  Role: 'Role',
+  Encoder: 'Encoder',
 };
-const ACTION_LABEL_ZH: Record<string, string> = {
-  Initialize: '初始化',
-  Join: '加入',
-  Leave: '离开',
-  Preview: '预览',
-  Views: '刷新画面',
-  Speaker: '扬声器',
-  Mic: '麦克风',
-  Cam: '摄像头',
-  'Full Demo': '完整演示',
-  Mixing: '混音',
-  Effect: '音效',
-  Diag: '诊断',
-  Freeze: '冻结日志',
-  Clear: '清空日志',
-  Channel: '频道演示',
-  Profile: '场景',
-  Role: '角色',
-  Encoder: '编码',
-  EnableAudio: '启用音频',
-  EnableLocalAudio: '启用本地音频',
-  MuteLocalAudio: '禁麦本地',
-  MuteRemoteAudio: '静音指定远端',
-  MuteAllRemoteAudio: '静音远端',
-  AudioVolumeIndication: '音量提示',
-  DefaultAudioRoute: '默认路由',
-  PlaybackVolume: '播放音量',
-  AudioProfile: '音频配置',
-  EnableVideo: '启用视频',
-  MuteLocalVideo: '禁用本地视频',
-  MuteRemoteVideo: '静视频远端',
-  MuteAllRemoteVideo: '静视频所有远端',
-  SwitchCamera: '切换相机',
-  BeautyEffect: '美颜效果',
-  ContentInspect: '视频鉴黄',
-  PlaybackUserVolume: '远端播放音量',
+const ACTION_LABELS: Record<string, string> = {
+  Initialize: 'Initialize',
+  Join: 'Join',
+  Leave: 'Leave',
+  Preview: 'Preview',
+  Views: 'Views',
+  Speaker: 'Speaker',
+  Mic: 'Mic',
+  Cam: 'Cam',
+  'Full Demo': 'Full Demo',
+  Mixing: 'Mixing',
+  Effect: 'Effect',
+  Diag: 'Diagnostics',
+  Freeze: 'Freeze Log',
+  Clear: 'Clear Log',
+  Channel: 'Channel Demo',
+  Profile: 'Profile',
+  Role: 'Role',
+  Encoder: 'Encoder',
+  EnableAudio: 'Enable Audio',
+  EnableLocalAudio: 'Local Audio',
+  MuteLocalAudio: 'Mute Local Audio',
+  MuteRemoteAudio: 'Mute Remote Audio',
+  MuteAllRemoteAudio: 'Mute All Remote',
+  AudioVolumeIndication: 'Volume Indicator',
+  DefaultAudioRoute: 'Default Route',
+  PlaybackVolume: 'Playback Volume',
+  AudioProfile: 'Audio Profile',
+  EnableVideo: 'Enable Video',
+  MuteLocalVideo: 'Mute Local Video',
+  MuteRemoteVideo: 'Mute Remote Video',
+  MuteAllRemoteVideo: 'Mute All Remote',
+  SwitchCamera: 'Switch Camera',
+  BeautyEffect: 'Beauty Effect',
+  ContentInspect: 'Content Inspect',
+  PlaybackUserVolume: 'User Volume',
 };
 
 type AppButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'chip' | 'toggleOn' | 'toggleOff' | 'settingsPill';
@@ -335,7 +335,7 @@ export class AgoraRtcExampleController extends Component {
   private logConfigButtonNode: Node | null = null;
   private logUiGlobalTouchBound = false;
   private lastLogUiOpenMs = 0;
-  private logUiHudLine = 'UI: 等待点击';
+  private logUiHudLine = 'UI: waiting';
   private logFloatWorldRect: { x: number; y: number; w: number; h: number } | null = null;
   private statusLines: string[] = [];
   private actionButtons = new Map<string, Label>();
@@ -375,7 +375,7 @@ export class AgoraRtcExampleController extends Component {
     this.logPageVisible = false;
     this.bindLogUiGlobalTouchFallback();
     this.initializeUi();
-    this.setLogUiHud('UI: 已就绪，请点「日志」或右上角');
+    this.setLogUiHud('UI: ready, tap Log or the top-right button');
     this.scheduleOnce(() => this.refreshConfigLabel(), 0);
     view.on('canvas-resize', this.resizeCanvasToVisibleArea, this);
   }
@@ -404,7 +404,7 @@ export class AgoraRtcExampleController extends Component {
     console.log('[agora-rtc] controller start');
     this.resizeCanvasToVisibleArea();
     this.initializeUi();
-    this.pushStatus('正在加载配置…');
+    this.pushStatus('Loading config...');
     try {
       await this.loadRuntimeConfig();
     } catch (error) {
@@ -1393,7 +1393,7 @@ export class AgoraRtcExampleController extends Component {
     }
     const pageOpen = this.logPageVisible && (this.logPageNode?.active ?? false);
     this.setLogUiHud(
-      `触摸(${Math.round(p0.x)},${Math.round(p0.y)}) 浮:${hitFloat ? 'Y' : 'n'} 配:${hitConfigLog ? 'Y' : 'n'} 页:${pageOpen ? '开' : '关'}`,
+      `touch(${Math.round(p0.x)},${Math.round(p0.y)}) float:${hitFloat ? 'Y' : 'n'} config:${hitConfigLog ? 'Y' : 'n'} page:${pageOpen ? 'open' : 'closed'}`,
     );
     this.logUi('touch-end', {
       ui: { x: Math.round(p0.x), y: Math.round(p0.y) },
@@ -1405,7 +1405,7 @@ export class AgoraRtcExampleController extends Component {
     });
   }
 
-  /** 只打开、不切换，避免同一次点击被 Button + 全局触摸连触成「开→关」 */
+  /** Open only once so a button tap plus the global touch fallback cannot toggle twice. */
   private requestOpenLogPage(source: string) {
     if (this.logPageVisible && this.logPageNode?.active) {
       return;
@@ -1417,17 +1417,17 @@ export class AgoraRtcExampleController extends Component {
     }
     this.lastLogUiOpenMs = now;
     this.logUi('open-request', { source });
-    this.setLogUiHud(`UI: 正在打开… (${source})`);
+    this.setLogUiHud(`UI: opening... (${source})`);
     try {
       this.openStatusLogPage();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logUi('open-error', { source, message });
-      this.setLogUiHud(`UI: 打开失败 ${message}`);
+      this.setLogUiHud(`UI: open failed ${message}`);
     }
   }
 
-  /** overlay 根节点 ignoreUiHitTest 会导致子按钮收不到触摸，必须在按钮节点上直接监听 */
+  /** The overlay root may ignore hit tests, so bind touches directly on button nodes. */
   private wireLogOpenOnTouchEnd(buttonNode: Node, source: string) {
     const open = () => {
       this.logUi('log-touch-end', { source });
@@ -1615,7 +1615,7 @@ export class AgoraRtcExampleController extends Component {
   ) {
     const transform = buttonNode.getComponent(UITransform) ?? buttonNode.addComponent(UITransform);
     transform.setContentSize(width, height);
-    const displayName = ACTION_LABEL_ZH[actionName] ?? actionName;
+    const displayName = ACTION_LABELS[actionName] ?? actionName;
     const v = variant ?? this.resolveActionButtonVariant(actionName);
     this.applyAppButtonChrome(buttonNode, width, height, v);
     const label = this.getAppButtonLabel(buttonNode);
@@ -1855,7 +1855,7 @@ export class AgoraRtcExampleController extends Component {
     const nameTransform = nameNode.getComponent(UITransform) ?? nameNode.addComponent(UITransform);
     nameTransform.setContentSize(110, 28);
     const nameLabel = nameNode.getComponent(Label) ?? nameNode.addComponent(Label);
-    nameLabel.string = SETTING_LABEL_ZH[key] ?? key;
+    nameLabel.string = SETTING_LABELS[key] ?? key;
     nameLabel.fontSize = 14;
     nameLabel.lineHeight = 18;
     nameLabel.useSystemFont = true;
@@ -1925,7 +1925,7 @@ export class AgoraRtcExampleController extends Component {
     const rowTransform = rowNode.getComponent(UITransform) ?? rowNode.addComponent(UITransform);
     rowTransform.setContentSize(520, CONFIG_INPUTS_BLOCK_HEIGHT);
 
-    this.ensureConfigFieldRow(rowNode, '频道', 'channel', '__channel_value', () => {
+    this.ensureConfigFieldRow(rowNode, 'Channel', 'channel', '__channel_value', () => {
       void this.cycleChannelPreset();
     }, 0);
     this.ensureConfigFieldRow(rowNode, 'UID', 'uid', '__uid_value', null, 1);
@@ -2021,7 +2021,7 @@ export class AgoraRtcExampleController extends Component {
         cycleNode = new Node(`__${key}_cycle`);
         cycleNode.setParent(parent);
       }
-      this.styleConfigActionButton(cycleNode, CONFIG_PRESET_BUTTON_WIDTH, CONFIG_INPUT_ROW_HEIGHT - 4, '预设', 'chip');
+      this.styleConfigActionButton(cycleNode, CONFIG_PRESET_BUTTON_WIDTH, CONFIG_INPUT_ROW_HEIGHT - 4, 'Preset', 'chip');
       this.bindAppButtonClick(cycleNode, cycleHandler);
     }
   }
@@ -2356,7 +2356,7 @@ export class AgoraRtcExampleController extends Component {
     transform.setContentSize(LOG_FLOAT_BTN_WIDTH, LOG_FLOAT_BTN_HEIGHT);
     this.applyAppButtonChrome(btnNode, LOG_FLOAT_BTN_WIDTH, LOG_FLOAT_BTN_HEIGHT, 'chip');
     const label = this.getAppButtonLabel(btnNode);
-    label.string = this.statusLines.length > 0 ? `日志 ${this.statusLines.length}` : '全部日志';
+    label.string = this.statusLines.length > 0 ? `Log ${this.statusLines.length}` : 'All Logs';
     label.fontSize = 13;
     this.bindLogEntryButtonClick(btnNode, 'float-btn');
 
@@ -2415,8 +2415,8 @@ export class AgoraRtcExampleController extends Component {
     const label = this.getAppButtonLabel(btn);
     const count = this.statusLines.length;
     label.string = this.logPageVisible
-      ? `收起${count > 0 ? `(${count})` : ''}`
-      : `日志${count > 0 ? `(${count})` : ''}`;
+      ? `Close${count > 0 ? `(${count})` : ''}`
+      : `Log${count > 0 ? `(${count})` : ''}`;
   }
 
   private toggleStatusLogPage() {
@@ -2491,11 +2491,11 @@ export class AgoraRtcExampleController extends Component {
       this.styleConfigActionButton(btn, 88, 36, text, variant);
       this.bindAppButtonClick(btn, handler);
     };
-    addHeaderBtn('__log_back', '返回', 'secondary', -panelWidth / 2 + 60, () => this.closeStatusLogPage());
-    addHeaderBtn('__log_clear', '清空', 'ghost', -panelWidth / 2 + 160, () => {
+    addHeaderBtn('__log_back', 'Back', 'secondary', -panelWidth / 2 + 60, () => this.closeStatusLogPage());
+    addHeaderBtn('__log_clear', 'Clear', 'ghost', -panelWidth / 2 + 160, () => {
       void this.clearStatusLog();
     });
-    addHeaderBtn('__log_freeze', '冻结', 'ghost', -panelWidth / 2 + 260, () => {
+    addHeaderBtn('__log_freeze', 'Freeze', 'ghost', -panelWidth / 2 + 260, () => {
       void this.toggleStatusFreeze();
     });
 
@@ -2505,7 +2505,7 @@ export class AgoraRtcExampleController extends Component {
     const titleTransform = titleNode.getComponent(UITransform) ?? titleNode.addComponent(UITransform);
     titleTransform.setContentSize(280, 36);
     const titleLabel = titleNode.addComponent(Label);
-    titleLabel.string = '运行日志';
+    titleLabel.string = 'Runtime Log';
     titleLabel.fontSize = 18;
     titleLabel.lineHeight = 22;
     titleLabel.enableWrapText = false;
@@ -2544,7 +2544,7 @@ export class AgoraRtcExampleController extends Component {
     clipGraphics.fill();
   }
 
-  /** 清理 viewport 上误挂的 Mask（会导致 native 打开日志页 stencilStage 崩溃） */
+  /** Remove stray viewport masks that can crash the native stencil stage. */
   private stripLogViewportStencilComponents(viewport: Node) {
     viewport.getComponent(Mask)?.destroy();
     const graphics = viewport.getComponent(Graphics);
@@ -2557,7 +2557,7 @@ export class AgoraRtcExampleController extends Component {
     return viewport.getChildByName(LOG_BODY_CLIP_NODE_NAME);
   }
 
-  /** Mask 与 Graphics 同节点；仅在日志页已激活后调用 */
+  /** Keep Mask and Graphics on the same node, and call only after the log page is active. */
   private ensureLogBodyViewportMask(clipRoot: Node, bodyWidth: number, bodyHeight: number) {
     const maskGraphics = clipRoot.getComponent(Graphics) ?? clipRoot.addComponent(Graphics);
     maskGraphics.clear();
@@ -2696,7 +2696,7 @@ export class AgoraRtcExampleController extends Component {
     return Math.max(LOG_LINE_HEIGHT + 8, rows * LOG_LINE_HEIGHT + 16);
   }
 
-  /** 用 Label 实测高度，避免估算偏大导致底对齐后可视区落在空白段 */
+  /** Measure with Label when possible so bottom alignment does not land in blank space. */
   private measureLogBodyContentHeight(bodyNode: Node, contentWidth: number, fullText: string): number {
     const label = bodyNode.getComponent(Label);
     const ut = bodyNode.getComponent(UITransform);
@@ -2730,10 +2730,10 @@ export class AgoraRtcExampleController extends Component {
   }
 
   /**
-   * 左上锚点 + 顶对齐 Label：
-   * offset=0 → 内容底边贴在深蓝区底边（默认看到最新日志）
-   * offset=max → 内容顶边贴在深蓝区顶边（看到最旧日志）
-   * 手势：手指上滑 → offset 减小 → 正文随手指上移（与列表自然滚动一致）
+   * Top-left anchor with a top-aligned Label:
+   * offset=0 shows the newest log lines at the bottom.
+   * offset=max shows the oldest log lines at the top.
+   * Dragging up moves the content up, matching normal list scrolling.
    */
   private applyLogBodyScrollPosition(bodyNode: Node) {
     const viewH = this.logBodyViewportHeight;
@@ -2776,7 +2776,7 @@ export class AgoraRtcExampleController extends Component {
 
   private getFullLogText(): string {
     if (this.statusLines.length === 0) {
-      return '（暂无日志）';
+      return '(no logs)';
     }
     return this.statusLines.join('\n');
   }
@@ -2814,7 +2814,7 @@ export class AgoraRtcExampleController extends Component {
       ?.getChildByName('__log_freeze');
     const freezeLabel = freezeBtn ? this.getAppButtonLabel(freezeBtn) : null;
     if (freezeLabel) {
-      freezeLabel.string = this.statusFrozen ? '已冻结' : '冻结';
+      freezeLabel.string = this.statusFrozen ? 'Frozen' : 'Freeze';
     }
   }
 
@@ -2824,11 +2824,11 @@ export class AgoraRtcExampleController extends Component {
     }
     const visibleSize = view.getVisibleSize();
 
-    // 抵消 Canvas 父节点的缩放，防止发生非等比拉伸
+    // Cancel the Canvas scale so the log page is not stretched non-uniformly.
     const canvasScale = this.node.scale;
     this.logPageNode.setScale(1 / canvasScale.x, 1 / canvasScale.y, 1);
 
-    // Canvas 子节点坐标以中心为原点，勿再用 visibleSize/2 偏移（会把整页挪到屏幕外）
+    // Canvas children use a centered origin; visibleSize/2 would move the page off screen.
     this.logPageNode.setPosition(0, 0, 0);
     this.logPageNode.getComponent(UITransform)?.setContentSize(visibleSize.width, visibleSize.height);
 
@@ -2915,7 +2915,7 @@ export class AgoraRtcExampleController extends Component {
     }
     if (!this.logPageNode) {
       this.logUi('open-fail', 'no-logPageNode');
-      this.setLogUiHud('UI: 打开失败(无节点)');
+      this.setLogUiHud('UI: open failed(no node)');
       return;
     }
     this.logPageVisible = true;
@@ -2942,7 +2942,7 @@ export class AgoraRtcExampleController extends Component {
       sibling: this.logPageNode.getSiblingIndex(),
       parent: this.logPageNode.parent?.name ?? 'none',
     });
-    this.setLogUiHud(`UI: 页:开 条数:${this.statusLines.length}`);
+    this.setLogUiHud(`UI: page open, lines:${this.statusLines.length}`);
     this.syncMainHudForLogPageOverlay();
   }
 
@@ -2950,7 +2950,7 @@ export class AgoraRtcExampleController extends Component {
     if (this.logPageVideoSuspended) {
       return;
     }
-    // engine-texture 走 Cocos Sprite，无需隐藏；日志层盖在上面即可，避免关掉日志后远端黑屏
+    // engine-texture uses Cocos sprites, so the log layer can cover it without hiding video.
     if (this.renderBackend === 'engine-texture') {
       return;
     }
@@ -3011,7 +3011,7 @@ export class AgoraRtcExampleController extends Component {
     this.layoutLogFloatButton();
     this.refreshLogConfigButtonLabel();
     this.logUi('close-done', { floatActive: this.logFloatButtonNode?.active ?? false });
-    this.setLogUiHud('UI: 日志页已关闭');
+    this.setLogUiHud('UI: log page closed');
     this.syncMainHudForLogPageOverlay();
     this.refreshSummary();
     void this.restoreVideoOverlayAfterLogPage();
@@ -3784,8 +3784,8 @@ export class AgoraRtcExampleController extends Component {
       return;
     }
     this.configLabel.string = [
-      `App ${this.maskAppId(this.appId)}  ·  Token ${this.token ? '已配置' : '未配置'}`,
-      `渲染 ${this.renderBackend}`,
+      `App ${this.maskAppId(this.appId)}  ·  Token ${this.token ? 'configured' : 'not configured'}`,
+      `Render ${this.renderBackend}`,
       this.logUiHudLine,
     ].join('\n');
     this.configLabel.enableWrapText = true;
@@ -3836,68 +3836,68 @@ export class AgoraRtcExampleController extends Component {
   private refreshButtonLabels() {
     this.setButtonLabel(
       'Mic',
-      this.localAudioEnabled ? '开' : '关',
+      this.localAudioEnabled ? 'On' : 'Off',
       this.resolveToggleButtonVariant('Mic', this.localAudioEnabled),
     );
     this.setButtonLabel(
       'Cam',
-      this.localVideoEnabled ? '开' : '关',
+      this.localVideoEnabled ? 'On' : 'Off',
       this.resolveToggleButtonVariant('Cam', this.localVideoEnabled),
     );
     this.setButtonLabel(
       'Preview',
-      this.previewStarted ? '关闭' : '开启',
+      this.previewStarted ? 'Stop' : 'Start',
       this.resolveToggleButtonVariant('Preview', this.previewStarted),
     );
     this.setButtonLabel(
       'Speaker',
       this.speakerphoneEnabled === null
-        ? '未知'
-        : (this.speakerphoneEnabled ? '开' : '关'),
+        ? 'Unknown'
+        : (this.speakerphoneEnabled ? 'On' : 'Off'),
       this.speakerphoneEnabled === null
         ? 'ghost'
         : this.resolveToggleButtonVariant('Speaker', this.speakerphoneEnabled),
     );
     this.setButtonLabel(
       'Freeze',
-      this.statusFrozen ? '已冻结' : '未冻结',
+      this.statusFrozen ? 'Frozen' : 'Live',
       this.resolveToggleButtonVariant('Freeze', this.statusFrozen),
     );
 
     // 17 APIs Refresh Labels
     this.setButtonLabel(
       'EnableAudio',
-      this.audioEnabled ? '开' : '关',
+      this.audioEnabled ? 'On' : 'Off',
       this.resolveToggleButtonVariant('EnableAudio', this.audioEnabled),
     );
     this.setButtonLabel(
       'EnableLocalAudio',
-      this.localAudioEnabled ? '开' : '关',
+      this.localAudioEnabled ? 'On' : 'Off',
       this.resolveToggleButtonVariant('EnableLocalAudio', this.localAudioEnabled),
     );
     this.setButtonLabel(
       'MuteLocalAudio',
-      this.localAudioMuted ? '已静' : '未静',
+      this.localAudioMuted ? 'Muted' : 'Live',
       this.resolveToggleButtonVariant('MuteLocalAudio', this.localAudioMuted),
     );
     this.setButtonLabel(
       'MuteRemoteAudio',
-      this.remoteAudioMuted ? '已静' : '未静',
+      this.remoteAudioMuted ? 'Muted' : 'Live',
       this.resolveToggleButtonVariant('MuteRemoteAudio', this.remoteAudioMuted),
     );
     this.setButtonLabel(
       'MuteAllRemoteAudio',
-      this.allRemoteAudioMuted ? '已静' : '未静',
+      this.allRemoteAudioMuted ? 'Muted' : 'Live',
       this.resolveToggleButtonVariant('MuteAllRemoteAudio', this.allRemoteAudioMuted),
     );
     this.setButtonLabel(
       'AudioVolumeIndication',
-      this.audioVolumeIndicationEnabled ? '开' : '关',
+      this.audioVolumeIndicationEnabled ? 'On' : 'Off',
       this.resolveToggleButtonVariant('AudioVolumeIndication', this.audioVolumeIndicationEnabled),
     );
     this.setButtonLabel(
       'DefaultAudioRoute',
-      this.defaultAudioRouteToSpeakerphone ? '喇叭' : '听筒',
+      this.defaultAudioRouteToSpeakerphone ? 'Speaker' : 'Earpiece',
       this.resolveToggleButtonVariant('DefaultAudioRoute', this.defaultAudioRouteToSpeakerphone),
     );
     this.setButtonLabel(
@@ -3907,38 +3907,38 @@ export class AgoraRtcExampleController extends Component {
     );
     this.setButtonLabel(
       'AudioProfile',
-      this.currentAudioProfile === 0 ? '默认' : '语音',
+      this.currentAudioProfile === 0 ? 'Default' : 'Speech',
       this.resolveToggleButtonVariant('AudioProfile', this.currentAudioProfile !== 0),
     );
 
     this.setButtonLabel(
       'EnableVideo',
-      this.videoEnabled ? '开' : '关',
+      this.videoEnabled ? 'On' : 'Off',
       this.resolveToggleButtonVariant('EnableVideo', this.videoEnabled),
     );
     this.setButtonLabel(
       'MuteLocalVideo',
-      this.localVideoMuted ? '已禁' : '未禁',
+      this.localVideoMuted ? 'Muted' : 'Live',
       this.resolveToggleButtonVariant('MuteLocalVideo', this.localVideoMuted),
     );
     this.setButtonLabel(
       'MuteRemoteVideo',
-      this.remoteVideoMuted ? '已禁' : '未禁',
+      this.remoteVideoMuted ? 'Muted' : 'Live',
       this.resolveToggleButtonVariant('MuteRemoteVideo', this.remoteVideoMuted),
     );
     this.setButtonLabel(
       'MuteAllRemoteVideo',
-      this.allRemoteVideoMuted ? '已禁' : '未禁',
+      this.allRemoteVideoMuted ? 'Muted' : 'Live',
       this.resolveToggleButtonVariant('MuteAllRemoteVideo', this.allRemoteVideoMuted),
     );
     this.setButtonLabel(
       'BeautyEffect',
-      this.beautyEffectEnabled ? '开' : '关',
+      this.beautyEffectEnabled ? 'On' : 'Off',
       this.resolveToggleButtonVariant('BeautyEffect', this.beautyEffectEnabled),
     );
     this.setButtonLabel(
       'ContentInspect',
-      this.contentInspectEnabled ? '开' : '关',
+      this.contentInspectEnabled ? 'On' : 'Off',
       this.resolveToggleButtonVariant('ContentInspect', this.contentInspectEnabled),
     );
     this.setButtonLabel(
@@ -3953,7 +3953,7 @@ export class AgoraRtcExampleController extends Component {
     if (logFloatNode) {
       const label = this.getAppButtonLabel(logFloatNode);
       if (label) {
-        label.string = this.statusLines.length > 0 ? `日志 ${this.statusLines.length}` : '全部日志';
+        label.string = this.statusLines.length > 0 ? `Log ${this.statusLines.length}` : 'All Logs';
       }
     }
   }
@@ -3965,7 +3965,7 @@ export class AgoraRtcExampleController extends Component {
       return;
     }
     const result = this.actionResults.get(name) ?? 'idle';
-    const base = ACTION_LABEL_ZH[name] ?? name;
+    const base = ACTION_LABELS[name] ?? name;
     const suffix = result === 'ok' ? ' ✓' : result === 'fail' ? ' ✗' : '';
     const display = [
       'Mic', 'Cam', 'Speaker', 'Preview', 'Freeze',
@@ -4482,7 +4482,7 @@ export class AgoraRtcExampleController extends Component {
   async clearStatusLog() {
     this.statusLines = [];
     this.refreshLogPageContent();
-    this.pushStatus('日志已清空');
+    this.pushStatus('Log cleared');
     this.setActionResult('Clear', 'ok');
   }
 

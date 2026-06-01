@@ -1,21 +1,78 @@
 # Agora RTC Cocos Plugin
+*English*
 
-面向 `Cocos Creator 3.8.x` 的 Agora RTC 第一阶段 PoC 插件。
+Use Agora RTC SDK in Cocos Creator 3.8.x projects.
 
-## 包含内容
+This package provides the JavaScript API wrapper, Cocos extension runtime, and native bridge templates required by the example project and customer integrations.
 
-- `js/`: TypeScript SDK 包装层
-- `dist/`: Cocos extension runtime 与构建钩子
-- `sdk-config.json`: Android/iOS 依赖与构建版本的统一配置真源
-- `templates/android`: Android 桥接模板
-- `templates/ios`: iOS 桥接模板
-- `cc_plugin.json`: 原生插件声明
+## Package Contents
 
-## 第一阶段接口
+- `js/`: TypeScript SDK wrapper and public API types.
+- `dist/`: Cocos extension runtime and build hooks.
+- `sdk-config.json`: Single source of truth for Android and iOS native dependency versions.
+- `templates/android`: Android bridge template.
+- `templates/ios`: iOS bridge template.
+- `cc_plugin.json`: Cocos native plugin manifest.
+
+## API Surface
 
 - `initialize`
+- `getSdkVersion`
+- `getErrorDescription`
+- `setLogFilter`
+- `setLogFile`
+- `setRenderBackend`
+- `setChannelProfile`
+- `setClientRole`
 - `joinChannel`
 - `leaveChannel`
+- `renewToken`
+- `enableAudio`
 - `enableLocalAudio`
+- `muteLocalAudioStream`
+- `muteRemoteAudioStream`
+- `muteAllRemoteAudioStreams`
+- `setAudioProfile`
+- `enableAudioVolumeIndication`
+- `setDefaultAudioRouteToSpeakerphone`
+- `setEnableSpeakerphone`
+- `isSpeakerphoneEnabled`
+- `adjustPlaybackSignalVolume`
+- `adjustUserPlaybackSignalVolume`
+- `setAudioSessionOperationRestriction`
+- `enableVideo`
 - `enableLocalVideo`
+- `muteLocalVideoStream`
+- `muteRemoteVideoStream`
+- `muteAllRemoteVideoStreams`
+- `setVideoEncoderConfiguration`
+- `setupLocalVideoView`
+- `setupRemoteVideoView`
+- `updateLocalVideoView`
+- `updateRemoteVideoView`
+- `removeLocalVideoView`
+- `removeRemoteVideoView`
+- `startPreview`
+- `stopPreview`
+- `switchCamera`
+- `setBeautyEffectOptions`
+- `enableContentInspect`
+- `startAudioMixing`
+- `pauseAudioMixing`
+- `resumeAudioMixing`
+- `stopAudioMixing`
+- `getAudioMixingCurrentPosition`
+- `setAudioMixingPosition`
+- `adjustAudioMixingVolume`
+- `preloadEffect`
+- `playEffect`
+- `stopEffect`
+- `setParameters`
 - `destroy`
+
+## Platform Notes
+
+- Android uses `io.agora.rtc:full-sdk:4.5.3` and `io.agora.rtc:full-screen-sharing:4.5.3`.
+- iOS uses `AgoraRtcEngine_iOS 4.5.3`.
+- Android currently returns explicit `unsupported` responses for `setDefaultAudioRouteToSpeakerphone` and `setAudioSessionOperationRestriction`.
+- `engine-texture` is the main Cocos texture rendering path for video frames.

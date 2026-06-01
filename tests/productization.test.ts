@@ -297,7 +297,7 @@ test('sdk version is single-sourced from sdk package manifest', async () => {
   assert.notEqual(rootPackage.version, sdkPackage.version);
 });
 
-test('gitignore keeps generated cocos output and ai handoff docs out of commits', async () => {
+test('gitignore keeps generated cocos output and local docs out of commits', async () => {
   const gitignore = await readFile(path.join(repoRoot, '.gitignore'), 'utf8');
 
   assert.match(gitignore, /example\/basic-call\/library\//);
@@ -307,8 +307,7 @@ test('gitignore keeps generated cocos output and ai handoff docs out of commits'
   assert.match(gitignore, /example\/basic-call\/build-ios\//);
   assert.match(gitignore, /example\/basic-call\/native\/engine\//);
   assert.match(gitignore, /example\/basic-call\/extensions\/agora-rtc/);
-  assert.match(gitignore, /docs\/superpowers\//);
-  assert.match(gitignore, /docs\/\*HANDOFF\*\.md/);
+  assert.match(gitignore, /^docs\/$/m);
 });
 
 test('gitignore behavior matches the intended commit boundary', async () => {
@@ -322,6 +321,8 @@ test('gitignore behavior matches the intended commit boundary', async () => {
     'example/basic-call/extensions/agora-rtc',
     'example/basic-call/native/engine/android/app/build.gradle',
     '.DS_Store',
+    'docs/customer-integration.md',
+    'docs/architecture.md',
     'docs/.DS_Store',
     'sdk/agora-rtc/.DS_Store',
     'example/basic-call/assets/.DS_Store',
@@ -331,8 +332,6 @@ test('gitignore behavior matches the intended commit boundary', async () => {
     'node_modules/release-it/package.json',
   ];
   const committedPaths = [
-    'docs/customer-integration.md',
-    'docs/architecture.md',
     'sdk/agora-rtc/package.json',
     'example/basic-call/assets/scripts/AgoraRtcExampleController.ts',
   ];

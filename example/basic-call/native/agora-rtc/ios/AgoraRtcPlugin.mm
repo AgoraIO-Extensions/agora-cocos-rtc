@@ -3,7 +3,7 @@
 #import "apple/JsbBridge.h"
 
 /**
- * PoC bridge registrar.
+ * Native bridge registrar.
  * Integrate this file into the exported iOS target and forward Cocos bridge payloads
  * to `AgoraRtcBridge`.
  */

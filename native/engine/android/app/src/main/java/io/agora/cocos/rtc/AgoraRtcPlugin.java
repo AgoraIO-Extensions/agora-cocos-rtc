@@ -23,7 +23,7 @@ import io.agora.rtc2.video.ContentInspectConfig;
 import io.agora.rtc2.video.VideoEncoderConfiguration;
 
 /**
- * Template bridge for the first PoC iteration.
+ * Template bridge for the initial integration.
  * The exported Android project should call attachBridge() during app startup
  * and forward incoming JsbBridgeWrapper messages into handleScriptRequest().
  */

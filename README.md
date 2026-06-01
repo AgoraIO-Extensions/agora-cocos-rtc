@@ -1,57 +1,79 @@
-# Agora Cocos RTC PoC
+# Agora Cocos RTC SDK
 
-单仓库的 `SDK/plugin + example` 结构，用于验证 `Cocos Creator 3.8.x + Agora RTC 4.5.3` 的最小链路。
+*English*
 
-## 目录
+Use Agora RTC SDK with Cocos Creator.
 
-- `sdk/agora-rtc`: 对客户交付的 SDK/plugin 主体
-- `example/basic-call`: Cocos 示例工程骨架
-- `tests`: 本地 Node 测试
-- `docs`: 架构、构建和客户接入说明
+This repository contains the Cocos extension package, native bridge templates, and a basic-call example project for validating the Agora RTC 4.5.3 integration on Android and iOS.
 
-## 当前状态
+- The SDK package is under `sdk/agora-rtc`.
+- The example project is under `example/basic-call`.
+- Build and integration helpers are under `scripts`.
 
-- 已完成 TypeScript SDK 最小接口骨架
-- 已完成 Android 依赖补丁逻辑和 iOS SPM 接入说明生成
-- 已提供 iOS / Android 原生桥接模板
-- 已提供 example 工程骨架与接入脚本
+## Prerequisites
 
-## 本地验证
+- Cocos Creator 3.8.8
+- Node.js 18+
+- Android Studio / Android SDK / JDK 17 for Android builds
+- Xcode 15+ and CocoaPods for iOS builds
+- A valid Agora App ID. A token and channel ID are required for real RTC join validation.
 
-```bash
-npm test
-./scripts/prepare-example.sh
-./scripts/package-sdk.sh
-node ./scripts/fetch-agora-maven.mjs
-```
+## Usage
 
-本机已实际执行过：
+1. Clone the repository.
+  ```bash
+   git clone git@github.com:AgoraIO-Extensions/agora-cocos-rtc.git
+   cd Agora-Cocos-RTC-SDK
+  ```
+2. Install dependencies and run the repository checks.
+  ```bash
+   npm install
+   npm test
+  ```
+3. Prepare the Cocos example project.
+  ```bash
+   ./scripts/prepare-example.sh
+  ```
+4. Configure the runtime credentials in:
+  ```text
+   example/basic-call/assets/resources/agora-config.json
+  ```
+5. Open `example/basic-call` with Cocos Creator 3.8.8, or run a platform script:
+  ```bash
+   ./scripts/dev-android.sh
+   ./scripts/dev-ios.sh
+  ```
+6. Build a distributable extension package when needed.
+  ```bash
+   ./scripts/package-sdk.sh ./dist
+  ```
 
-- `web-desktop` 命令行构建
-- `iOS` 命令行导出
-- `Android` 命令行导出
-- `Android` 离线 `assembleDebug`
-- `iOS` `iphonesimulator` 无签名 build
+## Repository Layout
 
-Android 当前最稳定的本地调试入口：
+- `sdk/agora-rtc`: Cocos extension and SDK package delivered to customers.
+- `sdk/agora-rtc/js`: TypeScript API wrapper.
+- `sdk/agora-rtc/templates/android`: Android bridge template.
+- `sdk/agora-rtc/templates/ios`: iOS bridge template.
+- `example/basic-call`: Cocos QA example project.
+- `tests`: Node.js regression tests for SDK packaging, bridge wiring, and example behavior.
+- `scripts`: Local build, package, dependency update, and platform validation helpers.
 
-```bash
-cd /path/to/agora-cocos-rtc
-./scripts/dev-android.sh
-```
+## Help
 
-对应文档：
+For more information:
 
-- `docs/android-debug.md`
+- See [Basic Call Example](example/basic-call/README.md) for the Cocos example workflow.
+- See [Agora RTC Cocos Plugin](sdk/agora-rtc/README.md) for the SDK package contents and API surface.
+- Run `npm test` or `npm run verify` for local validation.
+- Run `./scripts/dev-android.sh` or `./scripts/dev-ios.sh` for platform validation.
 
-iOS 当前的一键本地调试入口：
+## Appendix
 
-```bash
-cd /path/to/agora-cocos-rtc
-./scripts/dev-ios.sh
-```
+### Create an Account and Obtain an App ID
 
-## 当前限制
+To use Agora RTC, obtain an App ID from the Agora Console:
 
-- `iOS` 已把 bridge 源文件加入 Xcode target，并通过 `iphonesimulator` 编译；但 `SPM` 依赖仍保留在导出指引里，没有自动写进 CMake 生成的 Xcode 工程，因为该工程形态与 Swift Package 解析存在兼容限制。
-- `Android` 已通过本地 Maven 镜像绕过 Gradle/JVM 的 TLS 握手问题，并完成离线 `assembleDebug`；后续若要重新拉 Agora 依赖，需要先执行 `node ./scripts/fetch-agora-maven.mjs`。
+1. Create a developer account at [agora.io](https://dashboard.agora.io/signin/).
+2. Open **Projects** > **Project List** in the dashboard.
+3. Copy the App ID into `example/basic-call/assets/resources/agora-config.json`.
+4. Add a token and channel ID if your project has App Certificate enabled.

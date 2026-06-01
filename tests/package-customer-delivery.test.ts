@@ -30,7 +30,7 @@ async function listFiles(root: string) {
   return results.sort();
 }
 
-test('package-customer-delivery script assembles sdk zip, example assets, and docs', async () => {
+test('package-customer-delivery script assembles sdk zip and example assets without local docs', async () => {
   const outputDir = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-delivery-'));
   const script = path.join(repoRoot, 'scripts/package-customer-delivery.sh');
 
@@ -40,9 +40,6 @@ test('package-customer-delivery script assembles sdk zip, example assets, and do
 
   const checks = [
     'agora-rtc-cocos-plugin.zip',
-    'docs/customer-integration.md',
-    'docs/api-verification-matrix.md',
-    'docs/android-debug.md',
     'example-basic-call/README.md',
     'example-basic-call/assets',
     'example-basic-call/build-configs',
@@ -58,7 +55,7 @@ test('package-customer-delivery script assembles sdk zip, example assets, and do
     /(?:^|\/)\.DS_Store$/,
     /(?:^|\/)node_modules\//,
     /(?:^|\/)dist-cache\//,
-    /^docs\/superpowers\//,
+    /^docs\//,
     /HANDOFF/i,
     /^example-basic-call\/build(?:-|\/)(?!configs\/)/,
     /^example-basic-call\/library\//,

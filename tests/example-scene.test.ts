@@ -199,8 +199,8 @@ test('example controller trims header copy, increases button group spacing, and 
     'utf8',
   );
 
-  assert.match(content, /`App \$\{this\.maskAppId\(this\.appId\)\}  ·  Token \$\{this\.token \? '已配置' : '未配置'\}`/);
-  assert.match(content, /`渲染 \$\{this\.renderBackend\}`/);
+  assert.match(content, /`App \$\{this\.maskAppId\(this\.appId\)\}  ·  Token \$\{this\.token \? 'configured' : 'not configured'\}`/);
+  assert.match(content, /`Render \$\{this\.renderBackend\}`/);
   assert.match(content, /layout\.spacingY = 10;/);
   assert.match(content, /QA_GRID_BUTTON_HEIGHT = 36;/);
   assert.match(content, /QA_LANDSCAPE_LEFT_MAX_WIDTH = 420;/);

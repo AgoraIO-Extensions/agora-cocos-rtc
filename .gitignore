@@ -49,5 +49,4 @@ sdk/agora-rtc/dist-cache/
 GoogleService-Info.plist
 google-services.json
 
-# AI/development handoff notes that should not ship as project docs
 docs/

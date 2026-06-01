@@ -40,5 +40,5 @@ test('package-sdk script creates a distributable zip with plugin manifests', asy
   assert.ok(!entries.some((entry) => /HANDOFF/i.test(entry)));
 
   const readme = await readFile(path.join(repoRoot, 'sdk/agora-rtc/README.md'), 'utf8');
-  assert.match(readme, /第一阶段接口/);
+  assert.match(readme, /API Surface/);
 });
