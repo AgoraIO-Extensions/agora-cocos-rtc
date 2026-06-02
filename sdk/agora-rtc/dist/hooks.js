@@ -3,6 +3,11 @@ const { access, copyFile, cp, mkdir, readFile, writeFile } = require('node:fs/pr
 const sdkConfig = require('./sdk-config.js');
 
 const IOS_GUIDE_RELATIVE_PATH = 'AGORA_RTC_SPM_SETUP.md';
+const IOS_APP_DELEGATE_FORWARD_DECLARATION = `@interface AgoraRtcPlugin : NSObject
++ (instancetype)sharedInstance;
+- (void)attachBridge;
+@end`;
+const IOS_APP_DELEGATE_ATTACH_CALL = '    [[AgoraRtcPlugin sharedInstance] attachBridge];';
 
 function applyAndroidGradleDependencies(content) {
   const dependencyLines = sdkConfig.android.dependencies.map(
@@ -115,6 +120,67 @@ async function copyTemplateDirectory(rootDir, sourceRelativePath, destinationRel
   return destinationPath;
 }
 
+async function copyIosTemplateFiles(destinationRoot, nestedInNativeSourceDir = false) {
+  const iosTemplateFiles = [
+    'AgoraRtcBridge.swift',
+    'AgoraRtcPlugin.mm',
+    'AgoraEngineTextureSlotBridge.h',
+    'AgoraEngineTextureSlotBridge.mm',
+  ];
+
+  for (const filename of iosTemplateFiles) {
+    await copyTemplateFile(
+      destinationRoot,
+      `templates/ios/${filename}`,
+      nestedInNativeSourceDir ? `agora-rtc/${filename}` : filename,
+    );
+  }
+}
+
+function patchIosAppDelegateBridgeAttachment(content) {
+  let next = content;
+
+  if (!next.includes('@interface AgoraRtcPlugin : NSObject')) {
+    const importAnchor = '#import "service/SDKWrapper.h"';
+    if (next.includes(importAnchor)) {
+      next = next.replace(
+        importAnchor,
+        `${importAnchor}\n\n${IOS_APP_DELEGATE_FORWARD_DECLARATION}`,
+      );
+    } else {
+      next = `${IOS_APP_DELEGATE_FORWARD_DECLARATION}\n\n${next}`;
+    }
+  }
+
+  if (!next.includes('[[AgoraRtcPlugin sharedInstance] attachBridge]')) {
+    const launchAnchor = '[appDelegateBridge application:application didFinishLaunchingWithOptions:launchOptions];';
+    if (!next.includes(launchAnchor)) {
+      throw new Error('Unable to patch iOS AppDelegate: launch anchor not found.');
+    }
+    next = next.replace(launchAnchor, `${launchAnchor}\n${IOS_APP_DELEGATE_ATTACH_CALL}`);
+  }
+
+  return next;
+}
+
+async function ensureIosAppDelegateBridgeAttachment(nativeSourceDir) {
+  const appDelegatePath = path.join(nativeSourceDir, 'AppDelegate.mm');
+  try {
+    await access(appDelegatePath);
+  } catch {
+    return null;
+  }
+
+  const original = await readFile(appDelegatePath, 'utf8');
+  const patched = patchIosAppDelegateBridgeAttachment(original);
+
+  if (patched !== original) {
+    await writeFile(appDelegatePath, patched, 'utf8');
+  }
+
+  return appDelegatePath;
+}
+
 async function integrateAndroidExport(rootDir) {
   const appGradleFile = await findFirstExistingPath(rootDir, [
     'native/engine/android/app/build.gradle',
@@ -178,16 +244,11 @@ async function integrateIosExport(rootDir) {
   }
 
   for (const destinationRoot of destinations) {
-    await copyTemplateFile(
-      destinationRoot,
-      'templates/ios/AgoraRtcBridge.swift',
-      destinationRoot === nativeSourceDir ? 'agora-rtc/AgoraRtcBridge.swift' : 'AgoraRtcBridge.swift',
-    );
-    await copyTemplateFile(
-      destinationRoot,
-      'templates/ios/AgoraRtcPlugin.mm',
-      destinationRoot === nativeSourceDir ? 'agora-rtc/AgoraRtcPlugin.mm' : 'AgoraRtcPlugin.mm',
-    );
+    await copyIosTemplateFiles(destinationRoot, destinationRoot === nativeSourceDir);
+  }
+
+  if (nativeSourceDir) {
+    await ensureIosAppDelegateBridgeAttachment(nativeSourceDir);
   }
 }
 
@@ -226,7 +287,10 @@ module.exports = {
   findFirstExistingPath,
   integrateAndroidExport,
   integrateIosExport,
+  copyIosTemplateFiles,
+  ensureIosAppDelegateBridgeAttachment,
   onAfterBuild,
+  patchIosAppDelegateBridgeAttachment,
   rewriteAndroidGradlePluginVersion,
   rewriteGradleDistributionUrl,
   sdkConfig,

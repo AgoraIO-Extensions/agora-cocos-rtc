@@ -28,13 +28,13 @@ const engineTextureSlotBridgeTemplate = path.join(
   repoRoot,
   'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/render/AgoraEngineTextureSlotBridge.java',
 );
-const engineTextureBridgeCpp = path.join(
+const iosEngineTextureSlotBridgeTemplate = path.join(
   repoRoot,
-  'example/basic-call/native/engine/common/Classes/agora/AgoraEngineTextureBridge.cpp',
+  'sdk/agora-rtc/templates/ios/AgoraEngineTextureSlotBridge.mm',
 );
-const gameCppFile = path.join(
+const iosEngineTextureSlotBridgeHeaderTemplate = path.join(
   repoRoot,
-  'example/basic-call/native/engine/common/Classes/Game.cpp',
+  'sdk/agora-rtc/templates/ios/AgoraEngineTextureSlotBridge.h',
 );
 
 async function readEngineTextureLimits(filePath: string) {
@@ -92,7 +92,7 @@ test('engine-texture backend emits texture slot lifecycle events instead of Base
   const templateContent = await readFile(engineTextureBackendTemplate, 'utf8');
   const runtimeContent = await readFile(engineTextureBackendRuntime, 'utf8');
   const slotBridgeContent = await readFile(engineTextureSlotBridgeTemplate, 'utf8');
-  const gameContent = await readFile(gameCppFile, 'utf8');
+  const iosSlotBridgeContent = await readFile(iosEngineTextureSlotBridgeTemplate, 'utf8');
 
   assert.doesNotMatch(templateContent, /dataBase64/);
   assert.doesNotMatch(runtimeContent, /dataBase64/);
@@ -103,7 +103,9 @@ test('engine-texture backend emits texture slot lifecycle events instead of Base
   assert.match(slotBridgeContent, /nativeCreateSlot/);
   assert.match(slotBridgeContent, /nativeUpdateSlot/);
   assert.match(slotBridgeContent, /nativeReleaseSlot/);
-  assert.match(gameContent, /addRegisterCallback\(agora::cocos::register_all_agora_engine_texture\)/);
+  assert.match(iosSlotBridgeContent, /create_agora_engine_texture_slot/);
+  assert.match(iosSlotBridgeContent, /update_agora_engine_texture_slot/);
+  assert.match(iosSlotBridgeContent, /release_agora_engine_texture_slot/);
 });
 
 test('android bridge template dispatches expanded sdk methods', async () => {
@@ -277,14 +279,19 @@ test('ios plugin registrar attaches the js bridge wrapper and forwards responses
   assert.match(bridgeContent, /agora:event/);
 });
 
-test('ios app delegate attaches the agora js bridge during app startup', async () => {
-  const appDelegateContent = await readFile(
-    path.join(repoRoot, 'example/basic-call/native/engine/ios/AppDelegate.mm'),
+test('ios integration script registers all committed bridge templates in the exported project', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
     'utf8',
   );
 
-  assert.match(appDelegateContent, /@interface AgoraRtcPlugin : NSObject/);
-  assert.match(appDelegateContent, /\[\[AgoraRtcPlugin sharedInstance\] attachBridge\]/);
+  assert.match(scriptContent, /AgoraRtcBridge\.swift/);
+  assert.match(scriptContent, /AgoraRtcPlugin\.mm/);
+  assert.match(scriptContent, /AgoraEngineTextureSlotBridge\.h/);
+  assert.match(scriptContent, /AgoraEngineTextureSlotBridge\.mm/);
+  assert.match(scriptContent, /APP_DELEGATE_PATH/);
+  assert.match(scriptContent, /ensure_app_delegate_attaches_bridge/);
+  assert.match(scriptContent, /\[\[AgoraRtcPlugin sharedInstance\] attachBridge\]/);
 });
 
 test('ios bridge template manages native video canvas views for local and remote rendering', async () => {
@@ -349,7 +356,8 @@ test('engine-texture backend uses DirectByteBuffer and slot-level reusable nativ
   const templateContent = await readFile(engineTextureBackendTemplate, 'utf8');
   const runtimeContent = await readFile(engineTextureBackendRuntime, 'utf8');
   const slotBridgeContent = await readFile(engineTextureSlotBridgeTemplate, 'utf8');
-  const bridgeCppContent = await readFile(engineTextureBridgeCpp, 'utf8');
+  const iosSlotBridgeHeaderContent = await readFile(iosEngineTextureSlotBridgeHeaderTemplate, 'utf8');
+  const iosSlotBridgeContent = await readFile(iosEngineTextureSlotBridgeTemplate, 'utf8');
 
   assert.match(templateContent, /nativeUpdateI420Slot\(/);
   assert.match(templateContent, /i420Buffer\.getDataY\(\)/);
@@ -363,35 +371,39 @@ test('engine-texture backend uses DirectByteBuffer and slot-level reusable nativ
   assert.match(slotBridgeContent, /ByteBuffer dataY/);
   assert.match(slotBridgeContent, /ByteBuffer dataU/);
   assert.match(slotBridgeContent, /ByteBuffer dataV/);
-  assert.match(bridgeCppContent, /GetDirectBufferAddress/);
-  assert.match(bridgeCppContent, /stagingRgba/);
-  assert.match(bridgeCppContent, /uploadRgba/);
+  assert.match(iosSlotBridgeHeaderContent, /updateSlot:\(NSNumber \*\)slotId videoFrame:/);
+  assert.match(iosSlotBridgeContent, /CVPixelBufferLockBaseAddress/);
+  assert.match(iosSlotBridgeContent, /static_cast<const uint8_t \*>/);
 });
 
 test('engine-texture backend delegates YUV to RGBA conversion to native code', async () => {
   const templateContent = await readFile(engineTextureBackendTemplate, 'utf8');
   const runtimeContent = await readFile(engineTextureBackendRuntime, 'utf8');
   const slotBridgeContent = await readFile(engineTextureSlotBridgeTemplate, 'utf8');
-  const bridgeCppContent = await readFile(engineTextureBridgeCpp, 'utf8');
+  const iosSlotBridgeContent = await readFile(iosEngineTextureSlotBridgeTemplate, 'utf8');
 
   assert.doesNotMatch(templateContent, /i420ToRgba/);
   assert.doesNotMatch(runtimeContent, /i420ToRgba/);
   assert.doesNotMatch(templateContent, /clampColor/);
   assert.doesNotMatch(runtimeContent, /clampColor/);
   assert.match(slotBridgeContent, /nativeUpdateI420Slot/);
-  assert.match(bridgeCppContent, /nativeUpdateI420Slot/);
-  assert.match(bridgeCppContent, /convertI420ToRgba/);
-  assert.match(bridgeCppContent, /strideY/);
-  assert.match(bridgeCppContent, /strideU/);
-  assert.match(bridgeCppContent, /strideV/);
+  assert.match(iosSlotBridgeContent, /update_agora_engine_texture_i420_slot/);
+  assert.match(iosSlotBridgeContent, /videoFrame\.yStride/);
+  assert.match(iosSlotBridgeContent, /videoFrame\.uStride/);
+  assert.match(iosSlotBridgeContent, /videoFrame\.vStride/);
 });
 
-test('engine texture native bridge keeps JNI bindings behind android platform guards', async () => {
-  const bridgeCppContent = await readFile(engineTextureBridgeCpp, 'utf8');
+test('engine texture slot bridge templates expose platform-specific native entrypoints', async () => {
+  const androidSlotBridgeContent = await readFile(engineTextureSlotBridgeTemplate, 'utf8');
+  const iosSlotBridgeContent = await readFile(iosEngineTextureSlotBridgeTemplate, 'utf8');
 
-  assert.match(bridgeCppContent, /#if[\s\S]*CC_PLATFORM_ANDROID/);
-  assert.match(bridgeCppContent, /#include <jni\.h>/);
-  assert.match(bridgeCppContent, /Java_io_agora_cocos_rtc_render_AgoraEngineTextureSlotBridge_nativeCreateSlot/);
+  assert.match(androidSlotBridgeContent, /static native int nativeCreateSlot/);
+  assert.match(androidSlotBridgeContent, /static native void nativeUpdateSlot/);
+  assert.match(androidSlotBridgeContent, /static native void nativeUpdateI420Slot/);
+  assert.match(androidSlotBridgeContent, /static native void nativeReleaseSlot/);
+  assert.match(iosSlotBridgeContent, /createSlotWithWidth/);
+  assert.match(iosSlotBridgeContent, /updateSlot:\(NSNumber \*\)slotId videoFrame:/);
+  assert.match(iosSlotBridgeContent, /releaseSlot:/);
 });
 
 test('android bridge template compiles against local stubs', async () => {

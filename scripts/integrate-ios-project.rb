@@ -15,6 +15,7 @@ SDK_CONFIG = JSON.parse(
   File.read(File.join(REPO_ROOT, 'sdk/agora-rtc/sdk-config.json'))
 )
 PROJECT_PATH = File.join(REPO_ROOT, 'example/basic-call/build-ios/ios/proj/agora-cocos-basic-call.xcodeproj')
+APP_DELEGATE_PATH = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/AppDelegate.mm')
 GROUP_NAME = 'agora-rtc'
 PACKAGE_URL = SDK_CONFIG.fetch('ios').fetch('packageUrl')
 PACKAGE_VERSION = SDK_CONFIG.fetch('ios').fetch('packageVersion')
@@ -24,6 +25,39 @@ WITH_PACKAGE = ARGV.include?('--with-package')
 IOS_BUNDLE_ID = ENV['IOS_BUNDLE_ID']
 IOS_DEVELOPMENT_TEAM = ENV['IOS_DEVELOPMENT_TEAM']
 IOS_PROVISIONING_PROFILE_SPECIFIER = ENV['IOS_PROVISIONING_PROFILE_SPECIFIER']
+
+APP_DELEGATE_FORWARD_DECLARATION = <<~OBJC.strip
+  @interface AgoraRtcPlugin : NSObject
+  + (instancetype)sharedInstance;
+  - (void)attachBridge;
+  @end
+OBJC
+APP_DELEGATE_ATTACH_CALL = '    [[AgoraRtcPlugin sharedInstance] attachBridge];'
+
+def ensure_app_delegate_attaches_bridge(path)
+  return unless File.exist?(path)
+
+  content = File.read(path)
+  patched = content.dup
+
+  unless patched.include?('@interface AgoraRtcPlugin : NSObject')
+    import_anchor = '#import "service/SDKWrapper.h"'
+    patched = if patched.include?(import_anchor)
+                patched.sub(import_anchor, "#{import_anchor}\n\n#{APP_DELEGATE_FORWARD_DECLARATION}")
+              else
+                "#{APP_DELEGATE_FORWARD_DECLARATION}\n\n#{patched}"
+              end
+  end
+
+  unless patched.include?('[[AgoraRtcPlugin sharedInstance] attachBridge]')
+    launch_anchor = '[appDelegateBridge application:application didFinishLaunchingWithOptions:launchOptions];'
+    raise 'Unable to patch iOS AppDelegate: launch anchor not found.' unless patched.include?(launch_anchor)
+
+    patched = patched.sub(launch_anchor, "#{launch_anchor}\n#{APP_DELEGATE_ATTACH_CALL}")
+  end
+
+  File.write(path, patched) if patched != content
+end
 
 project = Xcodeproj::Project.open(PROJECT_PATH)
 target = project.targets.find { |candidate| candidate.name == TARGET_NAME }
@@ -106,4 +140,5 @@ else
 end
 
 project.save
+ensure_app_delegate_attaches_bridge(APP_DELEGATE_PATH)
 puts "Integrated Agora bridge files into #{PROJECT_PATH}"

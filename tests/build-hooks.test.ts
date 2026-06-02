@@ -8,9 +8,12 @@ import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 const require = createRequire(import.meta.url);
 const {
   applyAndroidGradleDependencies,
+  copyIosTemplateFiles,
   ensureAgoraLocalMavenRepository,
+  ensureIosAppDelegateBridgeAttachment,
   ensureIosSetupGuide,
   findFirstExistingPath,
+  patchIosAppDelegateBridgeAttachment,
   rewriteAndroidGradlePluginVersion,
   rewriteGradleDistributionUrl,
   sdkConfig,
@@ -91,6 +94,72 @@ test('ensureIosSetupGuide writes an actionable SPM guide', async () => {
   assert.match(content, new RegExp(sdkConfig.ios.packageProduct));
   assert.match(content, new RegExp(sdkConfig.ios.packageVersion.replaceAll('.', '\\.')));
   assert.match(content, /Swift Package Manager/);
+});
+
+test('copyIosTemplateFiles includes rtc bridge and engine texture slot bridge files', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-templates-'));
+
+  await copyIosTemplateFiles(root);
+
+  for (const filename of [
+    'AgoraRtcBridge.swift',
+    'AgoraRtcPlugin.mm',
+    'AgoraEngineTextureSlotBridge.h',
+    'AgoraEngineTextureSlotBridge.mm',
+  ]) {
+    const content = await readFile(path.join(root, filename), 'utf8');
+    assert.ok(content.length > 0, `${filename} should be copied`);
+  }
+});
+
+test('patchIosAppDelegateBridgeAttachment attaches the native bridge at app launch once', () => {
+  const original = `#import "AppDelegate.h"
+#import "service/SDKWrapper.h"
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+    [appDelegateBridge application:application didFinishLaunchingWithOptions:launchOptions];
+    return YES;
+}
+`;
+
+  const once = patchIosAppDelegateBridgeAttachment(original);
+  const twice = patchIosAppDelegateBridgeAttachment(once);
+
+  assert.match(once, /@interface AgoraRtcPlugin : NSObject/);
+  assert.match(once, /\+ \(instancetype\)sharedInstance;/);
+  assert.match(once, /- \(void\)attachBridge;/);
+  assert.match(once, /\[\[AgoraRtcPlugin sharedInstance\] attachBridge\];/);
+  assert.equal(once, twice);
+});
+
+test('ensureIosAppDelegateBridgeAttachment patches an exported native source file', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-appdelegate-'));
+  const appDelegatePath = path.join(root, 'AppDelegate.mm');
+  await writeFile(
+    appDelegatePath,
+    `#import "service/SDKWrapper.h"
+
+- (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+    [appDelegateBridge application:application didFinishLaunchingWithOptions:launchOptions];
+    return YES;
+}
+`,
+    'utf8',
+  );
+
+  await ensureIosAppDelegateBridgeAttachment(root);
+  const content = await readFile(appDelegatePath, 'utf8');
+
+  assert.match(content, /@interface AgoraRtcPlugin : NSObject/);
+  assert.match(content, /\[\[AgoraRtcPlugin sharedInstance\] attachBridge\];/);
+});
+
+test('ensureIosAppDelegateBridgeAttachment skips exports without AppDelegate.mm', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-no-appdelegate-'));
+
+  const result = await ensureIosAppDelegateBridgeAttachment(root);
+
+  assert.equal(result, null);
 });
 
 test('cocos extension entrypoints are loadable from commonjs', () => {
