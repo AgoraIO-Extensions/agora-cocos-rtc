@@ -5,7 +5,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "sync:version": "node ./scripts/sync-sdk-version.mjs",
-    "test": "node --test tests/agora-client.test.ts tests/build-hooks.test.ts tests/native-templates.test.ts tests/package-sdk.test.ts tests/package-customer-delivery.test.ts tests/sdk-config.test.ts tests/example-scene.test.ts tests/example-hud-layout.test.ts tests/dev-android-script.test.ts tests/dev-ios-script.test.ts tests/ios-podfile.test.ts tests/productization.test.ts",
+    "build:all-platforms": "./scripts/build-all-platforms.sh",
+    "test": "node --test tests/agora-client.test.ts tests/build-hooks.test.ts tests/native-templates.test.ts tests/package-sdk.test.ts tests/package-customer-delivery.test.ts tests/sdk-config.test.ts tests/example-scene.test.ts tests/example-hud-layout.test.ts tests/dev-android-script.test.ts tests/dev-ios-script.test.ts tests/build-both-platforms-script.test.ts tests/ios-podfile.test.ts tests/productization.test.ts",
     "verify": "npm run typecheck && npm run test && ./scripts/prepare-example.sh >/dev/null && ./scripts/package-sdk.sh ./dist >/dev/null",
     "release": "release-it"
   },

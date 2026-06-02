@@ -51,7 +51,7 @@ xcodebuild -workspace "$WORKSPACE_PATH" \
   build
 
 APP_PATH="$DERIVED_DATA_PATH/Build/Products/Debug-iphonesimulator/agora-cocos-basic-call-mobile.app"
-IOS_BUNDLE_ID="${IOS_BUNDLE_ID:-io.agora.agoraRtcEngineExample}"
+IOS_BUNDLE_ID="${IOS_BUNDLE_ID:-io.agora.cocos.example}"
 
 echo
 echo "iOS simulator build finished:"

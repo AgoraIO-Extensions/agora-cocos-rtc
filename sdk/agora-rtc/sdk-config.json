@@ -7,7 +7,7 @@
     "gradlePluginVersion": "8.13.1",
     "gradleDistributionUrl": "https\\://services.gradle.org/distributions/gradle-8.13-bin.zip",
     "localMavenRelativePath": "../../../local-maven",
-    "targetPackageName": "io.agora.cocosbasiccall"
+    "targetPackageName": "io.agora.cocos.example"
   },
   "ios": {
     "packageUrl": "https://github.com/AgoraIO/AgoraRtcEngine_iOS.git",

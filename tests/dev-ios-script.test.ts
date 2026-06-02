@@ -22,6 +22,7 @@ test('dev-ios script syncs current ios runtime bridge sources into exported proj
   );
   assert.match(content, /pod install/);
   assert.match(content, /xcodebuild/);
+  assert.match(content, /IOS_BUNDLE_ID="\$\{IOS_BUNDLE_ID:-io\.agora\.cocos\.example\}"/);
 });
 
 test('ios debug build config uses the requested agora example bundle identifier', async () => {

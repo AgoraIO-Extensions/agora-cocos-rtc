@@ -13,6 +13,16 @@ on:
         type: boolean
         required: false
         default: true
+      build_platform_packages:
+        description: 'Build Android APK and iOS simulator app. Requires Cocos Creator on the runner.'
+        type: boolean
+        required: false
+        default: false
+      runner_label:
+        description: 'Runner label. Use a macOS self-hosted runner with Cocos Creator when build_platform_packages is true.'
+        type: string
+        required: false
+        default: 'macos-latest'
   workflow_call:
     inputs:
       target_branch:
@@ -23,10 +33,25 @@ on:
         type: boolean
         required: false
         default: true
+      build_platform_packages:
+        type: boolean
+        required: false
+        default: false
+      runner_label:
+        type: string
+        required: false
+        default: 'macos-latest'
+    secrets:
+      AGORA_APP_ID:
+        required: false
+      AGORA_CHANNEL_ID:
+        required: false
+      AGORA_TOKEN:
+        required: false
 
 jobs:
   build_example:
-    runs-on: macos-latest
+    runs-on: ${{ inputs.runner_label || 'macos-latest' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,6 +78,33 @@ jobs:
       - name: Package customer delivery
         run: ./scripts/package-customer-delivery.sh ./dist/customer-delivery
 
+      - name: Configure Agora example credentials
+        if: ${{ inputs.build_platform_packages }}
+        env:
+          AGORA_APP_ID: ${{ secrets.AGORA_APP_ID }}
+          AGORA_CHANNEL_ID: ${{ secrets.AGORA_CHANNEL_ID }}
+          AGORA_TOKEN: ${{ secrets.AGORA_TOKEN }}
+        run: |
+          if [ -z "$AGORA_APP_ID" ]; then
+            echo "Agora App ID secret is required when build_platform_packages is true." >&2
+            exit 1
+          fi
+          export AGORA_CHANNEL_ID="${AGORA_CHANNEL_ID:-testapi}"
+          node --input-type=module - <<'NODE'
+          import { readFile, writeFile } from 'node:fs/promises';
+
+          const configPath = 'example/basic-call/assets/resources/agora-config.json';
+          const config = JSON.parse(await readFile(configPath, 'utf8'));
+          config.appId = process.env.AGORA_APP_ID;
+          config.channelId = process.env.AGORA_CHANNEL_ID;
+          config.token = process.env.AGORA_TOKEN ?? '';
+          await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+          NODE
+
+      - name: Build Android and iOS example packages
+        if: ${{ inputs.build_platform_packages }}
+        run: npm run build:all-platforms
+
       - name: Upload SDK package
         uses: actions/upload-artifact@v4
         with:
@@ -65,4 +117,20 @@ jobs:
         with:
           name: agora-cocos-customer-delivery
           path: dist/customer-delivery
+          if-no-files-found: error
+
+      - name: Upload Android example APK
+        if: ${{ inputs.build_platform_packages }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: agora-cocos-example-android-apk
+          path: example/basic-call/build-android/android/proj/build/agora-cocos-basic-call/outputs/apk/debug/agora-cocos-basic-call-debug.apk
+          if-no-files-found: error
+
+      - name: Upload iOS simulator example app
+        if: ${{ inputs.build_platform_packages }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: agora-cocos-example-ios-simulator-app
+          path: example/basic-call/build-ios/agora-cocos-basic-call-mobile-Debug-iphonesimulator.app.zip
           if-no-files-found: error

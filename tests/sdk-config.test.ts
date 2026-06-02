@@ -12,6 +12,7 @@ test('sdk native dependency config is exposed from a single source of truth', ()
     'io.agora.rtc:full-screen-sharing:4.5.3',
   ]);
   assert.equal(sdkConfig.android.gradlePluginVersion, '8.13.1');
+  assert.equal(sdkConfig.android.targetPackageName, 'io.agora.cocos.example');
   assert.equal(
     sdkConfig.android.gradleDistributionUrl,
     'https\\://services.gradle.org/distributions/gradle-8.13-bin.zip',
