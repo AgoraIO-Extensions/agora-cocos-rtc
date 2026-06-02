@@ -57,9 +57,16 @@ test('github build workflow can inject agora secrets and optionally upload platf
   assert.match(content, /APP_ID:/);
   assert.match(content, /AGORA_CHANNEL_ID:/);
   assert.match(content, /AGORA_TOKEN:/);
-  assert.match(content, /APP_ID: \$\{\{ secrets\.APP_ID \|\| secrets\.AGORA_APP_ID \}\}/);
-  assert.match(content, /AGORA_CHANNEL_ID: \$\{\{ secrets\.AGORA_CHANNEL_ID \}\}/);
-  assert.match(content, /APP_ID secret is required when build_platform_packages is true/);
+  assert.match(
+    content,
+    /APP_ID: \$\{\{ secrets\.APP_ID \|\| secrets\.AGORA_APP_ID \|\| vars\.APP_ID \|\| vars\.AGORA_APP_ID \}\}/,
+  );
+  assert.match(
+    content,
+    /AGORA_CHANNEL_ID: \$\{\{ secrets\.AGORA_CHANNEL_ID \|\| vars\.AGORA_CHANNEL_ID \}\}/,
+  );
+  assert.match(content, /AGORA_TOKEN: \$\{\{ secrets\.AGORA_TOKEN \|\| vars\.AGORA_TOKEN \}\}/);
+  assert.match(content, /APP_ID secret or variable is required when build_platform_packages is true/);
   assert.match(content, /export AGORA_CHANNEL_ID="\$\{AGORA_CHANNEL_ID:-testapi\}"/);
   assert.match(content, /npm run build:all-platforms/);
   assert.match(content, /name: agora-cocos-example-android-apk/);
