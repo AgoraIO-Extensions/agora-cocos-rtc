@@ -42,6 +42,8 @@ on:
         required: false
         default: 'macos-latest'
     secrets:
+      APP_ID:
+        required: false
       AGORA_APP_ID:
         required: false
       AGORA_CHANNEL_ID:
@@ -81,12 +83,12 @@ jobs:
       - name: Configure Agora example credentials
         if: ${{ inputs.build_platform_packages }}
         env:
-          AGORA_APP_ID: ${{ secrets.AGORA_APP_ID }}
+          APP_ID: ${{ secrets.APP_ID || secrets.AGORA_APP_ID }}
           AGORA_CHANNEL_ID: ${{ secrets.AGORA_CHANNEL_ID }}
           AGORA_TOKEN: ${{ secrets.AGORA_TOKEN }}
         run: |
-          if [ -z "$AGORA_APP_ID" ]; then
-            echo "Agora App ID secret is required when build_platform_packages is true." >&2
+          if [ -z "$APP_ID" ]; then
+            echo "APP_ID secret is required when build_platform_packages is true." >&2
             exit 1
           fi
           export AGORA_CHANNEL_ID="${AGORA_CHANNEL_ID:-testapi}"
@@ -95,7 +97,7 @@ jobs:
 
           const configPath = 'example/basic-call/assets/resources/agora-config.json';
           const config = JSON.parse(await readFile(configPath, 'utf8'));
-          config.appId = process.env.AGORA_APP_ID;
+          config.appId = process.env.APP_ID;
           config.channelId = process.env.AGORA_CHANNEL_ID;
           config.token = process.env.AGORA_TOKEN ?? '';
           await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
