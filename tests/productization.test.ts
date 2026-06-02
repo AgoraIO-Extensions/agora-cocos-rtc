@@ -312,11 +312,11 @@ test('gitignore keeps generated cocos output and local docs out of commits', asy
 
 test('gitignore behavior matches the intended commit boundary', async () => {
   const ignoredPaths = [
-    'example/basic-call/library',
-    'example/basic-call/temp',
-    'example/basic-call/build',
-    'example/basic-call/build-android',
-    'example/basic-call/build-ios',
+    'example/basic-call/library/file.txt',
+    'example/basic-call/temp/file.txt',
+    'example/basic-call/build/file.txt',
+    'example/basic-call/build-android/file.txt',
+    'example/basic-call/build-ios/file.txt',
     'example/basic-call/build-logs',
     'example/basic-call/extensions/agora-rtc',
     'example/basic-call/native/engine/android/app/build.gradle',
