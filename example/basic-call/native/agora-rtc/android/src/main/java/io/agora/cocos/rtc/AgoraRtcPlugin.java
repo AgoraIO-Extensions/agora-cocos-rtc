@@ -52,10 +52,14 @@ public final class AgoraRtcPlugin {
         }
         attached = true;
         JsbBridgeWrapper.getInstance().addScriptEventListener(REQUEST_EVENT, payload -> {
+            String requestId = "";
             try {
+                requestId = extractRequestId(payload);
                 handleScriptRequest(payload);
             } catch (JSONException error) {
                 dispatchError("", "Invalid script payload: " + error.getMessage());
+            } catch (Exception error) {
+                dispatchNativeExceptionError(requestId, error);
             }
         });
     }
@@ -314,19 +318,35 @@ public final class AgoraRtcPlugin {
             dispatchError(requestId, "Render backend is required.");
             return;
         }
+        if (!isSupportedRenderBackend(backend)) {
+            dispatchInvalidArgumentError(
+                    requestId,
+                    "Unsupported render backend: " + backend,
+                    "setRenderBackend",
+                    "backend",
+                    backend
+            );
+            return;
+        }
 
         if (backend.equals(renderBackendType) && renderBackend != null) {
             dispatchOk(requestId);
             return;
         }
 
-        if (renderBackend != null) {
-            renderBackend.release();
-        }
-        renderBackendType = backend;
-        renderBackend = AgoraRenderBackendFactory.create(renderBackendType, this::dispatchEvent);
-        if (rtcEngine != null) {
-            renderBackend.bindEngine(rtcEngine);
+        try {
+            AgoraRenderBackend nextBackend = AgoraRenderBackendFactory.create(backend, this::dispatchEvent);
+            if (renderBackend != null) {
+                renderBackend.release();
+            }
+            renderBackendType = backend;
+            renderBackend = nextBackend;
+            if (rtcEngine != null) {
+                renderBackend.bindEngine(rtcEngine);
+            }
+        } catch (Exception error) {
+            dispatchNativeExceptionError(requestId, error);
+            return;
         }
         dispatchOk(requestId);
     }
@@ -1082,6 +1102,20 @@ public final class AgoraRtcPlugin {
         };
     }
 
+    private boolean isSupportedRenderBackend(String backend) {
+        return "surface-view".equals(backend)
+                || "texture-view".equals(backend)
+                || "engine-texture".equals(backend);
+    }
+
+    private String extractRequestId(String payload) {
+        try {
+            return new JSONObject(payload).optString("requestId", "");
+        } catch (JSONException error) {
+            return "";
+        }
+    }
+
     private void dispatchOk(String requestId) {
         dispatchResponse(jsonObject(
                 "requestId", requestId,
@@ -1098,6 +1132,36 @@ public final class AgoraRtcPlugin {
                         "message", message
                 )
         ));
+    }
+
+    private void dispatchInvalidArgumentError(
+            String requestId,
+            String message,
+            String method,
+            String argumentName,
+            String argumentValue
+    ) {
+        dispatchResponse(jsonObject(
+                "requestId", requestId,
+                "ok", false,
+                "error", jsonObject(
+                        "code", "invalid_argument",
+                        "message", message,
+                        "details", jsonObject(
+                                "method", method,
+                                argumentName, argumentValue,
+                                "platform", "android"
+                        )
+                )
+        ));
+    }
+
+    private void dispatchNativeExceptionError(String requestId, Exception error) {
+        String message = error.getMessage();
+        dispatchError(
+                requestId,
+                "Native request failed: " + (message != null ? message : error.getClass().getSimpleName())
+        );
     }
 
     private void dispatchUnsupported(String requestId, String method) {

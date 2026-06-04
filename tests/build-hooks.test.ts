@@ -9,11 +9,13 @@ const require = createRequire(import.meta.url);
 const {
   applyAndroidGradleDependencies,
   copyIosTemplateFiles,
+  ensureAndroidAppActivityBridgeAttachment,
   ensureAgoraLocalMavenRepository,
   ensureIosAppDelegateBridgeAttachment,
   ensureIosSetupGuide,
   ensureNativeEngineTextureBridge,
   findFirstExistingPath,
+  patchAndroidAppActivityBridgeAttachment,
   patchIosAppDelegateBridgeAttachment,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,
@@ -265,6 +267,73 @@ test('ensureIosAppDelegateBridgeAttachment skips exports without AppDelegate.mm'
   const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-no-appdelegate-'));
 
   const result = await ensureIosAppDelegateBridgeAttachment(root);
+
+  assert.equal(result, null);
+});
+
+test('patchAndroidAppActivityBridgeAttachment attaches the native bridge after SDK init once', () => {
+  const original = `package com.cocos.game;
+
+import android.os.Bundle;
+
+import com.cocos.service.SDKWrapper;
+import com.cocos.lib.CocosActivity;
+
+public class AppActivity extends CocosActivity {
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        SDKWrapper.shared().init(this);
+    }
+}
+`;
+
+  const once = patchAndroidAppActivityBridgeAttachment(original);
+  const twice = patchAndroidAppActivityBridgeAttachment(once);
+
+  assert.match(once, /import io\.agora\.cocos\.rtc\.AgoraRtcPlugin;/);
+  assert.match(once, /SDKWrapper\.shared\(\)\.init\(this\);\n        AgoraRtcPlugin\.getInstance\(\)\.attachBridge\(\);/);
+  assert.equal(
+    [...once.matchAll(/AgoraRtcPlugin\.getInstance\(\)\.attachBridge\(\);/g)].length,
+    1,
+  );
+  assert.equal(once, twice);
+});
+
+test('ensureAndroidAppActivityBridgeAttachment patches exported Android AppActivity.java', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-android-appactivity-'));
+  const appActivityDir = path.join(root, 'app/src/com/cocos/game');
+  const appActivityPath = path.join(appActivityDir, 'AppActivity.java');
+  await mkdir(appActivityDir, { recursive: true });
+  await writeFile(
+    appActivityPath,
+    `package com.cocos.game;
+
+import android.os.Bundle;
+import com.cocos.service.SDKWrapper;
+import com.cocos.lib.CocosActivity;
+
+public class AppActivity extends CocosActivity {
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        SDKWrapper.shared().init(this);
+    }
+}
+`,
+    'utf8',
+  );
+
+  await ensureAndroidAppActivityBridgeAttachment(root);
+  const content = await readFile(appActivityPath, 'utf8');
+
+  assert.match(content, /import io\.agora\.cocos\.rtc\.AgoraRtcPlugin;/);
+  assert.match(content, /AgoraRtcPlugin\.getInstance\(\)\.attachBridge\(\);/);
+});
+
+test('ensureAndroidAppActivityBridgeAttachment skips exports without AppActivity.java', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-android-no-appactivity-'));
+
+  const result = await ensureAndroidAppActivityBridgeAttachment(root);
 
   assert.equal(result, null);
 });

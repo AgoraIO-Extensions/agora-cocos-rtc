@@ -8,6 +8,8 @@ const IOS_APP_DELEGATE_FORWARD_DECLARATION = `@interface AgoraRtcPlugin : NSObje
 - (void)attachBridge;
 @end`;
 const IOS_APP_DELEGATE_ATTACH_CALL = '    [[AgoraRtcPlugin sharedInstance] attachBridge];';
+const ANDROID_APP_ACTIVITY_IMPORT = 'import io.agora.cocos.rtc.AgoraRtcPlugin;';
+const ANDROID_APP_ACTIVITY_ATTACH_CALL = '        AgoraRtcPlugin.getInstance().attachBridge();';
 const COMMON_ENGINE_TEXTURE_BRIDGE_FILES = [
   'AgoraEngineTextureBridge.h',
   'AgoraEngineTextureBridge.cpp',
@@ -289,8 +291,66 @@ async function ensureIosAppDelegateBridgeAttachment(nativeSourceDir) {
   return appDelegatePath;
 }
 
+function patchAndroidAppActivityBridgeAttachment(content) {
+  let next = content;
+
+  if (!next.includes(ANDROID_APP_ACTIVITY_IMPORT)) {
+    const packageMatch = next.match(/^(package\s+[\w.]+;\s*)$/m);
+    if (packageMatch) {
+      next = next.replace(packageMatch[0], `${packageMatch[0]}\n${ANDROID_APP_ACTIVITY_IMPORT}`);
+    } else {
+      next = `${ANDROID_APP_ACTIVITY_IMPORT}\n\n${next}`;
+    }
+  }
+
+  if (!next.includes('AgoraRtcPlugin.getInstance().attachBridge()')) {
+    const launchAnchor = 'SDKWrapper.shared().init(this);';
+    if (!next.includes(launchAnchor)) {
+      throw new Error('Unable to patch Android AppActivity: SDKWrapper init anchor not found.');
+    }
+    next = next.replace(launchAnchor, `${launchAnchor}\n${ANDROID_APP_ACTIVITY_ATTACH_CALL}`);
+  }
+
+  return next;
+}
+
+async function ensureAndroidAppActivityBridgeAttachment(androidRootDir) {
+  const appActivityPath = await findFirstExistingPath(androidRootDir, [
+    'app/src/com/cocos/game/AppActivity.java',
+    'app/src/main/java/com/cocos/game/AppActivity.java',
+    'src/com/cocos/game/AppActivity.java',
+    'src/main/java/com/cocos/game/AppActivity.java',
+    'AppActivity.java',
+  ]);
+
+  if (!appActivityPath) {
+    return null;
+  }
+
+  const original = await readFile(appActivityPath, 'utf8');
+  const patched = patchAndroidAppActivityBridgeAttachment(original);
+
+  if (patched !== original) {
+    await writeFile(appActivityPath, patched, 'utf8');
+  }
+
+  return appActivityPath;
+}
+
 async function integrateAndroidExport(rootDir) {
   await ensureNativeEngineTextureBridgeForExport(rootDir);
+
+  const androidSourceDir = await findFirstExistingPath(rootDir, [
+    '../../native/engine/android',
+    '../../../native/engine/android',
+    '../native/engine/android',
+    'native/engine/android',
+    'proj',
+    'android/proj',
+  ]);
+  if (androidSourceDir) {
+    await ensureAndroidAppActivityBridgeAttachment(androidSourceDir);
+  }
 
   const appGradleFile = await findFirstExistingPath(rootDir, [
     'native/engine/android/app/build.gradle',
@@ -399,9 +459,11 @@ module.exports = {
   integrateAndroidExport,
   integrateIosExport,
   copyIosTemplateFiles,
+  ensureAndroidAppActivityBridgeAttachment,
   ensureNativeEngineTextureBridge,
   ensureIosAppDelegateBridgeAttachment,
   onAfterBuild,
+  patchAndroidAppActivityBridgeAttachment,
   patchIosAppDelegateBridgeAttachment,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,

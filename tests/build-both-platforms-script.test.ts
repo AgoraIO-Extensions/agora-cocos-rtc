@@ -42,7 +42,9 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /IOS_SKIP_COCOS_EXPORT="\$\{IOS_SKIP_COCOS_EXPORT:-false\}"/);
   assert.match(content, /fetch-agora-maven\.mjs/);
   assert.match(content, /sync-native-engine-texture-bridge\.mjs/);
+  assert.match(content, /sync-android-app-bridge\.mjs/);
   assert.match(prepareContent, /sync-native-engine-texture-bridge\.mjs/);
+  assert.match(prepareContent, /sync-android-app-bridge\.mjs/);
   assert.match(content, /generate-ios-podfile\.mjs/);
   assert.match(content, /integrate-ios-project\.rb/);
   assert.match(content, /ANDROID_GRADLE_OFFLINE="\$\{ANDROID_GRADLE_OFFLINE:-false\}"/);

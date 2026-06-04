@@ -265,6 +265,119 @@ test('client rejects native failures with an sdk error', async () => {
   );
 });
 
+test('client preserves native validation error details for bad api calls', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.setRenderBackend('bad-backend' as any);
+  const request = JSON.parse(transport.sent[0].payload);
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: false,
+      error: {
+        code: 'invalid_argument',
+        message: 'Unsupported render backend: bad-backend',
+        details: {
+          method: 'setRenderBackend',
+          backend: 'bad-backend',
+        },
+      },
+    }),
+  );
+
+  await assert.rejects(
+    pending,
+    (error: { code: string; message: string; details: Record<string, unknown> }) =>
+      error.code === 'invalid_argument' &&
+      error.message === 'Unsupported render backend: bad-backend' &&
+      error.details.method === 'setRenderBackend' &&
+      error.details.backend === 'bad-backend',
+  );
+});
+
+test('client ignores unknown and malformed native responses without poisoning pending requests', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+  const observedErrors: string[] = [];
+  client.on('error', (payload) => {
+    observedErrors.push(payload.message);
+  });
+
+  const pending = client.initialize('demo-app-id');
+  const request = JSON.parse(transport.sent[0].payload);
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: 'unknown-request-id',
+      ok: false,
+      error: {
+        message: 'late response',
+      },
+    }),
+  );
+  transport.emit('agora:response', '{bad json');
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+  assert.equal(observedErrors.length, 1);
+  assert.match(observedErrors[0], /Invalid response payload/);
+});
+
+test('client isolates malformed events and throwing listeners from later native events', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+  const observedErrors: string[] = [];
+  const joinedUsers: number[] = [];
+
+  client.on('error', (payload) => {
+    observedErrors.push(payload.message);
+  });
+  client.on('userJoined', () => {
+    throw new Error('listener failed');
+  });
+  client.on('userJoined', (payload) => {
+    joinedUsers.push(payload.uid);
+  });
+
+  assert.doesNotThrow(() => transport.emit('agora:event', '{bad json'));
+  assert.doesNotThrow(() =>
+    transport.emit(
+      'agora:event',
+      JSON.stringify({
+        eventName: 'userJoined',
+        payload: {
+          uid: 77,
+        },
+      }),
+    ),
+  );
+
+  assert.deepEqual(joinedUsers, [77]);
+  assert.equal(observedErrors.length, 2);
+  assert.match(observedErrors[0], /Invalid event payload/);
+  assert.match(observedErrors[1], /Event listener failed for userJoined/);
+});
+
 test('client falls back to global jsbBridgeWrapper when runtime.native omits it', async () => {
   const transport = new MockTransport();
   const originalJsb = globalThis.jsb;
@@ -914,4 +1027,3 @@ test('client dispatches expected native requests for all expanded public APIs', 
   await testApi('stopPreview', () => client.stopPreview(), {});
   await testApi('renewToken', () => client.renewToken('token123'), { token: 'token123' });
 });
-

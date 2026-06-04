@@ -208,7 +208,7 @@ const BUTTON_SECTION_LAYOUT = [
   { title: 'Mixer', buttons: ['Mixing', 'Effect', 'Diag'] },
   { title: 'Tools', buttons: ['Freeze', 'Clear'] },
 ] as const;
-const CHANNEL_PRESETS = ['demo', 'XPZ123', 'test-room'] as const;
+const CHANNEL_PRESETS = ['demo', 'testapi', 'test-room'] as const;
 const SETTINGS_ROWS = [
   { key: 'Profile', action: 'cycleChannelProfilePreset' },
   { key: 'Role', action: 'cycleClientRolePreset' },

@@ -153,6 +153,22 @@ test('android bridge template wires supported advanced sdk methods to real Agora
   assert.match(bridgeContent, /dispatchUnsupported\(requestId, "setDefaultAudioRouteToSpeakerphone"\)/);
 });
 
+test('android bridge template returns errors for bad native requests instead of timing out', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /private void dispatchNativeExceptionError\(String requestId, Exception error\)/);
+  assert.match(bridgeContent, /catch \(Exception error\)[\s\S]*dispatchNativeExceptionError\(requestId, error\);/);
+  assert.match(bridgeContent, /Unsupported render backend/);
+  assert.match(bridgeContent, /isSupportedRenderBackend\(backend\)/);
+  assert.match(bridgeContent, /catch \(Exception error\)[\s\S]*dispatchNativeExceptionError\(requestId, error\);[\s\S]*return;/);
+});
+
 test('android bridge template dispatches expanded native rtc callbacks as js events', async () => {
   const bridgeContent = await readFile(
     path.join(

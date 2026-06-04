@@ -16,6 +16,7 @@ test('dev-android script exports current source with Cocos CLI instead of old ru
   assert.match(content, /ANDROID_RUNTIME_PLUGIN_DIR=/);
   assert.match(content, /ANDROID_EXPORTED_PLUGIN_DIR=/);
   assert.match(content, /cp -R "\$ANDROID_RUNTIME_PLUGIN_DIR\/\." "\$ANDROID_EXPORTED_PLUGIN_DIR\/"/);
+  assert.match(content, /sync-android-app-bridge\.mjs/);
   assert.match(content, /ANDROID_SDK_ROOT_DEFAULT=/);
   assert.match(content, /PACKAGE_NAME="io\.agora\.cocos\.example"/);
   assert.match(content, /ADB_BIN=/);

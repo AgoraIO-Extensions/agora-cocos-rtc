@@ -44,6 +44,8 @@ if [[ ! -f "$ROOT_DIR/example/basic-call/build-android/android/data/assets/main/
   exit 1
 fi
 
+node ./scripts/sync-android-app-bridge.mjs >/dev/null
+
 if [[ -d "$ANDROID_RUNTIME_PLUGIN_DIR" ]]; then
   mkdir -p "$ANDROID_EXPORTED_PLUGIN_DIR"
   cp -R "$ANDROID_RUNTIME_PLUGIN_DIR/." "$ANDROID_EXPORTED_PLUGIN_DIR/"

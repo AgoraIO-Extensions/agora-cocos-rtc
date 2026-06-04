@@ -266,6 +266,7 @@ if should_build_platform "android"; then
   write_android_cocos_build_config
   run_cocos_build "$ANDROID_COCOS_BUILD_CONFIG" "Android"
   node ./scripts/sync-native-engine-texture-bridge.mjs >/dev/null
+  node ./scripts/sync-android-app-bridge.mjs >/dev/null
 
   if [[ ! -f "$ROOT_DIR/example/basic-call/build-android/android/data/assets/main/index.js" ]]; then
     echo "Cocos Android export did not produce build-android/android/data/assets/main/index.js" >&2

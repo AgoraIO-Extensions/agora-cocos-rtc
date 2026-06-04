@@ -416,7 +416,15 @@ export class AgoraRtcClient {
 
   #emit<K extends keyof AgoraEventMap>(eventName: K, payload: AgoraEventMap[K]): void {
     for (const listener of this.#listeners.get(eventName) ?? []) {
-      listener(payload as AgoraEventMap[keyof AgoraEventMap]);
+      try {
+        listener(payload as AgoraEventMap[keyof AgoraEventMap]);
+      } catch (error) {
+        if (eventName !== 'error') {
+          this.#emit('error', {
+            message: `Event listener failed for ${String(eventName)}: ${String(error)}`,
+          });
+        }
+      }
     }
   }
 
