@@ -172,6 +172,9 @@ test('github build workflow can inject agora secrets and optionally upload platf
   assert.match(content, /echo "\$name secret is required when target_platforms includes ios\."/);
   assert.match(content, /name: Setup Android SDK for Cocos/);
   assert.match(content, /cmdline-tools\/latest\/bin\/sdkmanager/);
+  assert.match(content, /set \+e\s+yes \| "\$sdkmanager" --licenses >\/dev\/null\s+license_status="\$\{PIPESTATUS\[1\]\}"\s+set -e/);
+  assert.match(content, /license_status="\$\{PIPESTATUS\[1\]\}"/);
+  assert.match(content, /Failed to accept Android SDK licenses/);
   assert.match(content, /ndk;23\.1\.7779620/);
   assert.match(content, /ANDROID_SDK_ROOT=/);
   assert.match(content, /ANDROID_NDK_HOME=/);

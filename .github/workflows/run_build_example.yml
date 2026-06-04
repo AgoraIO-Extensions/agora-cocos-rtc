@@ -188,7 +188,15 @@ jobs:
             exit 1
           fi
 
+          set +e
           yes | "$sdkmanager" --licenses >/dev/null
+          license_status="${PIPESTATUS[1]}"
+          set -e
+          if [ "$license_status" -ne 0 ]; then
+            echo "Failed to accept Android SDK licenses." >&2
+            exit "$license_status"
+          fi
+
           "$sdkmanager" \
             "platform-tools" \
             "platforms;android-35" \
