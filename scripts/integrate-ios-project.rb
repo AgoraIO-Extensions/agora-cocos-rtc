@@ -1,12 +1,56 @@
-#!/opt/homebrew/opt/ruby/bin/ruby
+#!/usr/bin/env ruby
 # frozen_string_literal: true
 
-ENV['GEM_HOME'] ||= '/opt/homebrew/Cellar/cocoapods/1.16.2_1/libexec'
-default_gem_paths = `/opt/homebrew/opt/ruby/bin/gem env gempath`.strip
-ENV['GEM_PATH'] ||= "#{ENV['GEM_HOME']}:#{default_gem_paths}"
+require 'rbconfig'
+
+def shell_output(*command)
+  output = IO.popen(command, err: File::NULL, &:read).to_s.strip
+  $?&.success? ? output : ''
+end
+
+def discover_cocoapods_paths
+  pod_path = shell_output('which', 'pod')
+  return [nil, nil] if pod_path.empty? || !File.file?(pod_path)
+
+  pod_content = File.read(pod_path)
+  gem_home = pod_content.match(/GEM_HOME="([^"]+)"/)&.[](1)
+  pod_executable = pod_content.match(/\bexec\s+"([^"]+)"/)&.[](1)
+  pod_executable = pod_path if pod_executable.nil? || pod_executable.empty?
+
+  ruby_path = nil
+  if File.file?(pod_executable)
+    shebang = File.open(pod_executable, &:gets).to_s.strip
+    ruby_path = shebang.match(/^#!\s*(\S+)/)&.[](1)
+  end
+
+  libexec = File.expand_path('../libexec', pod_path)
+  gem_home ||= libexec if File.directory?(libexec)
+
+  [gem_home, ruby_path]
+end
+
+def current_gem_command
+  candidate = File.join(File.dirname(RbConfig.ruby), 'gem')
+  File.executable?(candidate) ? candidate : 'gem'
+end
+
+cocoapods_gem_home, cocoapods_ruby = discover_cocoapods_paths
+if ENV['AGORA_COCOS_RUBY_REEXEC'] != '1' &&
+   cocoapods_ruby &&
+   File.executable?(cocoapods_ruby) &&
+   File.realpath(cocoapods_ruby) != File.realpath(RbConfig.ruby)
+  env = ENV.to_h
+  env['AGORA_COCOS_RUBY_REEXEC'] = '1'
+  env['GEM_HOME'] ||= cocoapods_gem_home if cocoapods_gem_home && !cocoapods_gem_home.empty?
+  exec(env, cocoapods_ruby, __FILE__, *ARGV)
+end
+
+ENV['GEM_HOME'] ||= cocoapods_gem_home if cocoapods_gem_home && !cocoapods_gem_home.empty?
+default_gem_paths = shell_output(current_gem_command, 'env', 'gempath')
+ENV['GEM_PATH'] ||= [ENV['GEM_HOME'], default_gem_paths].compact.reject(&:empty?).join(':')
 
 require 'rubygems'
-Gem.use_paths(ENV['GEM_HOME'], ENV['GEM_PATH'].split(':'))
+Gem.use_paths(ENV['GEM_HOME'], ENV['GEM_PATH'].split(':')) if ENV['GEM_HOME'] && !ENV['GEM_HOME'].empty?
 require 'json'
 require 'xcodeproj'
 
