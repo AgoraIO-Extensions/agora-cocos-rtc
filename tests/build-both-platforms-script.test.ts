@@ -121,7 +121,15 @@ test('github build workflow can inject agora secrets and optionally upload platf
   assert.match(content, /matrix:[\s\S]*platform: \$\{\{ fromJson\(needs\.split-platforms\.outputs\.platforms\) \}\}/);
   assert.match(content, /runner_label:/);
   assert.match(content, /runner_label is required when target_platforms is not empty/);
+  assert.match(content, /default: 'macos-latest'/);
   assert.match(content, /runs-on: \$\{\{ fromJson\(needs\.split-runner-labels\.outputs\.runner_labels\) \}\}/);
+  assert.match(content, /COCOS_CREATOR_VERSION: 3\.8\.8/);
+  assert.match(content, /COCOS_CREATOR_DOWNLOAD_URL: https:\/\/download\.cocos\.org\/CocosCreator\/v3\.8\.8\/CocosCreator-v3\.8\.8-mac-010512\.zip/);
+  assert.match(content, /name: Cache Cocos Creator installer/);
+  assert.match(content, /key: cocos-creator-\$\{\{ runner\.os \}\}-\$\{\{ env\.COCOS_CREATOR_VERSION \}\}-010512/);
+  assert.match(content, /name: Install Cocos Creator/);
+  assert.match(content, /\/Applications\/Cocos\/Creator\/\$\{COCOS_CREATOR_VERSION\}\/CocosCreator\.app/);
+  assert.match(content, /find "\$extract_dir" -name CocosCreator\.app -type d/);
   assert.match(content, /APP_ID:/);
   assert.match(content, /APP_ID: \$\{\{ secrets\.APP_ID \}\}/);
   assert.match(content, /CHANNEL_ID: testapi/);

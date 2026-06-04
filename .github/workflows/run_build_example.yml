@@ -1,5 +1,9 @@
 name: 'run: build example'
 
+env:
+  COCOS_CREATOR_VERSION: 3.8.8
+  COCOS_CREATOR_DOWNLOAD_URL: https://download.cocos.org/CocosCreator/v3.8.8/CocosCreator-v3.8.8-mac-010512.zip
+
 on:
   workflow_dispatch:
     inputs:
@@ -19,10 +23,10 @@ on:
         required: false
         default: ''
       runner_label:
-        description: 'Self-hosted macOS runner labels for example packages, comma-separated, e.g. self-hosted,macOS,ARM64,cocos.'
+        description: 'Runner label(s) for example packages. Use macos-latest or comma-separated self-hosted labels.'
         type: string
         required: false
-        default: 'self-hosted,macOS'
+        default: 'macos-latest'
   workflow_call:
     inputs:
       target_branch:
@@ -40,7 +44,7 @@ on:
       runner_label:
         type: string
         required: false
-        default: 'self-hosted,macOS'
+        default: 'macos-latest'
     secrets:
       APP_ID:
         required: false
@@ -138,7 +142,7 @@ jobs:
             exit 1
           fi
           if [ "$labels" = "[]" ]; then
-            labels='["self-hosted","macOS"]'
+            labels='["macos-latest"]'
           fi
           echo "runner_labels=$labels" >> "$GITHUB_OUTPUT"
 
@@ -169,6 +173,52 @@ jobs:
         with:
           distribution: zulu
           java-version: 17
+
+      - name: Cache Cocos Creator installer
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-mac-010512.zip
+          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-010512
+
+      - name: Install Cocos Creator
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          app_path="/Applications/Cocos/Creator/${COCOS_CREATOR_VERSION}/CocosCreator.app"
+          cli_path="$app_path/Contents/MacOS/CocosCreator"
+          install_dir="$(dirname "$app_path")"
+          installer_path="$HOME/Library/Caches/cocos-creator/CocosCreator-v${COCOS_CREATOR_VERSION}-mac-010512.zip"
+
+          if [ ! -x "$cli_path" ]; then
+            mkdir -p "$(dirname "$installer_path")"
+            if [ ! -f "$installer_path" ]; then
+              curl --fail --location --retry 3 --retry-delay 10 "$COCOS_CREATOR_DOWNLOAD_URL" --output "$installer_path"
+            fi
+
+            extract_dir="$RUNNER_TEMP/cocos-creator-${COCOS_CREATOR_VERSION}"
+            rm -rf "$extract_dir"
+            mkdir -p "$extract_dir"
+            ditto -x -k "$installer_path" "$extract_dir"
+
+            creator_app="$(find "$extract_dir" -name CocosCreator.app -type d -print -quit)"
+            if [ -z "$creator_app" ]; then
+              echo "CocosCreator.app not found in downloaded archive." >&2
+              exit 1
+            fi
+
+            sudo mkdir -p "$install_dir"
+            sudo rm -rf "$app_path"
+            sudo ditto "$creator_app" "$app_path"
+            sudo xattr -dr com.apple.quarantine "$app_path" || true
+          fi
+
+          if [ ! -x "$cli_path" ]; then
+            echo "Cocos Creator executable was not installed at $cli_path" >&2
+            exit 1
+          fi
+
+          echo "COCOS_CLI=$cli_path" >> "$GITHUB_ENV"
 
       - name: Install dependencies
         run: npm ci
