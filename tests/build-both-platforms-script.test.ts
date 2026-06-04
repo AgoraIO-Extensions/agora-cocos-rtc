@@ -12,6 +12,10 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
     `${repoRoot}/scripts/build-all-platforms.sh`,
     'utf8',
   );
+  const prepareContent = await readFile(
+    `${repoRoot}/scripts/prepare-example.sh`,
+    'utf8',
+  );
 
   assert.match(content, /LOCAL_BUILD_ENV=/);
   assert.match(content, /source "\$LOCAL_BUILD_ENV"/);
@@ -37,6 +41,8 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /IOS_BUILD_CONFIG=.*build-configs\/ios-release\.json/);
   assert.match(content, /IOS_SKIP_COCOS_EXPORT="\$\{IOS_SKIP_COCOS_EXPORT:-false\}"/);
   assert.match(content, /fetch-agora-maven\.mjs/);
+  assert.match(content, /sync-native-engine-texture-bridge\.mjs/);
+  assert.match(prepareContent, /sync-native-engine-texture-bridge\.mjs/);
   assert.match(content, /generate-ios-podfile\.mjs/);
   assert.match(content, /integrate-ios-project\.rb/);
   assert.match(content, /ANDROID_GRADLE_OFFLINE="\$\{ANDROID_GRADLE_OFFLINE:-false\}"/);

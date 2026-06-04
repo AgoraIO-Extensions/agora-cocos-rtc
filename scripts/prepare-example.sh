@@ -38,6 +38,7 @@ cp "$ROOT_DIR/sdk/agora-rtc/templates/ios/AgoraEngineTextureSlotBridge.h" \
   "$NATIVE_PLUGIN_DIR/ios/AgoraEngineTextureSlotBridge.h"
 cp "$ROOT_DIR/sdk/agora-rtc/templates/ios/AgoraEngineTextureSlotBridge.mm" \
   "$NATIVE_PLUGIN_DIR/ios/AgoraEngineTextureSlotBridge.mm"
+node "$ROOT_DIR/scripts/sync-native-engine-texture-bridge.mjs"
 node "$ROOT_DIR/scripts/sync-example-sdk-config.mjs"
 
 write_directory_meta() {

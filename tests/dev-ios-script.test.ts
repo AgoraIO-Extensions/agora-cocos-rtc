@@ -42,6 +42,10 @@ test('integrate-ios-project can apply manual signing overrides for device builds
 
   assert.match(content, /^#!\/usr\/bin\/env ruby/);
   assert.doesNotMatch(content, /\/opt\/homebrew\/opt\/ruby/);
+  assert.match(content, /COMMON_ENGINE_TEXTURE_BRIDGE_DIR/);
+  assert.match(content, /AgoraEngineTextureBridge\.h/);
+  assert.match(content, /AgoraEngineTextureBridge\.cpp/);
+  assert.match(content, /add_file_references/);
   assert.match(content, /ENV\['IOS_BUNDLE_ID'\]/);
   assert.match(content, /ENV\['IOS_DEVELOPMENT_TEAM'\]/);
   assert.match(content, /ENV\['IOS_PROVISIONING_PROFILE_SPECIFIER'\]/);

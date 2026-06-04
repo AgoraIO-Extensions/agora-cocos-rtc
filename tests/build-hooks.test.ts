@@ -12,8 +12,11 @@ const {
   ensureAgoraLocalMavenRepository,
   ensureIosAppDelegateBridgeAttachment,
   ensureIosSetupGuide,
+  ensureNativeEngineTextureBridge,
   findFirstExistingPath,
   patchIosAppDelegateBridgeAttachment,
+  patchNativeCommonCMakeTextureBridge,
+  patchNativeGameTextureBridgeRegistration,
   rewriteAndroidGradlePluginVersion,
   rewriteGradleDistributionUrl,
   sdkConfig,
@@ -110,6 +113,110 @@ test('copyIosTemplateFiles includes rtc bridge and engine texture slot bridge fi
     const content = await readFile(path.join(root, filename), 'utf8');
     assert.ok(content.length > 0, `${filename} should be copied`);
   }
+});
+
+test('patchNativeCommonCMakeTextureBridge registers common engine texture bridge sources once', () => {
+  const original = `list(APPEND CC_COMMON_SOURCES
+    \${CMAKE_CURRENT_LIST_DIR}/Classes/Game.h
+    \${CMAKE_CURRENT_LIST_DIR}/Classes/Game.cpp
+)
+`;
+
+  const once = patchNativeCommonCMakeTextureBridge(original);
+  const twice = patchNativeCommonCMakeTextureBridge(once);
+
+  assert.match(
+    once,
+    /if\(NOT APPLE\)[\s\S]*Classes\/agora\/AgoraEngineTextureBridge\.h[\s\S]*Classes\/agora\/AgoraEngineTextureBridge\.cpp[\s\S]*endif\(\)/,
+  );
+  assert.equal(once, twice);
+});
+
+test('patchNativeCommonCMakeTextureBridge upgrades unguarded texture bridge sources', () => {
+  const original = `list(APPEND CC_COMMON_SOURCES
+    \${CMAKE_CURRENT_LIST_DIR}/Classes/Game.h
+    \${CMAKE_CURRENT_LIST_DIR}/Classes/Game.cpp
+)
+
+list(APPEND CC_COMMON_SOURCES
+    \${CMAKE_CURRENT_LIST_DIR}/Classes/agora/AgoraEngineTextureBridge.h
+    \${CMAKE_CURRENT_LIST_DIR}/Classes/agora/AgoraEngineTextureBridge.cpp
+)
+`;
+
+  const patched = patchNativeCommonCMakeTextureBridge(original);
+
+  assert.match(patched, /if\(NOT APPLE\)/);
+  assert.equal(
+    [...patched.matchAll(/Classes\/agora\/AgoraEngineTextureBridge\.cpp/g)].length,
+    1,
+  );
+});
+
+test('patchNativeGameTextureBridgeRegistration attaches texture bridge registration once', () => {
+  const original = `#include "Game.h"
+
+int Game::init() {
+  _xxteaKey = SCRIPT_XXTEAKEY;
+
+  BaseGame::init();
+  return 0;
+}
+`;
+
+  const once = patchNativeGameTextureBridgeRegistration(original);
+  const twice = patchNativeGameTextureBridgeRegistration(once);
+
+  assert.match(once, /#include "agora\/AgoraEngineTextureBridge\.h"/);
+  assert.match(once, /se::ScriptEngine::getInstance\(\)/);
+  assert.match(once, /register_all_agora_engine_texture/);
+  assert.match(once, /reset_agora_engine_texture_registry/);
+  assert.equal(once, twice);
+});
+
+test('ensureNativeEngineTextureBridge copies templates and patches exported common native sources', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-native-common-'));
+  await mkdir(path.join(root, 'Classes'), { recursive: true });
+  await writeFile(
+    path.join(root, 'CMakeLists.txt'),
+    `list(APPEND CC_COMMON_SOURCES
+    \${CMAKE_CURRENT_LIST_DIR}/Classes/Game.h
+    \${CMAKE_CURRENT_LIST_DIR}/Classes/Game.cpp
+)
+`,
+    'utf8',
+  );
+  await writeFile(
+    path.join(root, 'Classes/Game.cpp'),
+    `#include "Game.h"
+
+int Game::init() {
+  _xxteaKey = SCRIPT_XXTEAKEY;
+
+  BaseGame::init();
+  return 0;
+}
+`,
+    'utf8',
+  );
+
+  await ensureNativeEngineTextureBridge(root);
+
+  const headerContent = await readFile(
+    path.join(root, 'Classes/agora/AgoraEngineTextureBridge.h'),
+    'utf8',
+  );
+  const sourceContent = await readFile(
+    path.join(root, 'Classes/agora/AgoraEngineTextureBridge.cpp'),
+    'utf8',
+  );
+  const cmakeContent = await readFile(path.join(root, 'CMakeLists.txt'), 'utf8');
+  const gameContent = await readFile(path.join(root, 'Classes/Game.cpp'), 'utf8');
+
+  assert.match(headerContent, /create_agora_engine_texture_slot/);
+  assert.match(sourceContent, /register_all_agora_engine_texture/);
+  assert.match(cmakeContent, /AgoraEngineTextureBridge\.cpp/);
+  assert.match(gameContent, /register_all_agora_engine_texture/);
 });
 
 test('patchIosAppDelegateBridgeAttachment attaches the native bridge at app launch once', () => {

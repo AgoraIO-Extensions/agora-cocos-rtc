@@ -8,6 +8,17 @@ const IOS_APP_DELEGATE_FORWARD_DECLARATION = `@interface AgoraRtcPlugin : NSObje
 - (void)attachBridge;
 @end`;
 const IOS_APP_DELEGATE_ATTACH_CALL = '    [[AgoraRtcPlugin sharedInstance] attachBridge];';
+const COMMON_ENGINE_TEXTURE_BRIDGE_FILES = [
+  'AgoraEngineTextureBridge.h',
+  'AgoraEngineTextureBridge.cpp',
+];
+const COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK = `list(APPEND CC_COMMON_SOURCES
+    \${CMAKE_CURRENT_LIST_DIR}/Classes/agora/AgoraEngineTextureBridge.h
+    \${CMAKE_CURRENT_LIST_DIR}/Classes/agora/AgoraEngineTextureBridge.cpp
+)`;
+const COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_GUARDED_BLOCK = `if(NOT APPLE)
+${COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK}
+endif()`;
 
 function applyAndroidGradleDependencies(content) {
   const dependencyLines = sdkConfig.android.dependencies.map(
@@ -120,6 +131,103 @@ async function copyTemplateDirectory(rootDir, sourceRelativePath, destinationRel
   return destinationPath;
 }
 
+function patchNativeCommonCMakeTextureBridge(content) {
+  if (content.includes('Classes/agora/AgoraEngineTextureBridge.cpp')) {
+    if (content.includes('if(NOT APPLE)')) {
+      return content;
+    }
+    return content.replace(
+      COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK,
+      COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_GUARDED_BLOCK,
+    );
+  }
+
+  return `${content.trimEnd()}
+
+${COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_GUARDED_BLOCK}
+`;
+}
+
+function patchNativeGameTextureBridgeRegistration(content) {
+  let next = content;
+
+  if (!next.includes('#include "agora/AgoraEngineTextureBridge.h"')) {
+    const importAnchor = '#include "Game.h"';
+    next = next.includes(importAnchor)
+      ? next.replace(importAnchor, `${importAnchor}\n\n#include "agora/AgoraEngineTextureBridge.h"`)
+      : `#include "agora/AgoraEngineTextureBridge.h"\n\n${next}`;
+  }
+
+  if (!next.includes('register_all_agora_engine_texture')) {
+    const initAnchor = '  BaseGame::init();';
+    const registration = `  auto *seengine = se::ScriptEngine::getInstance();
+  seengine->addRegisterCallback(agora::cocos::register_all_agora_engine_texture);
+  seengine->addBeforeCleanupHook([]() {
+    agora::cocos::reset_agora_engine_texture_registry();
+  });
+`;
+
+    if (!next.includes(initAnchor)) {
+      throw new Error('Unable to patch native Game.cpp: BaseGame::init anchor not found.');
+    }
+    next = next.replace(initAnchor, `${registration}\n${initAnchor}`);
+  }
+
+  return next;
+}
+
+async function ensureNativeEngineTextureBridge(nativeCommonDir) {
+  const destinationDir = path.join(nativeCommonDir, 'Classes', 'agora');
+  await mkdir(destinationDir, { recursive: true });
+
+  for (const filename of COMMON_ENGINE_TEXTURE_BRIDGE_FILES) {
+    await copyTemplateFile(
+      nativeCommonDir,
+      `templates/common/Classes/agora/${filename}`,
+      `Classes/agora/${filename}`,
+    );
+  }
+
+  const cmakePath = path.join(nativeCommonDir, 'CMakeLists.txt');
+  try {
+    const original = await readFile(cmakePath, 'utf8');
+    const patched = patchNativeCommonCMakeTextureBridge(original);
+    if (patched !== original) {
+      await writeFile(cmakePath, patched, 'utf8');
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+
+  const gamePath = path.join(nativeCommonDir, 'Classes', 'Game.cpp');
+  try {
+    const original = await readFile(gamePath, 'utf8');
+    const patched = patchNativeGameTextureBridgeRegistration(original);
+    if (patched !== original) {
+      await writeFile(gamePath, patched, 'utf8');
+    }
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+}
+
+async function ensureNativeEngineTextureBridgeForExport(rootDir) {
+  const nativeCommonDir = await findFirstExistingPath(rootDir, [
+    '../../native/engine/common',
+    '../../../native/engine/common',
+    '../native/engine/common',
+    'native/engine/common',
+  ]);
+
+  if (nativeCommonDir) {
+    await ensureNativeEngineTextureBridge(nativeCommonDir);
+  }
+}
+
 async function copyIosTemplateFiles(destinationRoot, nestedInNativeSourceDir = false) {
   const iosTemplateFiles = [
     'AgoraRtcBridge.swift',
@@ -182,6 +290,8 @@ async function ensureIosAppDelegateBridgeAttachment(nativeSourceDir) {
 }
 
 async function integrateAndroidExport(rootDir) {
+  await ensureNativeEngineTextureBridgeForExport(rootDir);
+
   const appGradleFile = await findFirstExistingPath(rootDir, [
     'native/engine/android/app/build.gradle',
     '../../native/engine/android/app/build.gradle',
@@ -227,6 +337,7 @@ async function integrateAndroidExport(rootDir) {
 
 async function integrateIosExport(rootDir) {
   await ensureIosSetupGuide(rootDir);
+  await ensureNativeEngineTextureBridgeForExport(rootDir);
 
   const iosProjectDir = await findFirstExistingPath(rootDir, ['proj']);
   const nativeSourceDir = await findFirstExistingPath(rootDir, [
@@ -288,9 +399,12 @@ module.exports = {
   integrateAndroidExport,
   integrateIosExport,
   copyIosTemplateFiles,
+  ensureNativeEngineTextureBridge,
   ensureIosAppDelegateBridgeAttachment,
   onAfterBuild,
   patchIosAppDelegateBridgeAttachment,
+  patchNativeCommonCMakeTextureBridge,
+  patchNativeGameTextureBridgeRegistration,
   rewriteAndroidGradlePluginVersion,
   rewriteGradleDistributionUrl,
   sdkConfig,

@@ -33,6 +33,8 @@ test('package-sdk script creates a distributable zip with plugin manifests', asy
   assert.match(stdout, /agora-rtc\/cc_plugin\.json/);
   assert.match(stdout, /agora-rtc\/dist\/hooks\.js/);
   assert.match(stdout, /agora-rtc\/README\.md/);
+  assert.match(stdout, /agora-rtc\/templates\/common\/Classes\/agora\/AgoraEngineTextureBridge\.h/);
+  assert.match(stdout, /agora-rtc\/templates\/common\/Classes\/agora\/AgoraEngineTextureBridge\.cpp/);
   assert.ok(!entries.some((entry) => entry.endsWith('/.DS_Store')));
   assert.ok(!entries.some((entry) => entry.includes('/node_modules/')));
   assert.ok(!entries.some((entry) => entry.includes('/dist-cache/')));

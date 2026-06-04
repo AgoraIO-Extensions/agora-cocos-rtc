@@ -265,6 +265,7 @@ if should_build_platform "android"; then
   fi
   write_android_cocos_build_config
   run_cocos_build "$ANDROID_COCOS_BUILD_CONFIG" "Android"
+  node ./scripts/sync-native-engine-texture-bridge.mjs >/dev/null
 
   if [[ ! -f "$ROOT_DIR/example/basic-call/build-android/android/data/assets/main/index.js" ]]; then
     echo "Cocos Android export did not produce build-android/android/data/assets/main/index.js" >&2
@@ -301,6 +302,7 @@ if should_build_platform "ios"; then
   else
     echo "Skipping Cocos iOS export because IOS_SKIP_COCOS_EXPORT=true."
   fi
+  node ./scripts/sync-native-engine-texture-bridge.mjs >/dev/null
   node ./scripts/generate-ios-podfile.mjs >/dev/null
   IOS_BUNDLE_ID="$IOS_BUNDLE_ID" \
   IOS_DEVELOPMENT_TEAM="$BUILD_PROVISION_PROFILE_TEAMID" \
