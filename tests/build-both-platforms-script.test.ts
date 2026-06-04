@@ -114,6 +114,8 @@ test('github build workflow can inject agora secrets and optionally upload platf
   const buildIndex = content.indexOf('- name: Build selected example package');
 
   assert.match(content, /target_platforms:/);
+  assert.match(content, /description: 'Example package platforms: android, ios, or android,ios\.'/);
+  assert.match(content, /default: 'android,ios'/);
   assert.doesNotMatch(content, /build_platform_packages:/);
   assert.match(content, /split-platforms:/);
   assert.match(content, /platforms: \$\{\{ steps\.split-platforms\.outputs\.platforms \}\}/);

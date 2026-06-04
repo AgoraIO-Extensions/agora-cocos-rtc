@@ -18,10 +18,10 @@ on:
         required: false
         default: true
       target_platforms:
-        description: 'Example package platforms: android, ios, or android,ios. Leave empty to package SDK/customer delivery only.'
+        description: 'Example package platforms: android, ios, or android,ios.'
         type: string
         required: false
-        default: ''
+        default: 'android,ios'
       runner_label:
         description: 'Runner label(s) for example packages. Use macos-latest or comma-separated self-hosted labels.'
         type: string
