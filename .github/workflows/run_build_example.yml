@@ -174,6 +174,33 @@ jobs:
           distribution: zulu
           java-version: 17
 
+      - name: Setup Android SDK for Cocos
+        if: ${{ matrix.platform == 'android' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          android_sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Library/Android/sdk}}"
+          sdkmanager="$android_sdk_root/cmdline-tools/latest/bin/sdkmanager"
+
+          if [ ! -x "$sdkmanager" ]; then
+            echo "Android sdkmanager not found at $sdkmanager." >&2
+            exit 1
+          fi
+
+          yes | "$sdkmanager" --licenses >/dev/null
+          "$sdkmanager" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "cmake;3.22.1" \
+            "ndk;23.1.7779620"
+
+          echo "ANDROID_SDK_ROOT=$android_sdk_root" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$android_sdk_root" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$android_sdk_root/ndk/23.1.7779620" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$android_sdk_root/ndk/23.1.7779620" >> "$GITHUB_ENV"
+
       - name: Cache Cocos Creator installer
         uses: actions/cache@v4
         with:

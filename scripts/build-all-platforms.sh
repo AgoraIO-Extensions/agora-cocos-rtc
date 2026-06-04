@@ -22,6 +22,7 @@ AGORA_BUILD_CONFIG_PATH="$ROOT_DIR/example/basic-call/assets/resources/agora-con
 TARGET_PLATFORMS="${1:-android,ios}"
 
 ANDROID_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/android-release.json"
+ANDROID_COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/local/android-release.ci.json"
 ANDROID_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-android/android/proj"
 ANDROID_RUNTIME_PLUGIN_DIR="$ROOT_DIR/example/basic-call/native/engine/android/app/src/main/java/io/agora/cocos/rtc"
 ANDROID_EXPORTED_PLUGIN_DIR="$ANDROID_PROJECT_DIR/app/src/main/java/io/agora/cocos/rtc"
@@ -29,6 +30,7 @@ ANDROID_APK_DIR="$ANDROID_PROJECT_DIR/build/agora-cocos-basic-call/outputs/apk/r
 ANDROID_APK_PATH=""
 ANDROID_SDK_ROOT_DEFAULT="$HOME/Library/Android/sdk"
 ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_SDK_ROOT_DEFAULT}"
+ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
 ANDROID_GRADLE_OFFLINE="${ANDROID_GRADLE_OFFLINE:-false}"
 LOCAL_AGORA_MAVEN_DIR="$ROOT_DIR/example/basic-call/native/engine/android/local-maven"
 
@@ -120,6 +122,64 @@ resolve_android_release_apk() {
   return 1
 }
 
+resolve_android_ndk_path() {
+  local candidate
+
+  for candidate in "$ANDROID_NDK_HOME" "$ANDROID_SDK_ROOT/ndk/23.1.7779620"; do
+    if [[ -n "$candidate" && -f "$candidate/source.properties" ]]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+
+  local discovered_ndks=("${(@f)$(find "$ANDROID_SDK_ROOT/ndk" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort -r)}")
+  if [[ ${#discovered_ndks[@]} -gt 0 ]]; then
+    for candidate in "${discovered_ndks[@]}"; do
+      if [[ -f "$candidate/source.properties" ]]; then
+        echo "$candidate"
+        return 0
+      fi
+    done
+  fi
+
+  return 1
+}
+
+write_android_cocos_build_config() {
+  if [[ ! -d "$ANDROID_SDK_ROOT/platform-tools" ]]; then
+    echo "Android SDK is missing platform-tools under $ANDROID_SDK_ROOT." >&2
+    echo "Set ANDROID_SDK_ROOT or install Android command-line tools before building Android." >&2
+    exit 1
+  fi
+
+  ANDROID_NDK_HOME="$(resolve_android_ndk_path || true)"
+  if [[ -z "$ANDROID_NDK_HOME" ]]; then
+    echo "Android NDK was not found under $ANDROID_SDK_ROOT/ndk." >&2
+    echo "Set ANDROID_NDK_HOME or install NDK 23.1.7779620 before building Android." >&2
+    exit 1
+  fi
+
+  mkdir -p "$(dirname "$ANDROID_COCOS_BUILD_CONFIG")"
+  ANDROID_BUILD_CONFIG="$ANDROID_BUILD_CONFIG" \
+  ANDROID_COCOS_BUILD_CONFIG="$ANDROID_COCOS_BUILD_CONFIG" \
+  ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
+  ANDROID_NDK_HOME="$ANDROID_NDK_HOME" \
+  node --input-type=module <<'NODE'
+import { readFile, writeFile } from 'node:fs/promises';
+
+const sourcePath = process.env.ANDROID_BUILD_CONFIG;
+const outputPath = process.env.ANDROID_COCOS_BUILD_CONFIG;
+const config = JSON.parse(await readFile(sourcePath, 'utf8'));
+
+config.packages ??= {};
+config.packages.android ??= {};
+config.packages.android.sdkPath = process.env.ANDROID_SDK_ROOT;
+config.packages.android.ndkPath = process.env.ANDROID_NDK_HOME;
+
+await writeFile(outputPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+NODE
+}
+
 print_build_artifacts() {
   echo
   echo "=========================================="
@@ -203,7 +263,8 @@ if should_build_platform "android"; then
   if [[ ! -d "$LOCAL_AGORA_MAVEN_DIR" ]]; then
     node ./scripts/fetch-agora-maven.mjs >/dev/null
   fi
-  run_cocos_build "$ANDROID_BUILD_CONFIG" "Android"
+  write_android_cocos_build_config
+  run_cocos_build "$ANDROID_COCOS_BUILD_CONFIG" "Android"
 
   if [[ ! -f "$ROOT_DIR/example/basic-call/build-android/android/data/assets/main/index.js" ]]; then
     echo "Cocos Android export did not produce build-android/android/data/assets/main/index.js" >&2
@@ -235,12 +296,12 @@ fi
 if should_build_platform "ios"; then
   echo "Building iOS release IPA..."
 
-  node ./scripts/generate-ios-podfile.mjs >/dev/null
   if [[ "$IOS_SKIP_COCOS_EXPORT" != "true" ]]; then
     run_cocos_build "$IOS_BUILD_CONFIG" "iOS"
   else
     echo "Skipping Cocos iOS export because IOS_SKIP_COCOS_EXPORT=true."
   fi
+  node ./scripts/generate-ios-podfile.mjs >/dev/null
   IOS_BUNDLE_ID="$IOS_BUNDLE_ID" \
   IOS_DEVELOPMENT_TEAM="$BUILD_PROVISION_PROFILE_TEAMID" \
   IOS_PROVISIONING_PROFILE_SPECIFIER="$BUILD_PROVISION_PROFILE_NAME" \

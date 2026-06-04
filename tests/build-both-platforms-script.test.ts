@@ -28,6 +28,12 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /Please edit example\/basic-call\/assets\/resources\/agora-config\.json/);
   assert.match(content, /Alternatively pass APP_ID or TEST_APP_ID/);
   assert.match(content, /ANDROID_BUILD_CONFIG=.*build-configs\/android-release\.json/);
+  assert.match(content, /ANDROID_COCOS_BUILD_CONFIG=/);
+  assert.match(content, /ANDROID_NDK_HOME=/);
+  assert.match(content, /resolve_android_ndk_path\(\)/);
+  assert.match(content, /write_android_cocos_build_config\(\)/);
+  assert.match(content, /sdkPath/);
+  assert.match(content, /ndkPath/);
   assert.match(content, /IOS_BUILD_CONFIG=.*build-configs\/ios-release\.json/);
   assert.match(content, /IOS_SKIP_COCOS_EXPORT="\$\{IOS_SKIP_COCOS_EXPORT:-false\}"/);
   assert.match(content, /fetch-agora-maven\.mjs/);
@@ -37,6 +43,16 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /\.\/gradlew :agora-cocos-basic-call:assembleRelease/);
   assert.match(content, /\.\/gradlew --offline :agora-cocos-basic-call:assembleRelease/);
   assert.match(content, /validate_ios_signing\(\)/);
+  assert.ok(
+    content.indexOf('run_cocos_build "$IOS_BUILD_CONFIG" "iOS"') <
+      content.indexOf('node ./scripts/generate-ios-podfile.mjs'),
+    'iOS Podfile should be generated after Cocos exports the Xcode project directory',
+  );
+  assert.ok(
+    content.indexOf('node ./scripts/generate-ios-podfile.mjs') <
+      content.indexOf('IOS_BUNDLE_ID="$IOS_BUNDLE_ID"'),
+    'iOS Podfile should be generated before integrating the exported Xcode project',
+  );
   assert.ok(
     content.indexOf('run_cocos_build "$IOS_BUILD_CONFIG" "iOS"') <
       content.indexOf('\n  validate_ios_signing'),
@@ -154,6 +170,11 @@ test('github build workflow can inject agora secrets and optionally upload platf
   assert.match(content, /BUILD_CERTIFICATE_BASE64/);
   assert.match(content, /BUILD_PROVISION_PROFILE_BASE64/);
   assert.match(content, /echo "\$name secret is required when target_platforms includes ios\."/);
+  assert.match(content, /name: Setup Android SDK for Cocos/);
+  assert.match(content, /cmdline-tools\/latest\/bin\/sdkmanager/);
+  assert.match(content, /ndk;23\.1\.7779620/);
+  assert.match(content, /ANDROID_SDK_ROOT=/);
+  assert.match(content, /ANDROID_NDK_HOME=/);
   assert.match(content, /npm run build:all-platforms -- "\$\{\{ matrix\.platform \}\}"/);
   assert.match(content, /name: agora-cocos-example-android-apk/);
   assert.match(content, /outputs\/apk\/release\/\*\.apk/);
