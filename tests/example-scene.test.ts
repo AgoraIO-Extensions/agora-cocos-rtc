@@ -54,6 +54,8 @@ test('example controller source uses lazy client creation and fallback button no
     'utf8',
   );
 
+  assert.match(content, /resolveAgoraExampleConfig/);
+  assert.match(content, /this\.loadJsonConfig\('agora-config\.build'\)/);
   assert.match(content, /private client: AgoraRtcClient \| null = null;/);
   assert.match(content, /private getClient\(\): AgoraRtcClient/);
   assert.match(content, /DEFAULT_BUTTON_LAYOUT/);
@@ -61,7 +63,7 @@ test('example controller source uses lazy client creation and fallback button no
   assert.match(content, /__simple_/);
   assert.match(content, /buttonNode\.off\(Button\.EventType\.CLICK\)/);
   assert.match(content, /label\.useSystemFont = true;/);
-  assert.match(content, /resources\.load\('agora-config'/);
+  assert.match(content, /this\.loadJsonConfig\('agora-config'\)/);
   assert.match(content, /if \(this\.appId\.trim\(\) && this\.channelId\.trim\(\)\)/);
   assert.match(content, /Loaded config for channel/);
   assert.match(content, /setRenderBackend/);
@@ -109,6 +111,21 @@ test('example controller source uses lazy client creation and fallback button no
   assert.doesNotMatch(content, /uploadData/);
   assert.match(content, /fallbackBackend/);
   assert.match(content, /applyEffectiveRenderBackend/);
+});
+
+test('example config override supports build-time values without committing credentials', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/agoraRtcConfigOverride.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /keyAppId = 'TEST_APP_ID'/);
+  assert.match(content, /keyChannelId = 'TEST_CHANNEL_ID'/);
+  assert.match(content, /keyToken = 'TEST_TOKEN'/);
+  assert.match(content, /class ExampleConfigOverride/);
+  assert.match(content, /set\(name: string, value: string\)/);
+  assert.match(content, /resolveAgoraExampleConfig/);
+  assert.doesNotMatch(content, /\bappId\s*[:=]\s*['"][0-9a-f]{32}['"]/i);
 });
 
 test('example controller binds native engine texture slots instead of creating upload textures in JS', async () => {
@@ -311,8 +328,9 @@ test('example ships a runtime Agora config template', async () => {
     'utf8',
   );
 
-  assert.match(content, /"appId": ".+"/);
-  assert.match(content, /"channelId": ".+"/);
+  assert.match(content, /"appId": "<YOUR_AGORA_APP_ID>"/);
+  assert.match(content, /"channelId": "<YOUR_CHANNEL_ID>"/);
+  assert.doesNotMatch(content, /\bappId["']?\s*:\s*["'][0-9a-f]{32}["']/i);
   assert.match(content, /"uid": 1001/);
   assert.match(content, /"renderBackend": "(surface-view|texture-view|engine-texture)"/);
 });

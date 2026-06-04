@@ -14,6 +14,18 @@ This package provides the JavaScript API wrapper, Cocos extension runtime, and n
 - `templates/ios`: iOS bridge template.
 - `cc_plugin.json`: Cocos native plugin manifest.
 
+## Basic Usage
+
+Customer applications pass the App ID from their own app configuration when initializing the RTC engine. The example project's `agora-config.json` is only for the demo app.
+
+```ts
+import { createAgoraRtcClient } from 'db://agora-rtc/js/agora';
+
+const client = createAgoraRtcClient();
+await client.initialize(appId);
+await client.joinChannel(token, channelId, uid);
+```
+
 ## API Surface
 
 - `initialize`

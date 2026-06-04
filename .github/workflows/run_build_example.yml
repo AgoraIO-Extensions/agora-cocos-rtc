@@ -13,16 +13,16 @@ on:
         type: boolean
         required: false
         default: true
-      build_platform_packages:
-        description: 'Build Android APK and iOS simulator app. Requires Cocos Creator on the runner.'
-        type: boolean
-        required: false
-        default: false
-      runner_label:
-        description: 'Runner label. Use a macOS self-hosted runner with Cocos Creator when build_platform_packages is true.'
+      target_platforms:
+        description: 'Example package platforms: android, ios, or android,ios. Leave empty to package SDK/customer delivery only.'
         type: string
         required: false
-        default: 'macos-latest'
+        default: ''
+      runner_label:
+        description: 'Self-hosted macOS runner labels for example packages, comma-separated, e.g. self-hosted,macOS,ARM64,cocos.'
+        type: string
+        required: false
+        default: 'self-hosted,macOS'
   workflow_call:
     inputs:
       target_branch:
@@ -33,25 +33,37 @@ on:
         type: boolean
         required: false
         default: true
-      build_platform_packages:
-        type: boolean
+      target_platforms:
+        type: string
         required: false
-        default: false
+        default: ''
       runner_label:
         type: string
         required: false
-        default: 'macos-latest'
+        default: 'self-hosted,macOS'
     secrets:
       APP_ID:
-        required: true
-      AGORA_CHANNEL_ID:
         required: false
-      AGORA_TOKEN:
+      BUILD_PROVISION_PROFILE_UUID:
+        required: false
+      BUILD_PROVISION_PROFILE_NAME:
+        required: false
+      BUILD_PROVISION_PROFILE_TEAMID:
+        required: false
+      BUILD_PROVISION_PROFILE_IDENTITY:
+        required: false
+      BUILD_CERTIFICATE_BASE64:
+        required: false
+      P12_PASSWORD:
+        required: false
+      BUILD_PROVISION_PROFILE_BASE64:
+        required: false
+      KEYCHAIN_PASSWORD:
         required: false
 
 jobs:
-  build_example:
-    runs-on: ${{ inputs.runner_label || 'macos-latest' }}
+  package_sdk:
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -78,33 +90,6 @@ jobs:
       - name: Package customer delivery
         run: ./scripts/package-customer-delivery.sh ./dist/customer-delivery
 
-      - name: Configure Agora example credentials
-        if: ${{ inputs.build_platform_packages }}
-        env:
-          DEFAULT_BUILD_APP_ID: ${{ secrets.APP_ID }}
-          AGORA_CHANNEL_ID: ${{ secrets.AGORA_CHANNEL_ID }}
-          AGORA_TOKEN: ${{ secrets.AGORA_TOKEN }}
-        run: |
-          if [ -z "$DEFAULT_BUILD_APP_ID" ]; then
-            echo "APP_ID secret is required when build_platform_packages is true." >&2
-            exit 1
-          fi
-          export AGORA_CHANNEL_ID="${AGORA_CHANNEL_ID:-testapi}"
-          node --input-type=module - <<'NODE'
-          import { readFile, writeFile } from 'node:fs/promises';
-
-          const configPath = 'example/basic-call/assets/resources/agora-config.json';
-          const config = JSON.parse(await readFile(configPath, 'utf8'));
-          config.appId = process.env.DEFAULT_BUILD_APP_ID;
-          config.channelId = process.env.AGORA_CHANNEL_ID;
-          config.token = process.env.AGORA_TOKEN ?? '';
-          await writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
-          NODE
-
-      - name: Build Android and iOS example packages
-        if: ${{ inputs.build_platform_packages }}
-        run: npm run build:all-platforms
-
       - name: Upload SDK package
         uses: actions/upload-artifact@v4
         with:
@@ -119,18 +104,153 @@ jobs:
           path: dist/customer-delivery
           if-no-files-found: error
 
+  split-platforms:
+    runs-on: ubuntu-latest
+    outputs:
+      platforms: ${{ steps.split-platforms.outputs.platforms }}
+    steps:
+      - id: split-platforms
+        env:
+          target_platforms: ${{ inputs.target_platforms }}
+        run: |
+          platforms=$(echo "$target_platforms" | sed 's/ //g' | tr ',' '\n' | sort -u | sed '/^$/d' | jq -R -s -c 'split("\n")[:-1]')
+          unsupported=$(echo "$platforms" | jq -r 'map(select(. != "android" and . != "ios")) | join(",")')
+          if [ -n "$unsupported" ]; then
+            echo "Unsupported target_platforms value: $unsupported. Supported values are android and ios." >&2
+            exit 1
+          fi
+          echo "platforms=$platforms" >> "$GITHUB_OUTPUT"
+
+  split-runner-labels:
+    runs-on: ubuntu-latest
+    outputs:
+      runner_labels: ${{ steps.split-runner-labels.outputs.runner_labels }}
+    steps:
+      - id: split-runner-labels
+        env:
+          target_platforms: ${{ inputs.target_platforms }}
+          runner_label: ${{ inputs.runner_label }}
+        run: |
+          labels=$(echo "$runner_label" | sed 's/ //g' | tr ',' '\n' | sed '/^$/d' | jq -R -s -c 'split("\n")[:-1]')
+          normalized_target_platforms=$(echo "$target_platforms" | sed 's/[ ,]//g')
+          if [ "$labels" = "[]" ] && [ -n "$normalized_target_platforms" ]; then
+            echo "runner_label is required when target_platforms is not empty." >&2
+            exit 1
+          fi
+          if [ "$labels" = "[]" ]; then
+            labels='["self-hosted","macOS"]'
+          fi
+          echo "runner_labels=$labels" >> "$GITHUB_OUTPUT"
+
+  build_platform_package:
+    if: ${{ needs.split-platforms.outputs.platforms != '[]' }}
+    runs-on: ${{ fromJson(needs.split-runner-labels.outputs.runner_labels) }}
+    needs: [package_sdk, split-platforms, split-runner-labels]
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.split-platforms.outputs.platforms) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_branch || github.ref_name }}
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup JDK for Android
+        if: ${{ matrix.platform == 'android' }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Configure Agora example credentials
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          CHANNEL_ID: testapi
+          TOKEN: ''
+        run: |
+          if [ -z "$APP_ID" ]; then
+            echo "APP_ID secret is required when target_platforms is not empty." >&2
+            exit 1
+          fi
+          node ./scripts/write-example-build-config.mjs
+
+      - name: Setup signing key for iOS
+        if: ${{ matrix.platform == 'ios' }}
+        env:
+          BUILD_PROVISION_PROFILE_UUID: ${{ secrets.BUILD_PROVISION_PROFILE_UUID }}
+          BUILD_PROVISION_PROFILE_NAME: ${{ secrets.BUILD_PROVISION_PROFILE_NAME }}
+          BUILD_PROVISION_PROFILE_TEAMID: ${{ secrets.BUILD_PROVISION_PROFILE_TEAMID }}
+          BUILD_PROVISION_PROFILE_IDENTITY: ${{ secrets.BUILD_PROVISION_PROFILE_IDENTITY }}
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          required=(
+            BUILD_PROVISION_PROFILE_UUID
+            BUILD_PROVISION_PROFILE_NAME
+            BUILD_PROVISION_PROFILE_TEAMID
+            BUILD_PROVISION_PROFILE_IDENTITY
+            BUILD_CERTIFICATE_BASE64
+            P12_PASSWORD
+            BUILD_PROVISION_PROFILE_BASE64
+            KEYCHAIN_PASSWORD
+          )
+          for name in "${required[@]}"; do
+            if [ -z "${!name}" ]; then
+              echo "$name secret is required when target_platforms includes ios." >&2
+              exit 1
+            fi
+          done
+
+          CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
+          PP_PATH="$RUNNER_TEMP/${BUILD_PROVISION_PROFILE_UUID}.mobileprovision"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+
+          ruby -rbase64 -e 'File.binwrite(ARGV[1], Base64.decode64(ENV.fetch(ARGV[0])))' BUILD_CERTIFICATE_BASE64 "$CERTIFICATE_PATH"
+          ruby -rbase64 -e 'File.binwrite(ARGV[1], Base64.decode64(ENV.fetch(ARGV[0])))' BUILD_PROVISION_PROFILE_BASE64 "$PP_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+
+      - name: Build selected example package
+        env:
+          BUILD_PROVISION_PROFILE_NAME: ${{ secrets.BUILD_PROVISION_PROFILE_NAME }}
+          BUILD_PROVISION_PROFILE_TEAMID: ${{ secrets.BUILD_PROVISION_PROFILE_TEAMID }}
+          BUILD_PROVISION_PROFILE_IDENTITY: ${{ secrets.BUILD_PROVISION_PROFILE_IDENTITY }}
+          IOS_EXPORT_METHOD: development
+        run: npm run build:all-platforms -- "${{ matrix.platform }}"
+
       - name: Upload Android example APK
-        if: ${{ inputs.build_platform_packages }}
+        if: ${{ matrix.platform == 'android' }}
         uses: actions/upload-artifact@v4
         with:
           name: agora-cocos-example-android-apk
-          path: example/basic-call/build-android/android/proj/build/agora-cocos-basic-call/outputs/apk/debug/agora-cocos-basic-call-debug.apk
+          path: example/basic-call/build-android/android/proj/build/agora-cocos-basic-call/outputs/apk/release/*.apk
           if-no-files-found: error
 
-      - name: Upload iOS simulator example app
-        if: ${{ inputs.build_platform_packages }}
+      - name: Upload iOS example IPA
+        if: ${{ matrix.platform == 'ios' }}
         uses: actions/upload-artifact@v4
         with:
-          name: agora-cocos-example-ios-simulator-app
-          path: example/basic-call/build-ios/agora-cocos-basic-call-mobile-Debug-iphonesimulator.app.zip
+          name: agora-cocos-example-ios-ipa
+          path: example/basic-call/build-ios/ipa/agora-cocos-basic-call-mobile.ipa
           if-no-files-found: error

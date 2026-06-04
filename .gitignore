@@ -40,6 +40,8 @@ example/basic-call/extensions/agora-rtc
 sdk/agora-rtc/dist-cache/
 
 # Local secrets and machine-specific config
+example/basic-call/assets/resources/agora-config.build.json
+example/basic-call/assets/resources/agora-config.build.json.meta
 .env
 .env.*
 *.mobileprovision

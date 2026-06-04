@@ -439,6 +439,8 @@ write_typescript_meta "$ROOT_DIR/example/basic-call/assets/scripts/AgoraRtcExamp
   "6f0fce55-1000-42b8-8b7b-1aaf80000001"
 write_typescript_meta "$ROOT_DIR/example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts" \
   "6f0fce55-1000-42b8-8b7b-1aaf80000005"
+write_typescript_meta "$ROOT_DIR/example/basic-call/assets/scripts/agoraRtcConfigOverride.ts" \
+  "6f0fce55-1000-42b8-8b7b-1aaf80000006"
 write_typescript_meta "$RUNTIME_SDK_DIR/agora.ts" \
   "6f0fce55-1000-42b8-8b7b-1aaf80000002"
 write_typescript_meta "$RUNTIME_SDK_DIR/types.ts" \

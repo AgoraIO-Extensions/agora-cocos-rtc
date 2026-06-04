@@ -41,4 +41,6 @@ test('package-sdk script creates a distributable zip with plugin manifests', asy
 
   const readme = await readFile(path.join(repoRoot, 'sdk/agora-rtc/README.md'), 'utf8');
   assert.match(readme, /API Surface/);
+  assert.match(readme, /client\.initialize\(appId\)/);
+  assert.match(readme, /client\.joinChannel\(token, channelId, uid\)/);
 });

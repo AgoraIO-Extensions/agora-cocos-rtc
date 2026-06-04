@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
-import { access, mkdtemp, readdir, readFile } from 'node:fs/promises';
+import { access, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -33,10 +33,31 @@ async function listFiles(root: string) {
 test('package-customer-delivery script assembles sdk zip and example assets without local docs', async () => {
   const outputDir = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-delivery-'));
   const script = path.join(repoRoot, 'scripts/package-customer-delivery.sh');
+  const localBuildConfigPath = path.join(
+    repoRoot,
+    'example/basic-call/assets/resources/agora-config.build.json',
+  );
+  const localBuildConfigMetaPath = `${localBuildConfigPath}.meta`;
 
-  await execFileAsync('/bin/zsh', [script, outputDir], {
-    cwd: repoRoot,
-  });
+  await writeFile(
+    localBuildConfigPath,
+    JSON.stringify({ appId: 'local-secret-app-id', channelId: 'local-channel', token: '' }, null, 2),
+    'utf8',
+  );
+  await writeFile(
+    localBuildConfigMetaPath,
+    JSON.stringify({ importer: 'json', uuid: 'local-build-config-meta' }, null, 2),
+    'utf8',
+  );
+
+  try {
+    await execFileAsync('/bin/zsh', [script, outputDir], {
+      cwd: repoRoot,
+    });
+  } finally {
+    await rm(localBuildConfigPath, { force: true });
+    await rm(localBuildConfigMetaPath, { force: true });
+  }
 
   const checks = [
     'agora-rtc-cocos-plugin.zip',
@@ -61,6 +82,7 @@ test('package-customer-delivery script assembles sdk zip and example assets with
     /^example-basic-call\/library\//,
     /^example-basic-call\/temp\//,
     /^example-basic-call\/native\/engine\//,
+    /^example-basic-call\/assets\/resources\/agora-config\.build\.json(?:\.meta)?$/,
     /\.(?:mobileprovision|p12|jks|keystore)$/,
   ];
 

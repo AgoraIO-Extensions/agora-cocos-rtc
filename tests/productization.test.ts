@@ -69,6 +69,13 @@ async function listTrackedSourceFiles(
         continue;
       }
 
+      if (
+        entry.name === 'agora-config.build.json' ||
+        entry.name === 'agora-config.build.json.meta'
+      ) {
+        continue;
+      }
+
       const absolutePath = path.join(directory, entry.name);
       const relativePath = path.relative(root, absolutePath);
 

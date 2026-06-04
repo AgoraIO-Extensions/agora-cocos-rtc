@@ -34,6 +34,10 @@ import {
 } from 'cc';
 
 import { createAgoraRtcClient, type AgoraRtcClient } from '../agora-rtc-sdk/agora.ts';
+import {
+  resolveAgoraExampleConfig,
+  type AgoraExampleRuntimeConfig,
+} from './agoraRtcConfigOverride.ts';
 import { worldRectToNativeOverlayRect } from './agoraRtcHudLayout.ts';
 
 const { ccclass, property } = _decorator;
@@ -257,14 +261,6 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 type AppButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'chip' | 'toggleOn' | 'toggleOff' | 'settingsPill';
-
-type AgoraRuntimeConfig = {
-  appId?: string;
-  token?: string;
-  channelId?: string;
-  uid?: number;
-  renderBackend?: 'surface-view' | 'texture-view' | 'engine-texture';
-};
 
 @ccclass('AgoraRtcExampleController')
 export class AgoraRtcExampleController extends Component {
@@ -564,18 +560,13 @@ export class AgoraRtcExampleController extends Component {
       return;
     }
 
-    const config = await new Promise<AgoraRuntimeConfig | null>((resolve) => {
-      resources.load('agora-config', JsonAsset, (error, asset) => {
-        if (error) {
-          resolve(null);
-          return;
-        }
+    const [baseConfig, buildConfig] = await Promise.all([
+      this.loadJsonConfig('agora-config'),
+      this.loadJsonConfig('agora-config.build'),
+    ]);
+    const config = resolveAgoraExampleConfig(baseConfig, buildConfig);
 
-        resolve((asset?.json ?? null) as AgoraRuntimeConfig | null);
-      });
-    });
-
-    if (!config) {
+    if (!config.appId && !config.channelId) {
       this.pushStatus('Config file not found: assets/resources/agora-config.json');
       return;
     }
@@ -590,6 +581,19 @@ export class AgoraRtcExampleController extends Component {
         : 'surface-view';
     this.pushStatus(`Loaded config for channel: ${this.channelId}`);
     this.layoutConsole();
+  }
+
+  private loadJsonConfig(path: string): Promise<AgoraExampleRuntimeConfig | null> {
+    return new Promise<AgoraExampleRuntimeConfig | null>((resolve) => {
+      resources.load(path, JsonAsset, (error, asset) => {
+        if (error) {
+          resolve(null);
+          return;
+        }
+
+        resolve((asset?.json ?? null) as AgoraExampleRuntimeConfig | null);
+      });
+    });
   }
 
   private cleanupSceneEmbeddedHud() {

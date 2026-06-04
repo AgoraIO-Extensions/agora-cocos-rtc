@@ -20,6 +20,8 @@ cp -R "$ROOT_DIR/example/basic-call/build-configs" "$EXAMPLE_DIR/"
 cp "$ROOT_DIR/example/basic-call/README.md" "$EXAMPLE_DIR/README.md"
 cp "$ROOT_DIR/example/basic-call/AGORA_RTC_SPM_SETUP.md" "$EXAMPLE_DIR/AGORA_RTC_SPM_SETUP.md" 2>/dev/null || true
 
+rm -f "$EXAMPLE_DIR/assets/resources/agora-config.build.json"
+rm -f "$EXAMPLE_DIR/assets/resources/agora-config.build.json.meta"
 find "$OUTPUT_DIR" -name ".DS_Store" -delete
 
 echo "Created customer delivery bundle at $OUTPUT_DIR"
