@@ -10,6 +10,11 @@ const IOS_APP_DELEGATE_FORWARD_DECLARATION = `@interface AgoraRtcPlugin : NSObje
 const IOS_APP_DELEGATE_ATTACH_CALL = '    [[AgoraRtcPlugin sharedInstance] attachBridge];';
 const ANDROID_APP_ACTIVITY_IMPORT = 'import io.agora.cocos.rtc.AgoraRtcPlugin;';
 const ANDROID_APP_ACTIVITY_ATTACH_CALL = '        AgoraRtcPlugin.getInstance().attachBridge();';
+const ANDROID_RTC_PERMISSIONS = [
+  'android.permission.CAMERA',
+  'android.permission.RECORD_AUDIO',
+  'android.permission.MODIFY_AUDIO_SETTINGS',
+];
 const COMMON_ENGINE_TEXTURE_BRIDGE_FILES = [
   'AgoraEngineTextureBridge.h',
   'AgoraEngineTextureBridge.cpp',
@@ -337,6 +342,50 @@ async function ensureAndroidAppActivityBridgeAttachment(androidRootDir) {
   return appActivityPath;
 }
 
+function patchAndroidRtcPermissions(content) {
+  const missingPermissions = ANDROID_RTC_PERMISSIONS.filter(
+    (permission) => !content.includes(`android:name="${permission}"`),
+  );
+
+  if (missingPermissions.length === 0) {
+    return content;
+  }
+
+  const permissionBlock = missingPermissions
+    .map((permission) => `    <uses-permission android:name="${permission}" />`)
+    .join('\n');
+
+  if (content.includes('<application')) {
+    return content.replace(/(\s*<application\b)/, `\n${permissionBlock}\n$1`);
+  }
+
+  return content.replace(/(<manifest\b[^>]*>)/, `$1\n\n${permissionBlock}`);
+}
+
+async function ensureAndroidRtcPermissions(androidRootDir) {
+  const manifestPath = await findFirstExistingPath(androidRootDir, [
+    'app/src/main/AndroidManifest.xml',
+    'app/AndroidManifest.xml',
+    'native/engine/android/app/AndroidManifest.xml',
+    '../../native/engine/android/app/AndroidManifest.xml',
+    '../../../native/engine/android/app/AndroidManifest.xml',
+    '../native/engine/android/app/AndroidManifest.xml',
+  ]);
+
+  if (!manifestPath) {
+    return null;
+  }
+
+  const original = await readFile(manifestPath, 'utf8');
+  const patched = patchAndroidRtcPermissions(original);
+
+  if (patched !== original) {
+    await writeFile(manifestPath, patched, 'utf8');
+  }
+
+  return manifestPath;
+}
+
 async function integrateAndroidExport(rootDir) {
   await ensureNativeEngineTextureBridgeForExport(rootDir);
 
@@ -350,6 +399,7 @@ async function integrateAndroidExport(rootDir) {
   ]);
   if (androidSourceDir) {
     await ensureAndroidAppActivityBridgeAttachment(androidSourceDir);
+    await ensureAndroidRtcPermissions(androidSourceDir);
   }
 
   const appGradleFile = await findFirstExistingPath(rootDir, [
@@ -460,10 +510,12 @@ module.exports = {
   integrateIosExport,
   copyIosTemplateFiles,
   ensureAndroidAppActivityBridgeAttachment,
+  ensureAndroidRtcPermissions,
   ensureNativeEngineTextureBridge,
   ensureIosAppDelegateBridgeAttachment,
   onAfterBuild,
   patchAndroidAppActivityBridgeAttachment,
+  patchAndroidRtcPermissions,
   patchIosAppDelegateBridgeAttachment,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,

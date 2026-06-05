@@ -11,6 +11,7 @@ const {
   copyIosTemplateFiles,
   ensureAndroidAppActivityBridgeAttachment,
   ensureAgoraLocalMavenRepository,
+  ensureAndroidRtcPermissions,
   ensureIosAppDelegateBridgeAttachment,
   ensureIosSetupGuide,
   ensureNativeEngineTextureBridge,
@@ -336,6 +337,39 @@ test('ensureAndroidAppActivityBridgeAttachment skips exports without AppActivity
   const result = await ensureAndroidAppActivityBridgeAttachment(root);
 
   assert.equal(result, null);
+});
+
+test('ensureAndroidRtcPermissions patches exported release manifests with required rtc permissions', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-android-manifest-'));
+  const manifestPath = path.join(root, 'native/engine/android/app/AndroidManifest.xml');
+  await mkdir(path.dirname(manifestPath), { recursive: true });
+  await writeFile(
+    manifestPath,
+    `<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    android:installLocation="auto">
+
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <application android:label="@string/app_name">
+    </application>
+</manifest>
+`,
+    'utf8',
+  );
+
+  const patchedPath = await ensureAndroidRtcPermissions(root);
+  const content = await readFile(manifestPath, 'utf8');
+
+  assert.equal(patchedPath, manifestPath);
+  assert.match(content, /android\.permission\.CAMERA/);
+  assert.match(content, /android\.permission\.RECORD_AUDIO/);
+  assert.match(content, /android\.permission\.MODIFY_AUDIO_SETTINGS/);
+  assert.equal([...content.matchAll(/android\.permission\.CAMERA/g)].length, 1);
+  assert.ok(
+    content.indexOf('android.permission.MODIFY_AUDIO_SETTINGS') < content.indexOf('<application'),
+    'RTC permissions must be manifest-level entries before application',
+  );
 });
 
 test('cocos extension entrypoints are loadable from commonjs', () => {
