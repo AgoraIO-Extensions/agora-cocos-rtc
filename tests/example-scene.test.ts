@@ -71,7 +71,8 @@ test('example controller source uses lazy client creation and fallback button no
   assert.match(content, /Render backend:/);
   assert.match(content, /Join request sent/);
   assert.match(content, /Leave request sent/);
-  assert.match(content, /Auto initialize \+ join enabled/);
+  assert.match(content, /Select an example from the list/);
+  assert.match(content, /Join Channel Video/);
   assert.match(content, /cycleRenderBackend/);
   assert.match(content, /setSurfaceViewBackend/);
   assert.match(content, /setTextureViewBackend/);
@@ -371,4 +372,115 @@ test('example controller includes grouped capability demos for expanded sdk api'
   assert.match(content, /Role/);
   assert.match(content, /Encoder/);
   assert.match(content, /Full Demo/);
+});
+
+test('example starts from a route list instead of auto-joining video', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/AgoraRtcExampleController.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /type ExampleRoute = 'home' \| 'video' \| 'audio';/);
+  assert.match(content, /private currentRoute: ExampleRoute = 'home';/);
+  assert.match(content, /showHomePage/);
+  assert.match(content, /Join Channel Video/);
+  assert.match(content, /Join Channel Audio/);
+
+  const startMethod = content.match(/async start\(\) \{[\s\S]*?\n  \}/)?.[0] ?? '';
+  assert.doesNotMatch(startMethod, /initializeRtc\(/);
+  assert.doesNotMatch(startMethod, /joinRtcChannel\(/);
+});
+
+test('example routes keep video and audio demos separated at the example layer', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/AgoraRtcExampleController.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /private showVideoPage\(\)/);
+  assert.match(content, /private showAudioPage\(\)/);
+  assert.match(content, /async joinAudioChannel\(\)/);
+
+  const audioJoinMethod = content.match(/async joinAudioChannel\(\) \{[\s\S]*?\n  \}/)?.[0] ?? '';
+  assert.match(audioJoinMethod, /client\.joinChannel\(this\.token, this\.channelId, this\.uid\)/);
+  assert.match(audioJoinMethod, /enableVideo\(false\)/);
+  assert.doesNotMatch(audioJoinMethod, /setupLocalVideoView/);
+  assert.doesNotMatch(audioJoinMethod, /setupRemoteVideoView/);
+});
+
+test('example route list stays within the visible page and can log before video ui exists', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/AgoraRtcExampleController.ts`,
+    'utf8',
+  );
+
+  const routeLabelMethod = content.match(/private addRouteLabel\([\s\S]*?\n  \}/)?.[0] ?? '';
+  assert.match(routeLabelMethod, /transform\.setAnchorPoint\(0, 0\.5\)/);
+
+  const settingsRefreshMethod = content.match(/private refreshSettingsPanel\(\) \{[\s\S]*?\n  \}/)?.[0] ?? '';
+  assert.match(settingsRefreshMethod, /const profileLabel = this\.settingsValueLabels\.get\('Profile'\);/);
+  assert.match(settingsRefreshMethod, /const roleLabel = this\.settingsValueLabels\.get\('Role'\);/);
+  assert.match(settingsRefreshMethod, /const encoderLabel = this\.settingsValueLabels\.get\('Encoder'\);/);
+  assert.doesNotMatch(settingsRefreshMethod, /settingsValueLabels\.get\('Profile'\)!/);
+  assert.doesNotMatch(settingsRefreshMethod, /settingsValueLabels\.get\('Role'\)!/);
+  assert.doesNotMatch(settingsRefreshMethod, /settingsValueLabels\.get\('Encoder'\)!/);
+});
+
+test('example route pages skip video console layout during canvas resize', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/AgoraRtcExampleController.ts`,
+    'utf8',
+  );
+
+  const resizeMethod = content.match(/private resizeCanvasToVisibleArea\(\) \{[\s\S]*?\n  \}/)?.[0] ?? '';
+  assert.match(resizeMethod, /if \(this\.currentRoute !== 'video'\) \{/);
+  assert.match(resizeMethod, /this\.routePageNode\?\.getComponent\(UITransform\)\?\.setContentSize\(visibleSize\.width, visibleSize\.height\);/);
+
+  const guardIndex = resizeMethod.indexOf("if (this.currentRoute !== 'video')");
+  const layoutIndex = resizeMethod.indexOf('this.layoutConsole();');
+  assert.ok(guardIndex >= 0);
+  assert.ok(layoutIndex > guardIndex);
+});
+
+test('example config loading refreshes the route list without requiring video ui nodes', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/AgoraRtcExampleController.ts`,
+    'utf8',
+  );
+
+  const loadConfigMethod = content.match(/private async loadRuntimeConfig\(\): Promise<void> \{[\s\S]*?\n  \}/)?.[0] ?? '';
+  assert.match(loadConfigMethod, /if \(this\.currentRoute === 'video'\) \{/);
+  assert.match(loadConfigMethod, /this\.layoutConsole\(\);/);
+  assert.match(loadConfigMethod, /else if \(this\.currentRoute === 'home'\) \{/);
+  assert.match(loadConfigMethod, /this\.routeInitialized = false;/);
+  assert.match(loadConfigMethod, /this\.showHomePage\(\);/);
+
+  const startMethod = content.match(/async start\(\) \{[\s\S]*?\n  \}/)?.[0] ?? '';
+  assert.doesNotMatch(startMethod, /this\.showHomePage\(\);\n    console\.log/);
+});
+
+test('example video route back button stays inside the left safe gutter', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/AgoraRtcExampleController.ts`,
+    'utf8',
+  );
+
+  const backMethod = content.match(/private ensureRouteBackButton\(route: ExampleRoute\) \{[\s\S]*?\n  \}/)?.[0] ?? '';
+  assert.match(backMethod, /const buttonWidth = 52;/);
+  assert.match(backMethod, /const buttonHeight = 36;/);
+  assert.match(backMethod, /const x = -visibleSize\.width \/ 2 \+ buttonWidth \/ 2 \+ 4;/);
+  assert.match(backMethod, /const y = visibleSize\.height \/ 2 - buttonHeight \/ 2 - 4;/);
+  assert.match(backMethod, /this\.addRouteButton\(this\.node, buttonName, 'Back', x, y, buttonWidth, buttonHeight, 'ghost'/);
+  assert.doesNotMatch(backMethod, /visibleSize\.height \/ 2 - 50/);
+  assert.doesNotMatch(backMethod, /120, 42/);
+});
+
+test('example router change is constrained to example code and does not edit sdk api files', async () => {
+  const sdkApi = await readFile(`${repoRoot}/sdk/agora-rtc/js/agora.ts`, 'utf8');
+  const hookFile = await readFile(`${repoRoot}/sdk/agora-rtc/dist/hooks.js`, 'utf8');
+
+  assert.match(sdkApi, /export function createAgoraRtcClient/);
+  assert.match(sdkApi, /joinChannel\(token: string, channelId: string, uid: number\)/);
+  assert.doesNotMatch(sdkApi, /ExampleRoute|Join Channel Audio|Join Channel Video/);
+  assert.doesNotMatch(hookFile, /ExampleRoute|Join Channel Audio|Join Channel Video/);
 });

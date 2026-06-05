@@ -260,6 +260,7 @@ const ACTION_LABELS: Record<string, string> = {
   PlaybackUserVolume: 'User Volume',
 };
 
+type ExampleRoute = 'home' | 'video' | 'audio';
 type AppButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'chip' | 'toggleOn' | 'toggleOff' | 'settingsPill';
 
 @ccclass('AgoraRtcExampleController')
@@ -357,6 +358,9 @@ export class AgoraRtcExampleController extends Component {
   private localAudioEnabled = true;
   private localVideoEnabled = true;
   private speakerphoneEnabled: boolean | null = null;
+  private currentRoute: ExampleRoute = 'home';
+  private routePageNode: Node | null = null;
+  private routeInitialized = false;
   private lastErrorMessage = '-';
   private lastRtcStatsSummary = '-';
   private lastVolumeSummary = '-';
@@ -377,6 +381,11 @@ export class AgoraRtcExampleController extends Component {
   }
 
   initializeUi() {
+    if (this.currentRoute !== 'video') {
+      this.showHomePage();
+      return;
+    }
+
     const leftPane = this.getLeftPane();
     const rightPane = this.node.getChildByName(QA_RIGHT_PANE_NODE_NAME);
     if (this.uiInitialized && leftPane && rightPane) {
@@ -410,14 +419,7 @@ export class AgoraRtcExampleController extends Component {
     this.refreshConfigLabel();
     this.pushStatus('Example ready');
     this.pushStatus(`Render backend: ${this.renderBackend}`);
-    this.pushStatus('Auto initialize + join enabled');
-    try {
-      await this.initializeRtc();
-      await this.joinRtcChannel();
-    } catch (error) {
-      console.error('[agora-rtc] auto join failed', error);
-      this.pushStatus(`Auto join failed: ${String(error)}`);
-    }
+    this.pushStatus('Select an example from the list');
     console.log('[agora-rtc] controller start completed');
   }
 
@@ -580,7 +582,14 @@ export class AgoraRtcExampleController extends Component {
         ? config.renderBackend
         : 'surface-view';
     this.pushStatus(`Loaded config for channel: ${this.channelId}`);
-    this.layoutConsole();
+    if (this.currentRoute === 'video') {
+      this.layoutConsole();
+    } else if (this.currentRoute === 'home') {
+      this.routeInitialized = false;
+      this.showHomePage();
+    } else {
+      this.refreshSummary();
+    }
   }
 
   private loadJsonConfig(path: string): Promise<AgoraExampleRuntimeConfig | null> {
@@ -646,6 +655,7 @@ export class AgoraRtcExampleController extends Component {
       if (
         child.name.startsWith('__qa_')
         || child.name.startsWith('__video_')
+        || child.name.startsWith('__route_')
         || child.name === TITLE_NODE_NAME
         || child.name === LOG_PAGE_NODE_NAME
         || child.name === QA_UI_OVERLAY_NODE_NAME
@@ -675,6 +685,243 @@ export class AgoraRtcExampleController extends Component {
     this.channelInput = null;
     this.uidInput = null;
     this.settingsValueLabels.clear();
+  }
+
+  private clearRoutePage() {
+    if (this.routePageNode?.isValid) {
+      this.routePageNode.destroy();
+    }
+    this.routePageNode = null;
+  }
+
+  private createRoutePage(name: string): Node {
+    this.clearRoutePage();
+    const pageNode = new Node(name);
+    pageNode.setParent(this.node);
+    pageNode.layer = this.node.layer;
+    pageNode.active = true;
+    const transform = pageNode.addComponent(UITransform);
+    const visibleSize = view.getVisibleSize();
+    transform.setContentSize(visibleSize.width, visibleSize.height);
+    pageNode.setPosition(0, 0, 0);
+    this.routePageNode = pageNode;
+    return pageNode;
+  }
+
+  private addRouteLabel(
+    parent: Node,
+    name: string,
+    text: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    fontSize = 18,
+    color = new Color(214, 226, 240, 255),
+  ): Label {
+    const node = new Node(name);
+    node.setParent(parent);
+    node.layer = this.node.layer;
+    node.setPosition(x, y, 0);
+    const transform = node.addComponent(UITransform);
+    transform.setAnchorPoint(0, 0.5);
+    transform.setContentSize(width, height);
+    const label = node.addComponent(Label);
+    label.string = text;
+    label.fontSize = fontSize;
+    label.lineHeight = Math.ceil(fontSize * 1.25);
+    label.useSystemFont = true;
+    label.fontFamily = 'Arial';
+    label.color = color;
+    label.horizontalAlign = HorizontalTextAlignment.LEFT;
+    label.verticalAlign = VerticalTextAlignment.CENTER;
+    label.overflow = Label.Overflow.CLAMP;
+    label.enableWrapText = true;
+    return label;
+  }
+
+  private addRouteButton(
+    parent: Node,
+    name: string,
+    text: string,
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    variant: AppButtonVariant,
+    handler: () => void | Promise<void>,
+  ): Node {
+    const buttonNode = new Node(name);
+    buttonNode.setParent(parent);
+    buttonNode.layer = this.node.layer;
+    buttonNode.setPosition(x, y, 0);
+    this.applyAppButtonChrome(buttonNode, width, height, variant);
+    const label = this.getAppButtonLabel(buttonNode);
+    label.string = text;
+    this.bindAppButtonClick(buttonNode, () => {
+      Promise.resolve(handler()).catch((error: unknown) => {
+        console.error('[agora-rtc] route action failed', error);
+        this.pushStatus(`Route action failed: ${String(error)}`);
+      });
+    });
+    return buttonNode;
+  }
+
+  private showHomePage() {
+    if (this.currentRoute === 'home' && this.routeInitialized && this.routePageNode?.isValid) {
+      return;
+    }
+    this.currentRoute = 'home';
+    this.routeInitialized = true;
+    this.uiInitialized = false;
+    this.cleanupDynamicHudNodes();
+    const pageNode = this.createRoutePage('__route_home');
+    const visibleSize = view.getVisibleSize();
+    const width = Math.min(620, Math.max(320, visibleSize.width - 80));
+    const startY = Math.min(visibleSize.height / 2 - 120, 210);
+
+    const bgNode = new Node('__route_home_bg');
+    bgNode.setParent(pageNode);
+    bgNode.layer = this.node.layer;
+    const bgTransform = bgNode.addComponent(UITransform);
+    bgTransform.setContentSize(width, 360);
+    const graphics = bgNode.addComponent(Graphics);
+    this.drawSectionCard(graphics, width, 360, 'panel');
+
+    this.addRouteLabel(
+      pageNode,
+      '__route_home_title',
+      'Agora RTC Cocos Examples',
+      -width / 2 + 28,
+      startY,
+      width - 56,
+      40,
+      24,
+      new Color(108, 194, 230, 255),
+    );
+    this.addRouteLabel(
+      pageNode,
+      '__route_home_subtitle',
+      `App ${this.maskAppId(this.appId)}  ·  Channel ${this.channelId || '-'}`,
+      -width / 2 + 28,
+      startY - 42,
+      width - 56,
+      30,
+      16,
+      new Color(190, 206, 224, 255),
+    );
+
+    this.addRouteButton(pageNode, '__route_video_button', 'Join Channel Video', 0, startY - 112, width - 56, 56, 'primary', () => {
+      this.showVideoPage();
+    });
+    this.addRouteButton(pageNode, '__route_audio_button', 'Join Channel Audio', 0, startY - 182, width - 56, 56, 'secondary', () => {
+      this.showAudioPage();
+    });
+  }
+
+  private showVideoPage() {
+    this.currentRoute = 'video';
+    this.routeInitialized = true;
+    this.clearRoutePage();
+    this.cleanupDynamicHudNodes();
+    this.uiInitialized = false;
+    this.ensureUi();
+    this.ensureRouteBackButton('video');
+    this.pushStatus('Video example ready. Tap Join to enter the channel.');
+  }
+
+  private showAudioPage() {
+    this.currentRoute = 'audio';
+    this.routeInitialized = true;
+    this.uiInitialized = false;
+    this.cleanupDynamicHudNodes();
+    const pageNode = this.createRoutePage('__route_audio');
+    const visibleSize = view.getVisibleSize();
+    const width = Math.min(680, Math.max(320, visibleSize.width - 80));
+    const startY = Math.min(visibleSize.height / 2 - 96, 230);
+
+    const bgNode = new Node('__route_audio_bg');
+    bgNode.setParent(pageNode);
+    bgNode.layer = this.node.layer;
+    const bgTransform = bgNode.addComponent(UITransform);
+    bgTransform.setContentSize(width, 430);
+    const graphics = bgNode.addComponent(Graphics);
+    this.drawSectionCard(graphics, width, 430, 'panel');
+
+    this.addRouteLabel(
+      pageNode,
+      '__route_audio_title',
+      'Join Channel Audio',
+      -width / 2 + 28,
+      startY,
+      width - 56,
+      40,
+      24,
+      new Color(108, 194, 230, 255),
+    );
+    this.addRouteLabel(
+      pageNode,
+      '__route_audio_config',
+      `App ${this.maskAppId(this.appId)}  ·  Channel ${this.channelId || '-'}  ·  UID ${this.uid}`,
+      -width / 2 + 28,
+      startY - 42,
+      width - 56,
+      34,
+      16,
+      new Color(190, 206, 224, 255),
+    );
+
+    const buttonWidth = Math.max(136, Math.floor((width - 92) / 3));
+    const leftX = -buttonWidth - 12;
+    const centerX = 0;
+    const rightX = buttonWidth + 12;
+    this.addRouteButton(pageNode, '__route_audio_init', 'Initialize', leftX, startY - 112, buttonWidth, 48, 'primary', () => this.initializeAudioRtc());
+    this.addRouteButton(pageNode, '__route_audio_join', 'Join Audio', centerX, startY - 112, buttonWidth, 48, 'primary', () => this.joinAudioChannel());
+    this.addRouteButton(pageNode, '__route_audio_leave', 'Leave', rightX, startY - 112, buttonWidth, 48, 'danger', () => this.leaveRtcChannel());
+    this.addRouteButton(pageNode, '__route_audio_mic', 'Mic', leftX, startY - 174, buttonWidth, 48, 'secondary', () => this.toggleLocalAudio());
+    this.addRouteButton(pageNode, '__route_audio_speaker', 'Speaker', centerX, startY - 174, buttonWidth, 48, 'secondary', () => this.toggleSpeakerphone());
+    this.addRouteButton(pageNode, '__route_audio_back', 'Back', rightX, startY - 174, buttonWidth, 48, 'ghost', () => this.backToHome());
+
+    this.statusLabel = this.addRouteLabel(
+      pageNode,
+      '__route_audio_status',
+      this.getStatusPreviewText(),
+      -width / 2 + 28,
+      startY - 282,
+      width - 56,
+      120,
+      15,
+      new Color(205, 218, 234, 255),
+    );
+    this.summaryLabel = this.addRouteLabel(
+      pageNode,
+      '__route_audio_summary',
+      this.getSummaryText(),
+      -width / 2 + 28,
+      startY - 344,
+      width - 56,
+      42,
+      15,
+      new Color(170, 210, 188, 255),
+    );
+    this.pushStatus('Audio example ready. Tap Join Audio to enter the channel.');
+    this.refreshSummary();
+  }
+
+  private ensureRouteBackButton(route: ExampleRoute) {
+    const buttonName = `__route_${route}_back`;
+    this.node.getChildByName(buttonName)?.destroy();
+    const visibleSize = view.getVisibleSize();
+    const buttonWidth = 52;
+    const buttonHeight = 36;
+    const x = -visibleSize.width / 2 + buttonWidth / 2 + 4;
+    const y = visibleSize.height / 2 - buttonHeight / 2 - 4;
+    this.addRouteButton(this.node, buttonName, 'Back', x, y, buttonWidth, buttonHeight, 'ghost', () => this.backToHome());
+  }
+
+  private async backToHome() {
+    await this.teardownRtc();
+    this.showHomePage();
   }
 
   private ensureQaPanes() {
@@ -3756,6 +4003,14 @@ export class AgoraRtcExampleController extends Component {
       transform.setContentSize(visibleSize.width, visibleSize.height);
     }
     this.node.setPosition(visibleSize.width / 2, visibleSize.height / 2, 0);
+    if (this.currentRoute !== 'video') {
+      this.routePageNode?.getComponent(UITransform)?.setContentSize(visibleSize.width, visibleSize.height);
+      if (this.logPageVisible) {
+        this.layoutStatusLogPage();
+      }
+      console.log('[agora-rtc] canvas resized to', visibleSize.width, visibleSize.height);
+      return;
+    }
     this.layoutConsole();
     if (this.logPageVisible) {
       this.layoutStatusLogPage();
@@ -3825,10 +4080,18 @@ export class AgoraRtcExampleController extends Component {
     if (backendLabel) {
       backendLabel.string = this.renderBackend;
     }
-    this.settingsValueLabels.get('Profile')!.string = this.selectedChannelProfile;
-    this.settingsValueLabels.get('Role')!.string = this.selectedClientRole;
-    this.settingsValueLabels.get('Encoder')!.string =
-      VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetIndex].name;
+    const profileLabel = this.settingsValueLabels.get('Profile');
+    if (profileLabel) {
+      profileLabel.string = this.selectedChannelProfile;
+    }
+    const roleLabel = this.settingsValueLabels.get('Role');
+    if (roleLabel) {
+      roleLabel.string = this.selectedClientRole;
+    }
+    const encoderLabel = this.settingsValueLabels.get('Encoder');
+    if (encoderLabel) {
+      encoderLabel.string = VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetIndex].name;
+    }
     if (this.channelInput) {
       this.channelInput.string = this.channelId;
     }
@@ -4183,6 +4446,40 @@ export class AgoraRtcExampleController extends Component {
     this.setActionResult('Initialize', 'ok');
   }
 
+  async initializeAudioRtc() {
+    this.setActionResult('Initialize', 'idle');
+    if (this.initialized) {
+      this.pushStatus('RTC engine already initialized');
+      this.setActionResult('Initialize', 'ok');
+      return;
+    }
+
+    if (!this.appId.trim()) {
+      this.setActionResult('Initialize', 'fail');
+      throw new Error('App ID is required.');
+    }
+
+    const client = this.getClient();
+    await client.setRenderBackend(this.renderBackend);
+    await client.initialize(this.appId);
+    await client.setChannelProfile(this.selectedChannelProfile);
+    await client.setClientRole(this.selectedClientRole);
+    await client.enableAudio(true);
+    await client.enableLocalAudio(true);
+    await client.enableVideo(false);
+    this.initialized = true;
+    this.audioEnabled = true;
+    this.localAudioEnabled = true;
+    this.videoEnabled = false;
+    this.localVideoEnabled = false;
+    this.localViewAttached = false;
+    this.previewStarted = false;
+    this.refreshVideoHints();
+    this.refreshSummary();
+    this.pushStatus('Audio initialize request sent');
+    this.setActionResult('Initialize', 'ok');
+  }
+
   async joinRtcChannel() {
     this.setActionResult('Join', 'idle');
     if (!this.channelId.trim()) {
@@ -4197,6 +4494,27 @@ export class AgoraRtcExampleController extends Component {
     await this.getClient().joinChannel(this.token, this.channelId, this.uid);
     this.pushStatus(`Join request sent: ${this.channelId}`);
     this.setActionResult('Join', 'ok');
+  }
+
+  async joinAudioChannel() {
+    this.setActionResult('Join', 'idle');
+    if (!this.channelId.trim()) {
+      this.setActionResult('Join', 'fail');
+      throw new Error('Channel ID is required.');
+    }
+
+    if (!this.initialized) {
+      await this.initializeAudioRtc();
+    }
+
+    const client = this.getClient();
+    await client.enableVideo(false);
+    await client.joinChannel(this.token, this.channelId, this.uid);
+    this.videoEnabled = false;
+    this.localVideoEnabled = false;
+    this.pushStatus(`Join audio request sent: ${this.channelId}`);
+    this.setActionResult('Join', 'ok');
+    this.refreshSummary();
   }
 
   async leaveRtcChannel() {
