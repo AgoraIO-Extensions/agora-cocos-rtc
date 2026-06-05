@@ -60,6 +60,23 @@ async function readEngineTextureLimits(filePath: string) {
   };
 }
 
+function assertPatternBefore(
+  content: string,
+  beforePattern: RegExp,
+  afterPattern: RegExp,
+  message: string,
+) {
+  const beforeIndex = content.search(beforePattern);
+  const afterIndex = content.search(afterPattern);
+
+  assert.ok(beforeIndex >= 0, `Missing before pattern for ${message}`);
+  assert.ok(afterIndex >= 0, `Missing after pattern for ${message}`);
+  assert.ok(
+    beforeIndex < afterIndex,
+    `Expected ${message}: ${beforePattern} before ${afterPattern}`,
+  );
+}
+
 test('ios swift bridge template passes a syntax-only compile', async () => {
   const swiftFile = path.join(
     repoRoot,
@@ -169,6 +186,88 @@ test('android bridge template returns errors for bad native requests instead of 
   assert.match(bridgeContent, /catch \(Exception error\)[\s\S]*dispatchNativeExceptionError\(requestId, error\);[\s\S]*return;/);
 });
 
+test('android bridge template rejects unsafe invalid arguments before calling the rtc sdk', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  const handleJoinChannelMatch = bridgeContent.match(
+    /private void handleJoinChannel[\s\S]*?private void handleGetErrorDescription/,
+  );
+  assert.ok(handleJoinChannelMatch);
+  assert.match(handleJoinChannelMatch[0], /Channel ID is required\./);
+  assertPatternBefore(
+    handleJoinChannelMatch[0],
+    /Channel ID is required\./,
+    /rtcEngine\.joinChannel/,
+    'joinChannel must reject an empty channel before invoking native sdk',
+  );
+
+  const handleSetLogFileMatch = bridgeContent.match(
+    /private void handleSetLogFile[\s\S]*?private void handleSetChannelProfile/,
+  );
+  assert.ok(handleSetLogFileMatch);
+  assert.match(handleSetLogFileMatch[0], /Log file path is required\./);
+  assertPatternBefore(
+    handleSetLogFileMatch[0],
+    /Log file path is required\./,
+    /rtcEngine\.setLogFile/,
+    'setLogFile must reject an empty path before invoking native sdk',
+  );
+
+  const handleStartAudioMixingMatch = bridgeContent.match(
+    /private void handleStartAudioMixing[\s\S]*?private void handlePauseAudioMixing/,
+  );
+  assert.ok(handleStartAudioMixingMatch);
+  assert.match(handleStartAudioMixingMatch[0], /Audio mixing path is required\./);
+  assertPatternBefore(
+    handleStartAudioMixingMatch[0],
+    /Audio mixing path is required\./,
+    /rtcEngine\.startAudioMixing/,
+    'startAudioMixing must reject an empty path before invoking native sdk',
+  );
+
+  const handleSetParametersMatch = bridgeContent.match(
+    /private void handleSetParameters[\s\S]*?private Activity requireActivity/,
+  );
+  assert.ok(handleSetParametersMatch);
+  assert.match(handleSetParametersMatch[0], /Parameters are required\./);
+  assertPatternBefore(
+    handleSetParametersMatch[0],
+    /Parameters are required\./,
+    /rtcEngine\.setParameters/,
+    'setParameters must reject an empty payload before invoking native sdk',
+  );
+});
+
+test('android bridge template resolves joinChannel after the sdk accepts the request', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  const handleJoinChannelMatch = bridgeContent.match(
+    /private void handleJoinChannel[\s\S]*?private void handleGetErrorDescription/,
+  );
+  assert.ok(handleJoinChannelMatch);
+  assert.match(handleJoinChannelMatch[0], /dispatchOk\(requestId\);/);
+  assert.doesNotMatch(handleJoinChannelMatch[0], /pendingJoinRequestId\s*=\s*requestId/);
+
+  const onJoinChannelSuccessMatch = bridgeContent.match(
+    /public void onJoinChannelSuccess[\s\S]*?@Override/,
+  );
+  assert.ok(onJoinChannelSuccessMatch);
+  assert.match(onJoinChannelSuccessMatch[0], /dispatchEvent\("joinChannelSuccess"/);
+  assert.doesNotMatch(onJoinChannelSuccessMatch[0], /dispatchOk\(pendingJoinRequestId\)/);
+});
+
 test('android bridge template dispatches expanded native rtc callbacks as js events', async () => {
   const bridgeContent = await readFile(
     path.join(
@@ -262,6 +361,102 @@ test('ios bridge template wires minimum real rtc engine methods and delegate cal
   assert.match(bridgeContent, /connectionChangedTo/);
   assert.match(bridgeContent, /didOccurError/);
   assert.match(bridgeContent, /reportAudioVolumeIndicationOfSpeakers/);
+});
+
+test('ios bridge template resolves joinChannel after the sdk accepts the request', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  const handleJoinChannelMatch = bridgeContent.match(
+    /private func handleJoinChannel[\s\S]*?private func requireEngine/,
+  );
+  assert.ok(handleJoinChannelMatch);
+  assert.match(
+    handleJoinChannelMatch[0],
+    /dispatchResult\(requestId: requestId, method: "joinChannel", result: result\)/,
+  );
+  assert.doesNotMatch(handleJoinChannelMatch[0], /pendingJoinRequestId\s*=\s*requestId/);
+
+  const didJoinChannelMatch = bridgeContent.match(
+    /func rtcEngine\(_ engine: AgoraRtcEngineKit, didJoinChannel[\s\S]*?func rtcEngine\(_ engine: AgoraRtcEngineKit, didRejoinChannel/,
+  );
+  assert.ok(didJoinChannelMatch);
+  assert.match(didJoinChannelMatch[0], /dispatchEvent\(name: "joinChannelSuccess"/);
+  assert.doesNotMatch(didJoinChannelMatch[0], /pendingJoinRequestId/);
+});
+
+test('ios bridge template rejects unsafe invalid arguments before calling the rtc sdk', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /private func requiredString/);
+  assert.match(bridgeContent, /private func dispatchInvalidArgumentError/);
+
+  const setRenderBackendMatch = bridgeContent.match(
+    /case "setRenderBackend":[\s\S]*?case "setChannelProfile":/,
+  );
+  assert.ok(setRenderBackendMatch);
+  assert.match(setRenderBackendMatch[0], /Render backend is required\./);
+  assert.match(setRenderBackendMatch[0], /isSupportedRenderBackend\(requestedBackend\)/);
+  assert.match(setRenderBackendMatch[0], /Unsupported render backend/);
+  assertPatternBefore(
+    setRenderBackendMatch[0],
+    /dispatchInvalidArgumentError/,
+    /renderBackend = requestedBackend/,
+    'setRenderBackend must reject unknown backends before mutating state',
+  );
+
+  const handleJoinChannelMatch = bridgeContent.match(
+    /private func handleJoinChannel[\s\S]*?private func requireEngine/,
+  );
+  assert.ok(handleJoinChannelMatch);
+  assert.match(handleJoinChannelMatch[0], /Channel ID is required\./);
+  assertPatternBefore(
+    handleJoinChannelMatch[0],
+    /Channel ID is required\./,
+    /engine\.joinChannel/,
+    'joinChannel must reject an empty channel before invoking native sdk',
+  );
+
+  const setLogFileMatch = bridgeContent.match(
+    /case "setLogFile":[\s\S]*?case "setParameters":/,
+  );
+  assert.ok(setLogFileMatch);
+  assert.match(setLogFileMatch[0], /Log file path is required\./);
+  assertPatternBefore(
+    setLogFileMatch[0],
+    /Log file path is required\./,
+    /engine\.setLogFile/,
+    'setLogFile must reject an empty path before invoking native sdk',
+  );
+
+  const setParametersMatch = bridgeContent.match(
+    /case "setParameters":[\s\S]*?case "enableContentInspect":/,
+  );
+  assert.ok(setParametersMatch);
+  assert.match(setParametersMatch[0], /Parameters are required\./);
+  assertPatternBefore(
+    setParametersMatch[0],
+    /Parameters are required\./,
+    /engine\.setParameters/,
+    'setParameters must reject an empty payload before invoking native sdk',
+  );
+
+  const startAudioMixingMatch = bridgeContent.match(
+    /case "startAudioMixing":[\s\S]*?case "pauseAudioMixing":/,
+  );
+  assert.ok(startAudioMixingMatch);
+  assert.match(startAudioMixingMatch[0], /Audio mixing path is required\./);
+  assertPatternBefore(
+    startAudioMixingMatch[0],
+    /Audio mixing path is required\./,
+    /engine\.startAudioMixing/,
+    'startAudioMixing must reject an empty path before invoking native sdk',
+  );
 });
 
 test('ios plugin registrar attaches the js bridge wrapper and forwards responses back to script', async () => {
@@ -1038,14 +1233,13 @@ public class RtcEngine {
   assert.match(pluginSource, /handleScriptRequest/);
   assert.match(pluginSource, /App ID is required/);
   assert.match(pluginSource, /GlobalObject\.getActivity\(\)/);
-  assert.match(pluginSource, /pendingJoinRequestId/);
   assert.match(pluginSource, /setRenderBackend/);
   assert.match(pluginSource, /AgoraRenderBackendFactory/);
   const handleJoinChannelMatch = pluginSource.match(
     /private void handleJoinChannel[\s\S]*?private void handleSetupLocalVideoView/,
   );
   assert.ok(handleJoinChannelMatch);
-  assert.doesNotMatch(handleJoinChannelMatch[0], /dispatchOk\(requestId\);/);
+  assert.match(handleJoinChannelMatch[0], /dispatchOk\(requestId\);/);
 
   const renderBackendFiles = (await readdir(
     path.join(srcRoot, 'main/java/io/agora/cocos/rtc/render'),

@@ -23,7 +23,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     private let callbackEventName = "agora:event"
 
     private var rtcEngine: AgoraRtcEngineKit?
-    private var pendingJoinRequestId: String?
     private var renderBackend = "surface-view"
     private var localCanvasView: UIView?
     private var localCanvas: AgoraRtcVideoCanvas?
@@ -206,7 +205,24 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 "result": AgoraRtcEngineKit.getErrorDescription(code),
             ])
         case "setRenderBackend":
-            let requestedBackend = params["backend"] as? String ?? "surface-view"
+            guard let requestedBackend = requiredString(
+                params,
+                key: "backend",
+                requestId: requestId,
+                message: "Render backend is required."
+            ) else {
+                return
+            }
+            guard isSupportedRenderBackend(requestedBackend) else {
+                dispatchInvalidArgumentError(
+                    requestId: requestId,
+                    message: "Unsupported render backend: \(requestedBackend)",
+                    method: "setRenderBackend",
+                    argumentName: "backend",
+                    argumentValue: requestedBackend
+                )
+                return
+            }
             if requestedBackend == "texture-view" {
                 renderBackend = "surface-view"
                 dispatchEvent(name: "renderBackendState", payload: [
@@ -406,13 +422,27 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "setLogFile":
             requireEngine(requestId: requestId) { engine in
-                let path = params["path"] as? String ?? ""
+                guard let path = requiredString(
+                    params,
+                    key: "path",
+                    requestId: requestId,
+                    message: "Log file path is required."
+                ) else {
+                    return
+                }
                 let result = engine.setLogFile(path)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "setParameters":
             requireEngine(requestId: requestId) { engine in
-                let parameters = params["parameters"] as? String ?? ""
+                guard let parameters = requiredString(
+                    params,
+                    key: "parameters",
+                    requestId: requestId,
+                    message: "Parameters are required."
+                ) else {
+                    return
+                }
                 let result = engine.setParameters(parameters)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
@@ -434,7 +464,14 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "startAudioMixing":
             requireEngine(requestId: requestId) { engine in
-                let path = params["path"] as? String ?? ""
+                guard let path = requiredString(
+                    params,
+                    key: "path",
+                    requestId: requestId,
+                    message: "Audio mixing path is required."
+                ) else {
+                    return
+                }
                 let loopback = params["loopback"] as? Bool ?? false
                 let cycle = params["cycle"] as? Int ?? 1
                 let startPos = params["startPos"] as? Int ?? 0
@@ -531,7 +568,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             _ = rtcEngine?.setVideoFrameDelegate(nil)
             AgoraRtcEngineKit.destroy()
             rtcEngine = nil
-            pendingJoinRequestId = nil
             clearAllVideoViews()
             releaseAllTextureSlots()
             dispatchResponse([
@@ -589,13 +625,15 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         }
 
         let token = params["token"] as? String
-        let channelId = (params["channelId"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
-
-        guard !channelId.isEmpty else {
-            dispatchError(requestId: requestId, message: "Channel ID is required.")
+        guard let channelId = requiredString(
+            params,
+            key: "channelId",
+            requestId: requestId,
+            message: "Channel ID is required."
+        ) else {
             return
         }
+        let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
 
         let result = engine.joinChannel(
             byToken: token,
@@ -604,10 +642,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             uid: uid,
             joinSuccess: nil
         )
-        if result == 0 {
-            pendingJoinRequestId = requestId
-            return
-        }
         dispatchResult(requestId: requestId, method: "joinChannel", result: result)
     }
 
@@ -617,6 +651,24 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             return
         }
         action(engine)
+    }
+
+    private func requiredString(
+        _ params: [String: Any],
+        key: String,
+        requestId: String,
+        message: String
+    ) -> String? {
+        let value = (params[key] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.isEmpty {
+            dispatchError(requestId: requestId, message: message)
+            return nil
+        }
+        return value
+    }
+
+    private func isSupportedRenderBackend(_ backend: String) -> Bool {
+        backend == "surface-view" || backend == "texture-view" || backend == "engine-texture"
     }
 
     private func handleSetupLocalVideoView(requestId: String, params: [String: Any]) {
@@ -954,6 +1006,28 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         ])
     }
 
+    private func dispatchInvalidArgumentError(
+        requestId: String,
+        message: String,
+        method: String,
+        argumentName: String,
+        argumentValue: String
+    ) {
+        dispatchResponse([
+            "requestId": requestId,
+            "ok": false,
+            "error": [
+                "code": "invalid_argument",
+                "message": message,
+                "details": [
+                    "method": method,
+                    argumentName: argumentValue,
+                    "platform": "ios",
+                ],
+            ],
+        ])
+    }
+
     func rtcEngine(_ engine: AgoraRtcEngineKit, didOccurError errorCode: AgoraErrorCode) {
         dispatchEvent(name: "error", payload: [
             "code": errorCode.rawValue,
@@ -966,13 +1040,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             "channelId": channel,
             "uid": uid,
         ])
-        if let requestId = pendingJoinRequestId {
-            pendingJoinRequestId = nil
-            dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-        }
     }
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, didRejoinChannel channel: String, withUid uid: UInt, elapsed: Int) {

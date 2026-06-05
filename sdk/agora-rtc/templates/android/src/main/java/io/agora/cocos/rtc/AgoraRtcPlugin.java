@@ -35,7 +35,6 @@ public final class AgoraRtcPlugin {
 
     private RtcEngine rtcEngine;
     private boolean attached;
-    private String pendingJoinRequestId;
     private String renderBackendType = "surface-view";
     private AgoraRenderBackend renderBackend = AgoraRenderBackendFactory.create(
             renderBackendType,
@@ -375,10 +374,6 @@ public final class AgoraRtcPlugin {
                             "channelId", channel,
                             "uid", uid
                     ));
-                    if (pendingJoinRequestId != null) {
-                        dispatchOk(pendingJoinRequestId);
-                        pendingJoinRequestId = null;
-                    }
                 }
 
                 @Override
@@ -513,6 +508,10 @@ public final class AgoraRtcPlugin {
             dispatchError(requestId, "RtcEngine is not initialized.");
             return;
         }
+        if (channelId == null || channelId.trim().isEmpty()) {
+            dispatchError(requestId, "Channel ID is required.");
+            return;
+        }
 
         ChannelMediaOptions options = new ChannelMediaOptions();
         int result = rtcEngine.joinChannel(token, channelId, uid, options);
@@ -521,7 +520,7 @@ public final class AgoraRtcPlugin {
             return;
         }
 
-        pendingJoinRequestId = requestId;
+        dispatchOk(requestId);
     }
 
     private void handleGetErrorDescription(String requestId, JSONObject params) {
@@ -825,7 +824,6 @@ public final class AgoraRtcPlugin {
             RtcEngine.destroy();
             rtcEngine = null;
         }
-        pendingJoinRequestId = null;
         dispatchOk(requestId);
     }
 
