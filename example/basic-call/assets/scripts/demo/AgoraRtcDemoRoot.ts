@@ -388,9 +388,14 @@ export class AgoraRtcDemoRoot extends Component {
       previewStarted: false,
       activeRemoteUid: null,
       remoteUserUids: [],
+      channelProfile: 'communication',
+      clientRole: 'broadcaster',
+      renderBackend: this.renderBackend,
+      videoEncoderPresetName: '360p',
       audioEnabled: true,
       localAudioEnabled: true,
       localVideoEnabled: true,
+      videoEnabled: true,
       localAudioMuted: false,
       localVideoMuted: false,
       remoteAudioMuted: false,
@@ -400,6 +405,8 @@ export class AgoraRtcDemoRoot extends Component {
       speakerphoneEnabled: null,
       lastErrorMessage: '-',
       lastRtcStatsSummary: '-',
+      lastLocalVideoStatsSummary: '-',
+      lastRemoteVideoStatsByUid: {},
       lastVolumeSummary: '-',
     };
   }

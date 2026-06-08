@@ -9,15 +9,28 @@ import {
 
 import { createAgoraRtcClient, type AgoraRtcClient } from '../../agora-rtc-sdk/agora.ts';
 import type { AgoraVideoViewRect } from '../../agora-rtc-sdk/types.ts';
-import type { DemoSessionState, RuntimeConfigState } from './types.ts';
+import type {
+  ChannelProfile,
+  ClientRole,
+  DemoSessionState,
+  RuntimeConfigState,
+  VideoEncoderPresetName,
+} from './types.ts';
 
-const VIDEO_ENCODER_PRESETS = [
-  { name: '360p', width: 640, height: 360, frameRate: 15, bitrate: 0 },
-  { name: '540p', width: 960, height: 540, frameRate: 15, bitrate: 0 },
-  { name: '720p', width: 1280, height: 720, frameRate: 15, bitrate: 0 },
-] as const;
-const CHANNEL_PROFILE_PRESETS = ['communication', 'liveBroadcasting'] as const;
-const CLIENT_ROLE_PRESETS = ['broadcaster', 'audience'] as const;
+const VIDEO_ENCODER_PRESETS: Record<VideoEncoderPresetName, {
+  name: VideoEncoderPresetName;
+  width: number;
+  height: number;
+  frameRate: number;
+  bitrate: number;
+}> = {
+  '360p': { name: '360p', width: 640, height: 360, frameRate: 15, bitrate: 0 },
+  '540p': { name: '540p', width: 960, height: 540, frameRate: 15, bitrate: 0 },
+  '720p': { name: '720p', width: 1280, height: 720, frameRate: 15, bitrate: 0 },
+};
+const CHANNEL_PROFILE_PRESETS: ChannelProfile[] = ['communication', 'liveBroadcasting'];
+const CLIENT_ROLE_PRESETS: ClientRole[] = ['broadcaster', 'audience'];
+const VIDEO_ENCODER_PRESET_NAMES: VideoEncoderPresetName[] = ['360p', '540p', '720p'];
 
 export interface RtcSessionServiceOptions {
   getConfig(): RuntimeConfigState;
@@ -61,11 +74,13 @@ export class RtcSessionService {
   private playbackVolume = 100;
   private userPlaybackVolume = 100;
   private speakerphoneEnabled: boolean | null = null;
-  private selectedChannelProfile: typeof CHANNEL_PROFILE_PRESETS[number] = 'communication';
-  private selectedClientRole: typeof CLIENT_ROLE_PRESETS[number] = 'broadcaster';
-  private selectedVideoEncoderPresetIndex = 0;
+  private selectedChannelProfile: ChannelProfile = 'communication';
+  private selectedClientRole: ClientRole = 'broadcaster';
+  private selectedVideoEncoderPresetName: VideoEncoderPresetName = '360p';
   private lastErrorMessage = '-';
   private lastRtcStatsSummary = '-';
+  private lastLocalVideoStatsSummary = '-';
+  private lastRemoteVideoStatsByUid = new Map<number, string>();
   private lastVolumeSummary = '-';
 
   constructor(private readonly options: RtcSessionServiceOptions) {}
@@ -77,9 +92,14 @@ export class RtcSessionService {
       previewStarted: this.previewStarted,
       activeRemoteUid: this.activeRemoteUid,
       remoteUserUids: [...this.remoteUserUids],
+      channelProfile: this.selectedChannelProfile,
+      clientRole: this.selectedClientRole,
+      renderBackend: this.options.getConfig().renderBackend,
+      videoEncoderPresetName: this.selectedVideoEncoderPresetName,
       audioEnabled: this.audioEnabled,
       localAudioEnabled: this.localAudioEnabled,
       localVideoEnabled: this.localVideoEnabled,
+      videoEnabled: this.videoEnabled,
       localAudioMuted: this.localAudioMuted,
       localVideoMuted: this.localVideoMuted,
       remoteAudioMuted: this.remoteAudioMuted,
@@ -89,6 +109,8 @@ export class RtcSessionService {
       speakerphoneEnabled: this.speakerphoneEnabled,
       lastErrorMessage: this.lastErrorMessage,
       lastRtcStatsSummary: this.lastRtcStatsSummary,
+      lastLocalVideoStatsSummary: this.lastLocalVideoStatsSummary,
+      lastRemoteVideoStatsByUid: Object.fromEntries(this.lastRemoteVideoStatsByUid),
       lastVolumeSummary: this.lastVolumeSummary,
     };
   }
@@ -137,28 +159,45 @@ export class RtcSessionService {
     await client.leaveChannel();
     this.joined = false;
     this.remoteUserUids.clear();
+    this.lastRemoteVideoStatsByUid.clear();
     this.activeRemoteUid = null;
     this.options.onRemoteUsersChanged([], null);
     this.log('Leave request sent');
     this.emitState();
   }
 
-  async togglePreview(): Promise<void> {
-    const client = this.getClient();
+  async startLocalPreview(): Promise<void> {
     if (!this.initialized) {
       await this.initializeRtc();
     }
     if (this.previewStarted) {
-      await client.stopPreview();
-      this.previewStarted = false;
-      this.log('Preview stopped');
-    } else {
-      await this.setupLocalVideoView();
-      await client.startPreview();
-      this.previewStarted = true;
-      this.log('Preview started');
+      this.log('Preview already started');
+      return;
     }
+    await this.setupLocalVideoView();
+    await this.getClient().startPreview();
+    this.previewStarted = true;
+    this.log('Preview started');
     this.emitState();
+  }
+
+  async stopLocalPreview(): Promise<void> {
+    if (!this.previewStarted) {
+      this.log('Preview already stopped');
+      return;
+    }
+    await this.getClient().stopPreview();
+    this.previewStarted = false;
+    this.log('Preview stopped');
+    this.emitState();
+  }
+
+  async togglePreview(): Promise<void> {
+    if (this.previewStarted) {
+      await this.stopLocalPreview();
+      return;
+    }
+    await this.startLocalPreview();
   }
 
   async refreshRtcViews(): Promise<void> {
@@ -186,9 +225,8 @@ export class RtcSessionService {
 
   async cycleChannelProfilePreset(): Promise<void> {
     const index = CHANNEL_PROFILE_PRESETS.indexOf(this.selectedChannelProfile);
-    this.selectedChannelProfile = CHANNEL_PROFILE_PRESETS[(index + 1) % CHANNEL_PROFILE_PRESETS.length];
-    await this.getClient().setChannelProfile(this.selectedChannelProfile);
-    this.log(`Channel profile: ${this.selectedChannelProfile}`);
+    const next = CHANNEL_PROFILE_PRESETS[(index + 1) % CHANNEL_PROFILE_PRESETS.length];
+    await this.applyChannelProfile(next);
   }
 
   async cycleClientRolePreset(): Promise<void> {
@@ -196,14 +234,30 @@ export class RtcSessionService {
     this.selectedClientRole = CLIENT_ROLE_PRESETS[(index + 1) % CLIENT_ROLE_PRESETS.length];
     await this.getClient().setClientRole(this.selectedClientRole);
     this.log(`Client role: ${this.selectedClientRole}`);
+    this.emitState();
+  }
+
+  async applyChannelProfile(profile: ChannelProfile): Promise<void> {
+    this.selectedChannelProfile = profile;
+    if (this.initialized) {
+      await this.getClient().setChannelProfile(profile);
+    }
+    this.log(`Channel profile: ${profile}`);
+    this.emitState();
+  }
+
+  async applyVideoEncoderPreset(name: VideoEncoderPresetName): Promise<void> {
+    this.selectedVideoEncoderPresetName = name;
+    const preset = VIDEO_ENCODER_PRESETS[name];
+    await this.getClient().setVideoEncoderConfiguration(preset);
+    this.log(`Video encoder: ${preset.name}`);
+    this.emitState();
   }
 
   async cycleVideoEncoderPreset(): Promise<void> {
-    this.selectedVideoEncoderPresetIndex =
-      (this.selectedVideoEncoderPresetIndex + 1) % VIDEO_ENCODER_PRESETS.length;
-    const preset = VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetIndex];
-    await this.getClient().setVideoEncoderConfiguration(preset);
-    this.log(`Video encoder: ${preset.name}`);
+    const index = VIDEO_ENCODER_PRESET_NAMES.indexOf(this.selectedVideoEncoderPresetName);
+    const next = VIDEO_ENCODER_PRESET_NAMES[(index + 1) % VIDEO_ENCODER_PRESET_NAMES.length];
+    await this.applyVideoEncoderPreset(next);
   }
 
   async toggleEnableAudio(): Promise<void> {
@@ -447,6 +501,7 @@ export class RtcSessionService {
       this.localTextureSlotId = null;
       this.remoteTextureSlotIds.clear();
       this.remoteVideoSpriteFrames.clear();
+      this.lastRemoteVideoStatsByUid.clear();
       this.options.onRemoteUsersChanged([], null);
       this.emitState();
     }
@@ -504,6 +559,16 @@ export class RtcSessionService {
     this.client.on('rtcStats', ({ duration, users }) => {
       this.lastRtcStatsSummary = `${duration}s/${users ?? 0}u`;
       this.log(`RTC stats: duration ${duration}s users ${users ?? 0}`);
+      this.emitState();
+    });
+    this.client.on('localVideoStateChanged', ({ state, error }) => {
+      this.lastLocalVideoStatsSummary = `state ${state}/err ${error}`;
+      this.log(`Local video state: ${state} error ${error}`);
+      this.emitState();
+    });
+    this.client.on('remoteVideoStateChanged', ({ uid, state, reason }) => {
+      this.lastRemoteVideoStatsByUid.set(uid, `state ${state}/reason ${reason}`);
+      this.log(`Remote video state: ${uid} state ${state} reason ${reason}`);
       this.emitState();
     });
     this.client.on('localVideoTextureReady', ({ slotId, width, height }) => {
@@ -615,7 +680,7 @@ export class RtcSessionService {
     await this.getClient().muteLocalVideoStream(false);
     await this.getClient().muteAllRemoteVideoStreams(false);
     await this.callAndLogFailure('setVideoEncoderConfiguration', () =>
-      this.getClient().setVideoEncoderConfiguration(VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetIndex]),
+      this.getClient().setVideoEncoderConfiguration(VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetName]),
     );
     await this.getClient().switchCamera();
     await this.callAndLogFailure('setBeautyEffectOptions', () =>
