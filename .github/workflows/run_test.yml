@@ -1,0 +1,118 @@
+name: 'run: test'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+    secrets:
+      APP_ID:
+        required: true
+
+env:
+  COCOS_CREATOR_VERSION: 3.8.8
+  COCOS_CREATOR_DOWNLOAD_URL: https://download.cocos.org/CocosCreator/v3.8.8/CocosCreator-v3.8.8-mac-010512.zip
+
+jobs:
+  cocos_ut:
+    name: Cocos unit/typecheck tests
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:skip') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  integration_test_android:
+    name: Run Cocos Android Integration Tests
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:skip') }}
+    runs-on: macos-latest
+    timeout-minutes: 120
+    env:
+      TEST_APP_ID: ${{ secrets.APP_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+      - name: Cache Cocos Creator installer
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-mac-010512.zip
+          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-010512
+      - uses: ./.github/actions/setup-cocos-creator
+        with:
+          version: ${{ env.COCOS_CREATOR_VERSION }}
+          download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
+      - run: npm ci
+      - name: Run Android Cocos API tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 31
+          arch: x86_64
+          profile: pixel_5
+          ram-size: 2048M
+          heap-size: 2048M
+          disk-size: 6144M
+          emulator-boot-timeout: 600
+          disable-animations: true
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: bash scripts/run_cocos_integration_test_android.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cocos-android-api-test-reports
+          path: test_shard/integration_test_app/reports
+
+  integration_test_ios:
+    name: Run Cocos iOS Integration Tests
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:skip') }}
+    runs-on: macos-latest
+    timeout-minutes: 120
+    env:
+      TEST_APP_ID: ${{ secrets.APP_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Cache Cocos Creator installer
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-mac-010512.zip
+          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-010512
+      - uses: ./.github/actions/setup-cocos-creator
+        with:
+          version: ${{ env.COCOS_CREATOR_VERSION }}
+          download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
+      - run: npm ci
+      - uses: futureware-tech/simulator-action@v4
+        with:
+          model: 'iPhone 16 Pro'
+          os: iOS
+          os_version: '>=18.0'
+          erase_before_boot: true
+          wait_for_boot: true
+          shutdown_after_job: true
+      - run: bash scripts/run_cocos_integration_test_ios.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cocos-ios-api-test-reports
+          path: test_shard/integration_test_app/reports

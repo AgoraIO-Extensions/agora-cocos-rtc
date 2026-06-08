@@ -215,45 +215,11 @@ jobs:
           path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-mac-010512.zip
           key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-010512
 
-      - name: Install Cocos Creator
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          app_path="/Applications/Cocos/Creator/${COCOS_CREATOR_VERSION}/CocosCreator.app"
-          cli_path="$app_path/Contents/MacOS/CocosCreator"
-          install_dir="$(dirname "$app_path")"
-          installer_path="$HOME/Library/Caches/cocos-creator/CocosCreator-v${COCOS_CREATOR_VERSION}-mac-010512.zip"
-
-          if [ ! -x "$cli_path" ]; then
-            mkdir -p "$(dirname "$installer_path")"
-            if [ ! -f "$installer_path" ]; then
-              curl --fail --location --retry 3 --retry-delay 10 "$COCOS_CREATOR_DOWNLOAD_URL" --output "$installer_path"
-            fi
-
-            extract_dir="$RUNNER_TEMP/cocos-creator-${COCOS_CREATOR_VERSION}"
-            rm -rf "$extract_dir"
-            mkdir -p "$extract_dir"
-            ditto -x -k "$installer_path" "$extract_dir"
-
-            creator_app="$(find "$extract_dir" -name CocosCreator.app -type d -print -quit)"
-            if [ -z "$creator_app" ]; then
-              echo "CocosCreator.app not found in downloaded archive." >&2
-              exit 1
-            fi
-
-            sudo mkdir -p "$install_dir"
-            sudo rm -rf "$app_path"
-            sudo ditto "$creator_app" "$app_path"
-            sudo xattr -dr com.apple.quarantine "$app_path" || true
-          fi
-
-          if [ ! -x "$cli_path" ]; then
-            echo "Cocos Creator executable was not installed at $cli_path" >&2
-            exit 1
-          fi
-
-          echo "COCOS_CLI=$cli_path" >> "$GITHUB_ENV"
+      - name: Setup Cocos Creator
+        uses: ./.github/actions/setup-cocos-creator
+        with:
+          version: ${{ env.COCOS_CREATOR_VERSION }}
+          download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
 
       - name: Install dependencies
         run: npm ci
