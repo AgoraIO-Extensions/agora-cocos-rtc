@@ -113,6 +113,7 @@ test('cocos run_test workflow exposes unit and device integration jobs', async (
   assert.match(workflow, /workflow_call:/);
   assert.match(workflow, /APP_ID:/);
   assert.match(workflow, /cocos_ut:/);
+  assert.match(workflow, /cocos_ut:[\s\S]*runs-on: macos-latest/);
   assert.match(workflow, /npm run typecheck/);
   assert.match(workflow, /npm test/);
   assert.match(workflow, /integration_test_android:/);

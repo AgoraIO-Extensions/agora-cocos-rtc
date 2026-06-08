@@ -20,7 +20,7 @@ jobs:
   cocos_ut:
     name: Cocos unit/typecheck tests
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:skip') }}
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
