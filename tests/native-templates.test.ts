@@ -400,6 +400,10 @@ test('ios bridge template wires minimum real rtc engine methods and delegate cal
   assert.match(bridgeContent, /connectionChangedTo/);
   assert.match(bridgeContent, /didOccurError/);
   assert.match(bridgeContent, /reportAudioVolumeIndicationOfSpeakers/);
+  assert.match(bridgeContent, /audioMixingStateChanged/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "audioMixingStateChanged"/);
+  assert.match(bridgeContent, /reasonCode == \.allLoopsCompleted/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "audioMixingFinished"/);
 });
 
 test('ios bridge template resolves joinChannel after the sdk accepts the request', async () => {

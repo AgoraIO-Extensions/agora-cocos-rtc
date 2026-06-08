@@ -1182,6 +1182,16 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         ])
     }
 
+    func rtcEngine(_ engine: AgoraRtcEngineKit, audioMixingStateChanged state: AgoraAudioMixingStateType, reasonCode: AgoraAudioMixingReasonCode) {
+        dispatchEvent(name: "audioMixingStateChanged", payload: [
+            "state": state.rawValue,
+            "reason": reasonCode.rawValue,
+        ])
+        if state == .stopped && reasonCode == .allLoopsCompleted {
+            dispatchEvent(name: "audioMixingFinished", payload: [:])
+        }
+    }
+
     func rtcEngine(_ engine: AgoraRtcEngineKit, reportAudioVolumeIndicationOfSpeakers speakers: [AgoraRtcAudioVolumeInfo], totalVolume: Int) {
         dispatchEvent(name: "volumeIndication", payload: [
             "speakers": speakers.map { speaker in
