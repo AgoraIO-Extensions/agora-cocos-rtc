@@ -470,7 +470,7 @@
     "_id": "demo-root-widget-000000001"
   },
   {
-    "__type__": "AgoraRtcDemoRoot",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAED",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -561,7 +561,7 @@
     "_id": "header-panel-ui-0000000001"
   },
   {
-    "__type__": "DemoHeaderPanel",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAEE",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -639,7 +639,7 @@
     "_id": "action-panel-ui-0000000001"
   },
   {
-    "__type__": "DemoActionPanel",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAEF",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -717,7 +717,7 @@
     "_id": "video-stage-ui-0000000001"
   },
   {
-    "__type__": "VideoStagePanel",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAEG",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -795,7 +795,7 @@
     "_id": "log-panel-ui-00000000001"
   },
   {
-    "__type__": "LogPanel",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAEH",
     "_name": "",
     "_objFlags": 0,
     "node": {
