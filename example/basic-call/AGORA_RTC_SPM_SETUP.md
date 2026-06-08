@@ -2,7 +2,7 @@
 
 Repository: https://github.com/AgoraIO/AgoraRtcEngine_iOS.git
 Version: 4.5.3
-Package: AgoraRtcEngine_iOS
+Package: RtcBasic
 
 ## Steps
 

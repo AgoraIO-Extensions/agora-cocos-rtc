@@ -7,17 +7,15 @@ const require = createRequire(import.meta.url);
 const { renderPodfile } = require('../sdk/agora-rtc/dist/ios-podfile.js');
 const repoRoot = process.cwd();
 
-test('ios podfile renderer uses sdk config as the single source of truth', () => {
-  const podfile = renderPodfile({
-    targetName: 'agora-cocos-basic-call-mobile',
-    projectName: 'agora-cocos-basic-call.xcodeproj',
-  });
-
-  assert.match(podfile, /platform :ios, '13\.0'/);
-  assert.match(podfile, /project 'agora-cocos-basic-call\.xcodeproj'/);
-  assert.match(podfile, /target 'agora-cocos-basic-call-mobile'/);
-  assert.match(podfile, /pod 'AgoraRtcEngine_iOS', '4\.5\.3'/);
-  assert.match(podfile, /SWIFT_VERSION/);
+test('ios podfile renderer rejects the current Swift Package Manager integration mode', () => {
+  assert.throws(
+    () =>
+      renderPodfile({
+        targetName: 'agora-cocos-basic-call-mobile',
+        projectName: 'agora-cocos-basic-call.xcodeproj',
+      }),
+    /iOS integrationMode is swift-package-manager; use Swift Package Manager integration instead\./,
+  );
 });
 
 test('ios podfile generator creates the exported project directory before writing', async () => {

@@ -22,7 +22,8 @@ test('sdk native dependency config is exposed from a single source of truth', ()
     sdkConfig.ios.packageUrl,
     'https://github.com/AgoraIO/AgoraRtcEngine_iOS.git',
   );
+  assert.equal(sdkConfig.ios.packageProduct, 'RtcBasic');
   assert.equal(sdkConfig.ios.podName, 'AgoraRtcEngine_iOS');
   assert.equal(sdkConfig.ios.deploymentTarget, '13.0');
-  assert.equal(sdkConfig.ios.integrationMode, 'cocoapods');
+  assert.equal(sdkConfig.ios.integrationMode, 'swift-package-manager');
 });

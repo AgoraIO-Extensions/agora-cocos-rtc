@@ -68,6 +68,7 @@ PACKAGE_VERSION = SDK_CONFIG.fetch('ios').fetch('packageVersion')
 PACKAGE_PRODUCT = SDK_CONFIG.fetch('ios').fetch('packageProduct')
 TARGET_NAME = 'agora-cocos-basic-call-mobile'
 WITH_PACKAGE = ARGV.include?('--with-package')
+SKIP_SIMULATOR_LAUNCH_ASSETS = ARGV.include?('--skip-simulator-launch-assets')
 IOS_BUNDLE_ID = ENV['IOS_BUNDLE_ID']
 IOS_DEVELOPMENT_TEAM = ENV['IOS_DEVELOPMENT_TEAM']
 IOS_PROVISIONING_PROFILE_SPECIFIER = ENV['IOS_PROVISIONING_PROFILE_SPECIFIER']
@@ -104,6 +105,83 @@ def ensure_app_delegate_attaches_bridge(path)
   end
 
   File.write(path, patched) if patched != content
+end
+
+def remove_legacy_build_locations_for_swift_packages(project)
+  legacy_keys = %w[
+    SYMROOT
+    OBJROOT
+    CONFIGURATION_BUILD_DIR
+    CONFIGURATION_TEMP_DIR
+  ]
+  configurations = project.build_configurations + project.targets.flat_map(&:build_configurations)
+
+  configurations.each do |configuration|
+    legacy_keys.each { |key| configuration.build_settings.delete(key) }
+  end
+end
+
+def remove_stale_swift_package_products(target, frameworks_phase, package_ref, package_product_name)
+  stale_dependencies = target.package_product_dependencies.select do |dependency|
+    dependency.package == package_ref && dependency.product_name != package_product_name
+  end
+
+  stale_dependencies.each do |dependency|
+    frameworks_phase.files
+      .select { |file| file.product_ref == dependency }
+      .each(&:remove_from_project)
+
+    target.package_product_dependencies.delete(dependency)
+    dependency.remove_from_project
+  end
+end
+
+def rewrite_cocos_archive_linker_flags(target)
+  target.build_configurations.each do |configuration|
+    flags = configuration.build_settings['OTHER_LDFLAGS']
+    next unless flags
+
+    flag_list = flags.is_a?(Array) ? flags : [flags]
+    rewritten = flag_list.map do |flag|
+      flag.to_s
+          .sub(
+            %r{.*/archives/#{Regexp.escape(configuration.name)}/libcocos_engine\.a\z},
+            '$(CONFIGURATION_BUILD_DIR)/libcocos_engine.a'
+          )
+          .sub(
+            %r{.*/boost/container/archives/#{Regexp.escape(configuration.name)}/libboost_container\.a\z},
+            '$(CONFIGURATION_BUILD_DIR)/libboost_container.a'
+          )
+    end
+
+    configuration.build_settings['OTHER_LDFLAGS'] = flags.is_a?(Array) ? rewritten : rewritten.join(' ')
+  end
+end
+
+def ensure_app_frameworks_runpath(target)
+  target.build_configurations.each do |configuration|
+    existing = configuration.build_settings['LD_RUNPATH_SEARCH_PATHS']
+    runpaths = existing.is_a?(Array) ? existing.dup : existing.to_s.split(/\s+/)
+    runpaths << '$(inherited)' if runpaths.empty?
+    runpaths << '@executable_path/Frameworks' unless runpaths.include?('@executable_path/Frameworks')
+    configuration.build_settings['LD_RUNPATH_SEARCH_PATHS'] = runpaths
+  end
+end
+
+def remove_simulator_launch_assets(target)
+  launch_asset_names = ['LaunchScreen.storyboard', 'Images.xcassets']
+
+  target.resources_build_phase.files.dup.each do |build_file|
+    file_ref = build_file.file_ref
+    next unless file_ref && launch_asset_names.include?(file_ref.display_name)
+
+    build_file.remove_from_project
+  end
+
+  target.build_configurations.each do |configuration|
+    configuration.build_settings.delete('ASSETCATALOG_COMPILER_APPICON_NAME')
+    configuration.build_settings.delete('ASSETCATALOG_COMPILER_LAUNCHSTORYBOARD_NAME')
+  end
 end
 
 project = Xcodeproj::Project.open(PROJECT_PATH)
@@ -157,21 +235,29 @@ end
 package_ref = project.root_object.package_references.find do |reference|
   reference.isa == 'XCRemoteSwiftPackageReference' && reference.repositoryURL == PACKAGE_URL
 end
-package_product = target.package_product_dependencies.find do |dependency|
-  dependency.product_name == PACKAGE_PRODUCT
-end
 
 frameworks_phase = target.frameworks_build_phase
+
+remove_legacy_build_locations_for_swift_packages(project) if WITH_PACKAGE
+rewrite_cocos_archive_linker_flags(target)
+ensure_app_frameworks_runpath(target)
 
 if WITH_PACKAGE
   unless package_ref
     package_ref = project.new(Xcodeproj::Project::Object::XCRemoteSwiftPackageReference)
     package_ref.repositoryURL = PACKAGE_URL
-    package_ref.requirement = {
-      'kind' => 'exactVersion',
-      'version' => PACKAGE_VERSION,
-    }
     project.root_object.package_references << package_ref
+  end
+
+  package_ref.requirement = {
+    'kind' => 'exactVersion',
+    'version' => PACKAGE_VERSION,
+  }
+
+  remove_stale_swift_package_products(target, frameworks_phase, package_ref, PACKAGE_PRODUCT)
+
+  package_product = target.package_product_dependencies.find do |dependency|
+    dependency.product_name == PACKAGE_PRODUCT
   end
 
   unless package_product
@@ -187,6 +273,10 @@ if WITH_PACKAGE
     frameworks_phase.files << build_file
   end
 else
+  package_product = target.package_product_dependencies.find do |dependency|
+    dependency.product_name == PACKAGE_PRODUCT
+  end
+
   frameworks_phase.files
     .select { |file| file.product_ref && file.product_ref.display_name == PACKAGE_PRODUCT }
     .each(&:remove_from_project)
@@ -201,6 +291,8 @@ else
     package_ref.remove_from_project
   end
 end
+
+remove_simulator_launch_assets(target) if SKIP_SIMULATOR_LAUNCH_ASSETS
 
 project.save
 ensure_app_delegate_attaches_bridge(APP_DELEGATE_PATH)

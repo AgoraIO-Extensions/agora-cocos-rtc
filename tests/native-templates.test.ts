@@ -579,6 +579,120 @@ test('ios integration script registers all committed bridge templates in the exp
   assert.match(scriptContent, /\[\[AgoraRtcPlugin sharedInstance\] attachBridge\]/);
 });
 
+test('ios integration script refreshes the configured Swift package exact version', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+  const withPackageIndex = scriptContent.indexOf('if WITH_PACKAGE');
+  const createPackageIndex = scriptContent.indexOf('unless package_ref', withPackageIndex);
+  const packageProductIndex = scriptContent.indexOf('unless package_product', createPackageIndex);
+
+  assert.ok(withPackageIndex >= 0, 'expected WITH_PACKAGE branch');
+  assert.ok(createPackageIndex >= 0, 'expected package creation branch');
+  assert.ok(packageProductIndex >= 0, 'expected package product branch');
+  assert.match(
+    scriptContent,
+    /unless package_ref[\s\S]+project\.root_object\.package_references << package_ref\s+end\s+package_ref\.requirement =/,
+  );
+  assert.match(scriptContent, /'kind' => 'exactVersion'/);
+  assert.match(scriptContent, /'version' => PACKAGE_VERSION/);
+});
+
+test('ios integration script removes stale Swift package products for the same repository', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+
+  assert.match(scriptContent, /remove_stale_swift_package_products/);
+  assert.match(scriptContent, /dependency\.package == package_ref/);
+  assert.match(scriptContent, /dependency\.product_name != package_product_name/);
+  assert.match(scriptContent, /frameworks_phase\.files/);
+  assert.match(scriptContent, /target\.package_product_dependencies\.delete\(dependency\)/);
+  assert.match(scriptContent, /dependency\.remove_from_project/);
+  assert.match(
+    scriptContent,
+    /remove_stale_swift_package_products\(target, frameworks_phase, package_ref, PACKAGE_PRODUCT\)/,
+  );
+});
+
+test('ios sdk config uses the product name declared by the local 4.5.3 Package.swift', async () => {
+  const sdkConfig = JSON.parse(
+    await readFile(path.join(repoRoot, 'sdk/agora-rtc/sdk-config.json'), 'utf8'),
+  );
+
+  assert.equal(sdkConfig.ios.packageProduct, 'RtcBasic');
+});
+
+test('ios integration script removes Cocos legacy build locations before enabling Swift packages', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+  const cleanupIndex = scriptContent.indexOf('remove_legacy_build_locations_for_swift_packages');
+  const withPackageIndex = scriptContent.indexOf('if WITH_PACKAGE');
+
+  assert.ok(cleanupIndex >= 0, 'expected legacy build location cleanup helper');
+  assert.ok(withPackageIndex >= 0, 'expected WITH_PACKAGE branch');
+  assert.ok(cleanupIndex < withPackageIndex, 'cleanup helper should be defined before package integration');
+  assert.match(scriptContent, /SYMROOT/);
+  assert.match(scriptContent, /OBJROOT/);
+  assert.match(scriptContent, /CONFIGURATION_BUILD_DIR/);
+  assert.match(scriptContent, /CONFIGURATION_TEMP_DIR/);
+  assert.match(scriptContent, /project\.targets\.flat_map\(&:build_configurations\)/);
+  assert.match(
+    scriptContent,
+    /remove_legacy_build_locations_for_swift_packages\(project\) if WITH_PACKAGE/,
+  );
+});
+
+test('ios integration script rewrites Cocos archive linker flags after clearing legacy build paths', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+
+  assert.match(scriptContent, /rewrite_cocos_archive_linker_flags/);
+  assert.match(scriptContent, /OTHER_LDFLAGS/);
+  assert.match(scriptContent, /archives\/#\{Regexp\.escape\(configuration\.name\)\}\/libcocos_engine\\\.a/);
+  assert.match(scriptContent, /boost\/container\/archives\/#\{Regexp\.escape\(configuration\.name\)\}\/libboost_container\\\.a/);
+  assert.match(scriptContent, /\$\(CONFIGURATION_BUILD_DIR\)\/libcocos_engine\.a/);
+  assert.match(scriptContent, /\$\(CONFIGURATION_BUILD_DIR\)\/libboost_container\.a/);
+  assert.match(scriptContent, /rewrite_cocos_archive_linker_flags\(target\)/);
+});
+
+test('ios integration script adds the app Frameworks runpath for embedded Swift package frameworks', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+
+  assert.match(scriptContent, /ensure_app_frameworks_runpath/);
+  assert.match(scriptContent, /LD_RUNPATH_SEARCH_PATHS/);
+  assert.match(scriptContent, /@executable_path\/Frameworks/);
+  assert.match(scriptContent, /ensure_app_frameworks_runpath\(target\)/);
+});
+
+test('ios integration script can remove simulator launch assets for local smoke builds', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+
+  assert.match(scriptContent, /SKIP_SIMULATOR_LAUNCH_ASSETS = ARGV\.include\?\('--skip-simulator-launch-assets'\)/);
+  assert.match(scriptContent, /remove_simulator_launch_assets/);
+  assert.match(scriptContent, /LaunchScreen\.storyboard/);
+  assert.match(scriptContent, /Images\.xcassets/);
+  assert.match(scriptContent, /target\.resources_build_phase\.files/);
+  assert.match(scriptContent, /ASSETCATALOG_COMPILER_APPICON_NAME/);
+  assert.match(scriptContent, /ASSETCATALOG_COMPILER_LAUNCHSTORYBOARD_NAME/);
+  assert.match(
+    scriptContent,
+    /remove_simulator_launch_assets\(target\) if SKIP_SIMULATOR_LAUNCH_ASSETS/,
+  );
+});
+
 test('ios bridge template manages native video canvas views for local and remote rendering', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
