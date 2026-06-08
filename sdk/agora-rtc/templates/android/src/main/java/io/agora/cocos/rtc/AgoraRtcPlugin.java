@@ -514,6 +514,8 @@ public final class AgoraRtcPlugin {
         }
 
         ChannelMediaOptions options = new ChannelMediaOptions();
+        JSONObject mediaOptions = params != null ? params.optJSONObject("options") : null;
+        applyChannelMediaOptions(options, mediaOptions);
         int result = rtcEngine.joinChannel(token, channelId, uid, options);
         if (result < 0) {
             dispatchError(requestId, "RtcEngine.joinChannel failed: " + result);
@@ -521,6 +523,71 @@ public final class AgoraRtcPlugin {
         }
 
         dispatchOk(requestId);
+    }
+
+    private void applyChannelMediaOptions(ChannelMediaOptions options, JSONObject mediaOptions) {
+        if (mediaOptions == null) {
+            return;
+        }
+        if (mediaOptions.has("clientRoleType") && !mediaOptions.isNull("clientRoleType")) {
+            options.clientRoleType = parseClientRoleType(mediaOptions.opt("clientRoleType"));
+        }
+        if (mediaOptions.has("channelProfile") && !mediaOptions.isNull("channelProfile")) {
+            options.channelProfile = parseChannelProfile(mediaOptions.opt("channelProfile"));
+        }
+        if (mediaOptions.has("publishCameraTrack")) {
+            options.publishCameraTrack = optNullableBoolean(mediaOptions, "publishCameraTrack");
+        }
+        if (mediaOptions.has("publishMicrophoneTrack")) {
+            options.publishMicrophoneTrack = optNullableBoolean(mediaOptions, "publishMicrophoneTrack");
+        }
+        if (mediaOptions.has("autoSubscribeAudio")) {
+            options.autoSubscribeAudio = optNullableBoolean(mediaOptions, "autoSubscribeAudio");
+        }
+        if (mediaOptions.has("autoSubscribeVideo")) {
+            options.autoSubscribeVideo = optNullableBoolean(mediaOptions, "autoSubscribeVideo");
+        }
+        if (mediaOptions.has("enableAudioRecordingOrPlayout")) {
+            options.enableAudioRecordingOrPlayout = optNullableBoolean(mediaOptions, "enableAudioRecordingOrPlayout");
+        }
+        if (mediaOptions.has("startPreview")) {
+            options.startPreview = optNullableBoolean(mediaOptions, "startPreview");
+        }
+        if (mediaOptions.has("token") && !mediaOptions.isNull("token")) {
+            options.token = mediaOptions.optString("token");
+        }
+        if (mediaOptions.has("parameters") && !mediaOptions.isNull("parameters")) {
+            options.parameters = mediaOptions.optString("parameters");
+        }
+    }
+
+    private Boolean optNullableBoolean(JSONObject object, String key) {
+        if (object == null || !object.has(key) || object.isNull(key)) {
+            return null;
+        }
+        return object.optBoolean(key);
+    }
+
+    private int parseClientRoleType(Object rawValue) {
+        if (rawValue instanceof Number) {
+            return ((Number) rawValue).intValue();
+        }
+        String value = String.valueOf(rawValue);
+        if ("audience".equals(value)) {
+            return Constants.CLIENT_ROLE_AUDIENCE;
+        }
+        return Constants.CLIENT_ROLE_BROADCASTER;
+    }
+
+    private int parseChannelProfile(Object rawValue) {
+        if (rawValue instanceof Number) {
+            return ((Number) rawValue).intValue();
+        }
+        String value = String.valueOf(rawValue);
+        if ("communication".equals(value)) {
+            return Constants.CHANNEL_PROFILE_COMMUNICATION;
+        }
+        return Constants.CHANNEL_PROFILE_LIVE_BROADCASTING;
     }
 
     private void handleGetErrorDescription(String requestId, JSONObject params) {
@@ -695,7 +762,16 @@ public final class AgoraRtcPlugin {
     }
 
     private void handleSetDefaultAudioRouteToSpeakerphone(String requestId, JSONObject params) {
-        dispatchUnsupported(requestId, "setDefaultAudioRouteToSpeakerphone");
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+        int result = rtcEngine.setDefaultAudioRoutetoSpeakerphone(params == null || params.optBoolean("enabled", true));
+        if (result < 0) {
+            dispatchAgoraError(requestId, "setDefaultAudioRouteToSpeakerphone", result);
+            return;
+        }
+        dispatchOk(requestId);
     }
 
     private void handleSetEnableSpeakerphone(String requestId, JSONObject params) {
