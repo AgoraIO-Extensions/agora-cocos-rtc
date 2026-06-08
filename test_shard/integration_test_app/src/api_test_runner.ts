@@ -87,6 +87,13 @@ function serializeError(error: unknown): ApiCaseReport['error'] {
   };
 }
 
+function isNativeErrorEvidence(
+  serializedError: ApiCaseReport['error'],
+  testcase: ApiCallCase,
+): boolean {
+  return serializedError.code === 'native_failure' && serializedError.details?.method === testcase.method;
+}
+
 async function runCase(client: AgoraRtcClient, context: ApiTestContext, testcase: ApiCallCase): Promise<ApiCaseReport> {
   const startedAt = new Date().toISOString();
   console.log(`${LOG_PREFIX} CASE_START id=${testcase.id} method=${testcase.method} expectedParams=${stringify(testcase.expectedParams)}`);
@@ -108,7 +115,7 @@ async function runCase(client: AgoraRtcClient, context: ApiTestContext, testcase
   } catch (error) {
     const endedAt = new Date().toISOString();
     const serializedError = serializeError(error);
-    const allowsError = testcase.requiredEvidence.includes('error');
+    const allowsError = testcase.requiredEvidence.includes('error') && isNativeErrorEvidence(serializedError, testcase);
     console.log(`${LOG_PREFIX} CASE_${allowsError ? 'PASS' : 'FAIL'} id=${testcase.id} method=${testcase.method} error=${stringify(serializedError)}`);
     return {
       id: testcase.id,

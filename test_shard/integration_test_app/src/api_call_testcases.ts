@@ -97,7 +97,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     id: 'channel.renew-token',
     method: 'renewToken',
     expectedParams: { token: '<TEST_TOKEN>' },
-    requiredEvidence: ['response'],
+    requiredEvidence: ['response', 'error'],
     run: (client, context) => client.renewToken(context.token),
   },
   {
@@ -160,7 +160,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     id: 'audio.set-speakerphone',
     method: 'setEnableSpeakerphone',
     expectedParams: { enabled: true },
-    requiredEvidence: ['response'],
+    requiredEvidence: ['response', 'error'],
     run: (client) => client.setEnableSpeakerphone(true),
   },
   {
@@ -188,7 +188,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     id: 'audio.session-restriction',
     method: 'setAudioSessionOperationRestriction',
     expectedParams: { restriction: 1 },
-    requiredEvidence: ['response'],
+    requiredEvidence: ['response', 'error'],
     run: (client) => client.setAudioSessionOperationRestriction(1),
   },
   {
@@ -301,7 +301,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
         sharpnessLevel: 0.2,
       },
     },
-    requiredEvidence: ['response'],
+    requiredEvidence: ['response', 'error'],
     run: (client) => client.setBeautyEffectOptions(true, {
       lighteningContrastLevel: 1,
       lighteningLevel: 0.5,
@@ -334,14 +334,14 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     id: 'mixing.pause',
     method: 'pauseAudioMixing',
     expectedParams: {},
-    requiredEvidence: ['response'],
+    requiredEvidence: ['response', 'error'],
     run: (client) => client.pauseAudioMixing(),
   },
   {
     id: 'mixing.resume',
     method: 'resumeAudioMixing',
     expectedParams: {},
-    requiredEvidence: ['response'],
+    requiredEvidence: ['response', 'error'],
     run: (client) => client.resumeAudioMixing(),
   },
   {
@@ -355,7 +355,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     id: 'mixing.set-position',
     method: 'setAudioMixingPosition',
     expectedParams: { positionMs: 1000 },
-    requiredEvidence: ['response'],
+    requiredEvidence: ['response', 'error'],
     run: (client) => client.setAudioMixingPosition(1000),
   },
   {

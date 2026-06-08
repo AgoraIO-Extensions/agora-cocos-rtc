@@ -19,8 +19,13 @@ IOS_RUNTIME_PLUGIN_DIR="$ROOT_DIR/example/basic-call/native/agora-rtc/ios"
 IOS_EXPORTED_PLUGIN_DIR="$IOS_PROJECT_DIR/agora-rtc"
 DEFAULT_AGORA_COCOS_TEST_MODE=api
 AGORA_COCOS_TEST_MODE="${AGORA_COCOS_TEST_MODE:-$DEFAULT_AGORA_COCOS_TEST_MODE}"
-LOG_PATH="$ROOT_DIR/test_shard/integration_test_app/reports/ios-runtime.log"
-DIAGNOSTIC_LOG_PATH="$ROOT_DIR/test_shard/integration_test_app/reports/ios-diagnostic.log"
+REPORT_DIR="$ROOT_DIR/test_shard/integration_test_app/reports"
+LOG_PATH="$REPORT_DIR/ios-runtime.log"
+DIAGNOSTIC_LOG_PATH="$REPORT_DIR/ios-diagnostic.log"
+IOS_LAUNCH_LOG_PATH="$REPORT_DIR/ios-launch.log"
+IOS_STDOUT_LOG_PATH="$REPORT_DIR/ios-stdout.log"
+IOS_STDERR_LOG_PATH="$REPORT_DIR/ios-stderr.log"
+IOS_SCREENSHOT_PATH="$REPORT_DIR/ios-timeout-screenshot.png"
 TEST_TIMEOUT_SECONDS="${TEST_TIMEOUT_SECONDS:-180}"
 REPORT_SIM_PATH=""
 
@@ -46,9 +51,41 @@ run_cocos_build() {
   echo "$label Cocos build completed with exit code $exit_code."
 }
 
+ios_log_predicate() {
+  local launch_pid
+  launch_pid="$(sed -n 's/.*: \([0-9][0-9]*\)$/\1/p' "$IOS_LAUNCH_LOG_PATH" 2>/dev/null | tail -n 1)"
+  if [[ -n "$launch_pid" ]]; then
+    echo "processIdentifier == $launch_pid OR process == \"$SCHEME_NAME\" OR eventMessage CONTAINS \"[agora-cocos-test]\" OR eventMessage CONTAINS \"[agora-rtc]\" OR eventMessage CONTAINS \"$IOS_BUNDLE_ID\""
+  else
+    echo "process == \"$SCHEME_NAME\" OR eventMessage CONTAINS \"[agora-cocos-test]\" OR eventMessage CONTAINS \"[agora-rtc]\" OR eventMessage CONTAINS \"$IOS_BUNDLE_ID\""
+  fi
+}
+
+append_ios_runtime_logs() {
+  : > "$LOG_PATH"
+  {
+    echo "== ios-launch.log =="
+    if [[ -f "$IOS_LAUNCH_LOG_PATH" ]]; then
+      cat "$IOS_LAUNCH_LOG_PATH"
+    fi
+    echo "== ios-stdout.log =="
+    if [[ -f "$IOS_STDOUT_LOG_PATH" ]]; then
+      cat "$IOS_STDOUT_LOG_PATH"
+    fi
+    echo "== ios-stderr.log =="
+    if [[ -f "$IOS_STDERR_LOG_PATH" ]]; then
+      cat "$IOS_STDERR_LOG_PATH"
+    fi
+    echo "== unified-log =="
+  } >> "$LOG_PATH"
+  xcrun simctl spawn booted log show --last 5m --style compact \
+    --predicate "$(ios_log_predicate)" \
+    >> "$LOG_PATH" || true
+}
+
 collect_ios_diagnostics() {
   xcrun simctl spawn booted log show --last 10m --style compact \
-    --predicate 'process == "agora-cocos-basic-call-mobile" OR eventMessage CONTAINS "[agora-cocos-test]" OR eventMessage CONTAINS "[agora-rtc]" OR eventMessage CONTAINS "io.agora.cocos.example"' \
+    --predicate "$(ios_log_predicate)" \
     > "$DIAGNOSTIC_LOG_PATH" || true
 }
 
@@ -100,23 +137,27 @@ xcodebuild -workspace "$WORKSPACE_PATH" \
 
 APP_PATH="$DERIVED_DATA_PATH/Build/Products/Debug-iphonesimulator/agora-cocos-basic-call-mobile.app"
 log_step "Install and launch iOS test app"
+mkdir -p "$REPORT_DIR"
+: > "$LOG_PATH"
+: > "$DIAGNOSTIC_LOG_PATH"
+: > "$IOS_LAUNCH_LOG_PATH"
+: > "$IOS_STDOUT_LOG_PATH"
+: > "$IOS_STDERR_LOG_PATH"
 xcrun simctl install booted "$APP_PATH"
-xcrun simctl launch booted "$IOS_BUNDLE_ID" \
+xcrun simctl privacy booted grant camera "$IOS_BUNDLE_ID" || true
+xcrun simctl privacy booted grant microphone "$IOS_BUNDLE_ID" || true
+xcrun simctl launch --terminate-running-process --stdout="$IOS_STDOUT_LOG_PATH" --stderr="$IOS_STDERR_LOG_PATH" booted "$IOS_BUNDLE_ID" \
   -AGORA_COCOS_TEST_MODE "$AGORA_COCOS_TEST_MODE" \
   -TEST_APP_ID "${TEST_APP_ID:-${APP_ID:-}}" \
   -TEST_TOKEN "${TEST_TOKEN:-${TOKEN:-}}" \
   -TEST_CHANNEL_ID "${TEST_CHANNEL_ID:-${CHANNEL_ID:-testapi}}" \
-  -TEST_UID "${TEST_UID:-1001}"
+  -TEST_UID "${TEST_UID:-1001}" \
+  > "$IOS_LAUNCH_LOG_PATH" 2>&1
 
-mkdir -p "$(dirname "$LOG_PATH")"
-: > "$LOG_PATH"
-: > "$DIAGNOSTIC_LOG_PATH"
 log_step "Wait for iOS API test report"
 SECONDS=0
 while [[ $SECONDS -lt $TEST_TIMEOUT_SECONDS ]]; do
-  xcrun simctl spawn booted log show --last 5m --style compact \
-    --predicate 'process == "agora-cocos-basic-call-mobile" OR eventMessage CONTAINS "[agora-cocos-test]" OR eventMessage CONTAINS "[agora-rtc]"' \
-    > "$LOG_PATH"
+  append_ios_runtime_logs
   if grep -q "TEST_DONE status=" "$LOG_PATH"; then
     cat "$LOG_PATH"
     if grep -q "TEST_DONE status=fail" "$LOG_PATH"; then
@@ -135,6 +176,8 @@ while [[ $SECONDS -lt $TEST_TIMEOUT_SECONDS ]]; do
   sleep 2
 done
 
+xcrun simctl io booted screenshot "$IOS_SCREENSHOT_PATH" || true
+append_ios_runtime_logs
 collect_ios_diagnostics
 cat "$LOG_PATH"
 cat "$DIAGNOSTIC_LOG_PATH"

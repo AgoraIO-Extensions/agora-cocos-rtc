@@ -50,6 +50,30 @@ test('cocos api test matrix covers every native Agora method and records paramet
   assert.match(testcasesContent, /renderMode/);
 });
 
+test('cocos api testcases accept native error evidence for platform-sensitive calls', async () => {
+  const testcasesContent = await readFile(
+    `${repoRoot}/test_shard/integration_test_app/src/api_call_testcases.ts`,
+    'utf8',
+  );
+  const platformSensitiveCaseIds = [
+    'channel.renew-token',
+    'audio.set-speakerphone',
+    'audio.session-restriction',
+    'video.beauty',
+    'mixing.pause',
+    'mixing.resume',
+    'mixing.set-position',
+  ];
+
+  for (const caseId of platformSensitiveCaseIds) {
+    assert.match(
+      testcasesContent,
+      new RegExp(`id:\\s*'${caseId}'[\\s\\S]*?requiredEvidence:\\s*\\['response',\\s*'error'\\]`),
+      `${caseId} should accept native error evidence when the platform rejects the API after invocation`,
+    );
+  }
+});
+
 test('cocos device runner emits structured logs and writes a json report', async () => {
   const runnerContent = await readFile(
     `${repoRoot}/test_shard/integration_test_app/src/api_test_runner.ts`,
@@ -69,6 +93,9 @@ test('cocos device runner emits structured logs and writes a json report', async
   assert.match(runnerContent, /TEST_WAIT_BRIDGE/);
   assert.match(runnerContent, /TEST_BRIDGE_READY/);
   assert.match(runnerContent, /resolveBridgeTransport/);
+  assert.match(runnerContent, /isNativeErrorEvidence/);
+  assert.match(runnerContent, /serializedError\.code === 'native_failure'/);
+  assert.match(runnerContent, /serializedError\.details\?\.method === testcase\.method/);
   assert.match(reportContent, /writeJsonReport/);
   assert.match(reportContent, /api-report\.json/);
 });
@@ -134,6 +161,15 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /exit_code -ne 0 && \$exit_code -ne 36/);
   assert.match(iosScript, /ios-diagnostic\.log/);
   assert.match(iosScript, /collect_ios_diagnostics/);
+  assert.match(iosScript, /simctl privacy booted grant camera "\$IOS_BUNDLE_ID"/);
+  assert.match(iosScript, /simctl privacy booted grant microphone "\$IOS_BUNDLE_ID"/);
+  assert.match(iosScript, /ios-launch\.log/);
+  assert.match(iosScript, /ios-stdout\.log/);
+  assert.match(iosScript, /ios-stderr\.log/);
+  assert.match(iosScript, /--stdout="\$IOS_STDOUT_LOG_PATH"/);
+  assert.match(iosScript, /--stderr="\$IOS_STDERR_LOG_PATH"/);
+  assert.match(iosScript, /append_ios_runtime_logs/);
+  assert.match(iosScript, /ios-timeout-screenshot\.png/);
 });
 
 test('cocos run_test workflow exposes unit and device integration jobs', async () => {
