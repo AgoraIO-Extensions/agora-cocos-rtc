@@ -635,14 +635,76 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         }
         let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
 
+        let mediaOptions = buildChannelMediaOptions(params["options"] as? [String: Any])
         let result = engine.joinChannel(
             byToken: token,
             channelId: channelId,
-            info: nil,
             uid: uid,
+            mediaOptions: mediaOptions,
             joinSuccess: nil
         )
         dispatchResult(requestId: requestId, method: "joinChannel", result: result)
+    }
+
+    private func buildChannelMediaOptions(_ params: [String: Any]?) -> AgoraRtcChannelMediaOptions {
+        let options = AgoraRtcChannelMediaOptions()
+        guard let params else {
+            return options
+        }
+        if let rawValue = params["clientRoleType"] {
+            options.clientRoleType = parseClientRoleType(rawValue)
+        }
+        if let rawValue = params["channelProfile"] {
+            options.channelProfile = parseChannelProfile(rawValue)
+        }
+        if let value = params["publishCameraTrack"] as? Bool {
+            options.publishCameraTrack = value
+        }
+        if let value = params["publishMicrophoneTrack"] as? Bool {
+            options.publishMicrophoneTrack = value
+        }
+        if let value = params["autoSubscribeAudio"] as? Bool {
+            options.autoSubscribeAudio = value
+        }
+        if let value = params["autoSubscribeVideo"] as? Bool {
+            options.autoSubscribeVideo = value
+        }
+        if let value = params["enableAudioRecordingOrPlayout"] as? Bool {
+            options.enableAudioRecordingOrPlayout = value
+        }
+        if let value = params["token"] as? String {
+            options.token = value
+        }
+        if let value = params["parameters"] as? String {
+            options.parameters = value
+        }
+        return options
+    }
+
+    private func parseClientRoleType(_ rawValue: Any) -> AgoraClientRole {
+        if let value = rawValue as? Int {
+            return AgoraClientRole(rawValue: value) ?? .broadcaster
+        }
+        if let value = rawValue as? UInt {
+            return AgoraClientRole(rawValue: Int(value)) ?? .broadcaster
+        }
+        if let value = rawValue as? String, value == "audience" {
+            return .audience
+        }
+        return .broadcaster
+    }
+
+    private func parseChannelProfile(_ rawValue: Any) -> AgoraChannelProfile {
+        if let value = rawValue as? Int {
+            return AgoraChannelProfile(rawValue: value) ?? .liveBroadcasting
+        }
+        if let value = rawValue as? UInt {
+            return AgoraChannelProfile(rawValue: Int(value)) ?? .liveBroadcasting
+        }
+        if let value = rawValue as? String, value == "communication" {
+            return .communication
+        }
+        return .liveBroadcasting
     }
 
     private func requireEngine(requestId: String, action: (AgoraRtcEngineKit) -> Void) {
