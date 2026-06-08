@@ -26,6 +26,9 @@ test('dev-android script exports current source with Cocos CLI instead of old ru
   assert.match(content, /ANDROID_SDK_ROOT_DEFAULT=/);
   assert.match(content, /PACKAGE_NAME="io\.agora\.cocos\.example"/);
   assert.match(content, /ADB_BIN=/);
+  assert.match(content, /TARGET_ANDROID_SERIAL="\$\{1:-\$\{ANDROID_SERIAL:-\}\}"/);
+  assert.match(content, /ADB_TARGET_ARGS=\(\)/);
+  assert.match(content, /ADB_TARGET_ARGS=\(-s "\$TARGET_ANDROID_SERIAL"\)/);
   assert.match(content, /if \[\[ ! -x "\$ADB_BIN" \]\]; then/);
   assert.match(content, /if \[\[ ! -d "\$LOCAL_AGORA_MAVEN_DIR" \]\]; then/);
   assert.match(content, /node \.\/scripts\/fetch-agora-maven\.mjs >/);
@@ -33,8 +36,9 @@ test('dev-android script exports current source with Cocos CLI instead of old ru
   assert.match(content, /AUTO_JOIN/);
   assert.match(content, /PUBLISH_CAMERA_TRACK/);
   assert.match(content, /node \.\/scripts\/write-example-build-config\.mjs >/);
-  assert.match(content, /"\$ADB_BIN" install -g -r --no-streaming "\$APK_PATH"/);
-  assert.match(content, /"\$ADB_BIN" shell am start -n "\$PACKAGE_NAME\/\$ACTIVITY_NAME"/);
+  assert.match(content, /"\$ADB_BIN" "\$\{ADB_TARGET_ARGS\[@\]\}" install -g -r --no-streaming "\$APK_PATH"/);
+  assert.match(content, /"\$ADB_BIN" "\$\{ADB_TARGET_ARGS\[@\]\}" logcat -c \|\| echo "Warning: failed to clear logcat; continuing\." >&2/);
+  assert.match(content, /"\$ADB_BIN" "\$\{ADB_TARGET_ARGS\[@\]\}" shell am start -n "\$PACKAGE_NAME\/\$ACTIVITY_NAME"/);
   assert.doesNotMatch(content, /patch-exported-main-bundle/);
   assert.doesNotMatch(content, /sync-android-runtime-main-assets/);
 });

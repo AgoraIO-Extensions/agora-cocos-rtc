@@ -18,7 +18,11 @@ void update_agora_engine_texture_i420_slot(
     const uint8_t *dataV,
     int strideV,
     int width,
-    int height);
+    int height,
+    int targetWidth,
+    int targetHeight,
+    int rotation,
+    bool mirror);
 void update_agora_engine_texture_nv12_slot(
     int slotId,
     const uint8_t *dataY,
@@ -26,7 +30,9 @@ void update_agora_engine_texture_nv12_slot(
     const uint8_t *dataUV,
     int strideUV,
     int width,
-    int height);
+    int height,
+    int rotation,
+    bool mirror);
 void release_agora_engine_texture_slot(int slotId);
 
 } // namespace agora::cocos
