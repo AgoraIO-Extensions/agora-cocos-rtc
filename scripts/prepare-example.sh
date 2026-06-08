@@ -214,8 +214,8 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 720,
-      "height": 1280
+      "width": 960,
+      "height": 640
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -547,8 +547,8 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 720,
-      "height": 1280
+      "width": 960,
+      "height": 640
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -618,7 +618,7 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
       "__id__": 14
     },
     "_children": [],
-    "_active": true,
+    "_active": false,
     "_components": [
       {
         "__id__": 19
@@ -630,7 +630,7 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": -390,
+      "x": -270,
       "y": 250,
       "z": 0
     },
@@ -708,7 +708,7 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": -390,
+      "x": -270,
       "y": -40,
       "z": 0
     },
@@ -901,8 +901,8 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 720,
-      "height": 1280
+      "width": 960,
+      "height": 640
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -1016,8 +1016,8 @@ cat > "$PREFABS_DIR/DemoRoot.prefab" <<'EOF'
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 720,
-      "height": 1280
+      "width": 960,
+      "height": 640
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",

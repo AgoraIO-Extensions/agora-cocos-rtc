@@ -1,6 +1,7 @@
 import {
   _decorator,
   Component,
+  Graphics,
   Label,
   Node,
   Sprite,
@@ -8,9 +9,19 @@ import {
   Texture2D,
 } from 'cc';
 import type { DemoSessionState } from '../types.ts';
-import { COLORS, configureLabel, ensureTransform } from '../ui/uiStyles.ts';
+import { COLORS, configureLabel, drawPanel, ensureTransform } from '../ui/uiStyles.ts';
 
 const { ccclass, property } = _decorator;
+const DEFAULT_STAGE_WIDTH = 820;
+const DEFAULT_STAGE_HEIGHT = 620;
+const MIN_STAGE_WIDTH = 360;
+const MIN_STAGE_HEIGHT = 320;
+const STAGE_PADDING = 10;
+const VIDEO_INSET = 8;
+const REMOTE_ROW_HEIGHT = 104;
+const REMOTE_THUMB_WIDTH = 136;
+const REMOTE_THUMB_HEIGHT = 86;
+const REMOTE_THUMB_GAP = 12;
 
 @ccclass('VideoStagePanel')
 export class VideoStagePanel extends Component {
@@ -36,9 +47,18 @@ export class VideoStagePanel extends Component {
   private remoteVideoSprites = new Map<number, Sprite>();
   private remoteVideoNodes = new Map<number, Node>();
   private remoteStatsLabels = new Map<number, Label>();
+  private stageWidth = DEFAULT_STAGE_WIDTH;
+  private stageHeight = DEFAULT_STAGE_HEIGHT;
 
   initialize(): void {
     this.ensureBaseNodes();
+  }
+
+  applyLayout(width: number, height: number): void {
+    this.stageWidth = Math.max(MIN_STAGE_WIDTH, Math.round(width));
+    this.stageHeight = Math.max(MIN_STAGE_HEIGHT, Math.round(height));
+    this.ensureBaseNodes();
+    this.layoutRemoteThumbnails();
   }
 
   setLocalHint(text: string): void {
@@ -112,13 +132,41 @@ export class VideoStagePanel extends Component {
   }
 
   private ensureBaseNodes(): void {
-    ensureTransform(this.node, 820, 620);
-    this.localCard = this.ensureCard('LocalStage', 0, 0, 780, 520);
-    this.remoteThumbnailRow = this.ensureCard('RemoteThumbnailRow', 0, 235, 760, 112);
+    const stageWidth = this.stageWidth;
+    const stageHeight = this.stageHeight;
+    const localWidth = Math.max(1, stageWidth - STAGE_PADDING * 2);
+    const localHeight = Math.max(1, stageHeight - STAGE_PADDING * 2);
+    const localVideoWidth = Math.max(1, localWidth - VIDEO_INSET * 2);
+    const localVideoHeight = Math.max(1, localHeight - VIDEO_INSET * 2);
+    const rowWidth = Math.max(1, localWidth - VIDEO_INSET * 2);
+    const rowY = stageHeight / 2 - STAGE_PADDING - REMOTE_ROW_HEIGHT / 2;
+    const labelX = -localWidth / 2 + 16;
+    const labelWidth = Math.max(120, Math.min(420, localWidth - 32));
+
+    ensureTransform(this.node, stageWidth, stageHeight);
+    this.localCard = this.ensureCard('LocalStage', 0, 0, localWidth, localHeight);
+    this.remoteThumbnailRow = this.ensureCard('RemoteThumbnailRow', 0, rowY, rowWidth, REMOTE_ROW_HEIGHT);
     this.remoteCard = this.remoteThumbnailRow;
-    this.localVideoSprite = this.ensureSprite(this.localCard, 'LocalVideoSprite', 780, 520);
-    this.localHintLabel = this.ensureLabel(this.localCard, 'LocalHint', 'Local preview', 240, 32, -350, -220);
-    this.localStatsLabel = this.ensureLabel(this.localCard, 'LocalStatsLabel', 'Local -', 340, 32, -340, -250);
+    this.remoteThumbnailRow.active = this.remoteVideoNodes.size > 0;
+    this.localVideoSprite = this.ensureSprite(this.localCard, 'LocalVideoSprite', localVideoWidth, localVideoHeight);
+    this.localHintLabel = this.ensureLabel(
+      this.localCard,
+      'LocalHint',
+      'Local preview',
+      labelWidth,
+      30,
+      labelX + labelWidth / 2,
+      -localHeight / 2 + 56,
+    );
+    this.localStatsLabel = this.ensureLabel(
+      this.localCard,
+      'LocalStatsLabel',
+      'Local -',
+      labelWidth,
+      30,
+      labelX + labelWidth / 2,
+      -localHeight / 2 + 28,
+    );
   }
 
   private ensureCard(name: string, x: number, y: number, width: number, height: number, parent = this.node): Node {
@@ -128,8 +176,10 @@ export class VideoStagePanel extends Component {
       node.setParent(parent);
     }
     node.layer = parent.layer;
+    node.active = true;
     node.setPosition(x, y, 0);
     ensureTransform(node, width, height);
+    drawPanel(node.getComponent(Graphics) ?? node.addComponent(Graphics), width, height);
     return node;
   }
 
@@ -142,7 +192,9 @@ export class VideoStagePanel extends Component {
     node.layer = parent.layer;
     node.setPosition(0, 0, 0);
     ensureTransform(node, width, height);
-    return node.getComponent(Sprite) ?? node.addComponent(Sprite);
+    const sprite = node.getComponent(Sprite) ?? node.addComponent(Sprite);
+    sprite.sizeMode = Sprite.SizeMode.CUSTOM;
+    return sprite;
   }
 
   private ensureLabel(
@@ -164,6 +216,7 @@ export class VideoStagePanel extends Component {
     ensureTransform(node, width, height);
     const label = node.getComponent(Label) ?? node.addComponent(Label);
     configureLabel(label, text, 14, COLORS.textMuted);
+    node.setSiblingIndex(parent.children.length - 1);
     return label;
   }
 
@@ -173,15 +226,23 @@ export class VideoStagePanel extends Component {
     }
     const parent = this.remoteThumbnailRow ?? this.node;
     const index = this.remoteVideoNodes.size;
-    const x = -300 + index * 150;
-    const pageNode = this.ensureCard(`RemoteUser_${uid}`, x, 0, 136, 86, parent);
-    const sprite = this.ensureSprite(pageNode, 'VideoSprite', 136, 86);
+    const x = this.remoteThumbX(index, this.remoteVideoNodes.size + 1);
+    const pageNode = this.ensureCard(`RemoteUser_${uid}`, x, 0, REMOTE_THUMB_WIDTH, REMOTE_THUMB_HEIGHT, parent);
+    const sprite = this.ensureSprite(
+      pageNode,
+      'VideoSprite',
+      REMOTE_THUMB_WIDTH - VIDEO_INSET,
+      REMOTE_THUMB_HEIGHT - VIDEO_INSET,
+    );
     const hint = this.ensureLabel(pageNode, 'Hint', `Remote ${uid}`, 120, 22, 0, 20);
     const stats = this.ensureLabel(pageNode, `RemoteStats_${uid}`, `Remote ${uid}`, 126, 22, 0, -28);
     this.remoteVideoNodes.set(uid, pageNode);
     this.remoteVideoSprites.set(uid, sprite);
     this.remoteHintLabels.set(uid, hint);
     this.remoteStatsLabels.set(uid, stats);
+    if (this.remoteThumbnailRow) {
+      this.remoteThumbnailRow.active = true;
+    }
     return pageNode;
   }
 
@@ -201,8 +262,17 @@ export class VideoStagePanel extends Component {
   }
 
   private layoutRemoteThumbnails(): void {
-    [...this.remoteVideoNodes.values()].forEach((node, index) => {
-      node.setPosition(-300 + index * 150, 0, 0);
+    const nodes = [...this.remoteVideoNodes.values()];
+    if (this.remoteThumbnailRow) {
+      this.remoteThumbnailRow.active = nodes.length > 0;
+    }
+    nodes.forEach((node, index) => {
+      node.setPosition(this.remoteThumbX(index, nodes.length), 0, 0);
     });
+  }
+
+  private remoteThumbX(index: number, count: number): number {
+    const totalWidth = count * REMOTE_THUMB_WIDTH + Math.max(0, count - 1) * REMOTE_THUMB_GAP;
+    return -totalWidth / 2 + REMOTE_THUMB_WIDTH / 2 + index * (REMOTE_THUMB_WIDTH + REMOTE_THUMB_GAP);
   }
 }

@@ -159,6 +159,22 @@ test('rtc session service tracks flutter-style video settings and stats', async 
   assert.match(content, /applyVideoEncoderPreset/);
 });
 
+test('rtc session service retries engine texture binding until the native slot is ready', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /MAX_TEXTURE_BIND_RETRIES/);
+  assert.match(content, /TEXTURE_BIND_RETRY_MS/);
+  assert.match(content, /private textureBindRetryTimers/);
+  assert.match(content, /scheduleTextureBindRetry/);
+  assert.match(content, /bindNativeTextureSprite\('local', slotId, undefined, 0\)/);
+  assert.match(content, /bindNativeTextureSprite\('local', this\.localTextureSlotId, undefined, 0\)/);
+  assert.match(content, /this\.bindNativeTextureSprite\(kind, slotId, uid, retryCount \+ 1\)/);
+  assert.match(content, /clearTimeout/);
+});
+
 test('video stage panel owns local stage, remote thumbnails, and stats overlays', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/panels/VideoStagePanel.ts`,
@@ -190,6 +206,34 @@ test('demo root loads runtime config and starts preview without auto joining', a
   assert.doesNotMatch(content, /await this\.joinRtcChannel\(\);/);
 });
 
+test('demo root lays out panels from the landscape visible size', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /layoutResponsivePanels/);
+  assert.match(content, /view\.getVisibleSize\(\)/);
+  assert.match(content, /Math\.max\(visibleSize\.width, visibleSize\.height\)/);
+  assert.match(content, /PANEL_GAP/);
+  assert.match(content, /actionScale/);
+  assert.match(content, /videoStagePanel\?\.applyLayout\(stageWidth, availableHeight\)/);
+  assert.doesNotMatch(content, /videoStagePanel\?\.node\.setScale\(stageScale/);
+});
+
+test('video stage panel uses concrete layout dimensions and visible video frames', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/VideoStagePanel.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /applyLayout\(width: number, height: number\)/);
+  assert.match(content, /private stageWidth/);
+  assert.match(content, /private stageHeight/);
+  assert.match(content, /drawPanel/);
+  assert.match(content, /LocalVideoSprite', localVideoWidth, localVideoHeight/);
+});
+
 test('demo action registry keeps all QA API buttons grouped', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/actions.ts`,
@@ -219,6 +263,50 @@ test('demo action registry prioritizes flutter-style basic video controls', asyn
   assert.match(content, /ApplyEncoder/);
   assert.match(content, /Advanced/);
   assert.ok(content.indexOf('JoinChannel') < content.indexOf('Full Demo'));
+});
+
+test('demo action panel keeps basic video controls in a mobile-safe vertical range', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+  const sectionY = (name: string) => {
+    const match = content.match(new RegExp(`const \\w+ = this\\.ensureContainer\\('${name}', 0, (-?\\d+),`));
+    assert.ok(match, `missing ${name} container`);
+    return Number(match[1]);
+  };
+
+  const connectionY = sectionY('ConnectionSection');
+  const previewY = sectionY('PreviewCameraSection');
+  const renderY = sectionY('RenderEncoderSection');
+  const diagnosticsY = sectionY('DiagnosticsSection');
+
+  assert.ok(connectionY > previewY && previewY > renderY && renderY > diagnosticsY);
+  assert.ok(connectionY + 58 <= 240);
+  assert.ok(diagnosticsY + 43 <= renderY - 55);
+  assert.ok(diagnosticsY + 32 >= -155);
+});
+
+test('example scene and template use landscape canvas dimensions', async () => {
+  const sceneContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scene/main.scene`,
+    'utf8',
+  );
+  const scene = JSON.parse(sceneContent);
+  const sizeForNode = (name: string) => {
+    const nodeId = scene.findIndex((entry: any) => entry?.__type__ === 'cc.Node' && entry._name === name);
+    assert.ok(nodeId >= 0, `missing ${name}`);
+    const transform = scene.find((entry: any) =>
+      entry?.__type__ === 'cc.UITransform' && entry.node?.__id__ === nodeId);
+    assert.ok(transform, `missing ${name} UITransform`);
+    return transform._contentSize;
+  };
+
+  assert.deepEqual(sizeForNode('Canvas'), { __type__: 'cc.Size', width: 960, height: 640 });
+  assert.deepEqual(sizeForNode('DemoRoot'), { __type__: 'cc.Size', width: 960, height: 640 });
+
+  const templateContent = await readFile(`${repoRoot}/scripts/prepare-example.sh`, 'utf8');
+  assert.doesNotMatch(templateContent, /"width": 720,\s+"height": 1280/);
 });
 
 test('example config override supports build-time values without committing credentials', async () => {

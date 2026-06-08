@@ -31,6 +31,8 @@ const VIDEO_ENCODER_PRESETS: Record<VideoEncoderPresetName, {
 const CHANNEL_PROFILE_PRESETS: ChannelProfile[] = ['communication', 'liveBroadcasting'];
 const CLIENT_ROLE_PRESETS: ClientRole[] = ['broadcaster', 'audience'];
 const VIDEO_ENCODER_PRESET_NAMES: VideoEncoderPresetName[] = ['360p', '540p', '720p'];
+const MAX_TEXTURE_BIND_RETRIES = 600;
+const TEXTURE_BIND_RETRY_MS = 100;
 
 export interface RtcSessionServiceOptions {
   getConfig(): RuntimeConfigState;
@@ -56,6 +58,7 @@ export class RtcSessionService {
   private localVideoSpriteFrame: SpriteFrame | null = null;
   private remoteTextureSlotIds = new Map<number, number>();
   private remoteVideoSpriteFrames = new Map<number, SpriteFrame>();
+  private textureBindRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private audioEnabled = true;
   private localAudioEnabled = true;
   private localVideoEnabled = true;
@@ -372,6 +375,9 @@ export class RtcSessionService {
 
   async triggerSwitchCamera(): Promise<void> {
     await this.getClient().switchCamera();
+    if (this.localTextureSlotId !== null) {
+      this.bindNativeTextureSprite('local', this.localTextureSlotId, undefined, 0);
+    }
     this.log('Camera switched');
   }
 
@@ -501,6 +507,7 @@ export class RtcSessionService {
       this.localTextureSlotId = null;
       this.remoteTextureSlotIds.clear();
       this.remoteVideoSpriteFrames.clear();
+      this.clearTextureBindRetries();
       this.lastRemoteVideoStatsByUid.clear();
       this.options.onRemoteUsersChanged([], null);
       this.emitState();
@@ -564,6 +571,9 @@ export class RtcSessionService {
     this.client.on('localVideoStateChanged', ({ state, error }) => {
       this.lastLocalVideoStatsSummary = `state ${state}/err ${error}`;
       this.log(`Local video state: ${state} error ${error}`);
+      if (state === 1 && this.localTextureSlotId !== null) {
+        this.bindNativeTextureSprite('local', this.localTextureSlotId, undefined, 0);
+      }
       this.emitState();
     });
     this.client.on('remoteVideoStateChanged', ({ uid, state, reason }) => {
@@ -573,14 +583,14 @@ export class RtcSessionService {
     });
     this.client.on('localVideoTextureReady', ({ slotId, width, height }) => {
       this.log(`Local texture ready: ${width}x${height}`);
-      this.bindNativeTextureSprite('local', slotId);
+      this.bindNativeTextureSprite('local', slotId, undefined, 0);
     });
     this.client.on('remoteVideoTextureReady', ({ uid, slotId, width, height }) => {
       this.activeRemoteUid = uid;
       this.remoteUserUids.add(uid);
       this.options.onRemoteUsersChanged([...this.remoteUserUids], this.activeRemoteUid);
       this.log(`Remote texture ready: ${uid} ${width}x${height}`);
-      this.bindNativeTextureSprite('remote', slotId, uid);
+      this.bindNativeTextureSprite('remote', slotId, uid, 0);
       this.emitState();
     });
     this.client.on('renderBackendState', (payload) => {
@@ -605,15 +615,21 @@ export class RtcSessionService {
     await this.getClient().setupRemoteVideoView(uid, this.resolveNodeRect(node, 'fit'));
   }
 
-  private bindNativeTextureSprite(kind: 'local' | 'remote', slotId: number, uid?: number): void {
+  private bindNativeTextureSprite(
+    kind: 'local' | 'remote',
+    slotId: number,
+    uid?: number,
+    retryCount = 0,
+  ): void {
     if (this.options.getConfig().renderBackend !== 'engine-texture') {
       return;
     }
     const texture = this.client?.getEngineTexture(slotId) as Texture2D | null;
     if (!texture) {
-      this.log(`Engine texture slot ${slotId} is not ready`);
+      this.scheduleTextureBindRetry(kind, slotId, uid, retryCount);
       return;
     }
+    this.clearTextureBindRetry(kind, slotId, uid);
     texture.setFilters(Texture2D.Filter.LINEAR, Texture2D.Filter.LINEAR);
     texture.setMipFilter(Texture2D.Filter.NONE);
     texture.setWrapMode(
@@ -633,6 +649,51 @@ export class RtcSessionService {
       this.options.onRemoteTextureReady(uid, texture, spriteFrame);
     }
     this.log(`Bound ${kind} engine texture slot ${slotId}`);
+  }
+
+  private scheduleTextureBindRetry(
+    kind: 'local' | 'remote',
+    slotId: number,
+    uid: number | undefined,
+    retryCount: number,
+  ): void {
+    const key = this.textureBindRetryKey(kind, slotId, uid);
+    if (this.textureBindRetryTimers.has(key)) {
+      return;
+    }
+    if (retryCount >= MAX_TEXTURE_BIND_RETRIES) {
+      this.log(`Engine texture slot ${slotId} is not ready after ${retryCount} retries`);
+      return;
+    }
+    if (retryCount === 0) {
+      this.log(`Engine texture slot ${slotId} is not ready; retrying`);
+    }
+    const timer = setTimeout(() => {
+      this.textureBindRetryTimers.delete(key);
+      this.bindNativeTextureSprite(kind, slotId, uid, retryCount + 1);
+    }, TEXTURE_BIND_RETRY_MS);
+    this.textureBindRetryTimers.set(key, timer);
+  }
+
+  private clearTextureBindRetry(kind: 'local' | 'remote', slotId: number, uid?: number): void {
+    const key = this.textureBindRetryKey(kind, slotId, uid);
+    const timer = this.textureBindRetryTimers.get(key);
+    if (!timer) {
+      return;
+    }
+    clearTimeout(timer);
+    this.textureBindRetryTimers.delete(key);
+  }
+
+  private clearTextureBindRetries(): void {
+    for (const timer of this.textureBindRetryTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.textureBindRetryTimers.clear();
+  }
+
+  private textureBindRetryKey(kind: 'local' | 'remote', slotId: number, uid?: number): string {
+    return `${kind}:${slotId}:${uid ?? 'local'}`;
   }
 
   private ensureRemoteSpriteFrame(uid: number): SpriteFrame {
