@@ -87,6 +87,7 @@ test('cocos integration scripts build and launch android and ios test apps', asy
     'utf8',
   );
 
+  assert.match(androidScript, /^#!\/usr\/bin\/env bash/);
   assert.match(androidScript, /TEST_APP_ID/);
   assert.match(androidScript, /AGORA_COCOS_TEST_MODE=api/);
   assert.match(androidScript, /adb/);
@@ -96,7 +97,18 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /TEST_DONE status=/);
   assert.match(androidScript, /TEST_DONE status=fail/);
   assert.match(androidScript, /collect-cocos-test-report\.mjs/);
+  assert.match(androidScript, /ANDROID_COCOS_BUILD_CONFIG=/);
+  assert.match(androidScript, /write_android_cocos_build_config\(\)/);
+  assert.match(androidScript, /sdkPath/);
+  assert.match(androidScript, /ndkPath/);
+  assert.match(androidScript, /run_cocos_build "\$ANDROID_COCOS_BUILD_CONFIG" "Android"/);
+  assert.match(androidScript, /exit_code -ne 0 && \$exit_code -ne 36/);
+  assert.match(androidScript, /ANDROID_GRADLE_OFFLINE=/);
+  assert.match(androidScript, /\.\/gradlew :agora-cocos-basic-call:assembleDebug/);
+  assert.match(androidScript, /\.\/gradlew --offline :agora-cocos-basic-call:assembleDebug/);
+  assert.doesNotMatch(androidScript, /\$\{\(@f\)/);
 
+  assert.match(iosScript, /^#!\/usr\/bin\/env bash/);
   assert.match(iosScript, /TEST_APP_ID/);
   assert.match(iosScript, /AGORA_COCOS_TEST_MODE=api/);
   assert.match(iosScript, /xcrun simctl/);
@@ -105,6 +117,8 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /TEST_DONE status=/);
   assert.match(iosScript, /TEST_DONE status=fail/);
   assert.match(iosScript, /collect-cocos-test-report\.mjs/);
+  assert.match(iosScript, /run_cocos_build "\$COCOS_BUILD_CONFIG" "iOS"/);
+  assert.match(iosScript, /exit_code -ne 0 && \$exit_code -ne 36/);
 });
 
 test('cocos run_test workflow exposes unit and device integration jobs', async () => {
@@ -120,6 +134,10 @@ test('cocos run_test workflow exposes unit and device integration jobs', async (
   assert.match(workflow, /npm test/);
   assert.match(workflow, /integration_test_android:/);
   assert.match(workflow, /integration_test_android:[\s\S]*runs-on: macos-15-intel/);
+  assert.match(workflow, /name: Setup Android SDK for Cocos/);
+  assert.match(workflow, /cmdline-tools\/latest\/bin\/sdkmanager/);
+  assert.match(workflow, /ndk;23\.1\.7779620/);
+  assert.match(workflow, /ANDROID_NDK_HOME=/);
   assert.match(workflow, /reactivecircus\/android-emulator-runner@v2/);
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_android\.sh/);
   assert.match(workflow, /integration_test_ios:/);
