@@ -108,3 +108,32 @@ export function ensureButtonNode(
   node.getComponent(Button) ?? node.addComponent(Button);
   return { node, label };
 }
+
+export function ensureLabelNode(
+  parent: Node,
+  name: string,
+  width: number,
+  height: number,
+  text: string,
+  fontSize = 13,
+  color = COLORS.textMuted,
+): Label {
+  let node = parent.getChildByName(name);
+  if (!node) {
+    node = new Node(name);
+    node.setParent(parent);
+  }
+  node.layer = parent.layer;
+  ensureTransform(node, width, height);
+  const label = node.getComponent(Label) ?? node.addComponent(Label);
+  configureLabel(label, text, fontSize, color);
+  return label;
+}
+
+export function refreshButtonVariant(node: Node, width: number, height: number, variant: ButtonVariant): void {
+  const bgNode = node.getChildByName('Background');
+  if (!bgNode) {
+    return;
+  }
+  drawButton(bgNode.getComponent(Graphics) ?? bgNode.addComponent(Graphics), width, height, variant);
+}
