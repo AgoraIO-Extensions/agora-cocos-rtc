@@ -1,9 +1,28 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { access, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
+const prefabRootSource = path.join(
+  repoRoot,
+  'example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts',
+);
+
+async function fileExists(filePath) {
+  try {
+    await access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+if (await fileExists(prefabRootSource)) {
+  console.log('Prefab demo root source found; exported bundle patch is not required.');
+  process.exit(0);
+}
+
 const runtimeConfig = JSON.parse(
   await readFile(
     path.join(repoRoot, 'example/basic-call/assets/resources/agora-config.json'),
