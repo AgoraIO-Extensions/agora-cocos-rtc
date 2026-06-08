@@ -340,7 +340,13 @@ test('gitignore behavior matches the intended commit boundary', async () => {
   ];
   const committedPaths = [
     'sdk/agora-rtc/package.json',
-    'example/basic-call/assets/scripts/AgoraRtcExampleController.ts',
+    'example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts',
+    'example/basic-call/assets/scripts/demo/RtcSessionService.ts',
+    'example/basic-call/assets/scripts/demo/actions.ts',
+    'example/basic-call/assets/scripts/demo/panels/DemoHeaderPanel.ts',
+    'example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts',
+    'example/basic-call/assets/scripts/demo/panels/VideoStagePanel.ts',
+    'example/basic-call/assets/scripts/demo/panels/LogPanel.ts',
   ];
 
   const ignoredResult = await execFileAsync('git', ['check-ignore', ...ignoredPaths], {
