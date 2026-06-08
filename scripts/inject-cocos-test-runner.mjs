@@ -24,16 +24,38 @@ await writeFile(
     `import { maybeRunAgoraCocosApiTests } from './api_test_runner.ts';`,
     `Object.assign(globalThis as any, ${JSON.stringify(runtimeGlobals, null, 2)});`,
     `console.log('[agora-cocos-test] TEST_MODE_LOADED mode=' + (globalThis as any).AGORA_COCOS_TEST_MODE);`,
-    `maybeRunAgoraCocosApiTests();`,
+    `const runApiTests = maybeRunAgoraCocosApiTests;`,
+    `export function runAgoraCocosDeviceTestsWhenReady(): void {`,
+    `  runApiTests();`,
+    `}`,
     '',
   ].join('\n'),
   'utf8',
 );
 
-const bootstrapImport = `import './cocos-device-tests/test-mode.ts';`;
+const legacyBootstrapImport = `import './cocos-device-tests/test-mode.ts';`;
+const bootstrapImport = `import { runAgoraCocosDeviceTestsWhenReady } from './cocos-device-tests/test-mode.ts';`;
 const bootstrapContent = await readFile(bootstrapPath, 'utf8');
-if (!bootstrapContent.includes(bootstrapImport)) {
-  await writeFile(bootstrapPath, `${bootstrapImport}\n${bootstrapContent}`, 'utf8');
+let nextBootstrapContent = bootstrapContent.replace(`${legacyBootstrapImport}\n`, '');
+nextBootstrapContent = nextBootstrapContent.replace(legacyBootstrapImport, '');
+if (!nextBootstrapContent.includes(bootstrapImport)) {
+  nextBootstrapContent = `${bootstrapImport}\n${nextBootstrapContent}`;
+}
+
+const testRunCall = 'runAgoraCocosDeviceTestsWhenReady();';
+if (!nextBootstrapContent.includes(testRunCall)) {
+  const mountAnchor = "console.log('[agora-rtc] bootstrap canvas child count', canvas.children.length);";
+  if (!nextBootstrapContent.includes(mountAnchor)) {
+    throw new Error('Unable to inject Cocos test runner: bootstrap mount anchor not found.');
+  }
+  nextBootstrapContent = nextBootstrapContent.replace(
+    mountAnchor,
+    `${mountAnchor}\n  ${testRunCall}`,
+  );
+}
+
+if (nextBootstrapContent !== bootstrapContent) {
+  await writeFile(bootstrapPath, nextBootstrapContent, 'utf8');
 }
 
 function metaFor(uuid) {

@@ -1,10 +1,13 @@
-import { sys } from 'cc';
+import { native, sys } from 'cc';
 
 import { createAgoraRtcClient, type AgoraRtcClient } from '../../agora-rtc-sdk/agora.ts';
+import { resolveBridgeTransport } from '../../agora-rtc-sdk/internal/bridge.ts';
 import { API_CALL_TESTCASES, type ApiCallCase, type ApiTestContext } from './api_call_testcases.ts';
 import { getWritablePath, writeJsonReport, type ApiCaseReport, type ApiTestReport } from './api_test_report.ts';
 
 const LOG_PREFIX = '[agora-cocos-test]';
+const BRIDGE_READY_TIMEOUT_MS = 30000;
+const BRIDGE_READY_POLL_MS = 250;
 
 function stringify(value: unknown): string {
   try {
@@ -32,6 +35,41 @@ function createContext(): ApiTestContext {
     logFilePath: `${writablePath}agora-cocos-api-test.log`,
     audioAssetPath: `${writablePath}Agora.io-Interactions.mp3`,
   };
+}
+
+function createNativeBridgeRuntime() {
+  return {
+    native,
+    sys,
+  };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function waitForNativeBridge(): Promise<void> {
+  const startedAt = Date.now();
+  let lastLoggedSecond = -1;
+
+  while (Date.now() - startedAt < BRIDGE_READY_TIMEOUT_MS) {
+    if (resolveBridgeTransport(createNativeBridgeRuntime())) {
+      console.log(`${LOG_PREFIX} TEST_BRIDGE_READY waitedMs=${Date.now() - startedAt}`);
+      return;
+    }
+
+    const elapsedSecond = Math.floor((Date.now() - startedAt) / 1000);
+    if (elapsedSecond !== lastLoggedSecond) {
+      lastLoggedSecond = elapsedSecond;
+      console.log(`${LOG_PREFIX} TEST_WAIT_BRIDGE elapsedMs=${Date.now() - startedAt}`);
+    }
+
+    await sleep(BRIDGE_READY_POLL_MS);
+  }
+
+  throw new Error(`Cocos native bridge was not ready within ${BRIDGE_READY_TIMEOUT_MS}ms.`);
 }
 
 function serializeError(error: unknown): ApiCaseReport['error'] {
@@ -88,11 +126,16 @@ async function runCase(client: AgoraRtcClient, context: ApiTestContext, testcase
 export async function runAgoraCocosApiTests(): Promise<ApiTestReport> {
   const context = createContext();
   const startedAt = new Date().toISOString();
-  const client = createAgoraRtcClient({ timeoutMs: 15000 });
 
   if (!context.appId) {
     throw new Error('TEST_APP_ID or APP_ID is required for Cocos API integration tests.');
   }
+
+  await waitForNativeBridge();
+  const client = createAgoraRtcClient({
+    bridgeRuntime: createNativeBridgeRuntime(),
+    timeoutMs: 15000,
+  });
 
   console.log(`${LOG_PREFIX} TEST_START mode=api platform=${sys.os} cases=${API_CALL_TESTCASES.length}`);
 

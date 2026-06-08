@@ -114,7 +114,9 @@ mkdir -p "$(dirname "$LOG_PATH")"
 log_step "Wait for iOS API test report"
 SECONDS=0
 while [[ $SECONDS -lt $TEST_TIMEOUT_SECONDS ]]; do
-  xcrun simctl spawn booted log show --last 5m --style compact --predicate 'eventMessage CONTAINS "[agora-cocos-test]"' > "$LOG_PATH"
+  xcrun simctl spawn booted log show --last 5m --style compact \
+    --predicate 'process == "agora-cocos-basic-call-mobile" OR eventMessage CONTAINS "[agora-cocos-test]" OR eventMessage CONTAINS "[agora-rtc]"' \
+    > "$LOG_PATH"
   if grep -q "TEST_DONE status=" "$LOG_PATH"; then
     cat "$LOG_PATH"
     if grep -q "TEST_DONE status=fail" "$LOG_PATH"; then

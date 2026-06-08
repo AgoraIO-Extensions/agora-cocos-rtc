@@ -65,6 +65,10 @@ test('cocos device runner emits structured logs and writes a json report', async
   assert.match(runnerContent, /runAgoraCocosApiTests/);
   assert.match(runnerContent, /sys\.OS\.IOS/);
   assert.match(runnerContent, /sys\.OS\.ANDROID/);
+  assert.match(runnerContent, /waitForNativeBridge/);
+  assert.match(runnerContent, /TEST_WAIT_BRIDGE/);
+  assert.match(runnerContent, /TEST_BRIDGE_READY/);
+  assert.match(runnerContent, /resolveBridgeTransport/);
   assert.match(reportContent, /writeJsonReport/);
   assert.match(reportContent, /api-report\.json/);
 });
@@ -76,6 +80,8 @@ test('cocos runner injection imports test mode from the example bootstrap', asyn
   assert.match(injectScript, /cocos-device-tests\/test-mode\.ts/);
   assert.match(injectScript, /AGORA_COCOS_TEST_MODE/);
   assert.match(injectScript, /TEST_MODE_LOADED/);
+  assert.match(injectScript, /runAgoraCocosDeviceTestsWhenReady/);
+  assert.doesNotMatch(injectScript, /maybeRunAgoraCocosApiTests\(\);/);
 });
 
 test('cocos integration scripts build and launch android and ios test apps', async () => {
