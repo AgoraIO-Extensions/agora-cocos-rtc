@@ -1,9 +1,17 @@
-export const DEFAULT_BUTTON_LAYOUT = [
+export const BASIC_VIDEO_ACTIONS = [
+  { name: 'JoinChannel', handler: 'toggleJoinChannel' },
+  { name: 'StartPreview', handler: 'togglePreview' },
+  { name: 'SwitchCamera', handler: 'triggerSwitchCamera' },
+  { name: 'MuteLocalVideo', handler: 'toggleMuteLocalVideo' },
+  { name: 'MuteAllRemoteVideo', handler: 'toggleMuteAllRemoteVideo' },
+  { name: 'ApplyEncoder', handler: 'applySelectedVideoEncoder' },
+  { name: 'RefreshViews', handler: 'refreshRtcViews' },
+  { name: 'OpenLog', handler: 'openStatusLogPage' },
+] as const;
+
+export const ADVANCED_ACTIONS = [
   { name: 'Initialize', handler: 'initializeRtc' },
-  { name: 'Join', handler: 'joinRtcChannel' },
   { name: 'Leave', handler: 'leaveRtcChannel' },
-  { name: 'Preview', handler: 'togglePreview' },
-  { name: 'Views', handler: 'refreshRtcViews' },
   { name: 'Speaker', handler: 'toggleSpeakerphone' },
   { name: 'Mic', handler: 'toggleLocalAudio' },
   { name: 'Cam', handler: 'toggleLocalVideo' },
@@ -27,51 +35,37 @@ export const DEFAULT_BUTTON_LAYOUT = [
   { name: 'PlaybackVolume', handler: 'togglePlaybackVolume' },
   { name: 'AudioProfile', handler: 'toggleAudioProfile' },
   { name: 'EnableVideo', handler: 'toggleEnableVideo' },
-  { name: 'MuteLocalVideo', handler: 'toggleMuteLocalVideo' },
   { name: 'MuteRemoteVideo', handler: 'toggleMuteRemoteVideo' },
-  { name: 'MuteAllRemoteVideo', handler: 'toggleMuteAllRemoteVideo' },
-  { name: 'SwitchCamera', handler: 'triggerSwitchCamera' },
   { name: 'BeautyEffect', handler: 'toggleBeautyEffect' },
   { name: 'ContentInspect', handler: 'toggleContentInspect' },
   { name: 'PlaybackUserVolume', handler: 'togglePlaybackUserVolume' },
 ] as const;
 
-export const SESSION_QUICK_BUTTONS = ['Initialize', 'Join', 'Leave'] as const;
+export const DEFAULT_BUTTON_LAYOUT = [...BASIC_VIDEO_ACTIONS, ...ADVANCED_ACTIONS] as const;
+
+export const SESSION_QUICK_BUTTONS = ['JoinChannel', 'StartPreview', 'SwitchCamera'] as const;
 
 export const BUTTON_SECTION_LAYOUT = [
-  { title: 'Session', buttons: ['Preview', 'Views', 'Full Demo'] },
-  { title: 'Render', buttons: ['Speaker', 'Mic', 'Cam'] },
-  { title: 'Audio API', buttons: [
-    'EnableAudio',
-    'EnableLocalAudio',
-    'MuteLocalAudio',
-    'MuteRemoteAudio',
-    'MuteAllRemoteAudio',
-    'AudioVolumeIndication',
-    'DefaultAudioRoute',
-    'PlaybackVolume',
-    'AudioProfile',
-  ] },
-  { title: 'Video API', buttons: [
-    'EnableVideo',
-    'MuteLocalVideo',
-    'MuteRemoteVideo',
-    'MuteAllRemoteVideo',
-    'SwitchCamera',
-    'BeautyEffect',
-    'ContentInspect',
-    'PlaybackUserVolume',
-  ] },
-  { title: 'Mixer', buttons: ['Mixing', 'Effect', 'Diag'] },
-  { title: 'Tools', buttons: ['Freeze', 'Clear'] },
+  { title: 'Connection', buttons: ['JoinChannel'] },
+  { title: 'Preview and camera', buttons: ['StartPreview', 'SwitchCamera', 'MuteLocalVideo', 'MuteAllRemoteVideo'] },
+  { title: 'Render and encoder', buttons: ['ApplyEncoder'] },
+  { title: 'Diagnostics', buttons: ['RefreshViews', 'OpenLog'] },
+  { title: 'Advanced', buttons: ADVANCED_ACTIONS.map((action) => action.name) },
 ] as const;
 
+export const BASIC_VIDEO_ACTION_SECTIONS = BUTTON_SECTION_LAYOUT;
+
 export const ACTION_LABELS: Record<string, string> = {
+  JoinChannel: 'Join Channel',
+  StartPreview: 'Start Preview',
+  SwitchCamera: 'Switch Camera',
+  MuteLocalVideo: 'Camera On',
+  MuteAllRemoteVideo: 'Remote Video On',
+  ApplyEncoder: 'Apply Encoder',
+  RefreshViews: 'Refresh Views',
+  OpenLog: 'Log',
   Initialize: 'Initialize',
-  Join: 'Join',
   Leave: 'Leave',
-  Preview: 'Preview',
-  Views: 'Views',
   Speaker: 'Speaker',
   Mic: 'Mic',
   Cam: 'Cam',
@@ -95,10 +89,7 @@ export const ACTION_LABELS: Record<string, string> = {
   PlaybackVolume: 'Playback Volume',
   AudioProfile: 'Audio Profile',
   EnableVideo: 'Enable Video',
-  MuteLocalVideo: 'Mute Local Video',
   MuteRemoteVideo: 'Mute Remote Video',
-  MuteAllRemoteVideo: 'Mute All Remote',
-  SwitchCamera: 'Switch Camera',
   BeautyEffect: 'Beauty Effect',
   ContentInspect: 'Content Inspect',
   PlaybackUserVolume: 'User Volume',
