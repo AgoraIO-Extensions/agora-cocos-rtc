@@ -23,6 +23,7 @@ await writeFile(
   [
     `import { maybeRunAgoraCocosApiTests } from './api_test_runner.ts';`,
     `Object.assign(globalThis as any, ${JSON.stringify(runtimeGlobals, null, 2)});`,
+    `console.log('[agora-cocos-test] TEST_MODE_LOADED mode=' + (globalThis as any).AGORA_COCOS_TEST_MODE);`,
     `maybeRunAgoraCocosApiTests();`,
     '',
   ].join('\n'),

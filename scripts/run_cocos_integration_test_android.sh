@@ -24,6 +24,7 @@ TEST_TIMEOUT_SECONDS="${TEST_TIMEOUT_SECONDS:-180}"
 REPORT_REMOTE_PATH=""
 LOCAL_AGORA_MAVEN_DIR="$ROOT_DIR/example/basic-call/native/engine/android/local-maven"
 ANDROID_GRADLE_OFFLINE="${ANDROID_GRADLE_OFFLINE:-false}"
+ANDROID_TEST_ABI="${ANDROID_TEST_ABI:-x86_64}"
 
 log_step() {
   echo
@@ -67,6 +68,7 @@ write_android_cocos_build_config() {
   ANDROID_COCOS_BUILD_CONFIG="$ANDROID_COCOS_BUILD_CONFIG" \
   ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
   ANDROID_NDK_HOME="$ANDROID_NDK_HOME" \
+  ANDROID_TEST_ABI="$ANDROID_TEST_ABI" \
   node --input-type=module <<'NODE'
 import { readFile, writeFile } from 'node:fs/promises';
 
@@ -78,9 +80,24 @@ config.packages ??= {};
 config.packages.android ??= {};
 config.packages.android.sdkPath = process.env.ANDROID_SDK_ROOT;
 config.packages.android.ndkPath = process.env.ANDROID_NDK_HOME;
+config.packages.android.appABIs = [process.env.ANDROID_TEST_ABI || 'x86_64'];
 
 await writeFile(outputPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
 NODE
+}
+
+write_android_apk_contents_report() {
+  local report_dir="$ROOT_DIR/test_shard/integration_test_app/reports"
+  local report_path="$report_dir/android-apk-contents.txt"
+  local required_abi="$ANDROID_TEST_ABI"
+
+  mkdir -p "$report_dir"
+  unzip -l "$APK_PATH" > "$report_path"
+  if ! grep -q "lib/$required_abi/" "$report_path"; then
+    cat "$report_path"
+    echo "APK does not contain native libraries for Android test ABI: $required_abi." >&2
+    exit 1
+  fi
 }
 
 run_cocos_build() {
@@ -144,6 +161,7 @@ if [[ "$ANDROID_GRADLE_OFFLINE" == "true" ]]; then
 else
   ./gradlew :agora-cocos-basic-call:assembleDebug
 fi
+write_android_apk_contents_report
 
 log_step "Install and launch Android test app"
 "$ADB_BIN" install -g -r --no-streaming "$APK_PATH"
@@ -158,6 +176,7 @@ log_step "Install and launch Android test app"
 mkdir -p "$(dirname "$LOG_PATH")"
 : > "$LOG_PATH"
 log_step "Wait for Android API test report"
+SECONDS=0
 while [[ $SECONDS -lt $TEST_TIMEOUT_SECONDS ]]; do
   "$ADB_BIN" logcat -d > "$LOG_PATH"
   if grep -q "TEST_DONE status=" "$LOG_PATH"; then

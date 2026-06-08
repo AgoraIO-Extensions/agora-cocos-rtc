@@ -75,6 +75,7 @@ test('cocos runner injection imports test mode from the example bootstrap', asyn
   assert.match(injectScript, /AgoraRtcExampleBootstrap\.ts/);
   assert.match(injectScript, /cocos-device-tests\/test-mode\.ts/);
   assert.match(injectScript, /AGORA_COCOS_TEST_MODE/);
+  assert.match(injectScript, /TEST_MODE_LOADED/);
 });
 
 test('cocos integration scripts build and launch android and ios test apps', async () => {
@@ -93,11 +94,16 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /adb/);
   assert.match(androidScript, /logcat/);
   assert.match(androidScript, /TEST_TIMEOUT_SECONDS/);
+  assert.match(androidScript, /SECONDS=0[\s\S]*while \[\[ \$SECONDS -lt \$TEST_TIMEOUT_SECONDS \]\]/);
   assert.match(androidScript, /while .*SECONDS/);
   assert.match(androidScript, /TEST_DONE status=/);
   assert.match(androidScript, /TEST_DONE status=fail/);
   assert.match(androidScript, /collect-cocos-test-report\.mjs/);
   assert.match(androidScript, /ANDROID_COCOS_BUILD_CONFIG=/);
+  assert.match(androidScript, /ANDROID_TEST_ABI=/);
+  assert.match(androidScript, /appABIs/);
+  assert.match(androidScript, /android-apk-contents\.txt/);
+  assert.match(androidScript, /lib\/\$required_abi\//);
   assert.match(androidScript, /write_android_cocos_build_config\(\)/);
   assert.match(androidScript, /sdkPath/);
   assert.match(androidScript, /ndkPath/);
@@ -113,12 +119,15 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /AGORA_COCOS_TEST_MODE=api/);
   assert.match(iosScript, /xcrun simctl/);
   assert.match(iosScript, /TEST_TIMEOUT_SECONDS/);
+  assert.match(iosScript, /SECONDS=0[\s\S]*while \[\[ \$SECONDS -lt \$TEST_TIMEOUT_SECONDS \]\]/);
   assert.match(iosScript, /while .*SECONDS/);
   assert.match(iosScript, /TEST_DONE status=/);
   assert.match(iosScript, /TEST_DONE status=fail/);
   assert.match(iosScript, /collect-cocos-test-report\.mjs/);
   assert.match(iosScript, /run_cocos_build "\$COCOS_BUILD_CONFIG" "iOS"/);
   assert.match(iosScript, /exit_code -ne 0 && \$exit_code -ne 36/);
+  assert.match(iosScript, /ios-diagnostic\.log/);
+  assert.match(iosScript, /collect_ios_diagnostics/);
 });
 
 test('cocos run_test workflow exposes unit and device integration jobs', async () => {
@@ -134,12 +143,14 @@ test('cocos run_test workflow exposes unit and device integration jobs', async (
   assert.match(workflow, /npm test/);
   assert.match(workflow, /integration_test_android:/);
   assert.match(workflow, /integration_test_android:[\s\S]*runs-on: macos-15-intel/);
+  assert.match(workflow, /ANDROID_TEST_ABI: x86_64/);
   assert.match(workflow, /name: Setup Android SDK for Cocos/);
   assert.match(workflow, /cmdline-tools\/latest\/bin\/sdkmanager/);
   assert.match(workflow, /ndk;23\.1\.7779620/);
   assert.match(workflow, /ANDROID_NDK_HOME=/);
   assert.match(workflow, /reactivecircus\/android-emulator-runner@v2/);
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_android\.sh/);
+  assert.match(workflow, /arch: x86_64/);
   assert.match(workflow, /integration_test_ios:/);
   assert.match(workflow, /futureware-tech\/simulator-action@v4/);
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_ios\.sh/);

@@ -20,6 +20,7 @@ IOS_EXPORTED_PLUGIN_DIR="$IOS_PROJECT_DIR/agora-rtc"
 DEFAULT_AGORA_COCOS_TEST_MODE=api
 AGORA_COCOS_TEST_MODE="${AGORA_COCOS_TEST_MODE:-$DEFAULT_AGORA_COCOS_TEST_MODE}"
 LOG_PATH="$ROOT_DIR/test_shard/integration_test_app/reports/ios-runtime.log"
+DIAGNOSTIC_LOG_PATH="$ROOT_DIR/test_shard/integration_test_app/reports/ios-diagnostic.log"
 TEST_TIMEOUT_SECONDS="${TEST_TIMEOUT_SECONDS:-180}"
 REPORT_SIM_PATH=""
 
@@ -43,6 +44,12 @@ run_cocos_build() {
   fi
 
   echo "$label Cocos build completed with exit code $exit_code."
+}
+
+collect_ios_diagnostics() {
+  xcrun simctl spawn booted log show --last 10m --style compact \
+    --predicate 'process == "agora-cocos-basic-call-mobile" OR eventMessage CONTAINS "[agora-cocos-test]" OR eventMessage CONTAINS "[agora-rtc]" OR eventMessage CONTAINS "io.agora.cocos.example"' \
+    > "$DIAGNOSTIC_LOG_PATH" || true
 }
 
 cd "$ROOT_DIR"
@@ -103,7 +110,9 @@ xcrun simctl launch booted "$IOS_BUNDLE_ID" \
 
 mkdir -p "$(dirname "$LOG_PATH")"
 : > "$LOG_PATH"
+: > "$DIAGNOSTIC_LOG_PATH"
 log_step "Wait for iOS API test report"
+SECONDS=0
 while [[ $SECONDS -lt $TEST_TIMEOUT_SECONDS ]]; do
   xcrun simctl spawn booted log show --last 5m --style compact --predicate 'eventMessage CONTAINS "[agora-cocos-test]"' > "$LOG_PATH"
   if grep -q "TEST_DONE status=" "$LOG_PATH"; then
@@ -124,6 +133,8 @@ while [[ $SECONDS -lt $TEST_TIMEOUT_SECONDS ]]; do
   sleep 2
 done
 
+collect_ios_diagnostics
 cat "$LOG_PATH"
+cat "$DIAGNOSTIC_LOG_PATH"
 echo "Timed out waiting for TEST_DONE status= after ${TEST_TIMEOUT_SECONDS}s." >&2
 exit 1
