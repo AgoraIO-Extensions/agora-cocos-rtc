@@ -161,8 +161,16 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /exit_code -ne 0 && \$exit_code -ne 36/);
   assert.match(iosScript, /ios-diagnostic\.log/);
   assert.match(iosScript, /collect_ios_diagnostics/);
-  assert.match(iosScript, /simctl privacy booted grant camera "\$IOS_BUNDLE_ID"/);
-  assert.match(iosScript, /simctl privacy booted grant microphone "\$IOS_BUNDLE_ID"/);
+  assert.match(iosScript, /resolve_ios_simulator_udid\(\)/);
+  assert.match(iosScript, /IOS_SIMULATOR_UDID="\$\(resolve_ios_simulator_udid\)"/);
+  assert.match(iosScript, /simctl privacy "\$IOS_SIMULATOR_UDID" grant camera "\$IOS_BUNDLE_ID"/);
+  assert.match(iosScript, /simctl privacy "\$IOS_SIMULATOR_UDID" grant microphone "\$IOS_BUNDLE_ID"/);
+  assert.match(iosScript, /simctl install "\$IOS_SIMULATOR_UDID" "\$APP_PATH"/);
+  assert.match(iosScript, /simctl get_app_container "\$IOS_SIMULATOR_UDID" "\$IOS_BUNDLE_ID" data/);
+  assert.doesNotMatch(iosScript, /simctl (spawn|install|privacy|launch|get_app_container|io) booted/);
+  assert.match(iosScript, /IOS_REPORT_SIM_PATH="\$IOS_CONTAINER_PATH\/Documents\/api-report\.json"/);
+  assert.match(iosScript, /\[\[ -n "\$IOS_REPORT_SIM_PATH" && -s "\$IOS_REPORT_SIM_PATH" \]\]/);
+  assert.match(iosScript, /ios_report_has_failures "\$IOS_REPORT_SIM_PATH"/);
   assert.match(iosScript, /ios-launch\.log/);
   assert.match(iosScript, /ios-stdout\.log/);
   assert.match(iosScript, /ios-stderr\.log/);
