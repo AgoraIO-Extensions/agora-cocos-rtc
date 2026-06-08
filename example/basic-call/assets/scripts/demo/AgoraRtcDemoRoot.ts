@@ -1,4 +1,4 @@
-import { _decorator, Component, JsonAsset, Node, resources, view } from 'cc';
+import { _decorator, Component, JsonAsset, Node, resources, UITransform, view } from 'cc';
 import {
   resolveAgoraExampleConfig,
   type AgoraExampleRuntimeConfig,
@@ -20,6 +20,11 @@ import { LogPanel } from './panels/LogPanel.ts';
 
 const { ccclass, property } = _decorator;
 const MAX_LOG_LINES = 80;
+const LAYOUT_MARGIN = 24;
+const PANEL_GAP = 20;
+const ACTION_PANEL_WIDTH = 420;
+const ACTION_PANEL_HEIGHT = 620;
+const MIN_VIDEO_STAGE_WIDTH = 360;
 
 @ccclass('AgoraRtcDemoRoot')
 export class AgoraRtcDemoRoot extends Component {
@@ -63,7 +68,7 @@ export class AgoraRtcDemoRoot extends Component {
 
   onLoad(): void {
     this.resolvePanelBindings();
-    view.on('canvas-resize', this.refreshPanels, this);
+    view.on('canvas-resize', this.layoutResponsivePanels, this);
     this.videoStagePanel?.initialize();
     this.headerPanel?.initialize({
       onOpenLog: () => this.openStatusLogPage(),
@@ -78,6 +83,7 @@ export class AgoraRtcDemoRoot extends Component {
       onClear: () => { void this.clearStatusLog(); },
       onFreeze: () => { void this.toggleStatusFreeze(); },
     });
+    this.layoutResponsivePanels();
   }
 
   async start(): Promise<void> {
@@ -101,7 +107,7 @@ export class AgoraRtcDemoRoot extends Component {
   }
 
   onDestroy(): void {
-    view.off('canvas-resize', this.refreshPanels, this);
+    view.off('canvas-resize', this.layoutResponsivePanels, this);
     void this.session?.teardownRtc();
   }
 
@@ -414,6 +420,7 @@ export class AgoraRtcDemoRoot extends Component {
   }
 
   private refreshPanels(): void {
+    this.layoutResponsivePanels();
     const config = this.getBasicVideoConfigState();
     const state = this.getSessionState();
     this.headerPanel?.setConfig(config);
@@ -423,6 +430,38 @@ export class AgoraRtcDemoRoot extends Component {
     this.actionPanel?.refresh();
     this.videoStagePanel?.setLocalStageState(state);
     this.videoStagePanel?.setStats(state);
+  }
+
+  private layoutResponsivePanels(): void {
+    const visibleSize = view.getVisibleSize();
+    const landscapeWidth = Math.max(visibleSize.width, visibleSize.height);
+    const landscapeHeight = Math.min(visibleSize.width, visibleSize.height);
+    this.node.getComponent(UITransform)?.setContentSize(landscapeWidth, landscapeHeight);
+
+    const left = -landscapeWidth / 2 + LAYOUT_MARGIN;
+    const right = landscapeWidth / 2 - LAYOUT_MARGIN;
+    const availableHeight = Math.max(360, landscapeHeight - LAYOUT_MARGIN * 2);
+    const actionScale = Math.min(1, availableHeight / ACTION_PANEL_HEIGHT);
+    const actionWidth = ACTION_PANEL_WIDTH * actionScale;
+
+    if (this.headerPanel) {
+      this.headerPanel.node.active = false;
+    }
+    if (this.actionPanel) {
+      this.actionPanel.node.setScale(actionScale, actionScale, 1);
+      this.actionPanel.node.setPosition(left + actionWidth / 2, 0, 0);
+    }
+
+    const stageLeft = left + actionWidth + PANEL_GAP;
+    const stageWidth = Math.max(MIN_VIDEO_STAGE_WIDTH, right - stageLeft);
+    this.videoStagePanel?.applyLayout(stageWidth, availableHeight);
+    this.videoStagePanel?.node.setScale(1, 1, 1);
+    this.videoStagePanel?.node.setPosition(stageLeft + stageWidth / 2, 0, 0);
+
+    if (this.logPanel) {
+      this.logPanel.node.setScale(1, 1, 1);
+      this.logPanel.node.setPosition(0, 0, 0);
+    }
   }
 
   private refreshLogPanel(): void {

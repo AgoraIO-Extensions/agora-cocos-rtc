@@ -16,6 +16,7 @@ import type {
 import {
   type ButtonVariant,
   COLORS,
+  configureLabel,
   ensureButtonNode,
   ensureLabelNode,
   ensureTransform,
@@ -115,11 +116,11 @@ export class DemoActionPanel extends Component {
 
   private ensureControls(): void {
     this.ensureContainers();
-    const connection = this.ensureContainer('ConnectionSection', 0, 230, 390, 150);
-    const preview = this.ensureContainer('PreviewCameraSection', 0, 70, 390, 150);
+    const connection = this.ensureContainer('ConnectionSection', 0, 180, 390, 150);
+    const preview = this.ensureContainer('PreviewCameraSection', 0, 30, 390, 150);
     const render = this.ensureContainer('RenderEncoderSection', 0, -80, 390, 130);
-    const diagnostics = this.ensureContainer('DiagnosticsSection', 0, -205, 390, 92);
-    this.advancedSection = this.ensureContainer('AdvancedSection', 0, -355, 390, 190);
+    const diagnostics = this.ensureContainer('DiagnosticsSection', 0, -185, 390, 92);
+    this.advancedSection = this.ensureContainer('AdvancedSection', 0, -325, 390, 190);
     this.advancedSection.active = this.advancedVisible;
 
     this.buildConnectionSection(connection);
@@ -144,13 +145,13 @@ export class DemoActionPanel extends Component {
 
   private buildConnectionSection(parent: Node): void {
     const title = ensureLabelNode(parent, 'SectionTitle', 360, 24, 'Connection', 14, COLORS.textPrimary);
-    title.node.setPosition(-180, 58, 0);
+    title.node.setPosition(0, 58, 0);
     ensureLabelNode(parent, 'ChannelLabel', 174, 20, 'Channel', 12).node.setPosition(-92, 34, 0);
     ensureLabelNode(parent, 'UidLabel', 78, 20, 'UID', 12).node.setPosition(95, 34, 0);
     this.channelInput = this.ensureEditBox(parent, 'ChannelInput', -92, 8, 174, this.config?.channelId ?? 'demo');
     this.uidInput = this.ensureEditBox(parent, 'UidInput', 95, 8, 78, String(this.config?.uid ?? 1001));
     this.statusLabel = ensureLabelNode(parent, 'StatusLabel', 360, 22, '', 12, COLORS.textMuted);
-    this.statusLabel.node.setPosition(-180, -22, 0);
+    this.statusLabel.node.setPosition(0, -22, 0);
     const join = this.ensureActionButton(parent, 'JoinChannel', 0, -52, 210, 38, 'primary');
     join.node.off(Node.EventType.TOUCH_END);
     join.node.on(Node.EventType.TOUCH_END, () => {
@@ -161,13 +162,13 @@ export class DemoActionPanel extends Component {
 
   private buildPreviewSection(parent: Node): void {
     const title = ensureLabelNode(parent, 'SectionTitle', 360, 24, 'Preview and camera', 14, COLORS.textPrimary);
-    title.node.setPosition(-180, 58, 0);
+    title.node.setPosition(0, 58, 0);
     this.buildButtonList(parent, ['StartPreview', 'SwitchCamera', 'MuteLocalVideo', 'MuteAllRemoteVideo'], 2, 20);
   }
 
   private buildRenderSection(parent: Node): void {
     const title = ensureLabelNode(parent, 'SectionTitle', 360, 24, 'Render and encoder', 14, COLORS.textPrimary);
-    title.node.setPosition(-180, 48, 0);
+    title.node.setPosition(0, 48, 0);
     this.profileLabel = this.ensureToggleButton(parent, 'ProfileToggle', -120, 10, 112, 'secondary', () => this.cycleProfile());
     this.renderLabel = this.ensureToggleButton(parent, 'RenderToggle', 0, 10, 112, 'secondary', () => this.cycleRenderBackend());
     this.encoderLabel = this.ensureToggleButton(parent, 'EncoderToggle', 120, 10, 112, 'secondary', () => this.cycleEncoder());
@@ -176,7 +177,7 @@ export class DemoActionPanel extends Component {
 
   private buildDiagnosticsSection(parent: Node): void {
     const title = ensureLabelNode(parent, 'SectionTitle', 360, 22, 'Diagnostics', 14, COLORS.textPrimary);
-    title.node.setPosition(-180, 32, 0);
+    title.node.setPosition(0, 32, 0);
     this.buildButtonList(parent, ['RefreshViews', 'OpenLog'], 2, -6);
     const advanced = ensureButtonNode(parent, 'AdvancedToggle', 118, 32, 'Advanced', 'ghost');
     advanced.node.setPosition(132, -6, 0);
@@ -193,7 +194,7 @@ export class DemoActionPanel extends Component {
 
   private buildAdvancedSection(parent: Node): void {
     const title = ensureLabelNode(parent, 'SectionTitle', 360, 22, 'Advanced', 14, COLORS.textPrimary);
-    title.node.setPosition(-180, 82, 0);
+    title.node.setPosition(0, 82, 0);
     const names = BASIC_VIDEO_ACTION_SECTIONS.find((section) => section.title === 'Advanced')?.buttons
       ?? ADVANCED_ACTIONS.map((action) => action.name);
     this.buildButtonList(parent, [...names], 3, 50, 112, 28, 118, 34);
@@ -263,9 +264,29 @@ export class DemoActionPanel extends Component {
     node.setPosition(x, y, 0);
     ensureTransform(node, width, 30);
     const editBox = node.getComponent(EditBox) ?? node.addComponent(EditBox);
-    editBox.string = editBox.string || value;
     editBox.placeholder = name === 'UidInput' ? '1001' : 'demo';
+    editBox.textLabel = this.ensureEditBoxLabel(node, 'TEXT_LABEL', width - 12, value, COLORS.textPrimary);
+    editBox.placeholderLabel = this.ensureEditBoxLabel(node, 'PLACEHOLDER_LABEL', width - 12, editBox.placeholder, COLORS.textMuted);
+    editBox.string = editBox.string || value;
+    editBox.maxLength = name === 'UidInput' ? 10 : 64;
     return editBox;
+  }
+
+  private ensureEditBoxLabel(parent: Node, name: string, width: number, text: string, color = COLORS.textPrimary): Label {
+    let node = parent.getChildByName(name);
+    if (!node) {
+      node = new Node(name);
+      node.setParent(parent);
+    }
+    node.layer = parent.layer;
+    node.setPosition(0, 0, 0);
+    ensureTransform(node, width, 28);
+    const label = node.getComponent(Label) ?? node.addComponent(Label);
+    label.horizontalAlign = 1;
+    label.verticalAlign = 1;
+    label.overflow = 1;
+    configureLabel(label, text, 16, color);
+    return label;
   }
 
   private refreshButton(name: string): void {
