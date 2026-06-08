@@ -5,7 +5,8 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 COCOS_CLI="/Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/MacOS/CocosCreator"
 COCOS_PROJECT_DIR="$ROOT_DIR/example/basic-call"
-COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/android-debug.json"
+ANDROID_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/android-debug.json"
+ANDROID_COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-android/android-debug.local.json"
 ANDROID_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-android/android/proj"
 ANDROID_RUNTIME_PLUGIN_DIR="$ROOT_DIR/example/basic-call/native/engine/android/app/src/main/java/io/agora/cocos/rtc"
 ANDROID_EXPORTED_PLUGIN_DIR="$ANDROID_PROJECT_DIR/app/src/main/java/io/agora/cocos/rtc"
@@ -14,10 +15,69 @@ PACKAGE_NAME="io.agora.cocos.example"
 ACTIVITY_NAME="com.cocos.game.AppActivity"
 ANDROID_SDK_ROOT_DEFAULT="$HOME/Library/Android/sdk"
 ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_SDK_ROOT_DEFAULT}"
+ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
 ADB_BIN="${ADB_BIN:-$ANDROID_SDK_ROOT/platform-tools/adb}"
 LOCAL_AGORA_MAVEN_DIR="$ROOT_DIR/example/basic-call/native/engine/android/local-maven"
 
 cd "$ROOT_DIR"
+
+resolve_android_ndk_path() {
+  local candidate
+
+  for candidate in "$ANDROID_NDK_HOME" "$ANDROID_SDK_ROOT/ndk/23.1.7779620"; do
+    if [[ -n "$candidate" && -f "$candidate/source.properties" ]]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+
+  local discovered_ndks=("${(@f)$(find "$ANDROID_SDK_ROOT/ndk" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort -r)}")
+  if [[ ${#discovered_ndks[@]} -gt 0 ]]; then
+    for candidate in "${discovered_ndks[@]}"; do
+      if [[ -f "$candidate/source.properties" ]]; then
+        echo "$candidate"
+        return 0
+      fi
+    done
+  fi
+
+  return 1
+}
+
+write_android_cocos_build_config() {
+  if [[ ! -d "$ANDROID_SDK_ROOT/platform-tools" ]]; then
+    echo "Android SDK is missing platform-tools under $ANDROID_SDK_ROOT." >&2
+    echo "Set ANDROID_SDK_ROOT or install Android command-line tools before building Android." >&2
+    exit 1
+  fi
+
+  ANDROID_NDK_HOME="$(resolve_android_ndk_path || true)"
+  if [[ -z "$ANDROID_NDK_HOME" ]]; then
+    echo "Android NDK was not found under $ANDROID_SDK_ROOT/ndk." >&2
+    echo "Set ANDROID_NDK_HOME or install NDK 23.1.7779620 before building Android." >&2
+    exit 1
+  fi
+
+  mkdir -p "$(dirname "$ANDROID_COCOS_BUILD_CONFIG")"
+  ANDROID_BUILD_CONFIG="$ANDROID_BUILD_CONFIG" \
+  ANDROID_COCOS_BUILD_CONFIG="$ANDROID_COCOS_BUILD_CONFIG" \
+  ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
+  ANDROID_NDK_HOME="$ANDROID_NDK_HOME" \
+  node --input-type=module <<'NODE'
+import { readFile, writeFile } from 'node:fs/promises';
+
+const sourcePath = process.env.ANDROID_BUILD_CONFIG;
+const outputPath = process.env.ANDROID_COCOS_BUILD_CONFIG;
+const config = JSON.parse(await readFile(sourcePath, 'utf8'));
+
+config.packages ??= {};
+config.packages.android ??= {};
+config.packages.android.sdkPath = process.env.ANDROID_SDK_ROOT;
+config.packages.android.ndkPath = process.env.ANDROID_NDK_HOME;
+
+await writeFile(outputPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+NODE
+}
 
 if [[ ! -x "$ADB_BIN" ]]; then
   echo "adb not found at $ADB_BIN" >&2
@@ -28,9 +88,10 @@ fi
 if [[ ! -d "$LOCAL_AGORA_MAVEN_DIR" ]]; then
   node ./scripts/fetch-agora-maven.mjs >/dev/null
 fi
+write_android_cocos_build_config
 
 set +e
-"$COCOS_CLI" --project "$COCOS_PROJECT_DIR" --build "configPath=$COCOS_BUILD_CONFIG"
+"$COCOS_CLI" --project "$COCOS_PROJECT_DIR" --build "configPath=$ANDROID_COCOS_BUILD_CONFIG"
 COCOS_BUILD_EXIT_CODE=$?
 set -e
 

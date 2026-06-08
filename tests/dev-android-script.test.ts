@@ -11,8 +11,14 @@ test('dev-android script exports current source with Cocos CLI instead of old ru
   );
 
   assert.match(content, /CocosCreator\.app\/Contents\/MacOS\/CocosCreator/);
-  assert.match(content, /COCOS_BUILD_CONFIG=.*build-configs\/android-debug\.json/);
-  assert.match(content, /--build "configPath=\$COCOS_BUILD_CONFIG"/);
+  assert.match(content, /ANDROID_BUILD_CONFIG=.*build-configs\/android-debug\.json/);
+  assert.match(content, /ANDROID_COCOS_BUILD_CONFIG=.*build-android\/android-debug\.local\.json/);
+  assert.match(content, /ANDROID_NDK_HOME="\$\{ANDROID_NDK_HOME:-\$\{ANDROID_NDK_ROOT:-\}\}"/);
+  assert.match(content, /resolve_android_ndk_path\(\)/);
+  assert.match(content, /write_android_cocos_build_config\(\)/);
+  assert.match(content, /sdkPath/);
+  assert.match(content, /ndkPath/);
+  assert.match(content, /--build "configPath=\$ANDROID_COCOS_BUILD_CONFIG"/);
   assert.match(content, /ANDROID_RUNTIME_PLUGIN_DIR=/);
   assert.match(content, /ANDROID_EXPORTED_PLUGIN_DIR=/);
   assert.match(content, /cp -R "\$ANDROID_RUNTIME_PLUGIN_DIR\/\." "\$ANDROID_EXPORTED_PLUGIN_DIR\/"/);
