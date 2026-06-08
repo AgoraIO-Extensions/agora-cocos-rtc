@@ -19,12 +19,17 @@ ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
 ADB_BIN="${ADB_BIN:-$ANDROID_SDK_ROOT/platform-tools/adb}"
 DEFAULT_AGORA_COCOS_TEST_MODE=api
 AGORA_COCOS_TEST_MODE="${AGORA_COCOS_TEST_MODE:-$DEFAULT_AGORA_COCOS_TEST_MODE}"
-LOG_PATH="$ROOT_DIR/test_shard/integration_test_app/reports/android-runtime.log"
+REPORT_DIR="$ROOT_DIR/test_shard/integration_test_app/reports"
+LOG_PATH="$REPORT_DIR/android-runtime.log"
+ANDROID_DIAGNOSTIC_LOG_PATH="$REPORT_DIR/android-diagnostic.log"
 TEST_TIMEOUT_SECONDS="${TEST_TIMEOUT_SECONDS:-180}"
+ANDROID_SCRIPT_TIMEOUT_SECONDS="${ANDROID_SCRIPT_TIMEOUT_SECONDS:-2100}"
 REPORT_REMOTE_PATH=""
 LOCAL_AGORA_MAVEN_DIR="$ROOT_DIR/example/basic-call/native/engine/android/local-maven"
 ANDROID_GRADLE_OFFLINE="${ANDROID_GRADLE_OFFLINE:-false}"
 ANDROID_TEST_ABI="${ANDROID_TEST_ABI:-x86_64}"
+ANDROID_TEST_SCRIPT_PID=""
+ANDROID_TIMEOUT_WATCHDOG_PID=""
 
 log_step() {
   echo
@@ -117,6 +122,86 @@ run_cocos_build() {
   echo "$label Cocos build completed with exit code $exit_code."
 }
 
+collect_android_diagnostics() {
+  mkdir -p "$REPORT_DIR"
+  {
+    echo "== adb devices =="
+    "$ADB_BIN" devices -l || true
+    echo
+    echo "== adb shell getprop =="
+    "$ADB_BIN" shell getprop ro.build.version.release || true
+    "$ADB_BIN" shell getprop ro.product.cpu.abi || true
+    "$ADB_BIN" shell getprop sys.boot_completed || true
+    echo
+    echo "== adb shell pidof $PACKAGE_NAME =="
+    "$ADB_BIN" shell pidof "$PACKAGE_NAME" || true
+    echo
+    echo "== adb shell dumpsys activity top =="
+    "$ADB_BIN" shell dumpsys activity top || true
+    echo
+    echo "== adb shell ps package =="
+    "$ADB_BIN" shell ps -A | grep "$PACKAGE_NAME" || true
+    echo
+    echo "== latest logcat =="
+    "$ADB_BIN" logcat -d -t 1000 || true
+  } > "$ANDROID_DIAGNOSTIC_LOG_PATH" 2>&1 || true
+
+  if [[ -f "$ANDROID_DIAGNOSTIC_LOG_PATH" ]]; then
+    cat "$ANDROID_DIAGNOSTIC_LOG_PATH"
+  fi
+}
+
+terminate_android_process_tree() {
+  local target_pid="$1"
+  local child_pid
+
+  if [[ -z "$target_pid" ]]; then
+    return
+  fi
+
+  while IFS= read -r child_pid; do
+    terminate_android_process_tree "$child_pid"
+  done < <(pgrep -P "$target_pid" 2>/dev/null || true)
+
+  kill -TERM "$target_pid" 2>/dev/null || true
+}
+
+cleanup_android_test() {
+  if [[ -n "$ANDROID_TIMEOUT_WATCHDOG_PID" ]]; then
+    kill "$ANDROID_TIMEOUT_WATCHDOG_PID" 2>/dev/null || true
+    wait "$ANDROID_TIMEOUT_WATCHDOG_PID" 2>/dev/null || true
+    ANDROID_TIMEOUT_WATCHDOG_PID=""
+  fi
+}
+
+run_android_script_with_timeout() {
+  run_android_api_test_main "$@" &
+  ANDROID_TEST_SCRIPT_PID="$!"
+
+  (
+    sleep "$ANDROID_SCRIPT_TIMEOUT_SECONDS"
+    if kill -0 "$ANDROID_TEST_SCRIPT_PID" 2>/dev/null; then
+      echo "Android Cocos API test script exceeded ${ANDROID_SCRIPT_TIMEOUT_SECONDS}s." >&2
+      terminate_android_process_tree "$ANDROID_TEST_SCRIPT_PID"
+      collect_android_diagnostics
+      sleep 10
+      kill -KILL "$ANDROID_TEST_SCRIPT_PID" 2>/dev/null || true
+    fi
+  ) &
+  ANDROID_TIMEOUT_WATCHDOG_PID="$!"
+
+  set +e
+  wait "$ANDROID_TEST_SCRIPT_PID"
+  local exit_code=$?
+  set -e
+
+  cleanup_android_test
+  return "$exit_code"
+}
+
+trap cleanup_android_test EXIT
+
+run_android_api_test_main() {
 cd "$ROOT_DIR"
 
 if [[ -z "${TEST_APP_ID:-${APP_ID:-}}" ]]; then
@@ -197,5 +282,9 @@ while [[ $SECONDS -lt $TEST_TIMEOUT_SECONDS ]]; do
 done
 
 cat "$LOG_PATH"
+collect_android_diagnostics
 echo "Timed out waiting for TEST_DONE status= after ${TEST_TIMEOUT_SECONDS}s." >&2
 exit 1
+}
+
+run_android_script_with_timeout "$@"

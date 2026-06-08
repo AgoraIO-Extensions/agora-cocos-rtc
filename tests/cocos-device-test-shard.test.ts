@@ -127,6 +127,16 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /adb/);
   assert.match(androidScript, /logcat/);
   assert.match(androidScript, /TEST_TIMEOUT_SECONDS/);
+  assert.match(androidScript, /ANDROID_DIAGNOSTIC_LOG_PATH/);
+  assert.match(androidScript, /ANDROID_SCRIPT_TIMEOUT_SECONDS/);
+  assert.match(androidScript, /ANDROID_TEST_SCRIPT_PID/);
+  assert.match(androidScript, /ANDROID_TIMEOUT_WATCHDOG_PID/);
+  assert.match(androidScript, /collect_android_diagnostics/);
+  assert.match(androidScript, /terminate_android_process_tree/);
+  assert.match(androidScript, /run_android_script_with_timeout/);
+  assert.match(androidScript, /sleep "\$ANDROID_SCRIPT_TIMEOUT_SECONDS"/);
+  assert.match(androidScript, /kill -TERM "\$target_pid"/);
+  assert.match(androidScript, /trap cleanup_android_test EXIT/);
   assert.match(androidScript, /SECONDS=0[\s\S]*while \[\[ \$SECONDS -lt \$TEST_TIMEOUT_SECONDS \]\]/);
   assert.match(androidScript, /while .*SECONDS/);
   assert.match(androidScript, /TEST_DONE status=/);
@@ -199,6 +209,7 @@ test('cocos run_test workflow exposes unit and device integration jobs', async (
   assert.match(workflow, /ndk;23\.1\.7779620/);
   assert.match(workflow, /ANDROID_NDK_HOME=/);
   assert.match(workflow, /reactivecircus\/android-emulator-runner@v2/);
+  assert.match(workflow, /Run Android Cocos API tests[\s\S]*timeout-minutes: 45/);
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_android\.sh/);
   assert.match(workflow, /arch: x86_64/);
   assert.match(workflow, /integration_test_ios:/);

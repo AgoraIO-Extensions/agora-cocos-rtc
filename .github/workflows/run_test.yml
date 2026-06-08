@@ -94,6 +94,7 @@ jobs:
           download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
       - run: npm ci
       - name: Run Android Cocos API tests
+        timeout-minutes: 45
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 31
