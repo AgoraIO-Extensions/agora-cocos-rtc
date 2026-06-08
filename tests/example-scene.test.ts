@@ -3,9 +3,17 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const repoRoot = process.cwd();
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const controllerUuid = '6f0fce55-1000-42b8-8b7b-1aaf80000001';
 const demoRootUuid = '6f0fce55-1000-42b8-8b7b-1aaf80000103';
 const rtcSessionUuid = '6f0fce55-1000-42b8-8b7b-1aaf80000102';
+const demoRootCompressedUuid = '6f0fc5VEABCuIt7Gq+AAAED';
+const panelCompressedUuids = [
+  '6f0fc5VEABCuIt7Gq+AAAEE',
+  '6f0fc5VEABCuIt7Gq+AAAEF',
+  '6f0fc5VEABCuIt7Gq+AAAEG',
+  '6f0fc5VEABCuIt7Gq+AAAEH',
+];
 const panelScriptMetas = [
   [
     'example/basic-call/assets/scripts/demo/panels/DemoHeaderPanel.ts.meta',
@@ -91,6 +99,31 @@ test('new demo component scripts have stable Cocos metadata', async () => {
     const content = await readFile(`${repoRoot}/${path}`, 'utf8');
     assert.match(content, new RegExp(uuid));
   }
+});
+
+test('scene and prefabs serialize demo scripts by Cocos script uuid', async () => {
+  const assetPaths = [
+    'example/basic-call/assets/scene/main.scene',
+    'example/basic-call/assets/prefabs/DemoRoot.prefab',
+    'example/basic-call/assets/prefabs/HeaderPanel.prefab',
+    'example/basic-call/assets/prefabs/ActionPanel.prefab',
+    'example/basic-call/assets/prefabs/VideoStagePanel.prefab',
+    'example/basic-call/assets/prefabs/LogPanel.prefab',
+    'scripts/prepare-example.sh',
+  ];
+  const content = (
+    await Promise.all(assetPaths.map((path) => readFile(`${repoRoot}/${path}`, 'utf8')))
+  ).join('\n');
+
+  assert.match(content, new RegExp(escapeRegExp(demoRootCompressedUuid)));
+  for (const uuid of panelCompressedUuids) {
+    assert.match(content, new RegExp(escapeRegExp(uuid)));
+  }
+  assert.doesNotMatch(content, /"__type__": "AgoraRtcDemoRoot"/);
+  assert.doesNotMatch(content, /"__type__": "DemoHeaderPanel"/);
+  assert.doesNotMatch(content, /"__type__": "DemoActionPanel"/);
+  assert.doesNotMatch(content, /"__type__": "VideoStagePanel"/);
+  assert.doesNotMatch(content, /"__type__": "LogPanel"/);
 });
 
 test('rtc session service owns client lifecycle and native texture binding', async () => {

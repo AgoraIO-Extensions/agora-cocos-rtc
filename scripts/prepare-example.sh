@@ -92,6 +92,7 @@ EOF
 write_prefab_meta() {
   local target_file="$1"
   local uuid="$2"
+  local sync_node_name="$3"
   if [ -f "${target_file}.meta" ]; then
     return
   fi
@@ -105,7 +106,9 @@ write_prefab_meta() {
     ".json"
   ],
   "subMetas": {},
-  "userData": {}
+  "userData": {
+    "syncNodeName": "${sync_node_name}"
+  }
 }
 EOF
 }
@@ -584,7 +587,7 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "_id": "demo-root-widget-000000001"
   },
   {
-    "__type__": "AgoraRtcDemoRoot",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAED",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -675,7 +678,7 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "_id": "header-panel-ui-0000000001"
   },
   {
-    "__type__": "DemoHeaderPanel",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAEE",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -753,7 +756,7 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "_id": "action-panel-ui-0000000001"
   },
   {
-    "__type__": "DemoActionPanel",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAEF",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -831,7 +834,7 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "_id": "video-stage-ui-0000000001"
   },
   {
-    "__type__": "VideoStagePanel",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAEG",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -909,7 +912,7 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "_id": "log-panel-ui-00000000001"
   },
   {
-    "__type__": "LogPanel",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAEH",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -1053,7 +1056,7 @@ cat > "$PREFABS_DIR/DemoRoot.prefab" <<'EOF'
     "_id": "demoroot-prefab-widget-001"
   },
   {
-    "__type__": "AgoraRtcDemoRoot",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAED",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -1066,7 +1069,7 @@ cat > "$PREFABS_DIR/DemoRoot.prefab" <<'EOF'
 ]
 EOF
 fi
-write_prefab_meta "$PREFABS_DIR/DemoRoot.prefab" "7f0fce55-1000-42b8-8b7b-1aaf80000200"
+write_prefab_meta "$PREFABS_DIR/DemoRoot.prefab" "7f0fce55-1000-42b8-8b7b-1aaf80000200" "DemoRoot"
 
 if [ ! -f "$PREFABS_DIR/HeaderPanel.prefab" ]; then
 cat > "$PREFABS_DIR/HeaderPanel.prefab" <<'EOF'
@@ -1182,7 +1185,7 @@ cat > "$PREFABS_DIR/HeaderPanel.prefab" <<'EOF'
     "_id": "headerpanel-prefab-widget-001"
   },
   {
-    "__type__": "DemoHeaderPanel",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAEE",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -1195,7 +1198,7 @@ cat > "$PREFABS_DIR/HeaderPanel.prefab" <<'EOF'
 ]
 EOF
 fi
-write_prefab_meta "$PREFABS_DIR/HeaderPanel.prefab" "7f0fce55-1000-42b8-8b7b-1aaf80000201"
+write_prefab_meta "$PREFABS_DIR/HeaderPanel.prefab" "7f0fce55-1000-42b8-8b7b-1aaf80000201" "HeaderPanel"
 
 if [ ! -f "$PREFABS_DIR/ActionPanel.prefab" ]; then
 cat > "$PREFABS_DIR/ActionPanel.prefab" <<'EOF'
@@ -1311,7 +1314,7 @@ cat > "$PREFABS_DIR/ActionPanel.prefab" <<'EOF'
     "_id": "actionpanel-prefab-widget-001"
   },
   {
-    "__type__": "DemoActionPanel",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAEF",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -1324,7 +1327,7 @@ cat > "$PREFABS_DIR/ActionPanel.prefab" <<'EOF'
 ]
 EOF
 fi
-write_prefab_meta "$PREFABS_DIR/ActionPanel.prefab" "7f0fce55-1000-42b8-8b7b-1aaf80000202"
+write_prefab_meta "$PREFABS_DIR/ActionPanel.prefab" "7f0fce55-1000-42b8-8b7b-1aaf80000202" "ActionPanel"
 
 if [ ! -f "$PREFABS_DIR/VideoStagePanel.prefab" ]; then
 cat > "$PREFABS_DIR/VideoStagePanel.prefab" <<'EOF'
@@ -1440,7 +1443,7 @@ cat > "$PREFABS_DIR/VideoStagePanel.prefab" <<'EOF'
     "_id": "videostagepanel-prefab-widget-001"
   },
   {
-    "__type__": "VideoStagePanel",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAEG",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -1453,7 +1456,7 @@ cat > "$PREFABS_DIR/VideoStagePanel.prefab" <<'EOF'
 ]
 EOF
 fi
-write_prefab_meta "$PREFABS_DIR/VideoStagePanel.prefab" "7f0fce55-1000-42b8-8b7b-1aaf80000203"
+write_prefab_meta "$PREFABS_DIR/VideoStagePanel.prefab" "7f0fce55-1000-42b8-8b7b-1aaf80000203" "VideoStagePanel"
 
 if [ ! -f "$PREFABS_DIR/LogPanel.prefab" ]; then
 cat > "$PREFABS_DIR/LogPanel.prefab" <<'EOF'
@@ -1569,7 +1572,7 @@ cat > "$PREFABS_DIR/LogPanel.prefab" <<'EOF'
     "_id": "logpanel-prefab-widget-001"
   },
   {
-    "__type__": "LogPanel",
+    "__type__": "6f0fc5VEABCuIt7Gq+AAAEH",
     "_name": "",
     "_objFlags": 0,
     "node": {
@@ -1582,7 +1585,7 @@ cat > "$PREFABS_DIR/LogPanel.prefab" <<'EOF'
 ]
 EOF
 fi
-write_prefab_meta "$PREFABS_DIR/LogPanel.prefab" "7f0fce55-1000-42b8-8b7b-1aaf80000204"
+write_prefab_meta "$PREFABS_DIR/LogPanel.prefab" "7f0fce55-1000-42b8-8b7b-1aaf80000204" "LogPanel"
 
 write_directory_meta "$SCENE_DIR" "2eae89cb-6f8e-4615-ac44-0012f1200001"
 write_directory_meta "$SCRIPTS_DIR" "2eae89cb-6f8e-4615-ac44-0012f1200002"
