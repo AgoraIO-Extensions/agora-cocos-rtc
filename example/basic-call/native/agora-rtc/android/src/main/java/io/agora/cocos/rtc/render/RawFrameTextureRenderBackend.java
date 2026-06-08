@@ -254,18 +254,14 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       }
 
       diagnostic.frames++;
-      VideoFrame.Buffer scaledBuffer = null;
       VideoFrame.I420Buffer i420Buffer = null;
       try {
-        scaledBuffer = videoFrame.getBuffer().cropAndScale(
-            0,
-            0,
-            videoFrame.getBuffer().getWidth(),
-            videoFrame.getBuffer().getHeight(),
-            slot.width,
-            slot.height
-        );
-        i420Buffer = scaledBuffer.toI420();
+        final int rotation = normalizeRotation(videoFrame.getRotation());
+        final boolean mirror = false;
+        i420Buffer = videoFrame.getBuffer().toI420();
+        if (i420Buffer == null) {
+          return;
+        }
         AgoraEngineTextureSlotBridge.nativeUpdateI420Slot(
             slot.slotId,
             i420Buffer.getDataY(),
@@ -274,17 +270,18 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
             i420Buffer.getStrideU(),
             i420Buffer.getDataV(),
             i420Buffer.getStrideV(),
+            i420Buffer.getWidth(),
+            i420Buffer.getHeight(),
             slot.width,
-            slot.height
+            slot.height,
+            rotation,
+            mirror
         );
         diagnostic.slotUpdates++;
         maybeLogFrameDiagnostic(kind, uid, slot, videoFrame, diagnostic);
       } finally {
         if (i420Buffer != null) {
           i420Buffer.release();
-        }
-        if (scaledBuffer != null) {
-          scaledBuffer.release();
         }
       }
     }
@@ -323,6 +320,17 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       );
       diagnostic.frames = 0;
       diagnostic.slotUpdates = 0;
+    }
+
+    private int normalizeRotation(int rotation) {
+      int normalized = rotation % 360;
+      if (normalized < 0) {
+        normalized += 360;
+      }
+      if (normalized == 90 || normalized == 180 || normalized == 270) {
+        return normalized;
+      }
+      return 0;
     }
 
     private void ensureLocalTextureSlot() {

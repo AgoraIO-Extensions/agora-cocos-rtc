@@ -18,6 +18,11 @@ ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_SDK_ROOT_DEFAULT}"
 ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
 ADB_BIN="${ADB_BIN:-$ANDROID_SDK_ROOT/platform-tools/adb}"
 LOCAL_AGORA_MAVEN_DIR="$ROOT_DIR/example/basic-call/native/engine/android/local-maven"
+TARGET_ANDROID_SERIAL="${1:-${ANDROID_SERIAL:-}}"
+ADB_TARGET_ARGS=()
+if [[ -n "$TARGET_ANDROID_SERIAL" ]]; then
+  ADB_TARGET_ARGS=(-s "$TARGET_ANDROID_SERIAL")
+fi
 
 cd "$ROOT_DIR"
 
@@ -123,11 +128,14 @@ cd "$ANDROID_PROJECT_DIR"
 ./gradlew --offline :agora-cocos-basic-call:assembleDebug
 
 # "$ADB_BIN" uninstall "$PACKAGE_NAME" >/dev/null 2>&1 || true
-"$ADB_BIN" install -g -r --no-streaming "$APK_PATH"
-"$ADB_BIN" logcat -c
-"$ADB_BIN" shell am start -n "$PACKAGE_NAME/$ACTIVITY_NAME"
+"$ADB_BIN" "${ADB_TARGET_ARGS[@]}" install -g -r --no-streaming "$APK_PATH"
+"$ADB_BIN" "${ADB_TARGET_ARGS[@]}" logcat -c || echo "Warning: failed to clear logcat; continuing." >&2
+"$ADB_BIN" "${ADB_TARGET_ARGS[@]}" shell am start -n "$PACKAGE_NAME/$ACTIVITY_NAME"
 
 echo
 echo "Android debug build installed and launched:"
 echo "  APK: $APK_PATH"
 echo "  Package: $PACKAGE_NAME"
+if [[ -n "$TARGET_ANDROID_SERIAL" ]]; then
+  echo "  Device: $TARGET_ANDROID_SERIAL"
+fi

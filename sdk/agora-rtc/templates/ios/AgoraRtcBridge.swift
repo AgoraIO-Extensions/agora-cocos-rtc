@@ -136,12 +136,12 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         _ = typeObject.perform?(selector, with: NSNumber(value: slotId), with: pixelBuffer)
     }
 
-    private func updateTextureSlot(slotId: Int, videoFrame: AgoraOutputVideoFrame) {
+    private func updateTextureSlot(slotId: Int, videoFrame: AgoraOutputVideoFrame, mirror: Bool) {
         guard let type = textureSlotBridgeClass() else {
             return
         }
         let typeObject: AnyObject = type
-        let selector = NSSelectorFromString("updateSlot:videoFrame:")
+        let selector = NSSelectorFromString(mirror ? "updateSlot:mirroredVideoFrame:" : "updateSlot:videoFrame:")
         guard typeObject.responds?(to: selector) == true else {
             return
         }
@@ -1339,12 +1339,12 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     private func updateTextureSlot(_ slot: TextureSlotState, videoFrame: AgoraOutputVideoFrame) {
-        updateTextureSlot(slotId: slot.slotId, videoFrame: videoFrame)
+        updateTextureSlot(slotId: slot.slotId, videoFrame: videoFrame, mirror: false)
         dispatchTextureReadyIfNeeded(slot, kind: "local", uid: nil)
     }
 
     private func updateRemoteTextureSlot(_ slot: TextureSlotState, uid: UInt, videoFrame: AgoraOutputVideoFrame) {
-        updateTextureSlot(slotId: slot.slotId, videoFrame: videoFrame)
+        updateTextureSlot(slotId: slot.slotId, videoFrame: videoFrame, mirror: false)
         dispatchTextureReadyIfNeeded(slot, kind: "remote", uid: uid)
     }
 
@@ -1628,7 +1628,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     func getVideoFormatPreference() -> AgoraVideoFormat {
-        return .default
+        return .CVPixelNV12
     }
 
     func getObservedFramePosition() -> AgoraVideoFramePosition {
