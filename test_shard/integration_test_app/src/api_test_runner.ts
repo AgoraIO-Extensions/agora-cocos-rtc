@@ -126,6 +126,10 @@ export function maybeRunAgoraCocosApiTests(): void {
   if (mode !== 'api') {
     return;
   }
+  if (sys.os !== sys.OS.IOS && sys.os !== sys.OS.ANDROID) {
+    console.log(`${LOG_PREFIX} TEST_SKIP reason=unsupported-platform platform=${sys.os}`);
+    return;
+  }
 
   void runAgoraCocosApiTests().catch((error) => {
     console.error(`${LOG_PREFIX} TEST_DONE status=fail error=${stringify(serializeError(error))}`);

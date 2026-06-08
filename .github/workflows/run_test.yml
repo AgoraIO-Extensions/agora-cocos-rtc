@@ -34,7 +34,7 @@ jobs:
   integration_test_android:
     name: Run Cocos Android Integration Tests
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:skip') }}
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     timeout-minutes: 120
     env:
       TEST_APP_ID: ${{ secrets.APP_ID }}

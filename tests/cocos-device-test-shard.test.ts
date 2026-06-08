@@ -63,6 +63,8 @@ test('cocos device runner emits structured logs and writes a json report', async
   assert.match(runnerContent, /\[agora-cocos-test\]/);
   assert.match(runnerContent, /TEST_DONE status=/);
   assert.match(runnerContent, /runAgoraCocosApiTests/);
+  assert.match(runnerContent, /sys\.OS\.IOS/);
+  assert.match(runnerContent, /sys\.OS\.ANDROID/);
   assert.match(reportContent, /writeJsonReport/);
   assert.match(reportContent, /api-report\.json/);
 });
@@ -117,6 +119,7 @@ test('cocos run_test workflow exposes unit and device integration jobs', async (
   assert.match(workflow, /npm run typecheck/);
   assert.match(workflow, /npm test/);
   assert.match(workflow, /integration_test_android:/);
+  assert.match(workflow, /integration_test_android:[\s\S]*runs-on: macos-15-intel/);
   assert.match(workflow, /reactivecircus\/android-emulator-runner@v2/);
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_android\.sh/);
   assert.match(workflow, /integration_test_ios:/);
