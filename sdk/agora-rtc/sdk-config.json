@@ -12,10 +12,10 @@
   "ios": {
     "packageUrl": "https://github.com/AgoraIO/AgoraRtcEngine_iOS.git",
     "packageVersion": "4.5.3",
-    "packageProduct": "AgoraRtcEngine_iOS",
+    "packageProduct": "RtcBasic",
     "swiftVersion": "5.0",
     "podName": "AgoraRtcEngine_iOS",
     "deploymentTarget": "13.0",
-    "integrationMode": "cocoapods"
+    "integrationMode": "swift-package-manager"
   }
 }

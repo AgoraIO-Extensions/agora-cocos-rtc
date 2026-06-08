@@ -36,7 +36,7 @@ LOCAL_AGORA_MAVEN_DIR="$ROOT_DIR/example/basic-call/native/engine/android/local-
 
 IOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/ios-release.json"
 IOS_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-ios/ios/proj"
-IOS_WORKSPACE_PATH="$IOS_PROJECT_DIR/agora-cocos-basic-call.xcworkspace"
+IOS_PROJECT_PATH="$IOS_PROJECT_DIR/agora-cocos-basic-call.xcodeproj"
 IOS_SCHEME_NAME="agora-cocos-basic-call-mobile"
 IOS_SKIP_COCOS_EXPORT="${IOS_SKIP_COCOS_EXPORT:-false}"
 IOS_DERIVED_DATA_PATH="${IOS_DERIVED_DATA_PATH:-/tmp/agora-cocos-ios-all-platforms-derived}"
@@ -304,12 +304,11 @@ if should_build_platform "ios"; then
     echo "Skipping Cocos iOS export because IOS_SKIP_COCOS_EXPORT=true."
   fi
   node ./scripts/sync-native-engine-texture-bridge.mjs >/dev/null
-  node ./scripts/generate-ios-podfile.mjs >/dev/null
   IOS_BUNDLE_ID="$IOS_BUNDLE_ID" \
   IOS_DEVELOPMENT_TEAM="$BUILD_PROVISION_PROFILE_TEAMID" \
   IOS_PROVISIONING_PROFILE_SPECIFIER="$BUILD_PROVISION_PROFILE_NAME" \
   IOS_CODE_SIGN_IDENTITY="$BUILD_PROVISION_PROFILE_IDENTITY" \
-  ./scripts/integrate-ios-project.rb >/dev/null
+  ./scripts/integrate-ios-project.rb --with-package >/dev/null
 
   validate_ios_signing
 
@@ -344,8 +343,7 @@ PLIST
 
   (
     cd "$IOS_PROJECT_DIR"
-    env LANG="$LANG" LC_ALL="$LC_ALL" RUBYOPT="$RUBYOPT" pod install
-    xcodebuild -workspace "$IOS_WORKSPACE_PATH" \
+    xcodebuild -project "$IOS_PROJECT_PATH" \
       -scheme "$IOS_SCHEME_NAME" \
       -configuration Release \
       -sdk iphoneos \

@@ -45,21 +45,16 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /sync-android-app-bridge\.mjs/);
   assert.match(prepareContent, /sync-native-engine-texture-bridge\.mjs/);
   assert.match(prepareContent, /sync-android-app-bridge\.mjs/);
-  assert.match(content, /generate-ios-podfile\.mjs/);
-  assert.match(content, /integrate-ios-project\.rb/);
+  assert.doesNotMatch(content, /generate-ios-podfile\.mjs/);
+  assert.match(content, /integrate-ios-project\.rb --with-package/);
   assert.match(content, /ANDROID_GRADLE_OFFLINE="\$\{ANDROID_GRADLE_OFFLINE:-false\}"/);
   assert.match(content, /\.\/gradlew :agora-cocos-basic-call:assembleRelease/);
   assert.match(content, /\.\/gradlew --offline :agora-cocos-basic-call:assembleRelease/);
   assert.match(content, /validate_ios_signing\(\)/);
   assert.ok(
     content.indexOf('run_cocos_build "$IOS_BUILD_CONFIG" "iOS"') <
-      content.indexOf('node ./scripts/generate-ios-podfile.mjs'),
-    'iOS Podfile should be generated after Cocos exports the Xcode project directory',
-  );
-  assert.ok(
-    content.indexOf('node ./scripts/generate-ios-podfile.mjs') <
       content.indexOf('IOS_BUNDLE_ID="$IOS_BUNDLE_ID"'),
-    'iOS Podfile should be generated before integrating the exported Xcode project',
+    'iOS project should be exported before integrating the configured Swift package',
   );
   assert.ok(
     content.indexOf('run_cocos_build "$IOS_BUILD_CONFIG" "iOS"') <
@@ -72,7 +67,10 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /BUILD_PROVISION_PROFILE_TEAMID/);
   assert.match(content, /BUILD_PROVISION_PROFILE_IDENTITY/);
   assert.match(content, /IOS_CODE_SIGN_IDENTITY="\$BUILD_PROVISION_PROFILE_IDENTITY"/);
-  assert.match(content, /xcodebuild -workspace "\$IOS_WORKSPACE_PATH"/);
+  assert.match(content, /IOS_PROJECT_PATH="\$IOS_PROJECT_DIR\/agora-cocos-basic-call\.xcodeproj"/);
+  assert.doesNotMatch(content, /IOS_WORKSPACE_PATH=/);
+  assert.match(content, /xcodebuild -project "\$IOS_PROJECT_PATH"/);
+  assert.doesNotMatch(content, /xcodebuild -workspace/);
   assert.match(content, /-sdk iphoneos/);
   assert.match(content, /-destination generic\/platform=iOS/);
   assert.match(content, /archive/);
@@ -85,6 +83,7 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.doesNotMatch(content, /adb install/);
   assert.doesNotMatch(content, /simctl install/);
   assert.doesNotMatch(content, /simctl launch/);
+  assert.doesNotMatch(content, /pod install/);
   assert.match(content, /Release packages:/);
   assert.match(content, /print_build_artifacts\(\)/);
 });
