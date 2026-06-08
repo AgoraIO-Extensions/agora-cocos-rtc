@@ -151,7 +151,14 @@ export class RtcSessionService {
     }
     const client = this.getClient();
     await this.setupLocalVideoView();
-    await client.joinChannel(config.token, config.channelId.trim(), config.uid);
+    await client.joinChannel(config.token, config.channelId.trim(), config.uid, {
+      clientRoleType: this.selectedClientRole,
+      channelProfile: this.selectedChannelProfile,
+      publishCameraTrack: true,
+      publishMicrophoneTrack: true,
+      autoSubscribeAudio: true,
+      autoSubscribeVideo: true,
+    });
     this.joined = true;
     this.log(`Join request sent: ${config.channelId} (${config.uid})`);
     this.emitState();
@@ -436,7 +443,6 @@ export class RtcSessionService {
     await this.callAndLogFailure('startAudioMixing', () => client.startAudioMixing({
       path: 'audio/demo-mix.mp3',
       loopback: false,
-      replace: false,
       cycle: 1,
       startPos: 0,
     }));

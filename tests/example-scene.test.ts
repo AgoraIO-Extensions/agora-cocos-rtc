@@ -143,6 +143,25 @@ test('rtc session service owns client lifecycle and native texture binding', asy
   assert.doesNotMatch(content, /uploadData/);
 });
 
+test('rtc session service passes video join media options from TypeScript', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  const joinMethodMatch = content.match(/async joinRtcChannel\(\): Promise<void>[\s\S]*?async leaveRtcChannel/);
+  assert.ok(joinMethodMatch);
+  const joinMethod = joinMethodMatch[0];
+
+  assert.match(joinMethod, /client\.joinChannel\(\s*config\.token,\s*config\.channelId\.trim\(\),\s*config\.uid,\s*\{/);
+  assert.match(joinMethod, /clientRoleType:\s*this\.selectedClientRole/);
+  assert.match(joinMethod, /channelProfile:\s*this\.selectedChannelProfile/);
+  assert.match(joinMethod, /publishCameraTrack:\s*true/);
+  assert.match(joinMethod, /publishMicrophoneTrack:\s*true/);
+  assert.match(joinMethod, /autoSubscribeAudio:\s*true/);
+  assert.match(joinMethod, /autoSubscribeVideo:\s*true/);
+});
+
 test('rtc session service tracks flutter-style video settings and stats', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
