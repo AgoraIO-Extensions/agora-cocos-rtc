@@ -60,6 +60,7 @@ SDK_CONFIG = JSON.parse(
 )
 PROJECT_PATH = File.join(REPO_ROOT, 'example/basic-call/build-ios/ios/proj/agora-cocos-basic-call.xcodeproj')
 APP_DELEGATE_PATH = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/AppDelegate.mm')
+INFO_PLIST_PATH = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/Info.plist')
 COMMON_ENGINE_TEXTURE_BRIDGE_DIR = File.join(REPO_ROOT, 'example/basic-call/native/engine/common/Classes/agora')
 GROUP_NAME = 'agora-rtc'
 COMMON_GROUP_NAME = 'agora-engine-texture'
@@ -80,6 +81,10 @@ APP_DELEGATE_FORWARD_DECLARATION = <<~OBJC.strip
   @end
 OBJC
 APP_DELEGATE_ATTACH_CALL = '    [[AgoraRtcPlugin sharedInstance] attachBridge];'
+IOS_RTC_USAGE_DESCRIPTIONS = {
+  'NSCameraUsageDescription' => 'Agora RTC needs camera access for local video preview and calls.',
+  'NSMicrophoneUsageDescription' => 'Agora RTC needs microphone access for voice calls.'
+}.freeze
 
 def ensure_app_delegate_attaches_bridge(path)
   return unless File.exist?(path)
@@ -103,6 +108,26 @@ def ensure_app_delegate_attaches_bridge(path)
     patched = patched.sub(launch_anchor, "#{launch_anchor}\n#{APP_DELEGATE_ATTACH_CALL}")
   end
 
+  File.write(path, patched) if patched != content
+end
+
+def ensure_info_plist_usage_descriptions(path)
+  return unless File.exist?(path)
+
+  content = File.read(path)
+  patched = content.dup
+  missing_entries = IOS_RTC_USAGE_DESCRIPTIONS.reject do |key, _value|
+    patched.include?("<key>#{key}</key>")
+  end
+  return if missing_entries.empty?
+
+  usage_block = missing_entries.map do |key, value|
+    "\t<key>#{key}</key>\n\t<string>#{value}</string>"
+  end.join("\n")
+  dict_end_index = patched.rindex('</dict>')
+  raise 'Unable to patch iOS Info.plist: </dict> anchor not found.' unless dict_end_index
+
+  patched = "#{patched[0...dict_end_index].rstrip}\n#{usage_block}\n#{patched[dict_end_index..]}"
   File.write(path, patched) if patched != content
 end
 
@@ -204,4 +229,5 @@ end
 
 project.save
 ensure_app_delegate_attaches_bridge(APP_DELEGATE_PATH)
+ensure_info_plist_usage_descriptions(INFO_PLIST_PATH)
 puts "Integrated Agora bridge files into #{PROJECT_PATH}"

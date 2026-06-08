@@ -1,10 +1,17 @@
 package io.agora.cocos.rtc;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.Build;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Queue;
 
 import com.cocos.lib.CocosHelper;
 import com.cocos.lib.GlobalObject;
@@ -25,16 +32,23 @@ import io.agora.rtc2.video.VideoEncoderConfiguration;
 /**
  * Template bridge for the initial integration.
  * The exported Android project should call attachBridge() during app startup
- * and forward incoming JsbBridgeWrapper messages into handleScriptRequest().
+ * and forward Activity permission results into onRequestPermissionsResult().
  */
 public final class AgoraRtcPlugin {
     private static final String RESPONSE_EVENT = "agora:response";
     private static final String CALLBACK_EVENT = "agora:event";
     private static final String REQUEST_EVENT = "agora:request";
+    private static final int RTC_PERMISSION_REQUEST_CODE = 9108;
+    private static final String[] RTC_RUNTIME_PERMISSIONS = new String[] {
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+    };
     private static final AgoraRtcPlugin INSTANCE = new AgoraRtcPlugin();
 
     private RtcEngine rtcEngine;
     private boolean attached;
+    private boolean permissionRequestInFlight;
+    private final Queue<PendingPermissionAction> pendingPermissionActions = new ArrayDeque<>();
     private String renderBackendType = "surface-view";
     private AgoraRenderBackend renderBackend = AgoraRenderBackendFactory.create(
             renderBackendType,
@@ -61,6 +75,34 @@ public final class AgoraRtcPlugin {
                 dispatchNativeExceptionError(requestId, error);
             }
         });
+    }
+
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode != RTC_PERMISSION_REQUEST_CODE) {
+            return;
+        }
+
+        permissionRequestInFlight = false;
+        boolean granted = true;
+        if (grantResults == null || grantResults.length == 0) {
+            granted = false;
+        } else {
+            for (int result : grantResults) {
+                if (result != PackageManager.PERMISSION_GRANTED) {
+                    granted = false;
+                    break;
+                }
+            }
+        }
+
+        while (!pendingPermissionActions.isEmpty()) {
+            PendingPermissionAction pendingAction = pendingPermissionActions.poll();
+            if (granted) {
+                pendingAction.action.run();
+            } else {
+                dispatchError(pendingAction.requestId, "Camera and microphone permissions are required.");
+            }
+        }
     }
 
     public void handleScriptRequest(String payload) throws JSONException {
@@ -513,6 +555,15 @@ public final class AgoraRtcPlugin {
             return;
         }
 
+        ensureRtcPermissions(requestId, () -> continueJoinChannel(requestId, token, channelId, uid));
+    }
+
+    private void continueJoinChannel(String requestId, String token, String channelId, int uid) {
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+
         ChannelMediaOptions options = new ChannelMediaOptions();
         int result = rtcEngine.joinChannel(token, channelId, uid, options);
         if (result < 0) {
@@ -570,6 +621,20 @@ public final class AgoraRtcPlugin {
     }
 
     private void handleStartPreview(String requestId) {
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+
+        ensureRtcPermissions(requestId, () -> continueStartPreview(requestId));
+    }
+
+    private void continueStartPreview(String requestId) {
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+
         renderBackend.startPreview(requestCallback(requestId));
     }
 
@@ -1086,6 +1151,49 @@ public final class AgoraRtcPlugin {
         return activity;
     }
 
+    private void ensureRtcPermissions(String requestId, Runnable action) {
+        Activity activity = requireActivity(requestId);
+        if (activity == null) {
+            return;
+        }
+
+        if (hasRtcPermissions(activity)) {
+            action.run();
+            return;
+        }
+
+        pendingPermissionActions.add(new PendingPermissionAction(requestId, action));
+        if (permissionRequestInFlight) {
+            return;
+        }
+
+        permissionRequestInFlight = true;
+        activity.runOnUiThread(() ->
+                activity.requestPermissions(missingRtcPermissions(activity), RTC_PERMISSION_REQUEST_CODE)
+        );
+    }
+
+    private boolean hasRtcPermissions(Activity activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        return missingRtcPermissions(activity).length == 0;
+    }
+
+    private String[] missingRtcPermissions(Activity activity) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return new String[0];
+        }
+
+        ArrayList<String> missingPermissions = new ArrayList<>();
+        for (String permission : RTC_RUNTIME_PERMISSIONS) {
+            if (activity.checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED) {
+                missingPermissions.add(permission);
+            }
+        }
+        return missingPermissions.toArray(new String[0]);
+    }
+
     private AgoraRenderResultCallback requestCallback(String requestId) {
         return new AgoraRenderResultCallback() {
             @Override
@@ -1249,5 +1357,15 @@ public final class AgoraRtcPlugin {
             ));
         }
         return array;
+    }
+
+    private static final class PendingPermissionAction {
+        private final String requestId;
+        private final Runnable action;
+
+        private PendingPermissionAction(String requestId, Runnable action) {
+            this.requestId = requestId;
+            this.action = action;
+        }
     }
 }
