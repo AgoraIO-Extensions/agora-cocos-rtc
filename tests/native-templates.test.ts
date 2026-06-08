@@ -39,20 +39,17 @@ const iosEngineTextureSlotBridgeHeaderTemplate = path.join(
 
 async function readEngineTextureLimits(filePath: string) {
   const content = await readFile(filePath, 'utf8');
-  const frameIntervalMatch = content.match(/FRAME_INTERVAL_MS = (\d+)L;/);
   const remoteWidthMatch = content.match(/REMOTE_TARGET_WIDTH = (\d+);/);
   const remoteHeightMatch = content.match(/REMOTE_TARGET_HEIGHT = (\d+);/);
   const localWidthMatch = content.match(/LOCAL_TARGET_WIDTH = (\d+);/);
   const localHeightMatch = content.match(/LOCAL_TARGET_HEIGHT = (\d+);/);
 
-  assert.ok(frameIntervalMatch, `Missing FRAME_INTERVAL_MS in ${filePath}`);
   assert.ok(remoteWidthMatch, `Missing REMOTE_TARGET_WIDTH in ${filePath}`);
   assert.ok(remoteHeightMatch, `Missing REMOTE_TARGET_HEIGHT in ${filePath}`);
   assert.ok(localWidthMatch, `Missing LOCAL_TARGET_WIDTH in ${filePath}`);
   assert.ok(localHeightMatch, `Missing LOCAL_TARGET_HEIGHT in ${filePath}`);
 
   return {
-    frameIntervalMs: Number(frameIntervalMatch[1]),
     remoteWidth: Number(remoteWidthMatch[1]),
     remoteHeight: Number(remoteHeightMatch[1]),
     localWidth: Number(localWidthMatch[1]),
@@ -92,10 +89,6 @@ test('engine-texture backend keeps template/runtime slot upload dimensions in sy
 
   assert.deepEqual(runtimeLimits, templateLimits);
   assert.ok(
-    templateLimits.frameIntervalMs <= 100,
-    `Expected FRAME_INTERVAL_MS <= 100, got ${templateLimits.frameIntervalMs}`,
-  );
-  assert.ok(
     templateLimits.remoteWidth > 0 && templateLimits.remoteHeight > 0,
     `Expected positive remote texture size, got ${templateLimits.remoteWidth}x${templateLimits.remoteHeight}`,
   );
@@ -117,6 +110,13 @@ test('engine-texture backend emits texture slot lifecycle events instead of Base
   assert.match(templateContent, /remoteVideoTextureReady/);
   assert.match(templateContent, /localVideoTextureReleased/);
   assert.match(templateContent, /remoteVideoTextureReleased/);
+  assert.match(templateContent, /FRAME_DIAGNOSTIC_INTERVAL_MS = 2000L/);
+  assert.match(templateContent, /Log\.i\(\s*LOG_TAG/);
+  assert.match(templateContent, /engine-texture frame/);
+  assert.doesNotMatch(templateContent, /localVideoTextureUpdated/);
+  assert.doesNotMatch(templateContent, /remoteVideoTextureUpdated/);
+  assert.doesNotMatch(runtimeContent, /localVideoTextureUpdated/);
+  assert.doesNotMatch(runtimeContent, /remoteVideoTextureUpdated/);
   assert.match(slotBridgeContent, /nativeCreateSlot/);
   assert.match(slotBridgeContent, /nativeUpdateSlot/);
   assert.match(slotBridgeContent, /nativeReleaseSlot/);
@@ -841,6 +841,17 @@ public class Base64 {
   );
 
   await writeFile(
+    path.join(srcRoot, 'android/util/Log.java'),
+    `package android.util;
+
+public class Log {
+    public static int i(String tag, String message) { return 0; }
+}
+`,
+    'utf8',
+  );
+
+  await writeFile(
     path.join(srcRoot, 'android/app/Activity.java'),
     `package android.app;
 
@@ -1379,6 +1390,7 @@ public class RtcEngine {
     path.join(srcRoot, 'android/os/Build.java'),
     path.join(srcRoot, 'android/os/SystemClock.java'),
     path.join(srcRoot, 'android/util/Base64.java'),
+    path.join(srcRoot, 'android/util/Log.java'),
     path.join(srcRoot, 'android/view/ViewParent.java'),
     path.join(srcRoot, 'android/view/View.java'),
     path.join(srcRoot, 'android/view/SurfaceView.java'),

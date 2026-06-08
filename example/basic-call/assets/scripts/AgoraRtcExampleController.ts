@@ -217,7 +217,6 @@ const SETTINGS_ROWS = [
 const BUTTON_BG_NODE_NAME = '__btn_bg';
 const BUTTON_LABEL_NODE_NAME = '__btn_label';
 const SETTING_LABELS: Record<string, string> = {
-  Backend: 'Render',
   Profile: 'Profile',
   Role: 'Role',
   Encoder: 'Encoder',
@@ -274,15 +273,15 @@ export class AgoraRtcExampleController extends Component {
   channelId = 'demo';
 
   @property
-  uid = 1001;
+  uid = 0;
 
-  @property
-  renderBackend: 'surface-view' | 'texture-view' | 'engine-texture' = 'engine-texture';
+  private readonly renderBackend = 'engine-texture' as const;
 
   private client: AgoraRtcClient | null = null;
   private listenersBound = false;
   private initialized = false;
   private joined = false;
+  private joinRequestInFlight = false;
   private previewStarted = false;
   private activeRemoteUid: number | null = null;
   private remoteUserUids = new Set<number>();
@@ -326,7 +325,6 @@ export class AgoraRtcExampleController extends Component {
   private logBodyUserHasScrolled = false;
   private logFloatButtonNode: Node | null = null;
   private logPageVisible = false;
-  private logPageVideoSuspended = false;
   private logPageBuilt = false;
   private logConfigButtonNode: Node | null = null;
   private logUiGlobalTouchBound = false;
@@ -409,15 +407,7 @@ export class AgoraRtcExampleController extends Component {
     }
     this.refreshConfigLabel();
     this.pushStatus('Example ready');
-    this.pushStatus(`Render backend: ${this.renderBackend}`);
-    this.pushStatus('Auto initialize + join enabled');
-    try {
-      await this.initializeRtc();
-      await this.joinRtcChannel();
-    } catch (error) {
-      console.error('[agora-rtc] auto join failed', error);
-      this.pushStatus(`Auto join failed: ${String(error)}`);
-    }
+    this.pushStatus('Manual join ready');
     console.log('[agora-rtc] controller start completed');
   }
 
@@ -439,6 +429,7 @@ export class AgoraRtcExampleController extends Component {
     if (!this.listenersBound) {
       this.client.on('joinChannelSuccess', ({ channelId, uid }) => {
         this.joined = true;
+        this.joinRequestInFlight = false;
         this.pushStatus(`Joined channel: ${channelId} (${uid})`);
       });
       this.client.on('userJoined', ({ uid }) => {
@@ -460,6 +451,9 @@ export class AgoraRtcExampleController extends Component {
         this.refreshSummary();
       });
       this.client.on('leaveChannel', ({ duration }) => {
+        void this.clearAllRemoteVideoPages();
+        this.joined = false;
+        this.joinRequestInFlight = false;
         this.pushStatus(`Leave channel callback: duration ${duration}`);
       });
       this.client.on('rejoinChannelSuccess', ({ channelId, uid, elapsed }) => {
@@ -539,10 +533,9 @@ export class AgoraRtcExampleController extends Component {
         this.clearNativeTextureSprite('remote', slotId);
       });
       this.client.on('renderBackendState', (payload) => {
-        if (payload.phase === 'fallback' && typeof (payload as { fallbackBackend?: unknown }).fallbackBackend === 'string') {
-          this.applyEffectiveRenderBackend((payload as { fallbackBackend: 'surface-view' | 'texture-view' | 'engine-texture' }).fallbackBackend);
+        if (payload.phase === 'bindEngine' || payload.phase === 'setRenderBackend') {
+          this.pushStatus(`Backend[${payload.backend}] ${payload.phase}: ${payload.result}`);
         }
-        this.pushStatus(`Backend[${payload.backend}] ${payload.phase}: ${payload.result}`);
       });
       this.client.on('error', ({ message }) => {
         console.error('[agora-rtc] native error', message);
@@ -575,10 +568,6 @@ export class AgoraRtcExampleController extends Component {
     this.token = typeof config.token === 'string' ? config.token : this.token;
     this.channelId = config.channelId?.trim() || this.channelId;
     this.uid = typeof config.uid === 'number' ? config.uid : this.uid;
-    this.renderBackend =
-      config.renderBackend === 'texture-view' || config.renderBackend === 'engine-texture'
-        ? config.renderBackend
-        : 'surface-view';
     this.pushStatus(`Loaded config for channel: ${this.channelId}`);
     this.layoutConsole();
   }
@@ -1137,6 +1126,50 @@ export class AgoraRtcExampleController extends Component {
         this.client.removeRemoteVideoView(uid).catch(() => {});
     }
     this.scheduleOnce(() => this.layoutConsole(), 0);
+  }
+
+  private async clearAllRemoteVideoPages() {
+    const client = this.client;
+    const uids = new Set<number>([
+      ...this.remoteUserUids,
+      ...this.remoteVideoNodes.keys(),
+      ...this.remoteTextureSlotIds.keys(),
+    ]);
+
+    for (const uid of uids) {
+      if (client) {
+        await client.removeRemoteVideoView(uid).catch(() => undefined);
+      }
+      const pageNode = this.remoteVideoNodes.get(uid);
+      if (pageNode) {
+        const remoteCard = this.node
+          .getChildByName(QA_RIGHT_PANE_NODE_NAME)
+          ?.getChildByName(REMOTE_CARD_NODE_NAME);
+        const pageView = remoteCard?.getComponent(PageView);
+        if (pageView) {
+          pageView.removePage(pageNode);
+        } else {
+          pageNode.destroy();
+        }
+      }
+    }
+
+    this.remoteUserUids.clear();
+    this.activeRemoteUid = null;
+    this.remoteVideoSprites.forEach((sprite) => {
+      sprite.node.active = false;
+      sprite.spriteFrame = null;
+    });
+    this.remoteVideoSprites.clear();
+    this.remoteVideoTextures.clear();
+    this.remoteVideoSpriteFrames.clear();
+    this.remoteHintLabels.clear();
+    this.remoteVideoNodes.clear();
+    this.remoteTextureSlotIds.clear();
+    this.ensureRemotePageView();
+    this.layoutConsole();
+    this.refreshVideoHints();
+    this.refreshSummary();
   }
 
   private ensureVideoCardNode(name: string): Node {
@@ -2950,26 +2983,7 @@ export class AgoraRtcExampleController extends Component {
     this.syncMainHudForLogPageOverlay();
   }
 
-  private async suspendVideoOverlayForLogPage() {
-    if (this.logPageVideoSuspended) {
-      return;
-    }
-    // engine-texture uses Cocos sprites, so the log layer can cover it without hiding video.
-    if (this.renderBackend === 'engine-texture') {
-      return;
-    }
-    try {
-      await this.client?.setNativeVideoOverlaySuspended(true);
-      this.logPageVideoSuspended = true;
-    } catch (error) {
-      console.warn('[agora-rtc] suspend video overlay for log page failed', error);
-    }
-  }
-
   private restoreEngineTextureSpritesAfterLogPage() {
-    if (this.renderBackend !== 'engine-texture') {
-      return;
-    }
     if (this.localTextureSlotId !== null) {
       this.bindNativeTextureSprite('local', this.localTextureSlotId);
     }
@@ -2977,29 +2991,6 @@ export class AgoraRtcExampleController extends Component {
       this.bindNativeTextureSprite('remote', slotId, uid);
     });
     this.syncEngineTextureSpriteNodes();
-    this.refreshVideoHints();
-  }
-
-  private async restoreVideoOverlayAfterLogPage() {
-    if (this.renderBackend === 'engine-texture') {
-      this.restoreEngineTextureSpritesAfterLogPage();
-      return;
-    }
-    if (!this.logPageVideoSuspended) {
-      return;
-    }
-    this.logPageVideoSuspended = false;
-    try {
-      await this.client?.setNativeVideoOverlaySuspended(false);
-      if (this.localViewAttached) {
-        await this.client?.updateLocalVideoView(this.getLocalVideoRect());
-      }
-      for (const uid of this.remoteUserUids) {
-        await this.client?.updateRemoteVideoView(uid, this.getRemoteVideoRectForUid(uid));
-      }
-    } catch (error) {
-      console.warn('[agora-rtc] restore video overlay after log page failed', error);
-    }
     this.refreshVideoHints();
   }
 
@@ -3018,7 +3009,7 @@ export class AgoraRtcExampleController extends Component {
     this.setLogUiHud('UI: log page closed');
     this.syncMainHudForLogPageOverlay();
     this.refreshSummary();
-    void this.restoreVideoOverlayAfterLogPage();
+    this.restoreEngineTextureSpritesAfterLogPage();
   }
 
   private ensureVideoHints() {
@@ -3181,9 +3172,6 @@ export class AgoraRtcExampleController extends Component {
   }
 
   private syncEngineTextureSpriteNodes() {
-    if (this.renderBackend !== 'engine-texture') {
-      return;
-    }
     if (this.localVideoSprite) {
       this.localVideoSprite.node.active = this.localVideoSprite.spriteFrame !== null || this.localTextureSlotId !== null;
     }
@@ -3306,12 +3294,10 @@ export class AgoraRtcExampleController extends Component {
       console.error('[agora-rtc] remote video attach failed', uid, error);
       return;
     }
-    if (this.renderBackend === 'engine-texture') {
-      const slotId = this.remoteTextureSlotIds.get(uid);
-      if (slotId !== undefined) {
-        this.bindNativeTextureSprite('remote', slotId, uid);
-        this.syncEngineTextureSpriteNodes();
-      }
+    const slotId = this.remoteTextureSlotIds.get(uid);
+    if (slotId !== undefined) {
+      this.bindNativeTextureSprite('remote', slotId, uid);
+      this.syncEngineTextureSpriteNodes();
     }
   }
 
@@ -3326,7 +3312,7 @@ export class AgoraRtcExampleController extends Component {
     for (const uid of this.remoteUserUids) {
       void this.refreshRemoteVideoSurface(uid);
     }
-    if (this.localViewAttached && this.renderBackend === 'engine-texture' && this.localTextureSlotId !== null) {
+    if (this.localViewAttached && this.localTextureSlotId !== null) {
       this.bindNativeTextureSprite('local', this.localTextureSlotId);
     }
   }
@@ -3535,12 +3521,7 @@ export class AgoraRtcExampleController extends Component {
     const halfWidth = visibleSize.width / 2;
     const halfHeight = visibleSize.height / 2;
     const isLandscape = visibleSize.width >= visibleSize.height;
-    const useLandscapeNative =
-      isLandscape && (sys.os === sys.OS.IOS || sys.os === sys.OS.ANDROID);
-    const useLandscapeSplitVideo = useLandscapeNative;
-    const useSplitTextureLayout =
-      this.renderBackend === 'engine-texture'
-      && (sys.os === sys.OS.IOS || sys.os === sys.OS.ANDROID);
+    const useNativeSplitVideo = sys.os === sys.OS.IOS || sys.os === sys.OS.ANDROID;
 
     const titleNode = this.node.getChildByName(TITLE_NODE_NAME);
     const leftPane = this.node.getChildByName(QA_LEFT_PANE_NODE_NAME);
@@ -3600,7 +3581,7 @@ export class AgoraRtcExampleController extends Component {
       this.layoutLeftPaneStack(leftPane!, paneHeight, headerScrollHeight, buttonHeight);
       this.layoutButtonPanelInternals(buttonPanel!, panelInnerWidth, buttonHeight);
 
-      if (useLandscapeSplitVideo) {
+      if (useNativeSplitVideo) {
         this.layoutSplitVideoStack(
           rightWidth,
           paneHeight,
@@ -3682,7 +3663,7 @@ export class AgoraRtcExampleController extends Component {
       this.layoutLeftPaneStack(leftPane!, leftHeight, headerScrollHeight, buttonHeight);
       this.layoutButtonPanelInternals(buttonPanel!, paneWidth - QA_PANE_HORIZONTAL_INSET, buttonHeight);
 
-      if (useSplitTextureLayout) {
+      if (useNativeSplitVideo) {
         this.layoutSplitVideoStack(
           rightWidth,
           rightHeight,
@@ -3743,9 +3724,7 @@ export class AgoraRtcExampleController extends Component {
       this.syncMainHudForLogPageOverlay();
     } else {
       this.layoutLogFloatButton();
-      if (this.renderBackend === 'engine-texture') {
-        this.restoreEngineTextureSpritesAfterLogPage();
-      }
+      this.restoreEngineTextureSpritesAfterLogPage();
     }
   }
 
@@ -3764,11 +3743,10 @@ export class AgoraRtcExampleController extends Component {
   }
 
   private refreshVideoHints() {
-    const hideLocalHint =
-      this.renderBackend === 'engine-texture' && this.localVideoSprite?.node.active === true;
+    const hideLocalHint = this.localVideoSprite?.node.active === true;
     
     this.remoteVideoSprites.forEach((sprite, uid) => {
-      const hideRemoteHint = this.renderBackend === 'engine-texture' && sprite.node.active === true;
+      const hideRemoteHint = sprite.node.active === true;
       const hintLabel = this.remoteHintLabels.get(uid);
       if (hintLabel) {
         hintLabel.node.active = !hideRemoteHint;
@@ -3789,7 +3767,6 @@ export class AgoraRtcExampleController extends Component {
     }
     this.configLabel.string = [
       `App ${this.maskAppId(this.appId)}  ·  Token ${this.token ? 'configured' : 'not configured'}`,
-      `Render ${this.renderBackend}`,
       this.logUiHudLine,
     ].join('\n');
     this.configLabel.enableWrapText = true;
@@ -3802,7 +3779,7 @@ export class AgoraRtcExampleController extends Component {
     }
     this.summaryLabel.string = [
       `Init ${this.initialized ? 'Y' : 'N'} · Join ${this.joined ? 'Y' : 'N'} · Remote ${this.activeRemoteUid ?? '-'}`,
-      `Backend ${this.renderBackend} · Err ${this.lastErrorMessage}`,
+      `Err ${this.lastErrorMessage}`,
     ].join('\n');
     this.summaryLabel.fontSize = 15;
     this.summaryLabel.lineHeight = 18;
@@ -3821,10 +3798,6 @@ export class AgoraRtcExampleController extends Component {
   }
 
   private refreshSettingsPanel() {
-    const backendLabel = this.settingsValueLabels.get('Backend');
-    if (backendLabel) {
-      backendLabel.string = this.renderBackend;
-    }
     this.settingsValueLabels.get('Profile')!.string = this.selectedChannelProfile;
     this.settingsValueLabels.get('Role')!.string = this.selectedClientRole;
     this.settingsValueLabels.get('Encoder')!.string =
@@ -4033,11 +4006,6 @@ export class AgoraRtcExampleController extends Component {
   }
 
   private bindNativeTextureSprite(kind: 'local' | 'remote', slotId: number, uid?: number) {
-    if (this.renderBackend !== 'engine-texture') {
-      console.log('[agora-rtc] bind skip backend', kind, slotId, this.renderBackend);
-      return;
-    }
-
     const nativeReady = this.client?.isEngineTextureReady(slotId) ?? false;
     const texture = this.client?.getEngineTexture(slotId) as Texture2D | null;
     if (!texture) {
@@ -4194,7 +4162,19 @@ export class AgoraRtcExampleController extends Component {
       await this.initializeRtc();
     }
 
-    await this.getClient().joinChannel(this.token, this.channelId, this.uid);
+    if (this.joined || this.joinRequestInFlight) {
+      this.pushStatus('Channel is already active; leave before joining again');
+      this.setActionResult('Join', 'fail');
+      return;
+    }
+
+    this.joinRequestInFlight = true;
+    try {
+      await this.getClient().joinChannel(this.token, this.channelId, this.uid);
+    } catch (error) {
+      this.joinRequestInFlight = false;
+      throw error;
+    }
     this.pushStatus(`Join request sent: ${this.channelId}`);
     this.setActionResult('Join', 'ok');
   }
@@ -4208,13 +4188,9 @@ export class AgoraRtcExampleController extends Component {
     }
 
     await this.client.leaveChannel();
-    if (this.remoteViewAttachedUid !== null) {
-      await this.client.removeRemoteVideoView(this.remoteViewAttachedUid);
-      this.remoteViewAttachedUid = null;
-    }
-    this.remoteUserUids.clear();
-    this.activeRemoteUid = null;
+    await this.clearAllRemoteVideoPages();
     this.joined = false;
+    this.joinRequestInFlight = false;
     this.pushStatus('Leave request sent');
     this.refreshVideoHints();
     this.refreshSummary();
@@ -4249,81 +4225,11 @@ export class AgoraRtcExampleController extends Component {
     this.refreshSummary();
   }
 
-  async cycleRenderBackend() {
-    const backends: Array<'surface-view' | 'texture-view' | 'engine-texture'> = [
-      'surface-view',
-      'texture-view',
-      'engine-texture',
-    ];
-    const currentIndex = backends.indexOf(this.renderBackend);
-    const nextBackend = backends[(currentIndex + 1) % backends.length];
-    const shouldReinitialize = this.initialized;
-    const shouldRejoin = this.joined;
-
-    await this.teardownRtc();
-    this.renderBackend = nextBackend;
-    this.refreshConfigLabel();
-    this.layoutConsole();
-    this.pushStatus(`Backend switched to ${nextBackend}`);
-
-    if (shouldReinitialize) {
-      await this.initializeRtc();
-      if (shouldRejoin) {
-        await this.joinRtcChannel();
-      }
-    }
-  }
-
-  async setSurfaceViewBackend() {
-    this.setActionResult('Surface', 'idle');
-    await this.switchRenderBackend('surface-view');
-    this.setActionResult('Surface', 'ok');
-  }
-
-  async setTextureViewBackend() {
-    this.setActionResult('Texture', 'idle');
-    await this.switchRenderBackend('texture-view');
-    this.setActionResult('Texture', 'ok');
-  }
-
-  async setEngineTextureBackend() {
-    this.setActionResult('EngineTex', 'idle');
-    await this.switchRenderBackend('engine-texture');
-    this.setActionResult('EngineTex', 'ok');
-  }
-
-  private async switchRenderBackend(nextBackend: 'surface-view' | 'texture-view' | 'engine-texture') {
-    if (this.renderBackend === nextBackend) {
-      this.pushStatus(`Backend already ${nextBackend}`);
-      return;
-    }
-    const shouldReinitialize = this.initialized;
-    const shouldRejoin = this.joined;
-
-    await this.teardownRtc();
-    this.renderBackend = nextBackend;
-    this.refreshConfigLabel();
-    this.refreshButtonLabels();
-    this.layoutConsole();
-    this.pushStatus(`Backend switched to ${nextBackend}`);
-
-    if (shouldReinitialize) {
-      await this.initializeRtc();
-      if (shouldRejoin) {
-        await this.joinRtcChannel();
-      }
-    }
-  }
-
-  async cycleRenderBackendSetting() {
-    await this.cycleRenderBackend();
-  }
-
   async applyConfigInputs() {
     const nextChannel = this.channelInput?.string.trim() || this.channelId;
     const nextUid = Number.parseInt(this.uidInput?.string.trim() || `${this.uid}`, 10);
     this.channelId = nextChannel;
-    if (Number.isFinite(nextUid) && nextUid > 0) {
+    if (Number.isFinite(nextUid) && nextUid >= 0) {
       this.uid = nextUid;
     }
     this.refreshConfigLabel();
@@ -4335,27 +4241,11 @@ export class AgoraRtcExampleController extends Component {
     const nextChannel = this.channelInput?.string.trim() || this.channelId;
     const nextUid = Number.parseInt(this.uidInput?.string.trim() || `${this.uid}`, 10);
     this.channelId = nextChannel;
-    if (Number.isFinite(nextUid) && nextUid > 0) {
+    if (Number.isFinite(nextUid) && nextUid >= 0) {
       this.uid = nextUid;
     }
     this.refreshConfigLabel();
     this.refreshSettingsPanel();
-  }
-
-  private applyEffectiveRenderBackend(nextBackend: 'surface-view' | 'texture-view' | 'engine-texture') {
-    if (this.renderBackend === nextBackend) {
-      this.refreshConfigLabel();
-      this.refreshButtonLabels();
-      this.layoutConsole();
-      this.refreshSummary();
-      return;
-    }
-
-    this.renderBackend = nextBackend;
-    this.refreshConfigLabel();
-    this.refreshButtonLabels();
-    this.layoutConsole();
-    this.refreshSummary();
   }
 
   async togglePreview() {
@@ -4427,10 +4317,7 @@ export class AgoraRtcExampleController extends Component {
       await client.removeLocalVideoView();
       this.localViewAttached = false;
     }
-    if (this.remoteViewAttachedUid !== null) {
-      await client.removeRemoteVideoView(this.remoteViewAttachedUid);
-      this.remoteViewAttachedUid = null;
-    }
+    await this.clearAllRemoteVideoPages();
 
     await client.setupLocalVideoView(this.getLocalVideoRect());
     this.localViewAttached = true;
@@ -4994,9 +4881,7 @@ export class AgoraRtcExampleController extends Component {
       if (this.localViewAttached) {
         await this.client.removeLocalVideoView();
       }
-      if (this.remoteViewAttachedUid !== null) {
-        await this.client.removeRemoteVideoView(this.remoteViewAttachedUid);
-      }
+      await this.clearAllRemoteVideoPages();
       await this.client.destroy();
     } catch (error) {
       console.error('[agora-rtc] destroy failed', error);
@@ -5013,9 +4898,7 @@ export class AgoraRtcExampleController extends Component {
       this.activeRemoteUid = null;
       this.remoteUserUids.clear();
       this.localViewAttached = false;
-      this.remoteViewAttachedUid = null;
       this.localTextureSlotId = null;
-      this.remoteTextureSlotId = null;
       this.lastErrorMessage = '-';
       this.lastRtcStatsSummary = '-';
       this.lastVolumeSummary = '-';

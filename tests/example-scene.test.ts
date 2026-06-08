@@ -68,14 +68,23 @@ test('example controller source uses lazy client creation and fallback button no
   assert.match(content, /Loaded config for channel/);
   assert.match(content, /setRenderBackend/);
   assert.match(content, /await client\.enableVideo\(true\);/);
-  assert.match(content, /Render backend:/);
   assert.match(content, /Join request sent/);
   assert.match(content, /Leave request sent/);
-  assert.match(content, /Auto initialize \+ join enabled/);
-  assert.match(content, /cycleRenderBackend/);
-  assert.match(content, /setSurfaceViewBackend/);
-  assert.match(content, /setTextureViewBackend/);
-  assert.match(content, /setEngineTextureBackend/);
+  assert.match(content, /Manual join ready/);
+  assert.match(content, /uid = 0;/);
+  assert.match(content, /private readonly renderBackend = 'engine-texture' as const;/);
+  assert.doesNotMatch(content, /Auto initialize \+ join enabled/);
+  assert.doesNotMatch(content, /await this\.joinRtcChannel\(\);/);
+  assert.doesNotMatch(content, /waitForLeaveChannelEvent/);
+  assert.doesNotMatch(content, /resolvePendingLeaveWaiters/);
+  assert.doesNotMatch(content, /runRtcSessionOperation/);
+  assert.doesNotMatch(content, /rtcSessionOperation/);
+  assert.doesNotMatch(content, /pendingLeaveResolvers/);
+  assert.doesNotMatch(content, /cycleRenderBackend/);
+  assert.doesNotMatch(content, /setSurfaceViewBackend/);
+  assert.doesNotMatch(content, /setTextureViewBackend/);
+  assert.doesNotMatch(content, /setEngineTextureBackend/);
+  assert.doesNotMatch(content, /switchRenderBackend/);
   assert.match(content, /togglePreview/);
   assert.match(content, /toggleLocalAudio/);
   assert.match(content, /toggleLocalVideo/);
@@ -109,8 +118,8 @@ test('example controller source uses lazy client creation and fallback button no
   assert.doesNotMatch(content, /localVideoFrame/);
   assert.doesNotMatch(content, /new Texture2D/);
   assert.doesNotMatch(content, /uploadData/);
-  assert.match(content, /fallbackBackend/);
-  assert.match(content, /applyEffectiveRenderBackend/);
+  assert.doesNotMatch(content, /fallbackBackend/);
+  assert.doesNotMatch(content, /applyEffectiveRenderBackend/);
 });
 
 test('example config override supports build-time values without committing credentials', async () => {
@@ -150,6 +159,8 @@ test('example controller renders all remote streams dynamically using PageView p
   assert.match(content, /this\.addRemoteUserPage\(uid\);/);
   assert.match(content, /if \(this\.activeRemoteUid === null\)/);
   assert.match(content, /this\.remoteUserUids\.delete\(uid\);/);
+  assert.match(content, /private async clearAllRemoteVideoPages\(\)/);
+  assert.match(content, /await this\.clearAllRemoteVideoPages\(\);/);
 });
 
 test('example controller resolves native overlay rects from nested QA pane video nodes', async () => {
@@ -217,7 +228,8 @@ test('example controller trims header copy, increases button group spacing, and 
   );
 
   assert.match(content, /`App \$\{this\.maskAppId\(this\.appId\)\}  ·  Token \$\{this\.token \? 'configured' : 'not configured'\}`/);
-  assert.match(content, /`Render \$\{this\.renderBackend\}`/);
+  assert.doesNotMatch(content, /`Render \$\{this\.renderBackend\}`/);
+  assert.doesNotMatch(content, /Backend \$\{this\.renderBackend\}/);
   assert.match(content, /layout\.spacingY = 10;/);
   assert.match(content, /QA_GRID_BUTTON_HEIGHT = 36;/);
   assert.match(content, /QA_LANDSCAPE_LEFT_MAX_WIDTH = 420;/);
@@ -331,8 +343,8 @@ test('example ships a runtime Agora config template', async () => {
   assert.match(content, /"appId": "<YOUR_AGORA_APP_ID>"/);
   assert.match(content, /"channelId": "<YOUR_CHANNEL_ID>"/);
   assert.doesNotMatch(content, /\bappId["']?\s*:\s*["'][0-9a-f]{32}["']/i);
-  assert.match(content, /"uid": 1001/);
-  assert.match(content, /"renderBackend": "(surface-view|texture-view|engine-texture)"/);
+  assert.match(content, /"uid": 0/);
+  assert.doesNotMatch(content, /"renderBackend"/);
 });
 
 test('example controller includes grouped capability demos for expanded sdk api', async () => {
@@ -356,10 +368,10 @@ test('example controller includes grouped capability demos for expanded sdk api'
   assert.match(content, /getErrorDescription/);
   assert.match(content, /isSpeakerphoneEnabled/);
   assert.match(content, /rtcStats/);
-  assert.match(content, /Backend/);
-  assert.match(content, /Surface/);
-  assert.match(content, /Texture/);
-  assert.match(content, /EngineTex/);
+  assert.doesNotMatch(content, /setSurfaceViewBackend/);
+  assert.doesNotMatch(content, /setTextureViewBackend/);
+  assert.doesNotMatch(content, /setEngineTextureBackend/);
+  assert.doesNotMatch(content, /'EngineTex'/);
   assert.match(content, /Preview/);
   assert.match(content, /Views/);
   assert.match(content, /Mic/);
