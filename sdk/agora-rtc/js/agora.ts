@@ -6,6 +6,7 @@ import {
   DEFAULT_TIMEOUT_MS,
   type AgoraAudioMixingConfig,
   type AgoraBeautyOptions,
+  type AgoraChannelMediaOptions,
   type AgoraRenderBackend,
   type AgoraContentInspectConfig,
   type AgoraPlayEffectConfig,
@@ -114,8 +115,17 @@ export class AgoraRtcClient {
     return this.#invoke('setClientRole', { role }) as Promise<void>;
   }
 
-  joinChannel(token: string, channelId: string, uid: number): Promise<void> {
-    return this.#invoke('joinChannel', { token, channelId, uid }) as Promise<void>;
+  joinChannel(
+    token: string,
+    channelId: string,
+    uid: number,
+    options?: AgoraChannelMediaOptions,
+  ): Promise<void> {
+    const params: Record<string, unknown> = { token, channelId, uid };
+    if (options !== undefined) {
+      params.options = options;
+    }
+    return this.#invoke('joinChannel', params) as Promise<void>;
   }
 
   leaveChannel(): Promise<void> {
@@ -251,6 +261,18 @@ export class AgoraRtcClient {
   }
 
   startAudioMixing(config: AgoraAudioMixingConfig): Promise<void> {
+    if (Object.prototype.hasOwnProperty.call(config as unknown as Record<string, unknown>, 'replace')) {
+      return Promise.reject(
+        new AgoraSdkError(
+          AgoraErrorCode.ProtocolError,
+          'startAudioMixing.replace is not supported by the Agora RTC 4.5.3 native bridge.',
+          {
+            method: 'startAudioMixing',
+            parameter: 'replace',
+          },
+        ),
+      );
+    }
     return this.#invoke('startAudioMixing', { ...config }) as Promise<void>;
   }
 

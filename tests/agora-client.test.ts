@@ -265,6 +265,71 @@ test('client rejects native failures with an sdk error', async () => {
   );
 });
 
+test('joinChannel dispatches optional channel media options from TypeScript', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.joinChannel('demo-token', 'demo-channel', 1001, {
+    clientRoleType: 'broadcaster',
+    channelProfile: 'liveBroadcasting',
+    publishCameraTrack: true,
+    publishMicrophoneTrack: true,
+    autoSubscribeAudio: true,
+    autoSubscribeVideo: true,
+    enableAudioRecordingOrPlayout: true,
+    startPreview: true,
+    token: 'override-token',
+    parameters: '{"rtc.video.enabled":true}',
+  });
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'joinChannel');
+  assert.deepEqual(request.params, {
+    token: 'demo-token',
+    channelId: 'demo-channel',
+    uid: 1001,
+    options: {
+      clientRoleType: 'broadcaster',
+      channelProfile: 'liveBroadcasting',
+      publishCameraTrack: true,
+      publishMicrophoneTrack: true,
+      autoSubscribeAudio: true,
+      autoSubscribeVideo: true,
+      enableAudioRecordingOrPlayout: true,
+      startPreview: true,
+      token: 'override-token',
+      parameters: '{"rtc.video.enabled":true}',
+    },
+  });
+
+  transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true }));
+  await pending;
+});
+
+test('joinChannel keeps the existing payload when options are omitted', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.joinChannel('demo-token', 'demo-channel', 7);
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'joinChannel');
+  assert.deepEqual(request.params, {
+    token: 'demo-token',
+    channelId: 'demo-channel',
+    uid: 7,
+  });
+
+  transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true }));
+  await pending;
+});
+
 test('client preserves native validation error details for bad api calls', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -621,7 +686,6 @@ test('startAudioMixing dispatches the expected native request', async () => {
   const pending = client.startAudioMixing({
     path: 'assets/bgm.mp3',
     loopback: false,
-    replace: false,
     cycle: 1,
     startPos: 0,
   });
@@ -631,7 +695,6 @@ test('startAudioMixing dispatches the expected native request', async () => {
   assert.deepEqual(request.params, {
     path: 'assets/bgm.mp3',
     loopback: false,
-    replace: false,
     cycle: 1,
     startPos: 0,
   });
@@ -645,6 +708,29 @@ test('startAudioMixing dispatches the expected native request', async () => {
   );
 
   await pending;
+});
+
+test('startAudioMixing rejects replace because RTC 4.5.3 bridge signatures do not support it', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  await assert.rejects(
+    client.startAudioMixing({
+      path: 'audio/demo.mp3',
+      loopback: false,
+      cycle: 1,
+      replace: false,
+    } as any),
+    (error: { code: string; message: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.message === 'startAudioMixing.replace is not supported by the Agora RTC 4.5.3 native bridge.' &&
+      error.details.method === 'startAudioMixing' &&
+      error.details.parameter === 'replace',
+  );
+  assert.equal(transport.sent.length, 0);
 });
 
 test('enableLocalAudio dispatches the expected native request', async () => {

@@ -99,10 +99,28 @@ export interface AgoraContentInspectConfig {
   interval?: number;
 }
 
+export type AgoraClientRole = 'broadcaster' | 'audience';
+
+export type AgoraChannelProfile =
+  | 'communication'
+  | 'liveBroadcasting';
+
+export interface AgoraChannelMediaOptions {
+  clientRoleType?: AgoraClientRole | number;
+  channelProfile?: AgoraChannelProfile | number;
+  publishCameraTrack?: boolean;
+  publishMicrophoneTrack?: boolean;
+  autoSubscribeAudio?: boolean;
+  autoSubscribeVideo?: boolean;
+  enableAudioRecordingOrPlayout?: boolean;
+  startPreview?: boolean;
+  token?: string;
+  parameters?: string;
+}
+
 export interface AgoraAudioMixingConfig {
   path: string;
   loopback?: boolean;
-  replace?: boolean;
   cycle?: number;
   startPos?: number;
 }
