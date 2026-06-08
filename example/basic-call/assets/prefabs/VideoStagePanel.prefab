@@ -70,8 +70,8 @@
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 360,
-      "height": 240
+      "width": 820,
+      "height": 620
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
