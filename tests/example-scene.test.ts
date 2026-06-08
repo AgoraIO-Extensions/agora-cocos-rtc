@@ -143,7 +143,38 @@ test('rtc session service owns client lifecycle and native texture binding', asy
   assert.doesNotMatch(content, /uploadData/);
 });
 
-test('demo root loads runtime config and auto joins after scene startup', async () => {
+test('rtc session service tracks flutter-style video settings and stats', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /VIDEO_ENCODER_PRESETS/);
+  assert.match(content, /selectedChannelProfile/);
+  assert.match(content, /selectedVideoEncoderPresetName/);
+  assert.match(content, /lastLocalVideoStatsSummary/);
+  assert.match(content, /lastRemoteVideoStatsByUid/);
+  assert.match(content, /startLocalPreview/);
+  assert.match(content, /stopLocalPreview/);
+  assert.match(content, /applyVideoEncoderPreset/);
+});
+
+test('video stage panel owns local stage, remote thumbnails, and stats overlays', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/VideoStagePanel.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /LocalStage/);
+  assert.match(content, /RemoteThumbnailRow/);
+  assert.match(content, /LocalStatsLabel/);
+  assert.match(content, /RemoteStats_/);
+  assert.match(content, /setStats/);
+  assert.match(content, /setLocalStageState/);
+  assert.match(content, /setRemoteUsers/);
+});
+
+test('demo root loads runtime config and starts preview without auto joining', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
     'utf8',
@@ -152,9 +183,11 @@ test('demo root loads runtime config and auto joins after scene startup', async 
   assert.match(content, /resolveAgoraExampleConfig/);
   assert.match(content, /this\.loadJsonConfig\('agora-config\.build'\)/);
   assert.match(content, /this\.loadJsonConfig\('agora-config'\)/);
-  assert.match(content, /Auto initialize \+ join enabled/);
+  assert.match(content, /Auto preview enabled/);
   assert.match(content, /await this\.initializeRtc\(\);/);
-  assert.match(content, /await this\.joinRtcChannel\(\);/);
+  assert.match(content, /await this\.startLocalPreview\(\);/);
+  assert.doesNotMatch(content, /Auto initialize \+ join enabled/);
+  assert.doesNotMatch(content, /await this\.joinRtcChannel\(\);/);
 });
 
 test('demo action registry keeps all QA API buttons grouped', async () => {
@@ -169,6 +202,23 @@ test('demo action registry keeps all QA API buttons grouped', async () => {
   assert.match(content, /EnableAudio/);
   assert.match(content, /PlaybackUserVolume/);
   assert.match(content, /runDiagnosticsDemo/);
+});
+
+test('demo action registry prioritizes flutter-style basic video controls', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/actions.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /BASIC_VIDEO_ACTIONS/);
+  assert.match(content, /ADVANCED_ACTIONS/);
+  assert.match(content, /BASIC_VIDEO_ACTION_SECTIONS/);
+  assert.match(content, /JoinChannel/);
+  assert.match(content, /StartPreview/);
+  assert.match(content, /SwitchCamera/);
+  assert.match(content, /ApplyEncoder/);
+  assert.match(content, /Advanced/);
+  assert.ok(content.indexOf('JoinChannel') < content.indexOf('Full Demo'));
 });
 
 test('example config override supports build-time values without committing credentials', async () => {
