@@ -143,7 +143,7 @@ test('rtc session service owns client lifecycle and native texture binding', asy
   assert.doesNotMatch(content, /uploadData/);
 });
 
-test('rtc session service passes video join media options from TypeScript', async () => {
+test('rtc session service passes configurable video join media options from TypeScript', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
     'utf8',
@@ -156,10 +156,11 @@ test('rtc session service passes video join media options from TypeScript', asyn
   assert.match(joinMethod, /client\.joinChannel\(\s*config\.token,\s*config\.channelId\.trim\(\),\s*config\.uid,\s*\{/);
   assert.match(joinMethod, /clientRoleType:\s*this\.selectedClientRole/);
   assert.match(joinMethod, /channelProfile:\s*this\.selectedChannelProfile/);
-  assert.match(joinMethod, /publishCameraTrack:\s*true/);
-  assert.match(joinMethod, /publishMicrophoneTrack:\s*true/);
-  assert.match(joinMethod, /autoSubscribeAudio:\s*true/);
-  assert.match(joinMethod, /autoSubscribeVideo:\s*true/);
+  assert.match(joinMethod, /publishCameraTrack:\s*config\.publishCameraTrack/);
+  assert.match(joinMethod, /publishMicrophoneTrack:\s*config\.publishMicrophoneTrack/);
+  assert.match(joinMethod, /autoSubscribeAudio:\s*config\.autoSubscribeAudio/);
+  assert.match(joinMethod, /autoSubscribeVideo:\s*config\.autoSubscribeVideo/);
+  assert.match(joinMethod, /if \(config\.publishCameraTrack\)/);
 });
 
 test('rtc session service tracks flutter-style video settings and stats', async () => {
@@ -209,7 +210,7 @@ test('video stage panel owns local stage, remote thumbnails, and stats overlays'
   assert.match(content, /setRemoteUsers/);
 });
 
-test('demo root loads runtime config and starts preview without auto joining', async () => {
+test('demo root loads runtime smoke config and can auto join when requested', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
     'utf8',
@@ -218,11 +219,13 @@ test('demo root loads runtime config and starts preview without auto joining', a
   assert.match(content, /resolveAgoraExampleConfig/);
   assert.match(content, /this\.loadJsonConfig\('agora-config\.build'\)/);
   assert.match(content, /this\.loadJsonConfig\('agora-config'\)/);
+  assert.match(content, /this\.autoPreview/);
+  assert.match(content, /this\.autoJoin/);
   assert.match(content, /Auto preview enabled/);
   assert.match(content, /await this\.initializeRtc\(\);/);
-  assert.match(content, /await this\.startLocalPreview\(\);/);
-  assert.doesNotMatch(content, /Auto initialize \+ join enabled/);
-  assert.doesNotMatch(content, /await this\.joinRtcChannel\(\);/);
+  assert.match(content, /if \(this\.autoPreview\)[\s\S]*await this\.startLocalPreview\(\);/);
+  assert.match(content, /Auto join enabled/);
+  assert.match(content, /if \(this\.autoJoin\)[\s\S]*await this\.joinRtcChannel\(\);/);
 });
 
 test('demo root lays out panels from the landscape visible size', async () => {
@@ -340,6 +343,12 @@ test('example config override supports build-time values without committing cred
   assert.match(content, /class ExampleConfigOverride/);
   assert.match(content, /set\(name: string, value: string\)/);
   assert.match(content, /resolveAgoraExampleConfig/);
+  assert.match(content, /autoPreview/);
+  assert.match(content, /autoJoin/);
+  assert.match(content, /publishCameraTrack/);
+  assert.match(content, /publishMicrophoneTrack/);
+  assert.match(content, /autoSubscribeAudio/);
+  assert.match(content, /autoSubscribeVideo/);
   assert.doesNotMatch(content, /\bappId\s*[:=]\s*['"][0-9a-f]{32}['"]/i);
 });
 

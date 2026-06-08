@@ -14,6 +14,41 @@ if (!appId) {
   process.exit(1);
 }
 
+function parseOptionalBoolean(name) {
+  const value = process.env[name];
+  if (value === undefined || value.trim() === '') {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+  console.error(`${name} must be a boolean value.`);
+  process.exit(1);
+}
+
+function parseOptionalInteger(name) {
+  const value = process.env[name];
+  if (value === undefined || value.trim() === '') {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    console.error(`${name} must be a non-negative integer.`);
+    process.exit(1);
+  }
+  return Math.floor(parsed);
+}
+
+function setIfDefined(target, name, value) {
+  if (value !== undefined) {
+    target[name] = value;
+  }
+}
+
 const baseConfig = JSON.parse(await readFile(baseConfigPath, 'utf8'));
 const buildConfig = {
   ...baseConfig,
@@ -21,6 +56,13 @@ const buildConfig = {
   channelId: process.env.CHANNEL_ID || process.env.TEST_CHANNEL_ID || 'testapi',
   token: process.env.TOKEN || process.env.TEST_TOKEN || '',
 };
+setIfDefined(buildConfig, 'uid', parseOptionalInteger('TEST_UID') ?? parseOptionalInteger('UID'));
+setIfDefined(buildConfig, 'autoPreview', parseOptionalBoolean('AUTO_PREVIEW'));
+setIfDefined(buildConfig, 'autoJoin', parseOptionalBoolean('AUTO_JOIN'));
+setIfDefined(buildConfig, 'publishCameraTrack', parseOptionalBoolean('PUBLISH_CAMERA_TRACK'));
+setIfDefined(buildConfig, 'publishMicrophoneTrack', parseOptionalBoolean('PUBLISH_MICROPHONE_TRACK'));
+setIfDefined(buildConfig, 'autoSubscribeAudio', parseOptionalBoolean('AUTO_SUBSCRIBE_AUDIO'));
+setIfDefined(buildConfig, 'autoSubscribeVideo', parseOptionalBoolean('AUTO_SUBSCRIBE_VIDEO'));
 const buildConfigMeta = {
   ver: '2.0.1',
   importer: 'json',

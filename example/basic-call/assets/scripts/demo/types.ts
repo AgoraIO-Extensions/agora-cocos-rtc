@@ -12,6 +12,12 @@ export interface RuntimeConfigState {
   channelId: string;
   uid: number;
   renderBackend: RenderBackend;
+  autoPreview: boolean;
+  autoJoin: boolean;
+  publishCameraTrack: boolean;
+  publishMicrophoneTrack: boolean;
+  autoSubscribeAudio: boolean;
+  autoSubscribeVideo: boolean;
 }
 
 export interface BasicVideoConfigState extends RuntimeConfigState {

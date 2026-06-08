@@ -150,14 +150,16 @@ export class RtcSessionService {
       throw new Error('Channel ID is empty.');
     }
     const client = this.getClient();
-    await this.setupLocalVideoView();
+    if (config.publishCameraTrack) {
+      await this.setupLocalVideoView();
+    }
     await client.joinChannel(config.token, config.channelId.trim(), config.uid, {
       clientRoleType: this.selectedClientRole,
       channelProfile: this.selectedChannelProfile,
-      publishCameraTrack: true,
-      publishMicrophoneTrack: true,
-      autoSubscribeAudio: true,
-      autoSubscribeVideo: true,
+      publishCameraTrack: config.publishCameraTrack,
+      publishMicrophoneTrack: config.publishMicrophoneTrack,
+      autoSubscribeAudio: config.autoSubscribeAudio,
+      autoSubscribeVideo: config.autoSubscribeVideo,
     });
     this.joined = true;
     this.log(`Join request sent: ${config.channelId} (${config.uid})`);

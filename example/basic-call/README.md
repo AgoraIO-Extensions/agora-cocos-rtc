@@ -16,6 +16,20 @@ This is a Cocos Creator 3.8.x example project for the Agora RTC Cocos plugin.
 
 Customer applications should pass their App ID from their own app configuration when calling `initialize(appId)`. The example configuration files are only for this demo project.
 
+### Smoke Automation
+
+`scripts/write-example-build-config.mjs` accepts optional runtime overrides for automated demo builds:
+
+- `TEST_UID`
+- `AUTO_PREVIEW`
+- `AUTO_JOIN`
+- `PUBLISH_CAMERA_TRACK`
+- `PUBLISH_MICROPHONE_TRACK`
+- `AUTO_SUBSCRIBE_AUDIO`
+- `AUTO_SUBSCRIBE_VIDEO`
+
+Use `TEST_UID` instead of `UID` in zsh shells, where `UID` is a reserved readonly variable. For iOS simulator smoke tests, run the iOS side as a subscriber with `AUTO_PREVIEW=false`, `AUTO_JOIN=true`, `PUBLISH_CAMERA_TRACK=false`, and `PUBLISH_MICROPHONE_TRACK=false`; publish camera video from Android or a real iOS device.
+
 ## Capability Demo
 
 The example scene is a QA console instead of a minimal visual demo. It exposes direct entries for:

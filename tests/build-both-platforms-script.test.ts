@@ -121,6 +121,43 @@ test('example build config writer accepts command-line environment credentials',
   await rm(buildConfigMetaPath, { force: true });
 });
 
+test('example build config writer accepts smoke media options', async () => {
+  const buildConfigPath = `${repoRoot}/example/basic-call/assets/resources/agora-config.build.json`;
+  const buildConfigMetaPath = `${buildConfigPath}.meta`;
+  await rm(buildConfigPath, { force: true });
+  await rm(buildConfigMetaPath, { force: true });
+
+  await execFileAsync('node', ['./scripts/write-example-build-config.mjs'], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      TEST_APP_ID: 'test-app-id',
+      TEST_CHANNEL_ID: 'testapi',
+      TEST_TOKEN: '',
+      UID: '501',
+      TEST_UID: '2002',
+      AUTO_PREVIEW: 'false',
+      AUTO_JOIN: 'true',
+      PUBLISH_CAMERA_TRACK: 'false',
+      PUBLISH_MICROPHONE_TRACK: 'false',
+      AUTO_SUBSCRIBE_AUDIO: 'true',
+      AUTO_SUBSCRIBE_VIDEO: 'true',
+    },
+  });
+
+  const buildConfig = JSON.parse(await readFile(buildConfigPath, 'utf8'));
+  assert.equal(buildConfig.uid, 2002);
+  assert.equal(buildConfig.autoPreview, false);
+  assert.equal(buildConfig.autoJoin, true);
+  assert.equal(buildConfig.publishCameraTrack, false);
+  assert.equal(buildConfig.publishMicrophoneTrack, false);
+  assert.equal(buildConfig.autoSubscribeAudio, true);
+  assert.equal(buildConfig.autoSubscribeVideo, true);
+
+  await rm(buildConfigPath, { force: true });
+  await rm(buildConfigMetaPath, { force: true });
+});
+
 test('root readme does not expose internal example package workflow to sdk customers', async () => {
   const content = await readFile(`${repoRoot}/README.md`, 'utf8');
 
