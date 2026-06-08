@@ -44,6 +44,24 @@ export class AgoraRtcDemoRoot extends Component {
   renderBackend: RuntimeConfigState['renderBackend'] = 'engine-texture';
 
   @property
+  autoPreview = true;
+
+  @property
+  autoJoin = false;
+
+  @property
+  publishCameraTrack = true;
+
+  @property
+  publishMicrophoneTrack = true;
+
+  @property
+  autoSubscribeAudio = true;
+
+  @property
+  autoSubscribeVideo = true;
+
+  @property
   channelProfile: ChannelProfile = 'communication';
 
   @property
@@ -97,12 +115,20 @@ export class AgoraRtcDemoRoot extends Component {
     this.refreshPanels();
     this.pushStatus('Example ready');
     this.pushStatus(`Render backend: ${this.renderBackend}`);
-    this.pushStatus('Auto preview enabled');
     try {
       await this.initializeRtc();
-      await this.startLocalPreview();
+      if (this.autoPreview) {
+        this.pushStatus('Auto preview enabled');
+        await this.startLocalPreview();
+      } else {
+        this.pushStatus('Auto preview disabled');
+      }
+      if (this.autoJoin) {
+        this.pushStatus('Auto join enabled');
+        await this.joinRtcChannel();
+      }
     } catch (error) {
-      this.pushStatus(`Auto preview failed: ${String(error)}`);
+      this.pushStatus(`Auto startup failed: ${String(error)}`);
     }
   }
 
@@ -326,6 +352,12 @@ export class AgoraRtcDemoRoot extends Component {
     this.channelId = config.channelId?.trim() || this.channelId;
     this.uid = typeof config.uid === 'number' ? config.uid : this.uid;
     this.renderBackend = config.renderBackend ?? this.renderBackend;
+    this.autoPreview = config.autoPreview ?? this.autoPreview;
+    this.autoJoin = config.autoJoin ?? this.autoJoin;
+    this.publishCameraTrack = config.publishCameraTrack ?? this.publishCameraTrack;
+    this.publishMicrophoneTrack = config.publishMicrophoneTrack ?? this.publishMicrophoneTrack;
+    this.autoSubscribeAudio = config.autoSubscribeAudio ?? this.autoSubscribeAudio;
+    this.autoSubscribeVideo = config.autoSubscribeVideo ?? this.autoSubscribeVideo;
     if (this.appId || this.channelId) {
       this.pushStatus(`Loaded config for channel: ${this.channelId}`);
     }
@@ -475,6 +507,12 @@ export class AgoraRtcDemoRoot extends Component {
       channelId: this.channelId,
       uid: this.uid,
       renderBackend: this.renderBackend,
+      autoPreview: this.autoPreview,
+      autoJoin: this.autoJoin,
+      publishCameraTrack: this.publishCameraTrack,
+      publishMicrophoneTrack: this.publishMicrophoneTrack,
+      autoSubscribeAudio: this.autoSubscribeAudio,
+      autoSubscribeVideo: this.autoSubscribeVideo,
     };
   }
 
