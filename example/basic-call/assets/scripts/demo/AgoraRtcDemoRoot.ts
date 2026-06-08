@@ -5,7 +5,14 @@ import {
 } from '../agoraRtcConfigOverride.ts';
 import { DEFAULT_BUTTON_LAYOUT } from './actions.ts';
 import { RtcSessionService } from './RtcSessionService.ts';
-import type { ActionResult, DemoSessionState, RuntimeConfigState } from './types.ts';
+import type {
+  ActionResult,
+  BasicVideoConfigState,
+  ChannelProfile,
+  DemoSessionState,
+  RuntimeConfigState,
+  VideoEncoderPresetName,
+} from './types.ts';
 import { DemoHeaderPanel } from './panels/DemoHeaderPanel.ts';
 import { DemoActionPanel } from './panels/DemoActionPanel.ts';
 import { VideoStagePanel } from './panels/VideoStagePanel.ts';
@@ -30,6 +37,12 @@ export class AgoraRtcDemoRoot extends Component {
 
   @property
   renderBackend: RuntimeConfigState['renderBackend'] = 'engine-texture';
+
+  @property
+  channelProfile: ChannelProfile = 'communication';
+
+  @property
+  videoEncoderPresetName: VideoEncoderPresetName = '360p';
 
   @property(DemoHeaderPanel)
   headerPanel: DemoHeaderPanel | null = null;
@@ -56,8 +69,9 @@ export class AgoraRtcDemoRoot extends Component {
       onOpenLog: () => this.openStatusLogPage(),
       onApplyConfig: (channelId, uid) => this.applyConfig(channelId, uid),
     });
-    this.actionPanel?.initialize((actionName) => {
-      void this.invokeAction(actionName);
+    this.actionPanel?.initialize({
+      onAction: (actionName) => { void this.invokeAction(actionName); },
+      onApplyConfig: (config) => this.applyBasicVideoConfig(config),
     });
     this.logPanel?.initialize({
       onClose: () => this.closeStatusLogPage(),
@@ -77,12 +91,12 @@ export class AgoraRtcDemoRoot extends Component {
     this.refreshPanels();
     this.pushStatus('Example ready');
     this.pushStatus(`Render backend: ${this.renderBackend}`);
-    this.pushStatus('Auto initialize + join enabled');
+    this.pushStatus('Auto preview enabled');
     try {
       await this.initializeRtc();
-      await this.joinRtcChannel();
+      await this.startLocalPreview();
     } catch (error) {
-      this.pushStatus(`Auto join failed: ${String(error)}`);
+      this.pushStatus(`Auto preview failed: ${String(error)}`);
     }
   }
 
@@ -96,7 +110,24 @@ export class AgoraRtcDemoRoot extends Component {
   }
 
   async joinRtcChannel(): Promise<void> {
-    await this.runSessionAction('Join', (session) => session.joinRtcChannel());
+    await this.runSessionAction('JoinChannel', (session) => session.joinRtcChannel());
+  }
+
+  async toggleJoinChannel(): Promise<void> {
+    const state = this.getSessionState();
+    await this.runSessionAction('JoinChannel', (session) =>
+      state.joined ? session.leaveRtcChannel() : session.joinRtcChannel(),
+    );
+  }
+
+  async startLocalPreview(): Promise<void> {
+    await this.runSessionAction('StartPreview', (session) => session.startLocalPreview());
+  }
+
+  async applySelectedVideoEncoder(): Promise<void> {
+    await this.runSessionAction('ApplyEncoder', (session) =>
+      session.applyVideoEncoderPreset(this.videoEncoderPresetName),
+    );
   }
 
   async leaveRtcChannel(): Promise<void> {
@@ -104,11 +135,11 @@ export class AgoraRtcDemoRoot extends Component {
   }
 
   async togglePreview(): Promise<void> {
-    await this.runSessionAction('Preview', (session) => session.togglePreview());
+    await this.runSessionAction('StartPreview', (session) => session.togglePreview());
   }
 
   async refreshRtcViews(): Promise<void> {
-    await this.runSessionAction('Views', (session) => session.refreshRtcViews());
+    await this.runSessionAction('RefreshViews', (session) => session.refreshRtcViews());
   }
 
   async toggleSpeakerphone(): Promise<void> {
@@ -349,6 +380,27 @@ export class AgoraRtcDemoRoot extends Component {
     this.pushStatus(`Config updated: channel ${channelId}, uid ${uid}`);
   }
 
+  private applyBasicVideoConfig(config: Partial<BasicVideoConfigState>): void {
+    if (typeof config.channelId === 'string') {
+      this.channelId = config.channelId.trim() || this.channelId;
+    }
+    if (typeof config.uid === 'number' && Number.isFinite(config.uid)) {
+      this.uid = Math.max(0, Math.floor(config.uid));
+    }
+    if (config.renderBackend) {
+      this.renderBackend = config.renderBackend;
+    }
+    if (config.channelProfile) {
+      this.channelProfile = config.channelProfile;
+      void this.session?.applyChannelProfile(config.channelProfile);
+    }
+    if (config.videoEncoderPresetName) {
+      this.videoEncoderPresetName = config.videoEncoderPresetName;
+    }
+    this.refreshPanels();
+    this.pushStatus(`Config updated: channel ${this.channelId}, uid ${this.uid}`);
+  }
+
   private pushStatus(line: string): void {
     if (this.statusFrozen) {
       return;
@@ -362,9 +414,15 @@ export class AgoraRtcDemoRoot extends Component {
   }
 
   private refreshPanels(): void {
-    this.headerPanel?.setConfig(this.getRuntimeConfigState());
-    this.headerPanel?.setSummary(this.getSessionState());
+    const config = this.getBasicVideoConfigState();
+    const state = this.getSessionState();
+    this.headerPanel?.setConfig(config);
+    this.headerPanel?.setSummary(state);
+    this.actionPanel?.setConfig(config);
+    this.actionPanel?.setSessionState(state);
     this.actionPanel?.refresh();
+    this.videoStagePanel?.setLocalStageState(state);
+    this.videoStagePanel?.setStats(state);
   }
 
   private refreshLogPanel(): void {
@@ -381,6 +439,15 @@ export class AgoraRtcDemoRoot extends Component {
     };
   }
 
+  private getBasicVideoConfigState(): BasicVideoConfigState {
+    return {
+      ...this.getRuntimeConfigState(),
+      channelProfile: this.channelProfile,
+      clientRole: 'broadcaster',
+      videoEncoderPresetName: this.videoEncoderPresetName,
+    };
+  }
+
   private getSessionState(): DemoSessionState {
     return this.session?.getState() ?? {
       initialized: false,
@@ -388,10 +455,10 @@ export class AgoraRtcDemoRoot extends Component {
       previewStarted: false,
       activeRemoteUid: null,
       remoteUserUids: [],
-      channelProfile: 'communication',
+      channelProfile: this.channelProfile,
       clientRole: 'broadcaster',
       renderBackend: this.renderBackend,
-      videoEncoderPresetName: '360p',
+      videoEncoderPresetName: this.videoEncoderPresetName,
       audioEnabled: true,
       localAudioEnabled: true,
       localVideoEnabled: true,
