@@ -167,7 +167,7 @@ test('android bridge template wires supported advanced sdk methods to real Agora
   assert.match(bridgeContent, /preloadEffect/);
   assert.match(bridgeContent, /playEffect/);
   assert.match(bridgeContent, /stopEffect/);
-  assert.match(bridgeContent, /dispatchUnsupported\(requestId, "setDefaultAudioRouteToSpeakerphone"\)/);
+  assert.match(bridgeContent, /rtcEngine\.setDefaultAudioRoutetoSpeakerphone/);
 });
 
 test('android bridge template returns errors for bad native requests instead of timing out', async () => {
@@ -266,6 +266,55 @@ test('android bridge template resolves joinChannel after the sdk accepts the req
   assert.ok(onJoinChannelSuccessMatch);
   assert.match(onJoinChannelSuccessMatch[0], /dispatchEvent\("joinChannelSuccess"/);
   assert.doesNotMatch(onJoinChannelSuccessMatch[0], /dispatchOk\(pendingJoinRequestId\)/);
+});
+
+test('android bridge template maps joinChannel media options from request payload', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  const handleJoinChannelMatch = bridgeContent.match(
+    /private void handleJoinChannel[\s\S]*?private void handleGetErrorDescription/,
+  );
+  assert.ok(handleJoinChannelMatch);
+  const handleJoinChannel = handleJoinChannelMatch[0];
+
+  assert.match(handleJoinChannel, /JSONObject mediaOptions = params != null \? params\.optJSONObject\("options"\) : null/);
+  assert.match(handleJoinChannel, /applyChannelMediaOptions\(options, mediaOptions\)/);
+  assert.doesNotMatch(handleJoinChannel, /options\.clientRoleType\s*=\s*Constants\.CLIENT_ROLE_BROADCASTER/);
+  assert.doesNotMatch(handleJoinChannel, /options\.publishCameraTrack\s*=\s*true/);
+  assert.doesNotMatch(handleJoinChannel, /options\.publishMicrophoneTrack\s*=\s*true/);
+  assert.doesNotMatch(handleJoinChannel, /options\.autoSubscribeAudio\s*=\s*true/);
+  assert.doesNotMatch(handleJoinChannel, /options\.autoSubscribeVideo\s*=\s*true/);
+
+  assert.match(bridgeContent, /private void applyChannelMediaOptions\(ChannelMediaOptions options, JSONObject mediaOptions\)/);
+  assert.match(bridgeContent, /options\.clientRoleType = parseClientRoleType\(mediaOptions\.opt\("clientRoleType"\)\)/);
+  assert.match(bridgeContent, /options\.channelProfile = parseChannelProfile\(mediaOptions\.opt\("channelProfile"\)\)/);
+  assert.match(bridgeContent, /options\.publishCameraTrack = optNullableBoolean\(mediaOptions, "publishCameraTrack"\)/);
+  assert.match(bridgeContent, /options\.publishMicrophoneTrack = optNullableBoolean\(mediaOptions, "publishMicrophoneTrack"\)/);
+  assert.match(bridgeContent, /options\.autoSubscribeAudio = optNullableBoolean\(mediaOptions, "autoSubscribeAudio"\)/);
+  assert.match(bridgeContent, /options\.autoSubscribeVideo = optNullableBoolean\(mediaOptions, "autoSubscribeVideo"\)/);
+});
+
+test('android bridge template supports default audio route to speakerphone', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  const routeMatch = bridgeContent.match(
+    /private void handleSetDefaultAudioRouteToSpeakerphone[\s\S]*?private void handleSetEnableSpeakerphone/,
+  );
+  assert.ok(routeMatch);
+  assert.match(routeMatch[0], /rtcEngine\.setDefaultAudioRoutetoSpeakerphone\(params == null \|\| params\.optBoolean\("enabled", true\)\)/);
+  assert.doesNotMatch(routeMatch[0], /dispatchUnsupported/);
 });
 
 test('android bridge template dispatches expanded native rtc callbacks as js events', async () => {
@@ -662,12 +711,16 @@ public class JSONException extends Exception {
 public class JSONObject {
     public JSONObject() {}
     public JSONObject(String payload) throws JSONException {}
+    public boolean has(String key) { return false; }
+    public boolean isNull(String key) { return true; }
+    public Object opt(String key) { return null; }
     public String optString(String key) { return ""; }
     public String optString(String key, String defaultValue) { return defaultValue; }
     public JSONObject optJSONObject(String key) { return null; }
     public int optInt(String key) { return 0; }
     public int optInt(String key, int defaultValue) { return defaultValue; }
     public double optDouble(String key, double defaultValue) { return defaultValue; }
+    public boolean optBoolean(String key) { return false; }
     public boolean optBoolean(String key, boolean defaultValue) { return defaultValue; }
     public JSONObject put(String key, Object value) throws JSONException { return this; }
 }
@@ -1006,7 +1059,18 @@ public class IRtcEngineEventHandler {
     path.join(srcRoot, 'io/agora/rtc2/ChannelMediaOptions.java'),
     `package io.agora.rtc2;
 
-public class ChannelMediaOptions {}
+public class ChannelMediaOptions {
+    public Integer clientRoleType;
+    public Integer channelProfile;
+    public Boolean publishCameraTrack;
+    public Boolean publishMicrophoneTrack;
+    public Boolean autoSubscribeAudio;
+    public Boolean autoSubscribeVideo;
+    public Boolean enableAudioRecordingOrPlayout;
+    public Boolean startPreview;
+    public String token;
+    public String parameters;
+}
 `,
     'utf8',
   );
@@ -1192,7 +1256,7 @@ public class RtcEngine {
     public int muteAllRemoteAudioStreams(boolean muted) { return 0; }
     public int setAudioProfile(int profile, int scenario) { return 0; }
     public int enableAudioVolumeIndication(int interval, int smooth, boolean reportVad) { return 0; }
-    public int setDefaultAudioRouteToSpeakerphone(boolean enabled) { return 0; }
+    public int setDefaultAudioRoutetoSpeakerphone(boolean enabled) { return 0; }
     public boolean isSpeakerphoneEnabled() { return true; }
     public int setEnableSpeakerphone(boolean enabled) { return 0; }
     public int adjustPlaybackSignalVolume(int volume) { return 0; }
