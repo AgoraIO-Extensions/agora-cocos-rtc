@@ -630,8 +630,8 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": 0,
-      "y": 470,
+      "x": -390,
+      "y": 250,
       "z": 0
     },
     "_lrot": {
@@ -708,8 +708,8 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": -210,
-      "y": -100,
+      "x": -390,
+      "y": -40,
       "z": 0
     },
     "_lrot": {
@@ -745,8 +745,8 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 360,
-      "height": 720
+      "width": 420,
+      "height": 620
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -786,8 +786,8 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "_prefab": null,
     "_lpos": {
       "__type__": "cc.Vec3",
-      "x": 180,
-      "y": -120,
+      "x": 140,
+      "y": -20,
       "z": 0
     },
     "_lrot": {
@@ -823,8 +823,8 @@ cat > "$SCENE_DIR/main.scene" <<'EOF'
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 340,
-      "height": 740
+      "width": 820,
+      "height": 620
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -1274,8 +1274,8 @@ cat > "$PREFABS_DIR/ActionPanel.prefab" <<'EOF'
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 360,
-      "height": 240
+      "width": 420,
+      "height": 620
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
@@ -1403,8 +1403,8 @@ cat > "$PREFABS_DIR/VideoStagePanel.prefab" <<'EOF'
     "__prefab": null,
     "_contentSize": {
       "__type__": "cc.Size",
-      "width": 360,
-      "height": 240
+      "width": 820,
+      "height": 620
     },
     "_anchorPoint": {
       "__type__": "cc.Vec2",
