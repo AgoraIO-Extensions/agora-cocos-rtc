@@ -392,7 +392,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     id: 'mixing.position-value',
     method: 'getAudioMixingCurrentPosition',
     expectedParams: {},
-    requiredEvidence: ['value'],
+    requiredEvidence: ['value', 'error'],
     run: (client) => client.getAudioMixingCurrentPosition(),
   },
   {
