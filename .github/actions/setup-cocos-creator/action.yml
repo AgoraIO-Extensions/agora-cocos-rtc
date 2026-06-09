@@ -1,0 +1,75 @@
+name: Setup Cocos Creator
+description: Install or locate Cocos Creator and expose COCOS_CLI for later workflow steps.
+
+inputs:
+  version:
+    description: Cocos Creator version to install.
+    required: false
+    default: 3.8.8
+  download-url:
+    description: Download URL for the Cocos Creator zip installer.
+    required: true
+  install-root:
+    description: Root directory containing Cocos Creator version folders.
+    required: false
+    default: /Applications/Cocos/Creator
+  cache-key-suffix:
+    description: Suffix used in the cached installer filename.
+    required: false
+    default: mac-010512
+
+outputs:
+  cocos-cli:
+    description: Absolute path to the Cocos Creator command-line executable.
+    value: ${{ steps.setup.outputs.cocos-cli }}
+
+runs:
+  using: composite
+  steps:
+    - id: setup
+      shell: bash
+      env:
+        COCOS_CREATOR_VERSION: ${{ inputs.version }}
+        COCOS_CREATOR_DOWNLOAD_URL: ${{ inputs.download-url }}
+        COCOS_CREATOR_INSTALL_ROOT: ${{ inputs.install-root }}
+        COCOS_CREATOR_CACHE_SUFFIX: ${{ inputs.cache-key-suffix }}
+      run: |
+        set -euo pipefail
+
+        app_path="${COCOS_CREATOR_INSTALL_ROOT}/${COCOS_CREATOR_VERSION}/CocosCreator.app"
+        cli_path="$app_path/Contents/MacOS/CocosCreator"
+        install_dir="$(dirname "$app_path")"
+        installer_path="$HOME/Library/Caches/cocos-creator/CocosCreator-v${COCOS_CREATOR_VERSION}-${COCOS_CREATOR_CACHE_SUFFIX}.zip"
+
+        if [ -x "$cli_path" ]; then
+          echo "Cocos Creator already installed at $cli_path"
+        else
+          mkdir -p "$(dirname "$installer_path")"
+          if [ ! -f "$installer_path" ]; then
+            curl --fail --location --retry 3 --retry-delay 10 "$COCOS_CREATOR_DOWNLOAD_URL" --output "$installer_path"
+          fi
+
+          extract_dir="$RUNNER_TEMP/cocos-creator-${COCOS_CREATOR_VERSION}"
+          rm -rf "$extract_dir"
+          mkdir -p "$extract_dir"
+          ditto -x -k "$installer_path" "$extract_dir"
+
+          creator_app="$(find "$extract_dir" -name CocosCreator.app -type d -print -quit)"
+          if [ -z "$creator_app" ]; then
+            echo "CocosCreator.app not found in downloaded archive." >&2
+            exit 1
+          fi
+
+          sudo mkdir -p "$install_dir"
+          sudo rm -rf "$app_path"
+          sudo ditto "$creator_app" "$app_path"
+          sudo xattr -dr com.apple.quarantine "$app_path" || true
+        fi
+
+        if [ ! -x "$cli_path" ]; then
+          echo "Cocos Creator executable was not installed at $cli_path" >&2
+          exit 1
+        fi
+
+        echo "COCOS_CLI=$cli_path" >> "$GITHUB_ENV"
+        echo "cocos-cli=$cli_path" >> "$GITHUB_OUTPUT"

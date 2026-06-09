@@ -837,6 +837,8 @@ test('ios bridge template routes engine-texture through AgoraVideoFrameDelegate 
   assert.match(bridgeContent, /remoteVideoTextureReady/);
   assert.match(bridgeContent, /localVideoTextureReleased/);
   assert.match(bridgeContent, /remoteVideoTextureReleased/);
+  assert.match(bridgeContent, /private func handleUpdateLocalVideoView\(requestId: String, params: \[String: Any\]\) \{\n        if renderBackend == "engine-texture" \{[\s\S]*?ensureLocalTextureSlot\(\)/);
+  assert.match(bridgeContent, /private func handleUpdateRemoteVideoView\(requestId: String, params: \[String: Any\]\) \{\n        let uid = params\["uid"\][\s\S]*?\n        if renderBackend == "engine-texture" \{[\s\S]*?ensureRemoteTextureSlot\(uid\)/);
   assert.match(slotBridgeContent, /case 12:/);
   assert.match(slotBridgeContent, /case 13:/);
   assert.match(slotBridgeContent, /case 14:/);
