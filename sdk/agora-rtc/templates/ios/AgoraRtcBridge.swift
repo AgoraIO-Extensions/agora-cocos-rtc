@@ -409,8 +409,9 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 let codecTypeValue = params["codecType"] as? Int ?? 0
                 let codecType = AgoraVideoCodecType(rawValue: codecTypeValue) ?? AgoraVideoCodecType(rawValue: 0)!
                 config.codecType = codecType
-                let advancedVideoOptions = buildAdvancedVideoOptions(params["advancedVideoOptions"] as? [String: Any])
-                config.advancedVideoOptions = advancedVideoOptions
+                if let advancedVideoOptionsParams = params["advancedVideoOptions"] as? [String: Any] {
+                    config.advancedVideoOptions = buildAdvancedVideoOptions(advancedVideoOptionsParams)
+                }
                 let result = engine.setVideoEncoderConfiguration(config)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
@@ -947,10 +948,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
 
     private func buildAdvancedVideoOptions(_ params: [String: Any]?) -> AgoraAdvancedVideoOptions {
         let options = AgoraAdvancedVideoOptions()
-        let encodingPreferenceValue = intValue(params?["encodingPreference"] ?? 0)
-        options.encodingPreference = AgoraEncodingPreference(rawValue: encodingPreferenceValue) ?? AgoraEncodingPreference(rawValue: 0)!
-        let compressionPreferenceValue = intValue(params?["compressionPreference"] ?? 0)
-        options.compressionPreference = AgoraCompressionPreference(rawValue: compressionPreferenceValue) ?? AgoraCompressionPreference(rawValue: 0)!
+        let encodingPreferenceValue = intValue(params?["encodingPreference"] ?? -1)
+        options.encodingPreference = AgoraEncodingPreference(rawValue: encodingPreferenceValue) ?? AgoraEncodingPreference(rawValue: -1)!
+        let compressionPreferenceValue = intValue(params?["compressionPreference"] ?? -1)
+        options.compressionPreference = AgoraCompressionPreference(rawValue: compressionPreferenceValue) ?? AgoraCompressionPreference(rawValue: -1)!
         options.encodeAlpha = params?["encodeAlpha"] as? Bool ?? false
         return options
     }

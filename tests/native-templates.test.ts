@@ -533,6 +533,68 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.match(bridgeContent, /private Constants\.VideoModulePosition mapContentInspectModulePosition\(int value\)/);
 });
 
+test('android bridge template maps video encoder enum raw values from rtc 4.5.3', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  const degradationMatch = bridgeContent.match(
+    /private VideoEncoderConfiguration\.DEGRADATION_PREFERENCE mapDegradationPreference[\s\S]*?private VideoEncoderConfiguration\.VIDEO_CODEC_TYPE mapVideoCodecType/,
+  );
+  assert.ok(degradationMatch);
+  assert.match(degradationMatch[0], /case -1:[\s\S]*MAINTAIN_AUTO/);
+  assert.match(degradationMatch[0], /case 0:[\s\S]*MAINTAIN_QUALITY/);
+  assert.match(degradationMatch[0], /case 1:[\s\S]*MAINTAIN_FRAMERATE/);
+  assert.match(degradationMatch[0], /case 2:[\s\S]*MAINTAIN_BALANCED/);
+  assert.match(degradationMatch[0], /case 3:[\s\S]*MAINTAIN_RESOLUTION/);
+  assert.match(degradationMatch[0], /case 100:[\s\S]*DISABLED/);
+  assert.doesNotMatch(degradationMatch[0], /case 4:[\s\S]*MAINTAIN_RESOLUTION/);
+  assert.doesNotMatch(degradationMatch[0], /case 5:[\s\S]*DISABLED/);
+
+  const codecMatch = bridgeContent.match(
+    /private VideoEncoderConfiguration\.VIDEO_CODEC_TYPE mapVideoCodecType[\s\S]*?private VideoEncoderConfiguration\.AdvanceOptions buildAdvancedVideoOptions/,
+  );
+  assert.ok(codecMatch);
+  assert.match(codecMatch[0], /case 0:[\s\S]*VIDEO_CODEC_NONE/);
+  assert.match(codecMatch[0], /case 1:[\s\S]*VIDEO_CODEC_VP8/);
+  assert.match(codecMatch[0], /case 2:[\s\S]*VIDEO_CODEC_H264/);
+  assert.match(codecMatch[0], /case 3:[\s\S]*VIDEO_CODEC_H265/);
+  assert.match(codecMatch[0], /case 6:[\s\S]*VIDEO_CODEC_GENERIC/);
+  assert.match(codecMatch[0], /case 12:[\s\S]*VIDEO_CODEC_AV1/);
+  assert.match(codecMatch[0], /case 13:[\s\S]*VIDEO_CODEC_VP9/);
+  assert.match(codecMatch[0], /case 20:[\s\S]*VIDEO_CODEC_GENERIC_JPEG/);
+  assert.doesNotMatch(codecMatch[0], /case 5:[\s\S]*VIDEO_CODEC_AV1/);
+
+  const advancedOptionsMatch = bridgeContent.match(
+    /private VideoEncoderConfiguration\.AdvanceOptions buildAdvancedVideoOptions[\s\S]*?private VideoEncoderConfiguration\.ENCODING_PREFERENCE mapEncodingPreference/,
+  );
+  assert.ok(advancedOptionsMatch);
+  assert.match(advancedOptionsMatch[0], /params\.optInt\("encodingPreference", -1\)/);
+  assert.match(advancedOptionsMatch[0], /params\.optInt\("compressionPreference", -1\)/);
+
+  const encodingMatch = bridgeContent.match(
+    /private VideoEncoderConfiguration\.ENCODING_PREFERENCE mapEncodingPreference[\s\S]*?private VideoEncoderConfiguration\.COMPRESSION_PREFERENCE mapCompressionPreference/,
+  );
+  assert.ok(encodingMatch);
+  assert.match(encodingMatch[0], /case -1:[\s\S]*PREFER_AUTO/);
+  assert.match(encodingMatch[0], /case 0:[\s\S]*PREFER_SOFTWARE/);
+  assert.match(encodingMatch[0], /case 1:[\s\S]*PREFER_HARDWARE/);
+  assert.doesNotMatch(encodingMatch[0], /case 2:[\s\S]*PREFER_HARDWARE/);
+
+  const compressionMatch = bridgeContent.match(
+    /private VideoEncoderConfiguration\.COMPRESSION_PREFERENCE mapCompressionPreference[\s\S]*?private ContentInspectConfig\.ContentInspectModule buildContentInspectModule/,
+  );
+  assert.ok(compressionMatch);
+  assert.match(compressionMatch[0], /case -1:[\s\S]*PREFER_COMPRESSION_AUTO/);
+  assert.match(compressionMatch[0], /case 0:[\s\S]*PREFER_LOW_LATENCY/);
+  assert.match(compressionMatch[0], /case 1:[\s\S]*PREFER_QUALITY/);
+  assert.doesNotMatch(compressionMatch[0], /case 2:[\s\S]*PREFER_QUALITY/);
+});
+
 test('ios bridge template dispatches expanded sdk methods or explicit unsupported responses', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
@@ -725,7 +787,16 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(encoderMatch[0], /config\.minBitrate = params\["minBitrate"\]/);
   assert.match(encoderMatch[0], /config\.degradationPreference = degradationPreference/);
   assert.match(encoderMatch[0], /config\.codecType = codecType/);
-  assert.match(encoderMatch[0], /config\.advancedVideoOptions = advancedVideoOptions/);
+  assert.match(encoderMatch[0], /if let advancedVideoOptionsParams = params\["advancedVideoOptions"\] as\? \[String: Any\]/);
+  assert.match(encoderMatch[0], /config\.advancedVideoOptions = buildAdvancedVideoOptions\(advancedVideoOptionsParams\)/);
+  assert.doesNotMatch(encoderMatch[0], /let advancedVideoOptions = buildAdvancedVideoOptions\(params\["advancedVideoOptions"\] as\? \[String: Any\]\)[\s\S]*config\.advancedVideoOptions = advancedVideoOptions/);
+
+  const advancedOptionsMatch = bridgeContent.match(
+    /private func buildAdvancedVideoOptions[\s\S]*?private func buildContentInspectModules/,
+  );
+  assert.ok(advancedOptionsMatch);
+  assert.match(advancedOptionsMatch[0], /params\?\["encodingPreference"\] \?\? -1/);
+  assert.match(advancedOptionsMatch[0], /params\?\["compressionPreference"\] \?\? -1/);
 
   const inspectMatch = bridgeContent.match(
     /case "enableContentInspect":[\s\S]*?case "setNativeVideoOverlaySuspended":/,
@@ -1867,8 +1938,10 @@ public class VideoEncoderConfiguration {
         VIDEO_CODEC_VP8,
         VIDEO_CODEC_H264,
         VIDEO_CODEC_H265,
+        VIDEO_CODEC_GENERIC,
         VIDEO_CODEC_AV1,
-        VIDEO_CODEC_VP9
+        VIDEO_CODEC_VP9,
+        VIDEO_CODEC_GENERIC_JPEG
     }
 
     public enum ENCODING_PREFERENCE {

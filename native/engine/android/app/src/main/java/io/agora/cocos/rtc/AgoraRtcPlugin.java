@@ -1783,15 +1783,17 @@ public final class AgoraRtcPlugin {
 
     private VideoEncoderConfiguration.DEGRADATION_PREFERENCE mapDegradationPreference(int value) {
         switch (value) {
-            case 1:
+            case -1:
+                return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.MAINTAIN_AUTO;
+            case 0:
                 return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.MAINTAIN_QUALITY;
-            case 2:
+            case 1:
                 return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.MAINTAIN_FRAMERATE;
-            case 3:
+            case 2:
                 return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.MAINTAIN_BALANCED;
-            case 4:
+            case 3:
                 return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.MAINTAIN_RESOLUTION;
-            case 5:
+            case 100:
                 return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.DISABLED;
             default:
                 return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.MAINTAIN_AUTO;
@@ -1800,16 +1802,22 @@ public final class AgoraRtcPlugin {
 
     private VideoEncoderConfiguration.VIDEO_CODEC_TYPE mapVideoCodecType(int value) {
         switch (value) {
+            case 0:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_NONE;
             case 1:
                 return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_VP8;
             case 2:
                 return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_H264;
             case 3:
                 return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_H265;
-            case 5:
-                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_AV1;
             case 6:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_GENERIC;
+            case 12:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_AV1;
+            case 13:
                 return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_VP9;
+            case 20:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_GENERIC_JPEG;
             default:
                 return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_NONE;
         }
@@ -1820,17 +1828,19 @@ public final class AgoraRtcPlugin {
         if (params == null) {
             return options;
         }
-        options.encodingPreference = mapEncodingPreference(params.optInt("encodingPreference", 0));
-        options.compressionPreference = mapCompressionPreference(params.optInt("compressionPreference", 0));
+        options.encodingPreference = mapEncodingPreference(params.optInt("encodingPreference", -1));
+        options.compressionPreference = mapCompressionPreference(params.optInt("compressionPreference", -1));
         options.encodeAlpha = params.optBoolean("encodeAlpha", options.encodeAlpha);
         return options;
     }
 
     private VideoEncoderConfiguration.ENCODING_PREFERENCE mapEncodingPreference(int value) {
         switch (value) {
-            case 1:
+            case -1:
+                return VideoEncoderConfiguration.ENCODING_PREFERENCE.PREFER_AUTO;
+            case 0:
                 return VideoEncoderConfiguration.ENCODING_PREFERENCE.PREFER_SOFTWARE;
-            case 2:
+            case 1:
                 return VideoEncoderConfiguration.ENCODING_PREFERENCE.PREFER_HARDWARE;
             default:
                 return VideoEncoderConfiguration.ENCODING_PREFERENCE.PREFER_AUTO;
@@ -1839,9 +1849,11 @@ public final class AgoraRtcPlugin {
 
     private VideoEncoderConfiguration.COMPRESSION_PREFERENCE mapCompressionPreference(int value) {
         switch (value) {
-            case 1:
+            case -1:
+                return VideoEncoderConfiguration.COMPRESSION_PREFERENCE.PREFER_COMPRESSION_AUTO;
+            case 0:
                 return VideoEncoderConfiguration.COMPRESSION_PREFERENCE.PREFER_LOW_LATENCY;
-            case 2:
+            case 1:
                 return VideoEncoderConfiguration.COMPRESSION_PREFERENCE.PREFER_QUALITY;
             default:
                 return VideoEncoderConfiguration.COMPRESSION_PREFERENCE.PREFER_COMPRESSION_AUTO;
