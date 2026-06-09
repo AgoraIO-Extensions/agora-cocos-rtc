@@ -51,7 +51,16 @@ test('cocos api test matrix covers every native Agora method and records paramet
   assert.match(testcasesContent, /lighteningContrastLevel/);
   assert.match(testcasesContent, /orientationMode/);
   assert.match(testcasesContent, /loopback/);
-  assert.match(testcasesContent, /publish/);
+  assert.match(
+    testcasesContent,
+    /id:\s*'channel\.join'[\s\S]*?expectedParams:[\s\S]*options:[\s\S]*clientRoleType:\s*'broadcaster'[\s\S]*publishCameraTrack:\s*true[\s\S]*publishMicrophoneTrack:\s*false[\s\S]*autoSubscribeAudio:\s*true[\s\S]*autoSubscribeVideo:\s*true/,
+    'device join testcase should record TS-provided ChannelMediaOptions',
+  );
+  assert.match(
+    testcasesContent,
+    /id:\s*'channel\.join'[\s\S]*?run:\s*\(client, context\) => client\.joinChannel\([\s\S]*?\{[\s\S]*clientRoleType:\s*'broadcaster'/,
+    'device join testcase should execute native joinChannel with options',
+  );
   assert.match(testcasesContent, /renderMode/);
 });
 
@@ -215,6 +224,14 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /collect-cocos-test-report\.mjs/);
   assert.match(iosScript, /run_cocos_build "\$COCOS_BUILD_CONFIG" "iOS"/);
   assert.match(iosScript, /exit_code -ne 0 && \$exit_code -ne 36/);
+  assert.match(iosScript, /PROJECT_PATH="\$IOS_PROJECT_DIR\/agora-cocos-basic-call\.xcodeproj"/);
+  assert.match(iosScript, /TARGET_NAME="agora-cocos-basic-call-mobile"/);
+  assert.match(iosScript, /xcodebuild -project "\$PROJECT_PATH"/);
+  assert.match(iosScript, /-target "\$TARGET_NAME"/);
+  assert.doesNotMatch(iosScript, /WORKSPACE_PATH=/);
+  assert.doesNotMatch(iosScript, /SCHEME_NAME=/);
+  assert.doesNotMatch(iosScript, /generate-ios-podfile\.mjs/);
+  assert.doesNotMatch(iosScript, /pod install/);
   assert.match(iosScript, /ios-diagnostic\.log/);
   assert.match(iosScript, /collect_ios_diagnostics/);
   assert.match(iosScript, /resolve_ios_simulator_udid\(\)/);

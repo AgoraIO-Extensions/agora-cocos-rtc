@@ -729,7 +729,7 @@ public final class AgoraRtcPlugin {
             return;
         }
 
-        ensureRtcPermissions(requestId, () -> continueStartPreview(requestId));
+        ensureRtcPermissions(requestId, true, false, () -> continueStartPreview(requestId));
     }
 
     private void continueStartPreview(String requestId) {

@@ -552,7 +552,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "startPreview":
             requireEngine(requestId: requestId) { engine in
-                ensureRtcPermissions(requestId: requestId) {
+                ensureRtcPermissions(
+                    requestId: requestId,
+                    requiresCamera: true,
+                    requiresMicrophone: false
+                ) {
                     guard self.rtcEngine != nil else {
                         self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                         return

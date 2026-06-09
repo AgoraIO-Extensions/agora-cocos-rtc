@@ -338,9 +338,9 @@ test('android bridge template requests rtc runtime permissions before camera and
   assert.ok(handleStartPreviewMatch);
   assertPatternBefore(
     handleStartPreviewMatch[0],
-    /ensureRtcPermissions\(requestId,[\s\S]*continueStartPreview/,
+    /ensureRtcPermissions\(\s*requestId,\s*true,\s*false,[\s\S]*continueStartPreview/,
     /renderBackend\.startPreview/,
-    'startPreview must request camera and microphone permissions before invoking native sdk',
+    'startPreview must request only camera permission before invoking native sdk',
   );
 });
 
@@ -605,9 +605,9 @@ test('ios bridge template explicitly requests rtc permissions before camera and 
   assert.ok(startPreviewMatch);
   assertPatternBefore(
     startPreviewMatch[0],
-    /ensureRtcPermissions\(requestId: requestId/,
+    /ensureRtcPermissions\(\s*requestId: requestId,\s*requiresCamera: true,\s*requiresMicrophone: false/,
     /engine\.startPreview/,
-    'startPreview must request iOS camera and microphone permissions before invoking native sdk',
+    'startPreview must request only iOS camera permission before invoking native sdk',
   );
 
   const handleJoinChannelMatch = bridgeContent.match(

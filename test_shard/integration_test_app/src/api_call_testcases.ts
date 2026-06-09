@@ -89,9 +89,28 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'channel.join',
     method: 'joinChannel',
-    expectedParams: { token: '<TEST_TOKEN>', channelId: '<TEST_CHANNEL_ID>', uid: '<TEST_UID>' },
+    expectedParams: {
+      token: '<TEST_TOKEN>',
+      channelId: '<TEST_CHANNEL_ID>',
+      uid: '<TEST_UID>',
+      options: {
+        clientRoleType: 'broadcaster',
+        channelProfile: 'liveBroadcasting',
+        publishCameraTrack: true,
+        publishMicrophoneTrack: false,
+        autoSubscribeAudio: true,
+        autoSubscribeVideo: true,
+      },
+    },
     requiredEvidence: ['response', 'event'],
-    run: (client, context) => client.joinChannel(context.token, context.channelId, context.uid),
+    run: (client, context) => client.joinChannel(context.token, context.channelId, context.uid, {
+      clientRoleType: 'broadcaster',
+      channelProfile: 'liveBroadcasting',
+      publishCameraTrack: true,
+      publishMicrophoneTrack: false,
+      autoSubscribeAudio: true,
+      autoSubscribeVideo: true,
+    }),
   },
   {
     id: 'channel.renew-token',

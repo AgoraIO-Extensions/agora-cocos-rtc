@@ -11,8 +11,8 @@ COCOS_CLI="${COCOS_CLI:-/Applications/Cocos/Creator/3.8.8/CocosCreator.app/Conte
 COCOS_PROJECT_DIR="$ROOT_DIR/example/basic-call"
 COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/ios-debug.json"
 IOS_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-ios/ios/proj"
-WORKSPACE_PATH="$IOS_PROJECT_DIR/agora-cocos-basic-call.xcworkspace"
-SCHEME_NAME="agora-cocos-basic-call-mobile"
+PROJECT_PATH="$IOS_PROJECT_DIR/agora-cocos-basic-call.xcodeproj"
+TARGET_NAME="agora-cocos-basic-call-mobile"
 DERIVED_DATA_PATH="${IOS_DERIVED_DATA_PATH:-/tmp/agora-cocos-ios-api-tests-derived}"
 IOS_BUNDLE_ID="${IOS_BUNDLE_ID:-io.agora.cocos.example}"
 IOS_RUNTIME_PLUGIN_DIR="$ROOT_DIR/example/basic-call/native/agora-rtc/ios"
@@ -114,9 +114,9 @@ ios_log_predicate() {
   local launch_pid
   launch_pid="$(sed -n 's/.*: \([0-9][0-9]*\)$/\1/p' "$IOS_LAUNCH_LOG_PATH" 2>/dev/null | tail -n 1)"
   if [[ -n "$launch_pid" ]]; then
-    echo "processIdentifier == $launch_pid OR process == \"$SCHEME_NAME\" OR eventMessage CONTAINS \"[agora-cocos-test]\" OR eventMessage CONTAINS \"[agora-rtc]\" OR eventMessage CONTAINS \"$IOS_BUNDLE_ID\""
+    echo "processIdentifier == $launch_pid OR process == \"$TARGET_NAME\" OR eventMessage CONTAINS \"[agora-cocos-test]\" OR eventMessage CONTAINS \"[agora-rtc]\" OR eventMessage CONTAINS \"$IOS_BUNDLE_ID\""
   else
-    echo "process == \"$SCHEME_NAME\" OR eventMessage CONTAINS \"[agora-cocos-test]\" OR eventMessage CONTAINS \"[agora-rtc]\" OR eventMessage CONTAINS \"$IOS_BUNDLE_ID\""
+    echo "process == \"$TARGET_NAME\" OR eventMessage CONTAINS \"[agora-cocos-test]\" OR eventMessage CONTAINS \"[agora-rtc]\" OR eventMessage CONTAINS \"$IOS_BUNDLE_ID\""
   fi
 }
 
@@ -175,8 +175,7 @@ node ./scripts/inject-cocos-test-runner.mjs
 log_step "Export iOS project with Cocos"
 run_cocos_build "$COCOS_BUILD_CONFIG" "iOS"
 node ./scripts/sync-native-engine-texture-bridge.mjs >/dev/null
-node ./scripts/generate-ios-podfile.mjs >/dev/null
-./scripts/integrate-ios-project.rb >/dev/null
+./scripts/integrate-ios-project.rb --with-package >/dev/null
 if [[ -d "$IOS_RUNTIME_PLUGIN_DIR" ]]; then
   mkdir -p "$IOS_EXPORTED_PLUGIN_DIR"
   cp -R "$IOS_RUNTIME_PLUGIN_DIR/." "$IOS_EXPORTED_PLUGIN_DIR/"
@@ -184,9 +183,8 @@ fi
 
 log_step "Build iOS simulator app"
 cd "$IOS_PROJECT_DIR"
-env LANG="$LANG" LC_ALL="$LC_ALL" RUBYOPT="$RUBYOPT" pod install
-xcodebuild -workspace "$WORKSPACE_PATH" \
-  -scheme "$SCHEME_NAME" \
+xcodebuild -project "$PROJECT_PATH" \
+  -target "$TARGET_NAME" \
   -configuration Debug \
   -sdk iphonesimulator \
   -derivedDataPath "$DERIVED_DATA_PATH" \
