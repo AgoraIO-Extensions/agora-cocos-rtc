@@ -218,4 +218,3 @@ Manual smoke:
 - Advanced RTC API controls are still reachable but not the primary page.
 - Android debug build installs and launches.
 - `npm test` and `npm run typecheck` pass.
-

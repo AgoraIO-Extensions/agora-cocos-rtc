@@ -11,7 +11,9 @@ import org.json.JSONObject;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Queue;
+import java.util.Set;
 
 import com.cocos.lib.CocosHelper;
 import com.cocos.lib.GlobalObject;
@@ -83,38 +85,46 @@ public final class AgoraRtcPlugin {
         }
 
         permissionRequestInFlight = false;
-        boolean granted = true;
+        Set<String> deniedPermissions = new HashSet<>();
         if (grantResults == null || grantResults.length == 0) {
-            granted = false;
+            addAllRtcRuntimePermissions(deniedPermissions);
+        } else if (permissions == null || permissions.length == 0) {
+            addAllRtcRuntimePermissions(deniedPermissions);
         } else {
-            for (int result : grantResults) {
-                if (result != PackageManager.PERMISSION_GRANTED) {
-                    granted = false;
-                    break;
+            for (int index = 0; index < grantResults.length && index < permissions.length; index += 1) {
+                if (grantResults[index] != PackageManager.PERMISSION_GRANTED) {
+                    deniedPermissions.add(permissions[index]);
                 }
             }
         }
 
-        resumePendingPermissionActions(granted);
+        resumePendingPermissionActions(deniedPermissions);
     }
 
-    private void resumePendingPermissionActions(boolean permissionGrantResult) {
-        if (!permissionGrantResult) {
-            while (!pendingPermissionActions.isEmpty()) {
-                PendingPermissionAction pendingAction = pendingPermissionActions.poll();
-                dispatchError(pendingAction.requestId, "Camera and microphone permissions are required.");
-            }
-            return;
-        }
-
+    private void resumePendingPermissionActions(Set<String> deniedPermissions) {
         while (!pendingPermissionActions.isEmpty() && !permissionRequestInFlight) {
             PendingPermissionAction pendingAction = pendingPermissionActions.poll();
+            if (requiresDeniedRtcPermission(pendingAction, deniedPermissions)) {
+                dispatchError(pendingAction.requestId, "Camera and microphone permissions are required.");
+                continue;
+            }
             ensureRtcPermissions(
                     pendingAction.requestId,
                     pendingAction.requiresCamera,
                     pendingAction.requiresMicrophone,
                     pendingAction.action
             );
+        }
+    }
+
+    private boolean requiresDeniedRtcPermission(PendingPermissionAction pendingAction, Set<String> deniedPermissions) {
+        return (pendingAction.requiresCamera && deniedPermissions.contains(Manifest.permission.CAMERA))
+                || (pendingAction.requiresMicrophone && deniedPermissions.contains(Manifest.permission.RECORD_AUDIO));
+    }
+
+    private void addAllRtcRuntimePermissions(Set<String> permissions) {
+        for (String permission : RTC_RUNTIME_PERMISSIONS) {
+            permissions.add(permission);
         }
     }
 
