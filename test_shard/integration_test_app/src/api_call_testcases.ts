@@ -20,6 +20,7 @@ export type ApiCallCase = {
 };
 
 const remoteUid = 2002;
+const userAccount = 'cocos-user-0';
 const rect = { x: 24, y: 32, width: 240, height: 180, renderMode: 'fit' as const };
 
 export const API_CALL_TESTCASES: ApiCallCase[] = [
@@ -85,6 +86,31 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     expectedParams: { role: 'broadcaster' },
     requiredEvidence: ['response'],
     run: (client) => client.setClientRole('broadcaster'),
+  },
+  {
+    id: 'channel.join-user-account',
+    method: 'joinChannelWithUserAccount',
+    expectedParams: {
+      token: '<TEST_TOKEN>',
+      channelId: '<TEST_CHANNEL_ID>',
+      userAccount,
+    },
+    requiredEvidence: ['response', 'event', 'error'],
+    run: (client, context) => client.joinChannelWithUserAccount(context.token, context.channelId, userAccount),
+  },
+  {
+    id: 'channel.get-user-info-by-user-account',
+    method: 'getUserInfoByUserAccount',
+    expectedParams: { userAccount },
+    requiredEvidence: ['value', 'error'],
+    run: (client) => client.getUserInfoByUserAccount(userAccount),
+  },
+  {
+    id: 'channel.leave-user-account',
+    method: 'leaveChannel',
+    expectedParams: {},
+    requiredEvidence: ['response', 'event', 'error'],
+    run: (client) => client.leaveChannel(),
   },
   {
     id: 'channel.join',
@@ -366,7 +392,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     id: 'mixing.position-value',
     method: 'getAudioMixingCurrentPosition',
     expectedParams: {},
-    requiredEvidence: ['value'],
+    requiredEvidence: ['value', 'error'],
     run: (client) => client.getAudioMixingCurrentPosition(),
   },
   {

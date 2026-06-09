@@ -188,6 +188,42 @@ export class RtcSessionService {
     this.emitState();
   }
 
+  async joinWithUserAccount(userAccount: string): Promise<void> {
+    if (!this.initialized) {
+      await this.initializeRtc();
+    }
+    if (this.joined) {
+      this.log('Already joined');
+      return;
+    }
+    const config = this.options.getConfig();
+    if (!config.channelId.trim()) {
+      throw new Error('Channel ID is empty.');
+    }
+    if (!userAccount.trim()) {
+      throw new Error('User account is empty.');
+    }
+    const client = this.getClient();
+    await client.enableVideo(false);
+    this.videoEnabled = false;
+    await client.joinChannelWithUserAccount(
+      config.token,
+      config.channelId.trim(),
+      userAccount.trim(),
+    );
+    this.joined = true;
+    this.log(`String user account join request sent: ${userAccount.trim()}`);
+    this.emitState();
+  }
+
+  async getUserInfoByUserAccount(userAccount: string): Promise<void> {
+    if (!userAccount.trim()) {
+      throw new Error('User account is empty.');
+    }
+    const info = await this.getClient().getUserInfoByUserAccount(userAccount.trim());
+    this.log(`UserInfo ${info.userAccount ?? userAccount.trim()}: ${info.uid ?? '-'}`);
+  }
+
   async leaveRtcChannel(): Promise<void> {
     const client = this.getClient();
     await client.leaveChannel();
@@ -608,21 +644,35 @@ export class RtcSessionService {
     await client.setParameters('{"rtc.debug":true}');
   }
 
+  async applyParameterPreset(parameters: Record<string, unknown>): Promise<void> {
+    if (!this.initialized) {
+      await this.initializeRtc();
+    }
+    await this.getClient().setParameters(parameters);
+    this.log(`Parameters applied: ${JSON.stringify(parameters)}`);
+  }
+
   async teardownRtc(): Promise<void> {
     if (!this.client) {
       return;
     }
+    const client = this.client;
     try {
+      if (this.joined) {
+        await this.teardownRtcStep('leaveChannel', () => client.leaveChannel());
+      }
       if (this.previewStarted) {
-        await this.client.stopPreview();
+        await this.teardownRtcStep('stopPreview', () => client.stopPreview());
       }
       if (this.localViewAttached) {
-        await this.client.removeLocalVideoView();
+        await this.teardownRtcStep('removeLocalVideoView', () => client.removeLocalVideoView());
       }
       for (const uid of this.remoteUserUids) {
-        await this.client.removeRemoteVideoView(uid);
+        await this.teardownRtcStep(`removeRemoteVideoView:${uid}`, () =>
+          client.removeRemoteVideoView(uid),
+        );
       }
-      await this.client.destroy();
+      await this.teardownRtcStep('destroy', () => client.destroy());
     } finally {
       this.client = null;
       this.listenersBound = false;
@@ -900,6 +950,14 @@ export class RtcSessionService {
       this.log(`Demo success: ${label}`);
     } catch (error) {
       this.log(`Demo result: ${label} -> ${String(error)}`);
+    }
+  }
+
+  private async teardownRtcStep(label: string, action: () => Promise<unknown>): Promise<void> {
+    try {
+      await action();
+    } catch (error) {
+      this.recordAsyncError(`Teardown ${label}`, error);
     }
   }
 

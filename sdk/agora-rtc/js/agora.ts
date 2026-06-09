@@ -12,6 +12,7 @@ import {
   type AgoraContentInspectConfig,
   type AgoraPlayEffectConfig,
   type AgoraRtcEngineConfig,
+  type AgoraUserInfo,
   type AgoraVideoEncoderConfiguration,
   type AgoraVideoViewRect,
   type AgoraBridgeEvent,
@@ -133,6 +134,14 @@ export class AgoraRtcClient {
       params.options = options;
     }
     return this.#invoke('joinChannel', params) as Promise<void>;
+  }
+
+  joinChannelWithUserAccount(token: string, channelId: string, userAccount: string): Promise<void> {
+    return this.#invoke('joinChannelWithUserAccount', { token, channelId, userAccount }) as Promise<void>;
+  }
+
+  getUserInfoByUserAccount(userAccount: string): Promise<AgoraUserInfo> {
+    return this.#invoke('getUserInfoByUserAccount', { userAccount }) as Promise<AgoraUserInfo>;
   }
 
   leaveChannel(): Promise<void> {

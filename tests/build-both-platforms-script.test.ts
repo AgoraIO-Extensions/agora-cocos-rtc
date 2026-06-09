@@ -1,11 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 const repoRoot = process.cwd();
 const execFileAsync = promisify(execFile);
+
+async function createTempBuildConfigPaths() {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-build-config-'));
+  return {
+    tempRoot,
+    baseConfigPath: path.join(tempRoot, 'agora-config.json'),
+    buildConfigPath: path.join(tempRoot, 'agora-config.build.json'),
+  };
+}
 
 test('build-all-platforms script exports selected android apk and ios ipa packages without launching devices', async () => {
   const content = await readFile(
@@ -97,77 +108,77 @@ test('package scripts expose the local all-platform build command', async () => 
 });
 
 test('example build config writer accepts command-line environment credentials', async () => {
-  const buildConfigPath = `${repoRoot}/example/basic-call/assets/resources/agora-config.build.json`;
+  const { tempRoot, buildConfigPath } = await createTempBuildConfigPaths();
   const buildConfigMetaPath = `${buildConfigPath}.meta`;
-  await rm(buildConfigPath, { force: true });
-  await rm(buildConfigMetaPath, { force: true });
 
-  await execFileAsync('node', ['./scripts/write-example-build-config.mjs'], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      APP_ID: '',
-      CHANNEL_ID: '',
-      TOKEN: '',
-      TEST_APP_ID: 'test-app-id',
-      TEST_CHANNEL_ID: 'testapi',
-      TEST_TOKEN: '',
-    },
-  });
+  try {
+    await execFileAsync('node', ['./scripts/write-example-build-config.mjs'], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        APP_ID: '',
+        CHANNEL_ID: '',
+        TOKEN: '',
+        TEST_APP_ID: 'test-app-id',
+        TEST_CHANNEL_ID: 'testapi',
+        TEST_TOKEN: '',
+        AGORA_BUILD_CONFIG_PATH: buildConfigPath,
+      },
+    });
 
-  const buildConfig = JSON.parse(await readFile(buildConfigPath, 'utf8'));
-  assert.equal(buildConfig.appId, 'test-app-id');
-  assert.equal(buildConfig.channelId, 'testapi');
-  assert.equal(buildConfig.token, '');
-  const buildConfigMeta = JSON.parse(await readFile(buildConfigMetaPath, 'utf8'));
-  assert.equal(buildConfigMeta.importer, 'json');
-
-  await rm(buildConfigPath, { force: true });
-  await rm(buildConfigMetaPath, { force: true });
+    const buildConfig = JSON.parse(await readFile(buildConfigPath, 'utf8'));
+    assert.equal(buildConfig.appId, 'test-app-id');
+    assert.equal(buildConfig.channelId, 'testapi');
+    assert.equal(buildConfig.token, '');
+    const buildConfigMeta = JSON.parse(await readFile(buildConfigMetaPath, 'utf8'));
+    assert.equal(buildConfigMeta.importer, 'json');
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test('example build config writer accepts smoke media options', async () => {
-  const buildConfigPath = `${repoRoot}/example/basic-call/assets/resources/agora-config.build.json`;
-  const buildConfigMetaPath = `${buildConfigPath}.meta`;
-  await rm(buildConfigPath, { force: true });
-  await rm(buildConfigMetaPath, { force: true });
+  const { tempRoot, buildConfigPath } = await createTempBuildConfigPaths();
 
-  await execFileAsync('node', ['./scripts/write-example-build-config.mjs'], {
-    cwd: repoRoot,
-    env: {
-      ...process.env,
-      TEST_APP_ID: 'test-app-id',
-      TEST_CHANNEL_ID: 'testapi',
-      TEST_TOKEN: '',
-      UID: '501',
-      TEST_UID: '2002',
-      AUTO_PREVIEW: 'false',
-      AUTO_JOIN: 'true',
-      PUBLISH_CAMERA_TRACK: 'false',
-      PUBLISH_MICROPHONE_TRACK: 'false',
-      AUTO_SUBSCRIBE_AUDIO: 'true',
-      AUTO_SUBSCRIBE_VIDEO: 'true',
-    },
-  });
+  try {
+    await execFileAsync('node', ['./scripts/write-example-build-config.mjs'], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        TEST_APP_ID: 'test-app-id',
+        TEST_CHANNEL_ID: 'testapi',
+        TEST_TOKEN: '',
+        UID: '501',
+        TEST_UID: '2002',
+        AUTO_PREVIEW: 'false',
+        AUTO_JOIN: 'true',
+        PUBLISH_CAMERA_TRACK: 'false',
+        PUBLISH_MICROPHONE_TRACK: 'false',
+        AUTO_SUBSCRIBE_AUDIO: 'true',
+        AUTO_SUBSCRIBE_VIDEO: 'true',
+        AGORA_BUILD_CONFIG_PATH: buildConfigPath,
+      },
+    });
 
-  const buildConfig = JSON.parse(await readFile(buildConfigPath, 'utf8'));
-  assert.equal(buildConfig.uid, 2002);
-  assert.equal(buildConfig.autoPreview, false);
-  assert.equal(buildConfig.autoJoin, true);
-  assert.equal(buildConfig.publishCameraTrack, false);
-  assert.equal(buildConfig.publishMicrophoneTrack, false);
-  assert.equal(buildConfig.autoSubscribeAudio, true);
-  assert.equal(buildConfig.autoSubscribeVideo, true);
-
-  await rm(buildConfigPath, { force: true });
-  await rm(buildConfigMetaPath, { force: true });
+    const buildConfig = JSON.parse(await readFile(buildConfigPath, 'utf8'));
+    assert.equal(buildConfig.uid, 2002);
+    assert.equal(buildConfig.autoPreview, false);
+    assert.equal(buildConfig.autoJoin, true);
+    assert.equal(buildConfig.publishCameraTrack, false);
+    assert.equal(buildConfig.publishMicrophoneTrack, false);
+    assert.equal(buildConfig.autoSubscribeAudio, true);
+    assert.equal(buildConfig.autoSubscribeVideo, true);
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test('example build config writer can apply smoke flags to an edited base config without env app id', async () => {
-  const baseConfigPath = `${repoRoot}/example/basic-call/assets/resources/agora-config.json`;
-  const buildConfigPath = `${repoRoot}/example/basic-call/assets/resources/agora-config.build.json`;
-  const buildConfigMetaPath = `${buildConfigPath}.meta`;
-  const originalBaseConfig = await readFile(baseConfigPath, 'utf8');
+  const { tempRoot, baseConfigPath, buildConfigPath } = await createTempBuildConfigPaths();
+  const originalBaseConfig = await readFile(
+    `${repoRoot}/example/basic-call/assets/resources/agora-config.json`,
+    'utf8',
+  );
   const baseConfig = {
     ...JSON.parse(originalBaseConfig),
     appId: 'base-app-id',
@@ -175,8 +186,7 @@ test('example build config writer can apply smoke flags to an edited base config
     token: 'base-token',
   };
 
-  await rm(buildConfigPath, { force: true });
-  await rm(buildConfigMetaPath, { force: true });
+  await mkdir(path.dirname(baseConfigPath), { recursive: true });
   await writeFile(baseConfigPath, `${JSON.stringify(baseConfig, null, 2)}\n`, 'utf8');
 
   try {
@@ -192,6 +202,8 @@ test('example build config writer can apply smoke flags to an edited base config
         TEST_TOKEN: '',
         AUTO_JOIN: 'true',
         PUBLISH_CAMERA_TRACK: 'false',
+        AGORA_CONFIG_PATH: baseConfigPath,
+        AGORA_BUILD_CONFIG_PATH: buildConfigPath,
       },
     });
 
@@ -202,9 +214,7 @@ test('example build config writer can apply smoke flags to an edited base config
     assert.equal(buildConfig.autoJoin, true);
     assert.equal(buildConfig.publishCameraTrack, false);
   } finally {
-    await writeFile(baseConfigPath, originalBaseConfig, 'utf8');
-    await rm(buildConfigPath, { force: true });
-    await rm(buildConfigMetaPath, { force: true });
+    await rm(tempRoot, { recursive: true, force: true });
   }
 });
 

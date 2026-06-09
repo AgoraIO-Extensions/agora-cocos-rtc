@@ -11,10 +11,10 @@ import type {
   BasicVideoConfigState,
   ChannelProfile,
   DemoSessionState,
-  RenderBackend,
   VideoEncoderPresetName,
 } from '../types.ts';
 import {
+  bindButtonTouch,
   type ButtonVariant,
   COLORS,
   configureLabel,
@@ -30,11 +30,10 @@ type ActionCallbacks = {
   onAction: (actionName: string) => void;
   onApplyConfig: (config: Partial<BasicVideoConfigState>) => void;
   onSelectCase?: (caseName: string) => void;
-  onBackToCases?: () => void;
+  onBackToCases?: () => void | Promise<void>;
 };
 
 const CHANNEL_PROFILES: ChannelProfile[] = ['communication', 'liveBroadcasting'];
-const RENDER_BACKENDS: RenderBackend[] = ['engine-texture', 'surface-view', 'texture-view'];
 const VIDEO_ENCODERS: VideoEncoderPresetName[] = ['360p', '540p', '720p'];
 const AUDIO_EFFECT_MIXING_CASE_NAME = 'AudioEffectMixing';
 const ACTION_PANEL_WIDTH = 420;
@@ -57,7 +56,7 @@ export class DemoActionPanel extends Component {
   private onAction: ((actionName: string) => void) | null = null;
   private onApplyConfig: ((config: Partial<BasicVideoConfigState>) => void) | null = null;
   private onSelectCase: ((caseName: string) => void) | null = null;
-  private onBackToCases: (() => void) | null = null;
+  private onBackToCases: (() => void | Promise<void>) | null = null;
   private config: BasicVideoConfigState | null = null;
   private sessionState: DemoSessionState | null = null;
   private cases: readonly DemoCaseDefinition[] = DEMO_CASES;
@@ -66,7 +65,6 @@ export class DemoActionPanel extends Component {
   private channelInput: EditBox | null = null;
   private uidInput: EditBox | null = null;
   private profileLabel: Label | null = null;
-  private renderLabel: Label | null = null;
   private encoderLabel: Label | null = null;
   private statusLabel: Label | null = null;
   private advancedToggleLabel: Label | null = null;
@@ -179,8 +177,7 @@ export class DemoActionPanel extends Component {
       const variant = item.name === AUDIO_EFFECT_MIXING_CASE_NAME ? 'primary' : 'secondary';
       const button = ensureButtonNode(content, `Case_${item.name}`, 330, 36, item.name, variant);
       button.node.setPosition(0, this.contentCursorY - 18, 0);
-      button.node.off(Node.EventType.TOUCH_END);
-      button.node.on(Node.EventType.TOUCH_END, () => this.onSelectCase?.(item.name), this);
+      bindButtonTouch(button.node, () => this.onSelectCase?.(item.name), this);
       this.contentCursorY -= 44;
     }
     this.applyContentHeight();
@@ -194,8 +191,7 @@ export class DemoActionPanel extends Component {
       .node.setPosition(40, this.contentCursorY - 14, 0);
     const back = ensureButtonNode(content, 'BackButton', 92, 32, 'Back', 'ghost');
     back.node.setPosition(-140, this.contentCursorY - 14, 0);
-    back.node.off(Node.EventType.TOUCH_END);
-    back.node.on(Node.EventType.TOUCH_END, () => this.onBackToCases?.(), this);
+    bindButtonTouch(back.node, () => { void this.onBackToCases?.(); }, this);
     this.contentCursorY -= 58;
 
     const connection = this.appendSection('ConnectionSection', 150);
@@ -225,7 +221,6 @@ export class DemoActionPanel extends Component {
     this.channelInput = null;
     this.uidInput = null;
     this.profileLabel = null;
-    this.renderLabel = null;
     this.encoderLabel = null;
     this.statusLabel = null;
     this.advancedToggleLabel = null;
@@ -333,8 +328,7 @@ export class DemoActionPanel extends Component {
     this.statusLabel = ensureLabelNode(parent, 'StatusLabel', 360, 22, '', 12, COLORS.textMuted);
     this.statusLabel.node.setPosition(0, -22, 0);
     const join = this.ensureActionButton(parent, 'JoinChannel', 0, -52, 210, 38, 'primary');
-    join.node.off(Node.EventType.TOUCH_END);
-    join.node.on(Node.EventType.TOUCH_END, () => {
+    bindButtonTouch(join.node, () => {
       this.applyInputs();
       this.onAction?.('JoinChannel');
     }, this);
@@ -349,9 +343,8 @@ export class DemoActionPanel extends Component {
   private buildRenderSection(parent: Node): void {
     const title = ensureLabelNode(parent, 'SectionTitle', 360, 24, 'Render and encoder', 14, COLORS.textPrimary);
     title.node.setPosition(0, 48, 0);
-    this.profileLabel = this.ensureToggleButton(parent, 'ProfileToggle', -120, 10, 112, 'secondary', () => this.cycleProfile());
-    this.renderLabel = this.ensureToggleButton(parent, 'RenderToggle', 0, 10, 112, 'secondary', () => this.cycleRenderBackend());
-    this.encoderLabel = this.ensureToggleButton(parent, 'EncoderToggle', 120, 10, 112, 'secondary', () => this.cycleEncoder());
+    this.profileLabel = this.ensureToggleButton(parent, 'ProfileToggle', -72, 10, 132, 'secondary', () => this.cycleProfile());
+    this.encoderLabel = this.ensureToggleButton(parent, 'EncoderToggle', 72, 10, 132, 'secondary', () => this.cycleEncoder());
     this.buildButtonList(parent, ['ApplyEncoder'], 1, -44);
   }
 
@@ -362,8 +355,7 @@ export class DemoActionPanel extends Component {
     const advanced = ensureButtonNode(parent, 'AdvancedToggle', 118, 32, 'Advanced', 'ghost');
     advanced.node.setPosition(132, -6, 0);
     this.advancedToggleLabel = advanced.label;
-    advanced.node.off(Node.EventType.TOUCH_END);
-    advanced.node.on(Node.EventType.TOUCH_END, () => {
+    bindButtonTouch(advanced.node, () => {
       this.advancedVisible = !this.advancedVisible;
       if (this.advancedSection) {
         this.advancedSection.active = this.advancedVisible;
@@ -482,8 +474,7 @@ export class DemoActionPanel extends Component {
   ): { node: Node; label: Label } {
     const { node, label } = ensureButtonNode(parent, `Action_${name}`, width, height, ACTION_LABELS[name] ?? name, variant);
     node.setPosition(x, y, 0);
-    node.off(Node.EventType.TOUCH_END);
-    node.on(Node.EventType.TOUCH_END, () => this.onAction?.(name), this);
+    bindButtonTouch(node, () => this.onAction?.(name), this);
     this.labels.set(name, label);
     this.buttonNodes.set(name, node);
     this.buttonSizes.set(name, { width, height });
@@ -501,8 +492,7 @@ export class DemoActionPanel extends Component {
   ): Label {
     const { node, label } = ensureButtonNode(parent, name, width, 34, '', variant);
     node.setPosition(x, y, 0);
-    node.off(Node.EventType.TOUCH_END);
-    node.on(Node.EventType.TOUCH_END, handler, this);
+    bindButtonTouch(node, handler, this);
     return label;
   }
 
@@ -627,9 +617,6 @@ export class DemoActionPanel extends Component {
     if (this.profileLabel) {
       this.profileLabel.string = `Profile\n${this.config?.channelProfile ?? 'communication'}`;
     }
-    if (this.renderLabel) {
-      this.renderLabel.string = `Render\n${this.config?.renderBackend ?? 'engine-texture'}`;
-    }
     if (this.encoderLabel) {
       this.encoderLabel.string = `Encoder\n${this.config?.videoEncoderPresetName ?? '360p'}`;
     }
@@ -665,13 +652,6 @@ export class DemoActionPanel extends Component {
     const index = CHANNEL_PROFILES.indexOf(current);
     const next = CHANNEL_PROFILES[(index + 1) % CHANNEL_PROFILES.length];
     this.onApplyConfig?.({ channelProfile: next });
-  }
-
-  private cycleRenderBackend(): void {
-    const current = this.config?.renderBackend ?? 'engine-texture';
-    const index = RENDER_BACKENDS.indexOf(current);
-    const next = RENDER_BACKENDS[(index + 1) % RENDER_BACKENDS.length];
-    this.onApplyConfig?.({ renderBackend: next });
   }
 
   private cycleEncoder(): void {

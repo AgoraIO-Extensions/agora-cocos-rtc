@@ -4,8 +4,10 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
-const baseConfigPath = path.join(repoRoot, 'example/basic-call/assets/resources/agora-config.json');
-const buildConfigPath = path.join(repoRoot, 'example/basic-call/assets/resources/agora-config.build.json');
+const baseConfigPath = process.env.AGORA_CONFIG_PATH ||
+  path.join(repoRoot, 'example/basic-call/assets/resources/agora-config.json');
+const buildConfigPath = process.env.AGORA_BUILD_CONFIG_PATH ||
+  path.join(repoRoot, 'example/basic-call/assets/resources/agora-config.build.json');
 const buildConfigMetaPath = `${buildConfigPath}.meta`;
 
 function parseOptionalBoolean(name) {

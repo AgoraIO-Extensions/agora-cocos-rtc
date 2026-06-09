@@ -3,7 +3,7 @@ export type AgoraExampleRuntimeConfig = {
   token?: string;
   channelId?: string;
   uid?: number;
-  renderBackend?: 'surface-view' | 'texture-view' | 'engine-texture';
+  renderBackend?: 'engine-texture';
   autoPreview?: boolean;
   autoJoin?: boolean;
   publishCameraTrack?: boolean;
@@ -78,7 +78,7 @@ export function resolveAgoraExampleConfig(
     normalizeConfigValue(baseConfig?.channelId);
   const token = override.getToken() || normalizeConfigValue(buildConfig?.token) || normalizeConfigValue(baseConfig?.token);
   const uid = typeof buildConfig?.uid === 'number' ? buildConfig.uid : baseConfig?.uid;
-  const renderBackend = buildConfig?.renderBackend ?? baseConfig?.renderBackend;
+  const renderBackend = 'engine-texture';
   const autoPreview = resolveBooleanConfig(buildConfig?.autoPreview, baseConfig?.autoPreview, true);
   const autoJoin = resolveBooleanConfig(buildConfig?.autoJoin, baseConfig?.autoJoin, false);
   const publishCameraTrack = resolveBooleanConfig(buildConfig?.publishCameraTrack, baseConfig?.publishCameraTrack, true);
