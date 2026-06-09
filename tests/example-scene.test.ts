@@ -315,26 +315,32 @@ test('demo action registry prioritizes flutter-style basic video controls', asyn
   assert.ok(content.indexOf('JoinChannel') < content.indexOf('Full Demo'));
 });
 
-test('demo action panel keeps basic video controls in a mobile-safe vertical range', async () => {
+test('demo action panel renders left controls in a scroll view', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
     'utf8',
   );
-  const sectionY = (name: string) => {
-    const match = content.match(new RegExp(`const \\w+ = this\\.ensureContainer\\('${name}', 0, (-?\\d+),`));
-    assert.ok(match, `missing ${name} container`);
-    return Number(match[1]);
-  };
 
-  const connectionY = sectionY('ConnectionSection');
-  const previewY = sectionY('PreviewCameraSection');
-  const renderY = sectionY('RenderEncoderSection');
-  const diagnosticsY = sectionY('DiagnosticsSection');
+  assert.match(content, /ScrollView/);
+  assert.match(content, /ActionScrollView/);
+  assert.match(content, /ActionScrollContent/);
+  assert.match(content, /scrollView\.content = this\.scrollContent/);
+  assert.match(content, /clearScrollContent/);
+  assert.doesNotMatch(content, /for \(const child of \[\.\.\.this\.node\.children\]\)/);
+});
 
-  assert.ok(connectionY > previewY && previewY > renderY && renderY > diagnosticsY);
-  assert.ok(connectionY + 58 <= 240);
-  assert.ok(diagnosticsY + 43 <= renderY - 55);
-  assert.ok(diagnosticsY + 32 >= -155);
+test('demo action panel lays case sections from content flow to avoid overlap', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /appendSection/);
+  assert.match(content, /caseActionSectionHeight/);
+  assert.match(content, /Math\.ceil\(actionCount \/ CASE_ACTION_COLUMNS\)/);
+  assert.match(content, /this\.buildCaseActionButtons\(actions, actionHeight\)/);
+  assert.doesNotMatch(content, /ensureContainer\('ConnectionSection', 0, 180/);
+  assert.doesNotMatch(content, /ensureContainer\('DiagnosticsSection', 0, -185/);
 });
 
 test('demo case registry exposes the approved flutter-aligned case list', async () => {
