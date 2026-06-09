@@ -141,6 +141,11 @@ test('android bridge template dispatches expanded sdk methods', async () => {
   assert.match(bridgeContent, /case "isSpeakerphoneEnabled":/);
   assert.match(bridgeContent, /case "startAudioMixing":/);
   assert.match(bridgeContent, /case "playEffect":/);
+  assert.match(bridgeContent, /case "pauseEffect":/);
+  assert.match(bridgeContent, /case "resumeEffect":/);
+  assert.match(bridgeContent, /case "setEffectsVolume":/);
+  assert.match(bridgeContent, /case "adjustAudioMixingPublishVolume":/);
+  assert.match(bridgeContent, /case "adjustAudioMixingPlayoutVolume":/);
   assert.match(bridgeContent, /case "setParameters":/);
 });
 
@@ -166,7 +171,14 @@ test('android bridge template wires supported advanced sdk methods to real Agora
   assert.match(bridgeContent, /rtcEngine\.getAudioEffectManager\(\)/);
   assert.match(bridgeContent, /preloadEffect/);
   assert.match(bridgeContent, /playEffect/);
+  assert.match(bridgeContent, /pauseEffect/);
+  assert.match(bridgeContent, /resumeEffect/);
+  assert.match(bridgeContent, /setEffectsVolume/);
   assert.match(bridgeContent, /stopEffect/);
+  assert.match(bridgeContent, /rtcEngine\.adjustAudioMixingPublishVolume/);
+  assert.match(bridgeContent, /rtcEngine\.adjustAudioMixingPlayoutVolume/);
+  assert.match(bridgeContent, /onRemoteAudioStateChanged/);
+  assert.match(bridgeContent, /dispatchEvent\("remoteAudioStateChanged"/);
   assert.match(bridgeContent, /rtcEngine\.setDefaultAudioRoutetoSpeakerphone/);
 });
 
@@ -1354,6 +1366,7 @@ public class IRtcEngineEventHandler {
     public void onFirstLocalAudioFramePublished(int elapsed) {}
     public void onAudioMixingStateChanged(int state, int reason) {}
     public void onAudioMixingFinished() {}
+    public void onRemoteAudioStateChanged(int uid, int state, int reason, int elapsed) {}
     public void onLocalVideoStateChanged(io.agora.rtc2.Constants.VideoSourceType source, int state, int error) {}
     public void onContentInspectResult(int result) {}
     public void onAudioVolumeIndication(AudioVolumeInfo[] speakers, int totalVolume) {}
@@ -1482,6 +1495,9 @@ public class VideoEncoderConfiguration {
 public interface IAudioEffectManager {
     int preloadEffect(int soundId, String path);
     int playEffect(int soundId, String path, int loopCount, double pitch, double pan, double gain, boolean publish, int startPos);
+    int pauseEffect(int soundId);
+    int resumeEffect(int soundId);
+    int setEffectsVolume(double volume);
     int stopEffect(int soundId);
 }
 `,
@@ -1584,6 +1600,8 @@ public class RtcEngine {
     public int pauseAudioMixing() { return 0; }
     public int resumeAudioMixing() { return 0; }
     public int adjustAudioMixingVolume(int volume) { return 0; }
+    public int adjustAudioMixingPublishVolume(int volume) { return 0; }
+    public int adjustAudioMixingPlayoutVolume(int volume) { return 0; }
     public int getAudioMixingCurrentPosition() { return 0; }
     public int setAudioMixingPosition(int position) { return 0; }
     public IAudioEffectManager getAudioEffectManager() { return null; }
