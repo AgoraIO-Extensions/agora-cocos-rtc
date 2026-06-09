@@ -39,20 +39,17 @@ const iosEngineTextureSlotBridgeHeaderTemplate = path.join(
 
 async function readEngineTextureLimits(filePath: string) {
   const content = await readFile(filePath, 'utf8');
-  const frameIntervalMatch = content.match(/FRAME_INTERVAL_MS = (\d+)L;/);
   const remoteWidthMatch = content.match(/REMOTE_TARGET_WIDTH = (\d+);/);
   const remoteHeightMatch = content.match(/REMOTE_TARGET_HEIGHT = (\d+);/);
   const localWidthMatch = content.match(/LOCAL_TARGET_WIDTH = (\d+);/);
   const localHeightMatch = content.match(/LOCAL_TARGET_HEIGHT = (\d+);/);
 
-  assert.ok(frameIntervalMatch, `Missing FRAME_INTERVAL_MS in ${filePath}`);
   assert.ok(remoteWidthMatch, `Missing REMOTE_TARGET_WIDTH in ${filePath}`);
   assert.ok(remoteHeightMatch, `Missing REMOTE_TARGET_HEIGHT in ${filePath}`);
   assert.ok(localWidthMatch, `Missing LOCAL_TARGET_WIDTH in ${filePath}`);
   assert.ok(localHeightMatch, `Missing LOCAL_TARGET_HEIGHT in ${filePath}`);
 
   return {
-    frameIntervalMs: Number(frameIntervalMatch[1]),
     remoteWidth: Number(remoteWidthMatch[1]),
     remoteHeight: Number(remoteHeightMatch[1]),
     localWidth: Number(localWidthMatch[1]),
@@ -92,10 +89,6 @@ test('engine-texture backend keeps template/runtime slot upload dimensions in sy
 
   assert.deepEqual(runtimeLimits, templateLimits);
   assert.ok(
-    templateLimits.frameIntervalMs <= 100,
-    `Expected FRAME_INTERVAL_MS <= 100, got ${templateLimits.frameIntervalMs}`,
-  );
-  assert.ok(
     templateLimits.remoteWidth > 0 && templateLimits.remoteHeight > 0,
     `Expected positive remote texture size, got ${templateLimits.remoteWidth}x${templateLimits.remoteHeight}`,
   );
@@ -117,6 +110,13 @@ test('engine-texture backend emits texture slot lifecycle events instead of Base
   assert.match(templateContent, /remoteVideoTextureReady/);
   assert.match(templateContent, /localVideoTextureReleased/);
   assert.match(templateContent, /remoteVideoTextureReleased/);
+  assert.match(templateContent, /FRAME_DIAGNOSTIC_INTERVAL_MS = 2000L/);
+  assert.match(templateContent, /Log\.i\(\s*LOG_TAG/);
+  assert.match(templateContent, /engine-texture frame/);
+  assert.doesNotMatch(templateContent, /localVideoTextureUpdated/);
+  assert.doesNotMatch(templateContent, /remoteVideoTextureUpdated/);
+  assert.doesNotMatch(runtimeContent, /localVideoTextureUpdated/);
+  assert.doesNotMatch(runtimeContent, /remoteVideoTextureUpdated/);
   assert.match(slotBridgeContent, /nativeCreateSlot/);
   assert.match(slotBridgeContent, /nativeUpdateSlot/);
   assert.match(slotBridgeContent, /nativeReleaseSlot/);
@@ -284,6 +284,9 @@ test('android bridge template maps joinChannel media options from request payloa
   const handleJoinChannel = handleJoinChannelMatch[0];
 
   assert.match(handleJoinChannel, /JSONObject mediaOptions = params != null \? params\.optJSONObject\("options"\) : null/);
+  assert.match(handleJoinChannel, /mediaOptionBoolean\(mediaOptions, "publishCameraTrack", true\)/);
+  assert.match(handleJoinChannel, /mediaOptionBoolean\(mediaOptions, "publishMicrophoneTrack", true\)/);
+  assert.match(handleJoinChannel, /continueJoinChannel\(requestId, token, channelId, uid, mediaOptions\)/);
   assert.match(handleJoinChannel, /applyChannelMediaOptions\(options, mediaOptions\)/);
   assert.doesNotMatch(handleJoinChannel, /options\.clientRoleType\s*=\s*Constants\.CLIENT_ROLE_BROADCASTER/);
   assert.doesNotMatch(handleJoinChannel, /options\.publishCameraTrack\s*=\s*true/);
@@ -298,6 +301,47 @@ test('android bridge template maps joinChannel media options from request payloa
   assert.match(bridgeContent, /options\.publishMicrophoneTrack = optNullableBoolean\(mediaOptions, "publishMicrophoneTrack"\)/);
   assert.match(bridgeContent, /options\.autoSubscribeAudio = optNullableBoolean\(mediaOptions, "autoSubscribeAudio"\)/);
   assert.match(bridgeContent, /options\.autoSubscribeVideo = optNullableBoolean\(mediaOptions, "autoSubscribeVideo"\)/);
+});
+
+test('android bridge template requests rtc runtime permissions before camera and microphone use', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /RTC_PERMISSION_REQUEST_CODE/);
+  assert.match(bridgeContent, /Manifest\.permission\.CAMERA/);
+  assert.match(bridgeContent, /Manifest\.permission\.RECORD_AUDIO/);
+  assert.match(bridgeContent, /requestPermissions\(/);
+  assert.match(bridgeContent, /pendingPermissionActions/);
+  assert.match(bridgeContent, /onRequestPermissionsResult/);
+  assert.match(bridgeContent, /requiresCamera/);
+  assert.match(bridgeContent, /requiresMicrophone/);
+
+  const handleJoinChannelMatch = bridgeContent.match(
+    /private void handleJoinChannel[\s\S]*?private void handleGetErrorDescription/,
+  );
+  assert.ok(handleJoinChannelMatch);
+  assertPatternBefore(
+    handleJoinChannelMatch[0],
+    /ensureRtcPermissions\([\s\S]*requestId,[\s\S]*requiresCameraPermission,[\s\S]*requiresMicrophonePermission,[\s\S]*continueJoinChannel/,
+    /rtcEngine\.joinChannel/,
+    'joinChannel must request camera and microphone permissions before invoking native sdk',
+  );
+
+  const handleStartPreviewMatch = bridgeContent.match(
+    /private void handleStartPreview[\s\S]*?private void handleStopPreview/,
+  );
+  assert.ok(handleStartPreviewMatch);
+  assertPatternBefore(
+    handleStartPreviewMatch[0],
+    /ensureRtcPermissions\(requestId,[\s\S]*continueStartPreview/,
+    /renderBackend\.startPreview/,
+    'startPreview must request camera and microphone permissions before invoking native sdk',
+  );
 });
 
 test('android bridge template supports default audio route to speakerphone', async () => {
@@ -410,6 +454,10 @@ test('ios bridge template wires minimum real rtc engine methods and delegate cal
   assert.match(bridgeContent, /connectionChangedTo/);
   assert.match(bridgeContent, /didOccurError/);
   assert.match(bridgeContent, /reportAudioVolumeIndicationOfSpeakers/);
+  assert.match(bridgeContent, /audioMixingStateChanged/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "audioMixingStateChanged"/);
+  assert.match(bridgeContent, /reasonCode == \.allLoopsCompleted/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "audioMixingFinished"/);
 });
 
 test('ios bridge template resolves joinChannel after the sdk accepts the request', async () => {
@@ -448,7 +496,10 @@ test('ios bridge template maps joinChannel media options from request payload', 
   assert.ok(handleJoinChannelMatch);
   const handleJoinChannel = handleJoinChannelMatch[0];
 
-  assert.match(handleJoinChannel, /let mediaOptions = buildChannelMediaOptions\(params\["options"\] as\? \[String: Any\]\)/);
+  assert.match(handleJoinChannel, /let mediaOptionParams = params\["options"\] as\? \[String: Any\]/);
+  assert.match(handleJoinChannel, /let mediaOptions = buildChannelMediaOptions\(mediaOptionParams\)/);
+  assert.match(handleJoinChannel, /mediaOptionBool\(mediaOptionParams, key: "publishCameraTrack", defaultValue: true\)/);
+  assert.match(handleJoinChannel, /mediaOptionBool\(mediaOptionParams, key: "publishMicrophoneTrack", defaultValue: true\)/);
   assert.match(handleJoinChannel, /uid: uid,\s*mediaOptions: mediaOptions,\s*joinSuccess: nil/);
   assert.doesNotMatch(handleJoinChannel, /info: nil/);
 
@@ -459,6 +510,7 @@ test('ios bridge template maps joinChannel media options from request payload', 
   assert.match(bridgeContent, /options\.publishMicrophoneTrack = value/);
   assert.match(bridgeContent, /options\.autoSubscribeAudio = value/);
   assert.match(bridgeContent, /options\.autoSubscribeVideo = value/);
+  assert.match(bridgeContent, /options\.startPreview = value/);
 });
 
 test('ios bridge template rejects unsafe invalid arguments before calling the rtc sdk', async () => {
@@ -533,6 +585,40 @@ test('ios bridge template rejects unsafe invalid arguments before calling the rt
   );
 });
 
+test('ios bridge template explicitly requests rtc permissions before camera and microphone use', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /import AVFoundation/);
+  assert.match(bridgeContent, /AVCaptureDevice\.requestAccess\(for: \.video/);
+  assert.match(bridgeContent, /AVAudioSession\.sharedInstance\(\)\.requestRecordPermission/);
+  assert.match(bridgeContent, /ensureRtcPermissions/);
+
+  const startPreviewMatch = bridgeContent.match(
+    /case "startPreview":[\s\S]*?case "stopPreview":/,
+  );
+  assert.ok(startPreviewMatch);
+  assertPatternBefore(
+    startPreviewMatch[0],
+    /ensureRtcPermissions\(requestId: requestId/,
+    /engine\.startPreview/,
+    'startPreview must request iOS camera and microphone permissions before invoking native sdk',
+  );
+
+  const handleJoinChannelMatch = bridgeContent.match(
+    /private func handleJoinChannel[\s\S]*?private func requireEngine/,
+  );
+  assert.ok(handleJoinChannelMatch);
+  assertPatternBefore(
+    handleJoinChannelMatch[0],
+    /ensureRtcPermissions\([\s\S]*requestId: requestId,[\s\S]*requiresCamera: requiresCameraPermission,[\s\S]*requiresMicrophone: requiresMicrophonePermission/,
+    /engine\.joinChannel/,
+    'joinChannel must request required iOS permissions before invoking native sdk',
+  );
+});
+
 test('ios plugin registrar attaches the js bridge wrapper and forwards responses back to script', async () => {
   const pluginContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcPlugin.mm'),
@@ -575,8 +661,12 @@ test('ios integration script registers all committed bridge templates in the exp
   assert.match(scriptContent, /AgoraEngineTextureSlotBridge\.h/);
   assert.match(scriptContent, /AgoraEngineTextureSlotBridge\.mm/);
   assert.match(scriptContent, /APP_DELEGATE_PATH/);
+  assert.match(scriptContent, /INFO_PLIST_PATH/);
   assert.match(scriptContent, /ensure_app_delegate_attaches_bridge/);
+  assert.match(scriptContent, /ensure_info_plist_usage_descriptions/);
   assert.match(scriptContent, /\[\[AgoraRtcPlugin sharedInstance\] attachBridge\]/);
+  assert.match(scriptContent, /NSCameraUsageDescription/);
+  assert.match(scriptContent, /NSMicrophoneUsageDescription/);
 });
 
 test('ios integration script refreshes the configured Swift package exact version', async () => {
@@ -819,8 +909,10 @@ test('android bridge template compiles against local stubs', async () => {
   );
 
   await mkdir(path.join(srcRoot, 'org/json'), { recursive: true });
+  await mkdir(path.join(srcRoot, 'android'), { recursive: true });
   await mkdir(path.join(srcRoot, 'android/app'), { recursive: true });
   await mkdir(path.join(srcRoot, 'android/content'), { recursive: true });
+  await mkdir(path.join(srcRoot, 'android/content/pm'), { recursive: true });
   await mkdir(path.join(srcRoot, 'android/os'), { recursive: true });
   await mkdir(path.join(srcRoot, 'android/util'), { recursive: true });
   await mkdir(path.join(srcRoot, 'android/view'), { recursive: true });
@@ -879,10 +971,52 @@ public class JSONArray {
   );
 
   await writeFile(
+    path.join(srcRoot, 'android/Manifest.java'),
+    `package android;
+
+public final class Manifest {
+    public static final class permission {
+        public static final String CAMERA = "android.permission.CAMERA";
+        public static final String RECORD_AUDIO = "android.permission.RECORD_AUDIO";
+    }
+}
+`,
+    'utf8',
+  );
+
+  await writeFile(
     path.join(srcRoot, 'android/content/Context.java'),
     `package android.content;
 
 public class Context {}
+`,
+    'utf8',
+  );
+
+  await writeFile(
+    path.join(srcRoot, 'android/content/pm/PackageManager.java'),
+    `package android.content.pm;
+
+public class PackageManager {
+    public static final int PERMISSION_GRANTED = 0;
+}
+`,
+    'utf8',
+  );
+
+  await writeFile(
+    path.join(srcRoot, 'android/os/Build.java'),
+    `package android.os;
+
+public class Build {
+    public static class VERSION {
+        public static int SDK_INT = 35;
+    }
+
+    public static class VERSION_CODES {
+        public static final int M = 23;
+    }
+}
 `,
     'utf8',
   );
@@ -912,6 +1046,17 @@ public class Base64 {
   );
 
   await writeFile(
+    path.join(srcRoot, 'android/util/Log.java'),
+    `package android.util;
+
+public class Log {
+    public static int i(String tag, String message) { return 0; }
+}
+`,
+    'utf8',
+  );
+
+  await writeFile(
     path.join(srcRoot, 'android/app/Activity.java'),
     `package android.app;
 
@@ -925,6 +1070,8 @@ public class Activity extends Context {
     }
 
     public void addContentView(View view, ViewGroup.LayoutParams params) {}
+    public int checkSelfPermission(String permission) { return 0; }
+    public void requestPermissions(String[] permissions, int requestCode) {}
 }
 `,
     'utf8',
@@ -1452,10 +1599,14 @@ public class RtcEngine {
     path.join(srcRoot, 'org/json/JSONException.java'),
     path.join(srcRoot, 'org/json/JSONObject.java'),
     path.join(srcRoot, 'org/json/JSONArray.java'),
+    path.join(srcRoot, 'android/Manifest.java'),
     path.join(srcRoot, 'android/app/Activity.java'),
     path.join(srcRoot, 'android/content/Context.java'),
+    path.join(srcRoot, 'android/content/pm/PackageManager.java'),
+    path.join(srcRoot, 'android/os/Build.java'),
     path.join(srcRoot, 'android/os/SystemClock.java'),
     path.join(srcRoot, 'android/util/Base64.java'),
+    path.join(srcRoot, 'android/util/Log.java'),
     path.join(srcRoot, 'android/view/ViewParent.java'),
     path.join(srcRoot, 'android/view/View.java'),
     path.join(srcRoot, 'android/view/SurfaceView.java'),

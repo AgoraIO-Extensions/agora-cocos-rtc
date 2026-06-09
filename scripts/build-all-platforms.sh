@@ -226,7 +226,7 @@ if [[ ! -f "$AGORA_CONFIG_PATH" ]]; then
   exit 1
 fi
 
-if [[ -n "${APP_ID:-}${TEST_APP_ID:-}" ]]; then
+if [[ -n "${APP_ID:-}${TEST_APP_ID:-}${CHANNEL_ID:-}${TEST_CHANNEL_ID:-}${TOKEN:-}${TEST_TOKEN:-}${TEST_UID:-}${AUTO_PREVIEW:-}${AUTO_JOIN:-}${PUBLISH_CAMERA_TRACK:-}${PUBLISH_MICROPHONE_TRACK:-}${AUTO_SUBSCRIBE_AUDIO:-}${AUTO_SUBSCRIBE_VIDEO:-}" ]]; then
   node ./scripts/write-example-build-config.mjs >/dev/null
 fi
 

@@ -24,6 +24,9 @@ test('dev-ios script syncs current ios runtime bridge sources and links the conf
   );
   assert.doesNotMatch(content, /generate-ios-podfile\.mjs/);
   assert.match(content, /IOS_SIMULATOR_RESOURCE_MODE="\$\{IOS_SIMULATOR_RESOURCE_MODE:-auto\}"/);
+  assert.match(content, /AUTO_JOIN/);
+  assert.match(content, /PUBLISH_CAMERA_TRACK/);
+  assert.match(content, /node \.\/scripts\/write-example-build-config\.mjs >/);
   assert.match(content, /xcodebuild -version -sdk iphonesimulator ProductBuildVersion/);
   assert.match(content, /xcrun simctl list runtimes/);
   assert.match(content, /--skip-simulator-launch-assets/);

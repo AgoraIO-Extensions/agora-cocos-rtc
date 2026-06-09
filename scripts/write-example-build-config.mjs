@@ -36,11 +36,11 @@ function parseOptionalInteger(name) {
     return undefined;
   }
   const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0) {
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 0) {
     console.error(`${name} must be a non-negative integer.`);
     process.exit(1);
   }
-  return Math.floor(parsed);
+  return parsed;
 }
 
 function setIfDefined(target, name, value) {

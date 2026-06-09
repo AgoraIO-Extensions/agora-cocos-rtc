@@ -27,6 +27,8 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /AGORA_BUILD_CONFIG_PATH=/);
   assert.match(content, /APP_ID:-/);
   assert.match(content, /TEST_APP_ID:-/);
+  assert.match(content, /AUTO_JOIN:-/);
+  assert.match(content, /PUBLISH_CAMERA_TRACK:-/);
   assert.match(content, /write-example-build-config\.mjs/);
   assert.match(content, /<YOUR_AGORA_APP_ID>/);
   assert.match(content, /Please edit example\/basic-call\/assets\/resources\/agora-config\.json/);
@@ -104,6 +106,9 @@ test('example build config writer accepts command-line environment credentials',
     cwd: repoRoot,
     env: {
       ...process.env,
+      APP_ID: '',
+      CHANNEL_ID: '',
+      TOKEN: '',
       TEST_APP_ID: 'test-app-id',
       TEST_CHANNEL_ID: 'testapi',
       TEST_TOKEN: '',
@@ -156,6 +161,23 @@ test('example build config writer accepts smoke media options', async () => {
 
   await rm(buildConfigPath, { force: true });
   await rm(buildConfigMetaPath, { force: true });
+});
+
+test('example build config writer rejects non-integer smoke uid', async () => {
+  await assert.rejects(
+    execFileAsync('node', ['./scripts/write-example-build-config.mjs'], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        TEST_APP_ID: 'test-app-id',
+        TEST_UID: '1.9',
+      },
+    }),
+    (error: any) => {
+      assert.match(error.stderr, /TEST_UID must be a non-negative integer\./);
+      return true;
+    },
+  );
 });
 
 test('root readme does not expose internal example package workflow to sdk customers', async () => {

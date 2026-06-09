@@ -46,6 +46,9 @@ should_skip_simulator_launch_assets() {
 cd "$ROOT_DIR"
 
 ./scripts/prepare-example.sh >/dev/null
+if [[ -n "${APP_ID:-}${TEST_APP_ID:-}${CHANNEL_ID:-}${TEST_CHANNEL_ID:-}${TOKEN:-}${TEST_TOKEN:-}${TEST_UID:-}${AUTO_PREVIEW:-}${AUTO_JOIN:-}${PUBLISH_CAMERA_TRACK:-}${PUBLISH_MICROPHONE_TRACK:-}${AUTO_SUBSCRIBE_AUDIO:-}${AUTO_SUBSCRIBE_VIDEO:-}" ]]; then
+  node ./scripts/write-example-build-config.mjs >/dev/null
+fi
 
 set +e
 "$COCOS_CLI" --project "$COCOS_PROJECT_DIR" --build "configPath=$COCOS_BUILD_CONFIG"
