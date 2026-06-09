@@ -113,6 +113,7 @@ export interface AgoraChannelMediaOptions {
   autoSubscribeAudio?: boolean;
   autoSubscribeVideo?: boolean;
   enableAudioRecordingOrPlayout?: boolean;
+  /** Android ChannelMediaOptions only. iOS exposes preview through startPreview(). */
   startPreview?: boolean;
   token?: string;
   parameters?: string;

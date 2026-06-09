@@ -496,12 +496,15 @@ test('ios bridge template maps joinChannel media options from request payload', 
   assert.ok(handleJoinChannelMatch);
   const handleJoinChannel = handleJoinChannelMatch[0];
 
-  assert.match(handleJoinChannel, /let mediaOptionParams = params\["options"\] as\? \[String: Any\]/);
+  assert.match(handleJoinChannel, /if let mediaOptionParams = params\["options"\] as\? \[String: Any\]/);
   assert.match(handleJoinChannel, /let mediaOptions = buildChannelMediaOptions\(mediaOptionParams\)/);
   assert.match(handleJoinChannel, /mediaOptionBool\(mediaOptionParams, key: "publishCameraTrack", defaultValue: true\)/);
   assert.match(handleJoinChannel, /mediaOptionBool\(mediaOptionParams, key: "publishMicrophoneTrack", defaultValue: true\)/);
   assert.match(handleJoinChannel, /uid: uid,\s*mediaOptions: mediaOptions,\s*joinSuccess: nil/);
-  assert.doesNotMatch(handleJoinChannel, /info: nil/);
+  assert.match(
+    handleJoinChannel,
+    /else\s*\{[\s\S]*?engine\.joinChannel\(\s*byToken: token,\s*channelId: channelId,\s*info: nil,\s*uid: uid,\s*joinSuccess: nil\s*\)/,
+  );
 
   assert.match(bridgeContent, /private func buildChannelMediaOptions\(_ params: \[String: Any\]\?\) -> AgoraRtcChannelMediaOptions/);
   assert.match(bridgeContent, /options\.clientRoleType = parseClientRoleType\(rawValue\)/);
@@ -510,7 +513,7 @@ test('ios bridge template maps joinChannel media options from request payload', 
   assert.match(bridgeContent, /options\.publishMicrophoneTrack = value/);
   assert.match(bridgeContent, /options\.autoSubscribeAudio = value/);
   assert.match(bridgeContent, /options\.autoSubscribeVideo = value/);
-  assert.match(bridgeContent, /options\.startPreview = value/);
+  assert.doesNotMatch(handleJoinChannel, /options\.startPreview = value/);
 });
 
 test('ios bridge template rejects unsafe invalid arguments before calling the rtc sdk', async () => {

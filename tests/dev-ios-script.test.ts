@@ -80,6 +80,9 @@ test('dev-ios-device script wires bundle id, team, provisioning profile, and dev
   assert.match(content, /IOS_BUNDLE_ID=.*io\.agora\.cocos\.example/);
   assert.match(content, /IOS_DEVELOPMENT_TEAM="\$\{IOS_DEVELOPMENT_TEAM:-\}"/);
   assert.match(content, /IOS_PROVISIONING_PROFILE_SPECIFIER="\$\{IOS_PROVISIONING_PROFILE_SPECIFIER:-\}"/);
+  assert.match(content, /AUTO_JOIN/);
+  assert.match(content, /PUBLISH_CAMERA_TRACK/);
+  assert.match(content, /node \.\/scripts\/write-example-build-config\.mjs >/);
   assert.match(content, /PROJECT_PATH="\$IOS_PROJECT_DIR\/agora-cocos-basic-call\.xcodeproj"/);
   assert.doesNotMatch(content, /WORKSPACE_PATH=/);
   assert.match(content, /security find-identity -v -p codesigning/);
