@@ -420,8 +420,8 @@ test('android bridge template dispatches expanded native rtc callbacks as js eve
   assert.match(bridgeContent, /"memoryAppUsageInKbytes", stats != null \? stats\.memoryAppUsageInKbytes : 0/);
   assert.match(bridgeContent, /onRtcStats/);
   assert.match(bridgeContent, /dispatchEvent\("rtcStats"/);
-  assert.match(bridgeContent, /onWarning\(int warn\)/);
-  assert.match(bridgeContent, /dispatchEvent\("warning"/);
+  assert.doesNotMatch(bridgeContent, /onWarning\(int warn\)/);
+  assert.doesNotMatch(bridgeContent, /dispatchEvent\("warning"/);
   assert.match(bridgeContent, /onError\(int err\)/);
   assert.match(bridgeContent, /dispatchEvent\("error"/);
   assert.match(bridgeContent, /"elapsed", elapsed/);
@@ -1591,7 +1591,6 @@ public class IRtcEngineEventHandler {
         public int memoryAppUsageInKbytes;
     }
 
-    public void onWarning(int code) {}
     public void onError(int code) {}
     public void onJoinChannelSuccess(String channel, int uid, int elapsed) {}
     public void onUserJoined(int uid, int elapsed) {}

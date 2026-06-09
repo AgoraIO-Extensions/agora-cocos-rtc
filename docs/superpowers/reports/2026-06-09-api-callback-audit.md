@@ -20,7 +20,7 @@
 - Android/iOS `joinChannel(options)` 权限判断覆盖 `startPreview` 和多 camera track 字段，避免 expanded options 组合下漏申请 camera。
 - Android `enableLocalAudio` 和 `enableLocalVideo` 不再无条件返回 ok：未初始化会返回错误，native 负返回值会按 Agora error 透出。
 - iOS `setAudioProfile` 现在传递 `scenario`，`playEffect.gain` 按 `Double` 读取。
-- Android/iOS 补齐 warning/error、content inspect、audio/video state、volume、audio mixing 和 stats 相关 callback dispatch。
+- Android/iOS 补齐 error、content inspect、audio/video state、volume、audio mixing 和 stats 相关 callback dispatch；iOS 额外补齐 `warning`，Android 4.5.3 `IRtcEngineEventHandler` 不存在 `onWarning`，不伪造 override。
 - `joinChannelSuccess` 和 `userJoined` 的 JS payload 补齐 `elapsed`。
 - `rtcStats` 和 `leaveChannel` 使用完整 stats payload，包含 audio/video bytes、bitrate、CPU、memory、packet loss、connect time 等字段。
 - TypeScript 事件类型中 `leaveChannel` 和 `rtcStats` 共用完整 stats payload，避免 native 已透出字段但 JS public contract 只声明 `duration`。

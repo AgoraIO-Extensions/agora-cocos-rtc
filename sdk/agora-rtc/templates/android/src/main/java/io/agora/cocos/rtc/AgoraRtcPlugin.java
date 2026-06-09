@@ -462,14 +462,6 @@ public final class AgoraRtcPlugin {
             RtcEngineConfig config = buildRtcEngineConfig(context, appId, params);
             config.mEventHandler = new IRtcEngineEventHandler() {
                 @Override
-                public void onWarning(int warn) {
-                    dispatchEvent("warning", jsonObject(
-                            "code", warn,
-                            "message", RtcEngine.getErrorDescription(warn)
-                    ));
-                }
-
-                @Override
                 public void onError(int err) {
                     dispatchEvent("error", jsonObject(
                             "code", err,
