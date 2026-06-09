@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -293,6 +293,7 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /OBJROOT="\$IOS_INTERMEDIATES_DIR"/);
   assert.match(iosScript, /should_skip_simulator_launch_assets\(\)/);
   assert.match(iosScript, /simctl list runtimes -j/);
+  assert.match(iosScript, /SDK_BUILD="\$sdk_build" node -e/);
   assert.match(iosScript, /runtime\.isAvailable === false/);
   assert.match(iosScript, /\/iOS\/i\.test\(identity\)/);
   assert.match(iosScript, /--skip-simulator-launch-assets/);
@@ -321,6 +322,99 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /--stderr="\$IOS_STDERR_LOG_PATH"/);
   assert.match(iosScript, /append_ios_runtime_logs/);
   assert.match(iosScript, /ios-timeout-screenshot\.png/);
+});
+
+test('ios simulator runtime filter uses piped simctl runtime json', async () => {
+  const iosScript = await readFile(
+    `${repoRoot}/scripts/run_cocos_integration_test_ios.sh`,
+    'utf8',
+  );
+  const functionMatch = iosScript.match(
+    /should_skip_simulator_launch_assets\(\) \{[\s\S]*?\n\}\n\nresolve_ios_simulator_udid/,
+  );
+  assert.ok(functionMatch, 'expected iOS simulator resource filter function');
+
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-runtime-filter-'));
+  const binDir = path.join(tempRoot, 'bin');
+  await mkdir(binDir, { recursive: true });
+  await writeFile(
+    path.join(binDir, 'xcodebuild'),
+    `#!/usr/bin/env bash
+if [[ "$*" == *"ProductBuildVersion"* ]]; then
+  printf '%s\\n' "\${STUB_SDK_BUILD:-23F73}"
+  exit 0
+fi
+exit 1
+`,
+    { encoding: 'utf8', mode: 0o755 },
+  );
+  await writeFile(
+    path.join(binDir, 'xcrun'),
+    `#!/usr/bin/env bash
+if [[ "$1" == "simctl" && "$2" == "list" && "$3" == "runtimes" && "$4" == "-j" ]]; then
+  printf '%s' "$STUB_RUNTIME_JSON"
+  exit 0
+fi
+exit 1
+`,
+    { encoding: 'utf8', mode: 0o755 },
+  );
+
+  const functionSource = functionMatch[0].replace(/\n\nresolve_ios_simulator_udid$/, '');
+  const runFilter = (runtimeData: unknown, sdkBuild = '23F73') =>
+    spawnSync('bash', ['-c', `set -o pipefail\n${functionSource}\nshould_skip_simulator_launch_assets`], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        IOS_SIMULATOR_RESOURCE_MODE: 'auto',
+        PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
+        STUB_RUNTIME_JSON: JSON.stringify(runtimeData),
+        STUB_SDK_BUILD: sdkBuild,
+      },
+    });
+
+  assert.equal(
+    runFilter({
+      runtimes: [
+        {
+          name: 'iOS 26.5',
+          identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-26-5',
+          isAvailable: true,
+          buildversion: '23F73',
+        },
+      ],
+    }).status,
+    1,
+    'matching available iOS runtime should keep simulator launch assets',
+  );
+  assert.equal(
+    runFilter({
+      runtimes: [
+        {
+          name: 'iOS 26.5',
+          identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-26-5',
+          isAvailable: false,
+          buildversion: '23F73',
+        },
+      ],
+    }).status,
+    0,
+    'unavailable iOS runtime should skip simulator launch assets',
+  );
+  assert.equal(
+    runFilter({
+      runtimes: [
+        {
+          name: 'watchOS 26.5',
+          identifier: 'com.apple.CoreSimulator.SimRuntime.watchOS-26-5',
+          isAvailable: true,
+          buildversion: '23F73',
+        },
+      ],
+    }).status,
+    0,
+    'non-iOS runtime should skip simulator launch assets',
+  );
 });
 
 test('cocos run_test workflow exposes unit and device integration jobs', async () => {
