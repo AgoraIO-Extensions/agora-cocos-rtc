@@ -514,6 +514,18 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 let result = engine.adjustAudioMixingVolume(volume)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
+        case "adjustAudioMixingPublishVolume":
+            requireEngine(requestId: requestId) { engine in
+                let volume = params["volume"] as? Int ?? 100
+                let result = engine.adjustAudioMixingPublishVolume(volume)
+                dispatchResult(requestId: requestId, method: method, result: result)
+            }
+        case "adjustAudioMixingPlayoutVolume":
+            requireEngine(requestId: requestId) { engine in
+                let volume = params["volume"] as? Int ?? 100
+                let result = engine.adjustAudioMixingPlayoutVolume(volume)
+                dispatchResult(requestId: requestId, method: method, result: result)
+            }
         case "preloadEffect":
             requireEngine(requestId: requestId) { engine in
                 let soundId = Int32(params["soundId"] as? Int ?? 0)
@@ -532,6 +544,24 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 let publish = params["publish"] as? Bool ?? false
                 let startPos = params["startPos"] as? Int ?? 0
                 let result = engine.playEffect(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: gain, publish: publish, startPos: Int32(startPos))
+                dispatchResult(requestId: requestId, method: method, result: result)
+            }
+        case "pauseEffect":
+            requireEngine(requestId: requestId) { engine in
+                let soundId = Int32(params["soundId"] as? Int ?? 0)
+                let result = engine.pauseEffect(soundId)
+                dispatchResult(requestId: requestId, method: method, result: result)
+            }
+        case "resumeEffect":
+            requireEngine(requestId: requestId) { engine in
+                let soundId = Int32(params["soundId"] as? Int ?? 0)
+                let result = engine.resumeEffect(soundId)
+                dispatchResult(requestId: requestId, method: method, result: result)
+            }
+        case "setEffectsVolume":
+            requireEngine(requestId: requestId) { engine in
+                let volume = params["volume"] as? Int ?? 100
+                let result = engine.setEffectsVolume(volume)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "stopEffect":
@@ -1289,6 +1319,15 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     func rtcEngine(_ engine: AgoraRtcEngineKit, remoteVideoStateChangedOfUid uid: UInt, state: AgoraVideoRemoteState, reason: AgoraVideoRemoteReason, elapsed: Int) {
         NSLog("[agora-rtc-native] remoteVideoStateChanged uid=%u state=%ld reason=%ld elapsed=%d", uid, state.rawValue, reason.rawValue, elapsed)
         dispatchEvent(name: "remoteVideoStateChanged", payload: [
+            "uid": uid,
+            "state": state.rawValue,
+            "reason": reason.rawValue,
+            "elapsed": elapsed,
+        ])
+    }
+
+    func rtcEngine(_ engine: AgoraRtcEngineKit, remoteAudioStateChangedOfUid uid: UInt, state: AgoraAudioRemoteState, reason: AgoraAudioRemoteReason, elapsed: Int) {
+        dispatchEvent(name: "remoteAudioStateChanged", payload: [
             "uid": uid,
             "state": state.rawValue,
             "reason": reason.rawValue,

@@ -419,6 +419,11 @@ test('ios bridge template dispatches expanded sdk methods or explicit unsupporte
   assert.match(bridgeContent, /"isSpeakerphoneEnabled"/);
   assert.match(bridgeContent, /"startAudioMixing"/);
   assert.match(bridgeContent, /"playEffect"/);
+  assert.match(bridgeContent, /case "pauseEffect"/);
+  assert.match(bridgeContent, /case "resumeEffect"/);
+  assert.match(bridgeContent, /case "setEffectsVolume"/);
+  assert.match(bridgeContent, /case "adjustAudioMixingPublishVolume"/);
+  assert.match(bridgeContent, /case "adjustAudioMixingPlayoutVolume"/);
   assert.match(bridgeContent, /Unsupported on current platform/);
 });
 
@@ -470,6 +475,13 @@ test('ios bridge template wires minimum real rtc engine methods and delegate cal
   assert.match(bridgeContent, /dispatchEvent\(name: "audioMixingStateChanged"/);
   assert.match(bridgeContent, /reasonCode == \.allLoopsCompleted/);
   assert.match(bridgeContent, /dispatchEvent\(name: "audioMixingFinished"/);
+  assert.match(bridgeContent, /engine\.pauseEffect/);
+  assert.match(bridgeContent, /engine\.resumeEffect/);
+  assert.match(bridgeContent, /engine\.setEffectsVolume/);
+  assert.match(bridgeContent, /engine\.adjustAudioMixingPublishVolume/);
+  assert.match(bridgeContent, /engine\.adjustAudioMixingPlayoutVolume/);
+  assert.match(bridgeContent, /remoteAudioStateChangedOfUid/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "remoteAudioStateChanged"/);
 });
 
 test('ios bridge template resolves joinChannel after the sdk accepts the request', async () => {
