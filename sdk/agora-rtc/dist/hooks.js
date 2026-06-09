@@ -35,13 +35,11 @@ const COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK = `list(APPEND CC_COMMON_SOURCES
     \${CMAKE_CURRENT_LIST_DIR}/Classes/agora/AgoraEngineTextureBridge.cpp
 )`;
 const IOS_RTC_BRIDGE_CMAKE_BLOCK = `list(APPEND CC_PROJ_SOURCES
-    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcBridge.swift
     \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcPlugin.mm
     \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraEngineTextureSlotBridge.mm
 )
 
 set_source_files_properties(
-    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcBridge.swift
     \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcPlugin.mm
     \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraEngineTextureSlotBridge.mm
     PROPERTIES
@@ -49,19 +47,6 @@ set_source_files_properties(
 )
 
 set(CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "${sdkConfig.ios.swiftVersion}")`;
-const IOS_SWIFT_COMPILER_DISCOVERY_CMAKE_BLOCK = `if(NOT CMAKE_Swift_COMPILER)
-    execute_process(
-        COMMAND xcrun --find swiftc
-        OUTPUT_VARIABLE AGORA_COCOS_SWIFT_COMPILER
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    if(AGORA_COCOS_SWIFT_COMPILER)
-        set(CMAKE_Swift_COMPILER "\${AGORA_COCOS_SWIFT_COMPILER}" CACHE FILEPATH "Swift compiler" FORCE)
-    endif()
-endif()`;
-const IOS_SWIFT_COMPILER_CMAKE_BLOCK = `${IOS_SWIFT_COMPILER_DISCOVERY_CMAKE_BLOCK}
-set(CMAKE_Swift_COMPILER_WORKS TRUE CACHE BOOL "Swift compiler check is handled by generated Xcode build" FORCE)
-set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)`;
 
 function applyAndroidGradleDependencies(content) {
   const dependencyLines = sdkConfig.android.dependencies.map(
@@ -192,13 +177,20 @@ ${COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK}
 `;
 }
 
-function patchIosCMakeRtcBridgeSources(content) {
-  let next = content.replace(
-    /project\(([^)]*\bCXX\b)(?![^)]*\bSwift\b)([^)]*)\)/,
-    'project($1 Swift$2)',
-  );
+function sanitizeIosCMakeSwiftBridge(content) {
+  return content
+    .replace(
+      /^([ \t]*project\([^)\n]*?)\s+Swift(\s*\)[ \t]*)$/gm,
+      '$1$2',
+    )
+    .replace(
+      /^[ \t]*\$\{CMAKE_CURRENT_LIST_DIR\}\/agora-rtc\/AgoraRtcBridge\.swift\s*\n/gm,
+      '',
+    );
+}
 
-  next = ensureIosSwiftCompilerBlockBeforeProject(next);
+function patchIosCMakeRtcBridgeSources(content) {
+  const next = sanitizeIosCMakeSwiftBridge(content);
 
   if (next.includes('agora-rtc/AgoraRtcPlugin.mm')) {
     return next.includes('CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION')
@@ -220,24 +212,6 @@ ${IOS_RTC_BRIDGE_CMAKE_BLOCK}`);
 
 ${IOS_RTC_BRIDGE_CMAKE_BLOCK}
 `;
-}
-
-function ensureIosSwiftCompilerBlockBeforeProject(content) {
-  const swiftProjectPattern = /project\([^)]*\bSwift\b[^)]*\)/;
-  if (!swiftProjectPattern.test(content)) {
-    return content;
-  }
-
-  let next = content;
-  for (const block of [IOS_SWIFT_COMPILER_CMAKE_BLOCK, IOS_SWIFT_COMPILER_DISCOVERY_CMAKE_BLOCK]) {
-    next = next.split(block).join('');
-  }
-  next = next.replace(/\n{3,}/g, '\n\n');
-
-  return next.replace(
-    swiftProjectPattern,
-    `${IOS_SWIFT_COMPILER_CMAKE_BLOCK}\n\n$&`,
-  );
 }
 
 function patchNativeGameTextureBridgeRegistration(content) {

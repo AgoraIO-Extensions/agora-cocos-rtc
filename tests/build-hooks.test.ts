@@ -275,7 +275,7 @@ test('ensureIosAppDelegateBridgeAttachment skips exports without AppDelegate.mm'
   assert.equal(result, null);
 });
 
-test('patchIosCMakeRtcBridgeSources registers iOS bridge sources and Swift version once', () => {
+test('patchIosCMakeRtcBridgeSources registers Objective-C++ bridge sources without enabling Swift in CMake', () => {
   const original = `cmake_minimum_required(VERSION 3.8)
 
 project(\${APP_NAME} CXX)
@@ -293,22 +293,12 @@ cc_ios_after_target(\${EXECUTABLE_NAME})
   const once = patchIosCMakeRtcBridgeSources(original);
   const twice = patchIosCMakeRtcBridgeSources(once);
 
-  assert.match(once, /agora-rtc\/AgoraRtcBridge\.swift/);
+  assert.doesNotMatch(once, /agora-rtc\/AgoraRtcBridge\.swift/);
   assert.match(once, /agora-rtc\/AgoraRtcPlugin\.mm/);
   assert.match(once, /agora-rtc\/AgoraEngineTextureSlotBridge\.mm/);
-  assert.match(once, /project\(\$\{APP_NAME\} CXX Swift\)/);
-  assert.match(once, /execute_process\(\s*COMMAND xcrun --find swiftc/);
-  assert.match(once, /CMAKE_Swift_COMPILER_WORKS TRUE/);
-  assert.match(once, /CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY/);
-  assert.ok(
-    once.indexOf('CMAKE_Swift_COMPILER') < once.indexOf('project(${APP_NAME} CXX Swift)'),
-    'Swift compiler must be configured before CMake enables Swift in project().',
-  );
+  assert.match(once, /project\(\$\{APP_NAME\} CXX\)/);
+  assert.doesNotMatch(once, /project\([^)]*\bSwift\b[^)]*\)/);
   assert.match(once, /CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "5\.0"/);
-  assert.equal(
-    [...once.matchAll(/execute_process\(\s*COMMAND xcrun --find swiftc/g)].length,
-    1,
-  );
   assert.equal(
     [...once.matchAll(/agora-rtc\/AgoraRtcPlugin\.mm/g)].length,
     2,
@@ -316,38 +306,41 @@ cc_ios_after_target(\${EXECUTABLE_NAME})
   assert.equal(once, twice);
 });
 
-test('patchIosCMakeRtcBridgeSources moves existing Swift compiler block before project', () => {
-  const oldCompilerBlock = `if(NOT CMAKE_Swift_COMPILER)
-    execute_process(
-        COMMAND xcrun --find swiftc
-        OUTPUT_VARIABLE AGORA_COCOS_SWIFT_COMPILER
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    if(AGORA_COCOS_SWIFT_COMPILER)
-        set(CMAKE_Swift_COMPILER "\${AGORA_COCOS_SWIFT_COMPILER}" CACHE FILEPATH "Swift compiler" FORCE)
-    endif()
-endif()`;
+test('patchIosCMakeRtcBridgeSources removes stale Swift bridge CMake entries', () => {
   const original = `cmake_minimum_required(VERSION 3.8)
 
 project(\${APP_NAME} CXX Swift)
 
-${oldCompilerBlock}
+set(CC_PROJ_SOURCES)
 
 include(\${CC_PROJECT_DIR}/../common/CMakeLists.txt)
+
+list(APPEND CC_PROJ_SOURCES
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcBridge.swift
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcPlugin.mm
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraEngineTextureSlotBridge.mm
+)
+
+set_source_files_properties(
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcBridge.swift
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcPlugin.mm
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraEngineTextureSlotBridge.mm
+    PROPERTIES
+    GENERATED FALSE
+)
+
+set(CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "5.0")
 `;
 
-  const patched = patchIosCMakeRtcBridgeSources(original);
+  const once = patchIosCMakeRtcBridgeSources(original);
+  const twice = patchIosCMakeRtcBridgeSources(once);
 
-  assert.ok(
-    patched.indexOf('CMAKE_Swift_COMPILER') < patched.indexOf('project(${APP_NAME} CXX Swift)'),
-    'Swift compiler block must be moved before project() when an older export has it after project().',
-  );
-  assert.match(patched, /CMAKE_Swift_COMPILER_WORKS TRUE/);
-  assert.equal(
-    [...patched.matchAll(/execute_process\(\s*COMMAND xcrun --find swiftc/g)].length,
-    1,
-  );
-  assert.equal(patched, patchIosCMakeRtcBridgeSources(patched));
+  assert.match(once, /project\(\$\{APP_NAME\} CXX\)/);
+  assert.doesNotMatch(once, /project\([^)]*\bSwift\b[^)]*\)/);
+  assert.doesNotMatch(once, /agora-rtc\/AgoraRtcBridge\.swift/);
+  assert.match(once, /agora-rtc\/AgoraRtcPlugin\.mm/);
+  assert.match(once, /agora-rtc\/AgoraEngineTextureSlotBridge\.mm/);
+  assert.equal(once, twice);
 });
 
 test('ensureIosCMakeRtcBridgeSources patches exported iOS CMakeLists', async () => {
@@ -366,10 +359,10 @@ add_executable(\${EXECUTABLE_NAME} \${CC_ALL_SOURCES})
   const content = await readFile(path.join(root, 'CMakeLists.txt'), 'utf8');
 
   assert.equal(result, path.join(root, 'CMakeLists.txt'));
-  assert.match(content, /agora-rtc\/AgoraRtcBridge\.swift/);
+  assert.doesNotMatch(content, /agora-rtc\/AgoraRtcBridge\.swift/);
   assert.match(content, /agora-rtc\/AgoraRtcPlugin\.mm/);
-  assert.match(content, /project\(\$\{APP_NAME\} CXX Swift\)/);
-  assert.match(content, /CMAKE_Swift_COMPILER/);
+  assert.match(content, /project\(\$\{APP_NAME\} CXX\)/);
+  assert.doesNotMatch(content, /project\([^)]*\bSwift\b[^)]*\)/);
   assert.match(content, /CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION/);
 });
 
