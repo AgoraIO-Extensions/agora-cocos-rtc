@@ -14,13 +14,16 @@ const {
   ensureAndroidRtcPermissions,
   ensureIosCMakeRtcBridgeSources,
   ensureIosRtcUsageDescriptions,
+  ensureIosXcodeProjectSwiftPackage,
   ensureIosAppDelegateBridgeAttachment,
   ensureIosSetupGuide,
   ensureNativeEngineTextureBridge,
   findFirstExistingPath,
+  onBeforeMake,
   patchAndroidAppActivityBridgeAttachment,
   patchIosAppDelegateBridgeAttachment,
   patchIosCMakeRtcBridgeSources,
+  patchIosXcodeProjectSwiftPackage,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,
   rewriteAndroidGradlePluginVersion,
@@ -327,6 +330,127 @@ add_executable(\${EXECUTABLE_NAME} \${CC_ALL_SOURCES})
   assert.match(content, /project\(\$\{APP_NAME\} CXX\)/);
   assert.doesNotMatch(content, /project\([^)]*\bSwift\b[^)]*\)/);
   assert.match(content, /CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION/);
+});
+
+function createIosPbxprojFixture() {
+  return `// !$*UTF8*$!
+{
+  archiveVersion = 1;
+  classes = {
+  };
+  objectVersion = 77;
+  objects = {
+
+/* Begin PBXBuildFile section */
+/* End PBXBuildFile section */
+
+/* Begin PBXFrameworksBuildPhase section */
+    DDB65CEEFE634E74A23CD384 /* Frameworks */ = {
+      isa = PBXFrameworksBuildPhase;
+      buildActionMask = 2147483647;
+      files = (
+      );
+      runOnlyForDeploymentPostprocessing = 0;
+    };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+    1570BE6E069448BFA13F8BDA /* agora-cocos-basic-call-mobile */ = {
+      isa = PBXNativeTarget;
+      buildConfigurationList = 7E280B21576347D0A0675D31 /* Build configuration list for PBXNativeTarget "agora-cocos-basic-call-mobile" */;
+      buildPhases = (
+        DDB65CEEFE634E74A23CD384 /* Frameworks */,
+      );
+      dependencies = (
+      );
+      name = "agora-cocos-basic-call-mobile";
+      productName = "agora-cocos-basic-call-mobile";
+      productReference = F1A74941342B40C9AE80CC7A /* agora-cocos-basic-call.app */;
+      productType = "com.apple.product-type.application";
+    };
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+    F133864AD5934D1C837F0D69 /* Project object */ = {
+      isa = PBXProject;
+      attributes = {
+        LastUpgradeCheck = 1600;
+      };
+      buildConfigurationList = 70C6AC196D0D4F5C86BD4257 /* Build configuration list for PBXProject "agora-cocos-basic-call" */;
+      compatibilityVersion = "Xcode 14.0";
+      developmentRegion = en;
+      hasScannedForEncodings = 0;
+      knownRegions = (
+        en,
+        Base,
+      );
+      mainGroup = 705052939DB94DD6B4F44731;
+      productRefGroup = 951E98A53DB744218999E631 /* Products */;
+      projectDirPath = "";
+      projectRoot = "";
+      targets = (
+        1570BE6E069448BFA13F8BDA /* agora-cocos-basic-call-mobile */,
+      );
+    };
+/* End PBXProject section */
+
+/* Begin XCBuildConfiguration section */
+/* End XCBuildConfiguration section */
+  };
+  rootObject = F133864AD5934D1C837F0D69 /* Project object */;
+}
+`;
+}
+
+test('patchIosXcodeProjectSwiftPackage adds Agora iOS SPM product to the app target once', () => {
+  const original = createIosPbxprojFixture();
+  const once = patchIosXcodeProjectSwiftPackage(original);
+  const twice = patchIosXcodeProjectSwiftPackage(once);
+
+  assert.match(once, /XCRemoteSwiftPackageReference/);
+  assert.match(once, new RegExp(sdkConfig.ios.packageUrl.replaceAll('.', '\\.')));
+  assert.match(once, /kind = exactVersion;/);
+  assert.match(once, new RegExp(`version = ${sdkConfig.ios.packageVersion.replaceAll('.', '\\.')};`));
+  assert.match(once, /XCSwiftPackageProductDependency/);
+  assert.match(once, new RegExp(`productName = ${sdkConfig.ios.packageProduct};`));
+  assert.match(once, /packageReferences = \(\s*A90A00000000000000000101 \/\* XCRemoteSwiftPackageReference "AgoraRtcEngine_iOS" \*\/,\s*\);/);
+  assert.match(once, /packageProductDependencies = \(\s*A90A00000000000000000102 \/\* RtcBasic \*\/,\s*\);/);
+  assert.match(once, /files = \(\s*A90A00000000000000000103 \/\* RtcBasic in Frameworks \*\/,\s*\);/);
+  assert.equal(
+    [...once.matchAll(/repositoryURL = "https:\/\/github\.com\/AgoraIO\/AgoraRtcEngine_iOS\.git";/g)].length,
+    1,
+  );
+  assert.equal(once, twice);
+});
+
+test('ensureIosXcodeProjectSwiftPackage patches generated Xcode project files', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-pbxproj-'));
+  const pbxprojPath = path.join(
+    root,
+    'proj/agora-cocos-basic-call.xcodeproj/project.pbxproj',
+  );
+  await mkdir(path.dirname(pbxprojPath), { recursive: true });
+  await writeFile(pbxprojPath, createIosPbxprojFixture(), 'utf8');
+
+  const patchedPaths = await ensureIosXcodeProjectSwiftPackage(root);
+  const content = await readFile(pbxprojPath, 'utf8');
+
+  assert.deepEqual(patchedPaths, [pbxprojPath]);
+  assert.match(content, /XCRemoteSwiftPackageReference/);
+  assert.match(content, /productName = RtcBasic;/);
+});
+
+test('onBeforeMake patches generated iOS Xcode project before native compilation', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-before-make-'));
+  const pbxprojPath = path.join(root, 'agora-cocos-basic-call.xcodeproj/project.pbxproj');
+  await mkdir(path.dirname(pbxprojPath), { recursive: true });
+  await writeFile(pbxprojPath, createIosPbxprojFixture(), 'utf8');
+
+  await onBeforeMake(root, { platform: 'ios' });
+  const content = await readFile(pbxprojPath, 'utf8');
+
+  assert.match(content, /XCRemoteSwiftPackageReference/);
+  assert.match(content, /RtcBasic in Frameworks/);
 });
 
 test('patchAndroidAppActivityBridgeAttachment attaches the native bridge after SDK init once', () => {
