@@ -1231,8 +1231,12 @@ public final class AgoraRtcPlugin {
             configuration.minBitrate = params.optInt("minBitrate", configuration.minBitrate);
         }
         configuration.orientationMode = mapOrientationMode(orientationMode);
-        configuration.mirrorMode = mapMirrorMode(params != null ? params.optInt("mirrorMode", 0) : 0);
-        configuration.degradationPrefer = mapDegradationPreference(params != null ? params.optInt("degradationPreference", 0) : 0);
+        if (params != null && params.has("mirrorMode") && !params.isNull("mirrorMode")) {
+            configuration.mirrorMode = mapMirrorMode(params.optInt("mirrorMode"));
+        }
+        if (params != null && params.has("degradationPreference") && !params.isNull("degradationPreference")) {
+            configuration.degradationPrefer = mapDegradationPreference(params.optInt("degradationPreference"));
+        }
         configuration.codecType = mapVideoCodecType(params != null ? params.optInt("codecType", 0) : 0);
         configuration.advanceOptions = buildAdvancedVideoOptions(params != null ? params.optJSONObject("advancedVideoOptions") : null);
 

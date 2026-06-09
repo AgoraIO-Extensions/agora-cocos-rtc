@@ -88,6 +88,7 @@ export interface AgoraVideoEncoderConfiguration {
   height: number;
   frameRate?: number;
   bitrate?: number;
+  /** Android VideoEncoderConfiguration only. iOS ObjC 4.5.3 does not expose minFrameRate. */
   minFrameRate?: number;
   minBitrate?: number;
   orientationMode?: number;

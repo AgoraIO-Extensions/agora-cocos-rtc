@@ -516,8 +516,12 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.ok(encoderMatch);
   assert.match(encoderMatch[0], /configuration\.minFrameRate = params\.optInt\("minFrameRate"/);
   assert.match(encoderMatch[0], /configuration\.minBitrate = params\.optInt\("minBitrate"/);
-  assert.match(encoderMatch[0], /configuration\.mirrorMode = mapMirrorMode/);
-  assert.match(encoderMatch[0], /configuration\.degradationPrefer = mapDegradationPreference/);
+  assert.match(encoderMatch[0], /params\.has\("mirrorMode"\) && !params\.isNull\("mirrorMode"\)/);
+  assert.match(encoderMatch[0], /configuration\.mirrorMode = mapMirrorMode\(params\.optInt\("mirrorMode"\)\)/);
+  assert.match(encoderMatch[0], /params\.has\("degradationPreference"\) && !params\.isNull\("degradationPreference"\)/);
+  assert.match(encoderMatch[0], /configuration\.degradationPrefer = mapDegradationPreference\(params\.optInt\("degradationPreference"\)\)/);
+  assert.doesNotMatch(encoderMatch[0], /params\.optInt\("mirrorMode", 0\)/);
+  assert.doesNotMatch(encoderMatch[0], /params\.optInt\("degradationPreference", 0\)/);
   assert.match(encoderMatch[0], /configuration\.codecType = mapVideoCodecType/);
   assert.match(encoderMatch[0], /configuration\.advanceOptions = buildAdvancedVideoOptions/);
 
@@ -784,6 +788,7 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   );
   assert.ok(encoderMatch);
   assert.match(encoderMatch[0], /mirrorModeValue/);
+  assert.doesNotMatch(encoderMatch[0], /minFrameRate/);
   assert.match(encoderMatch[0], /config\.minBitrate = params\["minBitrate"\]/);
   assert.match(encoderMatch[0], /config\.degradationPreference = degradationPreference/);
   assert.match(encoderMatch[0], /config\.codecType = codecType/);

@@ -230,6 +230,14 @@ test('public event types do not expose fake warning callbacks', () => {
   assert.doesNotMatch(sdkTypesSource, /\n\s+warning:\s*\{/);
 });
 
+test('video encoder configuration documents platform-specific fields', () => {
+  assert.match(
+    sdkTypesSource,
+    /\/\*\* Android VideoEncoderConfiguration only\. iOS ObjC 4\.5\.3 does not expose minFrameRate\. \*\/\n\s+minFrameRate\?: number;/,
+  );
+  assert.match(sdkTypesSource, /minBitrate\?: number;/);
+});
+
 test('client surfaces error and volume indication events to subscribed listeners', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({

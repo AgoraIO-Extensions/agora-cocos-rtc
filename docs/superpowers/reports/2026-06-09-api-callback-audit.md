@@ -13,7 +13,7 @@
 - `initialize` 支持原有 `initialize(appId)`，并新增 native engine config object 透传：area code、channel profile、license、audio scenario、log config、thread priority、domain limit、Android extension/native lib 配置等。
 - `joinChannel.options` 扩展到 native 4.5.3 可用字段。Android 覆盖 multipath/startPreview 等 Android 字段；iOS 覆盖 iOS headers 中存在的字段，并在 `startPreview` 为 true 时调用 `engine.startPreview()`。
 - `setClientRole` 支持 `ClientRoleOptions` / `AgoraClientRoleOptions`，目前包括 `audienceLatencyLevel`。
-- `setVideoEncoderConfiguration` 支持 min bitrate/frame rate、mirror mode、degradation preference、codec type 和 advanced video options，并按 Agora 4.5.3 raw enum value 映射 degradation/codec/encoding/compression；未传 advanced options 时不改写 iOS native 默认值。
+- `setVideoEncoderConfiguration` 支持 min bitrate、mirror mode、degradation preference、codec type 和 advanced video options；Android 额外支持 `minFrameRate`，iOS ObjC 4.5.3 不暴露该字段。Android 按 Agora 4.5.3 raw enum value 映射 degradation/codec/encoding/compression，且未传 `mirrorMode` / `degradationPreference` 时保留 native 默认值；未传 advanced options 时不改写 iOS native 默认值。
 - `enableContentInspect` 支持 `extraInfo`、`serverConfig` 和 `modules`，同时保留旧的 `module`/`interval` 兼容入口。
 - Android `enableContentInspect.modules[].position` 映射到 `Constants.VideoModulePosition`；iOS 4.5.3 的 `AgoraContentInspectModule` header 没有 `position` 属性，因此不伪造映射。
 - `setParameters` 在 JS 层对 object 入参做 JSON 字符串化，string 入参保持不变。
@@ -40,7 +40,7 @@
 
 ## 验证
 
-- `node --test tests/agora-client.test.ts tests/native-templates.test.ts tests/package-sdk.test.ts`：73/73 pass。
+- `node --test tests/agora-client.test.ts tests/native-templates.test.ts tests/package-sdk.test.ts`：74/74 pass。
 - `xcrun swiftc -typecheck ... sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift`：exit 0；仅保留 `setAudioProfile(_:scenario:)` deprecated warning，用于修复 `scenario` 漏参。
 - iOS delegate header 校验确认本地 Agora 4.5.3 `AgoraRtcEngineDelegate.h` 暴露 `didOccurError`，不暴露 `didOccurWarning` / `warningCode`。
-- `npm test`：157/157 pass。
+- `npm test`：158/158 pass。
