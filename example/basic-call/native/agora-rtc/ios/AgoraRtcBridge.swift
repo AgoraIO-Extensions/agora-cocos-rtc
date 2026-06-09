@@ -895,8 +895,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return mediaOptionBool(mediaOptions, key: "publishCameraTrack", defaultValue: true)
             || mediaOptionBool(mediaOptions, key: "startPreview", defaultValue: false)
             || mediaOptionBool(mediaOptions, key: "publishSecondaryCameraTrack", defaultValue: false)
-            || mediaOptionBool(mediaOptions, key: "publishThirdCameraTrack", defaultValue: false)
-            || mediaOptionBool(mediaOptions, key: "publishFourthCameraTrack", defaultValue: false)
     }
 
     private func requiresMicrophonePermission(_ mediaOptions: [String: Any]?) -> Bool {
@@ -1491,13 +1489,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         dispatchEvent(name: "error", payload: [
             "code": errorCode.rawValue,
             "message": "AgoraRtcEngineKit error: \(errorCode.rawValue)",
-        ])
-    }
-
-    func rtcEngine(_ engine: AgoraRtcEngineKit, didOccurWarning warningCode: AgoraWarningCode) {
-        dispatchEvent(name: "warning", payload: [
-            "code": warningCode.rawValue,
-            "message": "AgoraRtcEngineKit warning: \(warningCode.rawValue)",
         ])
     }
 

@@ -155,7 +155,9 @@ export interface AgoraChannelMediaOptions {
   channelProfile?: AgoraChannelProfile | number;
   publishCameraTrack?: boolean;
   publishSecondaryCameraTrack?: boolean;
+  /** Android/C++ ChannelMediaOptions only. iOS ObjC 4.5.3 does not expose this field. */
   publishThirdCameraTrack?: boolean;
+  /** Android/C++ ChannelMediaOptions only. iOS ObjC 4.5.3 does not expose this field. */
   publishFourthCameraTrack?: boolean;
   publishMicrophoneTrack?: boolean;
   publishScreenCaptureVideo?: boolean;
@@ -354,10 +356,6 @@ export interface AgoraEventMap {
   rtcStats: AgoraRtcStatsPayload;
   contentInspectResult: {
     result: number;
-  };
-  warning: {
-    code?: number | string;
-    message: string;
   };
   error: {
     code?: number | string;

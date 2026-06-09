@@ -226,17 +226,21 @@ test('public event types expose full stats payload for leaveChannel and rtcStats
   assert.match(sdkTypesSource, /rtcStats:\s*AgoraRtcStatsPayload;/);
 });
 
-test('client surfaces warning and volume indication events to subscribed listeners', async () => {
+test('public event types do not expose fake warning callbacks', () => {
+  assert.doesNotMatch(sdkTypesSource, /\n\s+warning:\s*\{/);
+});
+
+test('client surfaces error and volume indication events to subscribed listeners', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
     transport,
     timeoutMs: 50,
   });
-  const warnings = [];
+  const errors = [];
   const volumes = [];
 
-  client.on('warning', (payload) => {
-    warnings.push(payload.code);
+  client.on('error', (payload) => {
+    errors.push(payload.code);
   });
   client.on('volumeIndication', (payload) => {
     volumes.push(payload.totalVolume);
@@ -245,10 +249,10 @@ test('client surfaces warning and volume indication events to subscribed listene
   transport.emit(
     'agora:event',
     JSON.stringify({
-      eventName: 'warning',
+      eventName: 'error',
       payload: {
         code: 42,
-        message: 'warning',
+        message: 'error',
       },
     }),
   );
@@ -264,7 +268,7 @@ test('client surfaces warning and volume indication events to subscribed listene
     }),
   );
 
-  assert.deepEqual(warnings, [42]);
+  assert.deepEqual(errors, [42]);
   assert.deepEqual(volumes, [90]);
 });
 

@@ -36,6 +36,33 @@ const iosEngineTextureSlotBridgeHeaderTemplate = path.join(
   repoRoot,
   'sdk/agora-rtc/templates/ios/AgoraEngineTextureSlotBridge.h',
 );
+const primaryRepoRoot = repoRoot.replace(/\/\.worktrees\/[^/]+$/, '');
+const iosRtcDelegateHeaderCandidates = [
+  path.join(
+    repoRoot,
+    'example/basic-call/build-ios/ios/proj/Pods/AgoraRtcEngine_iOS/AgoraRtcKit.xcframework/ios-arm64_x86_64-simulator/AgoraRtcKit.framework/Headers/AgoraRtcEngineDelegate.h',
+  ),
+  path.join(
+    primaryRepoRoot,
+    'example/basic-call/build-ios/ios/proj/Pods/AgoraRtcEngine_iOS/AgoraRtcKit.xcframework/ios-arm64_x86_64-simulator/AgoraRtcKit.framework/Headers/AgoraRtcEngineDelegate.h',
+  ),
+];
+
+async function readFirstExistingFile(filePaths: string[]) {
+  for (const filePath of filePaths) {
+    try {
+      return {
+        filePath,
+        content: await readFile(filePath, 'utf8'),
+      };
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+  }
+  return null;
+}
 
 async function readEngineTextureLimits(filePath: string) {
   const content = await readFile(filePath, 'utf8');
@@ -709,8 +736,8 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(inspectMatch[0], /config\.modules = buildContentInspectModules/);
   assert.doesNotMatch(bridgeContent, /module\.position/);
 
-  assert.match(bridgeContent, /didOccurWarning warningCode/);
-  assert.match(bridgeContent, /dispatchEvent\(name: "warning"/);
+  assert.doesNotMatch(bridgeContent, /didOccurWarning warningCode/);
+  assert.doesNotMatch(bridgeContent, /dispatchEvent\(name: "warning"/);
   assert.match(bridgeContent, /firstLocalAudioFramePublished elapsed/);
   assert.match(bridgeContent, /dispatchEvent\(name: "firstLocalAudioFramePublished"/);
   assert.match(bridgeContent, /contentInspectResult result/);
@@ -826,8 +853,8 @@ test('ios bridge template explicitly requests rtc permissions before camera and 
   assert.match(bridgeContent, /private func requiresCameraPermission\(_ mediaOptions: \[String: Any\]\?\) -> Bool/);
   assert.match(bridgeContent, /mediaOptionBool\(mediaOptions, key: "startPreview", defaultValue: false\)/);
   assert.match(bridgeContent, /mediaOptionBool\(mediaOptions, key: "publishSecondaryCameraTrack", defaultValue: false\)/);
-  assert.match(bridgeContent, /mediaOptionBool\(mediaOptions, key: "publishThirdCameraTrack", defaultValue: false\)/);
-  assert.match(bridgeContent, /mediaOptionBool\(mediaOptions, key: "publishFourthCameraTrack", defaultValue: false\)/);
+  assert.doesNotMatch(bridgeContent, /mediaOptionBool\(mediaOptions, key: "publishThirdCameraTrack", defaultValue: false\)/);
+  assert.doesNotMatch(bridgeContent, /mediaOptionBool\(mediaOptions, key: "publishFourthCameraTrack", defaultValue: false\)/);
 
   const startPreviewMatch = bridgeContent.match(
     /case "startPreview":[\s\S]*?case "stopPreview":/,
@@ -850,6 +877,22 @@ test('ios bridge template explicitly requests rtc permissions before camera and 
     /engine\.joinChannel/,
     'joinChannel must request required iOS permissions before invoking native sdk',
   );
+});
+
+test('ios bridge template only dispatches callbacks exposed by the installed rtc delegate header', async (t) => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+  const delegateHeader = await readFirstExistingFile(iosRtcDelegateHeaderCandidates);
+  if (delegateHeader == null) {
+    t.skip('AgoraRtcEngineDelegate.h is unavailable before iOS dependency restore');
+    return;
+  }
+
+  assert.match(delegateHeader.content, /didOccurError/);
+  assert.doesNotMatch(delegateHeader.content, /didOccurWarning|warningCode/);
+  assert.doesNotMatch(bridgeContent, /didOccurWarning|dispatchEvent\(name: "warning"/);
 });
 
 test('ios plugin registrar attaches the js bridge wrapper and forwards responses back to script', async () => {
