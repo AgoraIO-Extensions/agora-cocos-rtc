@@ -61,7 +61,41 @@ test('cocos api test matrix covers every native Agora method and records paramet
     /id:\s*'channel\.join'[\s\S]*?run:\s*\(client, context\) => client\.joinChannel\([\s\S]*?\{[\s\S]*clientRoleType:\s*'broadcaster'/,
     'device join testcase should execute native joinChannel with options',
   );
+  assert.match(
+    testcasesContent,
+    /id:\s*'mixing\.start'[\s\S]*?expectedParams:[\s\S]*?startPos:\s*0[\s\S]*?run:\s*\(client, context\) => client\.startAudioMixing\(\{[\s\S]*?startPos:\s*0,[\s\S]*?\}\)/,
+    'device startAudioMixing testcase should exercise the supported 4.5.3 bridge signature',
+  );
+  const mixingStartCase = testcasesContent.match(/id:\s*'mixing\.start'[\s\S]*?id:\s*'mixing\.pause'/)?.[0] ?? '';
+  assert.doesNotMatch(
+    mixingStartCase,
+    /\breplace\b/,
+    'device startAudioMixing testcase must not pass unsupported replace, even when false',
+  );
   assert.match(testcasesContent, /renderMode/);
+});
+
+test('cocos api test mode isolates the demo runtime from the device runner', async () => {
+  const demoRootContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+  const sessionServiceContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  assert.match(demoRootContent, /AGORA_COCOS_TEST_MODE/);
+  assert.match(
+    demoRootContent,
+    /if\s*\(\s*this\.isCocosTestMode\(\)\s*\)[\s\S]*?return;/,
+    'demo root should not initialize or preview RTC while API tests own the native engine',
+  );
+  assert.match(
+    sessionServiceContent,
+    /this\.setupRemoteVideoView\(uid\)\.catch/,
+    'background remote view setup should not produce unhandled promise rejections',
+  );
 });
 
 test('cocos api testcases accept native error evidence for platform-sensitive calls', async () => {
@@ -179,6 +213,9 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /^#!\/usr\/bin\/env bash/);
   assert.match(androidScript, /TEST_APP_ID/);
   assert.match(androidScript, /AGORA_COCOS_TEST_MODE=api/);
+  assert.match(androidScript, /cocos-android-\$\{GITHUB_RUN_ID:-local\}-\$\{GITHUB_RUN_ATTEMPT:-1\}/);
+  assert.match(androidScript, /TEST_CHANNEL_ID="\$\{TEST_CHANNEL_ID:-\$\{CHANNEL_ID:-\$DEFAULT_TEST_CHANNEL_ID\}\}"/);
+  assert.match(androidScript, /TEST_UID="\$\{TEST_UID:-1001\}"/);
   assert.match(androidScript, /adb/);
   assert.match(androidScript, /logcat/);
   assert.match(androidScript, /TEST_TIMEOUT_SECONDS/);
@@ -215,6 +252,9 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /^#!\/usr\/bin\/env bash/);
   assert.match(iosScript, /TEST_APP_ID/);
   assert.match(iosScript, /AGORA_COCOS_TEST_MODE=api/);
+  assert.match(iosScript, /cocos-ios-\$\{GITHUB_RUN_ID:-local\}-\$\{GITHUB_RUN_ATTEMPT:-1\}/);
+  assert.match(iosScript, /TEST_CHANNEL_ID="\$\{TEST_CHANNEL_ID:-\$\{CHANNEL_ID:-\$DEFAULT_TEST_CHANNEL_ID\}\}"/);
+  assert.match(iosScript, /TEST_UID="\$\{TEST_UID:-1002\}"/);
   assert.match(iosScript, /xcrun simctl/);
   assert.match(iosScript, /TEST_TIMEOUT_SECONDS/);
   assert.match(iosScript, /SECONDS=0[\s\S]*while \[\[ \$SECONDS -lt \$TEST_TIMEOUT_SECONDS \]\]/);

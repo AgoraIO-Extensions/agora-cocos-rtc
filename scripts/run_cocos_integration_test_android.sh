@@ -19,6 +19,10 @@ ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
 ADB_BIN="${ADB_BIN:-$ANDROID_SDK_ROOT/platform-tools/adb}"
 DEFAULT_AGORA_COCOS_TEST_MODE=api
 AGORA_COCOS_TEST_MODE="${AGORA_COCOS_TEST_MODE:-$DEFAULT_AGORA_COCOS_TEST_MODE}"
+DEFAULT_TEST_CHANNEL_ID="${DEFAULT_TEST_CHANNEL_ID:-cocos-android-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}}"
+TEST_CHANNEL_ID="${TEST_CHANNEL_ID:-${CHANNEL_ID:-$DEFAULT_TEST_CHANNEL_ID}}"
+CHANNEL_ID="${CHANNEL_ID:-$TEST_CHANNEL_ID}"
+TEST_UID="${TEST_UID:-1001}"
 REPORT_DIR="$ROOT_DIR/test_shard/integration_test_app/reports"
 LOG_PATH="$REPORT_DIR/android-runtime.log"
 ANDROID_DIAGNOSTIC_LOG_PATH="$REPORT_DIR/android-diagnostic.log"
@@ -211,7 +215,7 @@ fi
 
 APP_ID="${APP_ID:-${TEST_APP_ID:-}}" \
 TEST_APP_ID="${TEST_APP_ID:-${APP_ID:-}}" \
-CHANNEL_ID="${CHANNEL_ID:-${TEST_CHANNEL_ID:-testapi}}" \
+CHANNEL_ID="$CHANNEL_ID" \
 TOKEN="${TOKEN:-${TEST_TOKEN:-}}" \
 node ./scripts/write-example-build-config.mjs
 
@@ -225,8 +229,8 @@ log_step "Inject Cocos API test runner"
 AGORA_COCOS_TEST_MODE="$AGORA_COCOS_TEST_MODE" \
 TEST_APP_ID="${TEST_APP_ID:-${APP_ID:-}}" \
 TEST_TOKEN="${TEST_TOKEN:-${TOKEN:-}}" \
-TEST_CHANNEL_ID="${TEST_CHANNEL_ID:-${CHANNEL_ID:-testapi}}" \
-TEST_UID="${TEST_UID:-1001}" \
+TEST_CHANNEL_ID="$TEST_CHANNEL_ID" \
+TEST_UID="$TEST_UID" \
 node ./scripts/inject-cocos-test-runner.mjs
 
 log_step "Export Android project with Cocos"
@@ -255,8 +259,8 @@ log_step "Install and launch Android test app"
   --es AGORA_COCOS_TEST_MODE "$AGORA_COCOS_TEST_MODE" \
   --es TEST_APP_ID "${TEST_APP_ID:-${APP_ID:-}}" \
   --es TEST_TOKEN "${TEST_TOKEN:-${TOKEN:-}}" \
-  --es TEST_CHANNEL_ID "${TEST_CHANNEL_ID:-${CHANNEL_ID:-testapi}}" \
-  --es TEST_UID "${TEST_UID:-1001}"
+  --es TEST_CHANNEL_ID "$TEST_CHANNEL_ID" \
+  --es TEST_UID "$TEST_UID"
 
 mkdir -p "$(dirname "$LOG_PATH")"
 : > "$LOG_PATH"

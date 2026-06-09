@@ -339,12 +339,11 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'mixing.start',
     method: 'startAudioMixing',
-    expectedParams: { path: '<AUDIO_ASSET>', loopback: false, replace: false, cycle: 1, startPos: 0 },
+    expectedParams: { path: '<AUDIO_ASSET>', loopback: false, cycle: 1, startPos: 0 },
     requiredEvidence: ['response'],
     run: (client, context) => client.startAudioMixing({
       path: context.audioAssetPath,
       loopback: false,
-      replace: false,
       cycle: 1,
       startPos: 0,
     }),

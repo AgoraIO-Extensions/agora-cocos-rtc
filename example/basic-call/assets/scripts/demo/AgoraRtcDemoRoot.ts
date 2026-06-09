@@ -26,6 +26,10 @@ const ACTION_PANEL_WIDTH = 420;
 const ACTION_PANEL_HEIGHT = 620;
 const MIN_VIDEO_STAGE_WIDTH = 360;
 
+type CocosTestGlobal = typeof globalThis & {
+  AGORA_COCOS_TEST_MODE?: string;
+};
+
 @ccclass('AgoraRtcDemoRoot')
 export class AgoraRtcDemoRoot extends Component {
   @property
@@ -115,6 +119,10 @@ export class AgoraRtcDemoRoot extends Component {
     this.refreshPanels();
     this.pushStatus('Example ready');
     this.pushStatus(`Render backend: ${this.renderBackend}`);
+    if (this.isCocosTestMode()) {
+      this.pushStatus('Cocos test mode: RTC auto startup skipped');
+      return;
+    }
     try {
       await this.initializeRtc();
       if (this.autoPreview) {
@@ -373,6 +381,10 @@ export class AgoraRtcDemoRoot extends Component {
         resolve((asset?.json ?? null) as AgoraExampleRuntimeConfig | null);
       });
     });
+  }
+
+  private isCocosTestMode(): boolean {
+    return Boolean((globalThis as CocosTestGlobal).AGORA_COCOS_TEST_MODE);
   }
 
   private async invokeAction(actionName: string): Promise<void> {

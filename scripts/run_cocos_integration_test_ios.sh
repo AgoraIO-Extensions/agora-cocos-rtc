@@ -19,6 +19,10 @@ IOS_RUNTIME_PLUGIN_DIR="$ROOT_DIR/example/basic-call/native/agora-rtc/ios"
 IOS_EXPORTED_PLUGIN_DIR="$IOS_PROJECT_DIR/agora-rtc"
 DEFAULT_AGORA_COCOS_TEST_MODE=api
 AGORA_COCOS_TEST_MODE="${AGORA_COCOS_TEST_MODE:-$DEFAULT_AGORA_COCOS_TEST_MODE}"
+DEFAULT_TEST_CHANNEL_ID="${DEFAULT_TEST_CHANNEL_ID:-cocos-ios-${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-1}}"
+TEST_CHANNEL_ID="${TEST_CHANNEL_ID:-${CHANNEL_ID:-$DEFAULT_TEST_CHANNEL_ID}}"
+CHANNEL_ID="${CHANNEL_ID:-$TEST_CHANNEL_ID}"
+TEST_UID="${TEST_UID:-1002}"
 REPORT_DIR="$ROOT_DIR/test_shard/integration_test_app/reports"
 LOG_PATH="$REPORT_DIR/ios-runtime.log"
 DIAGNOSTIC_LOG_PATH="$REPORT_DIR/ios-diagnostic.log"
@@ -157,7 +161,7 @@ fi
 
 APP_ID="${APP_ID:-${TEST_APP_ID:-}}" \
 TEST_APP_ID="${TEST_APP_ID:-${APP_ID:-}}" \
-CHANNEL_ID="${CHANNEL_ID:-${TEST_CHANNEL_ID:-testapi}}" \
+CHANNEL_ID="$CHANNEL_ID" \
 TOKEN="${TOKEN:-${TEST_TOKEN:-}}" \
 node ./scripts/write-example-build-config.mjs
 
@@ -168,8 +172,8 @@ log_step "Inject Cocos API test runner"
 AGORA_COCOS_TEST_MODE="$AGORA_COCOS_TEST_MODE" \
 TEST_APP_ID="${TEST_APP_ID:-${APP_ID:-}}" \
 TEST_TOKEN="${TEST_TOKEN:-${TOKEN:-}}" \
-TEST_CHANNEL_ID="${TEST_CHANNEL_ID:-${CHANNEL_ID:-testapi}}" \
-TEST_UID="${TEST_UID:-1001}" \
+TEST_CHANNEL_ID="$TEST_CHANNEL_ID" \
+TEST_UID="$TEST_UID" \
 node ./scripts/inject-cocos-test-runner.mjs
 
 log_step "Export iOS project with Cocos"
@@ -209,8 +213,8 @@ xcrun simctl launch --terminate-running-process --stdout="$IOS_STDOUT_LOG_PATH" 
   -AGORA_COCOS_TEST_MODE "$AGORA_COCOS_TEST_MODE" \
   -TEST_APP_ID "${TEST_APP_ID:-${APP_ID:-}}" \
   -TEST_TOKEN "${TEST_TOKEN:-${TOKEN:-}}" \
-  -TEST_CHANNEL_ID "${TEST_CHANNEL_ID:-${CHANNEL_ID:-testapi}}" \
-  -TEST_UID "${TEST_UID:-1001}" \
+  -TEST_CHANNEL_ID "$TEST_CHANNEL_ID" \
+  -TEST_UID "$TEST_UID" \
   > "$IOS_LAUNCH_LOG_PATH" 2>&1
 
 log_step "Wait for iOS API test report"

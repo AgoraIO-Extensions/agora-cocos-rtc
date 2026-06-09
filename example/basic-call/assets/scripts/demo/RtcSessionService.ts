@@ -550,7 +550,9 @@ export class RtcSessionService {
         this.activeRemoteUid = uid;
       }
       this.options.onRemoteUsersChanged([...this.remoteUserUids], this.activeRemoteUid);
-      void this.setupRemoteVideoView(uid);
+      void this.setupRemoteVideoView(uid).catch((error) => {
+        this.recordAsyncError('Remote view setup failed', error);
+      });
       this.log(`Remote user joined: ${uid}`);
       this.emitState();
     });
@@ -771,6 +773,13 @@ export class RtcSessionService {
 
   private log(line: string): void {
     this.options.onLog(line);
+  }
+
+  private recordAsyncError(label: string, error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    this.lastErrorMessage = message;
+    this.log(`${label}: ${message}`);
+    this.emitState();
   }
 
   private emitState(): void {
