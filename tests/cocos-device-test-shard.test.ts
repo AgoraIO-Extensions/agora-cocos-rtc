@@ -1,8 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { promisify } from 'node:util';
 
 const repoRoot = process.cwd();
+const execFileAsync = promisify(execFile);
 
 function extractAgoraMethods(typesContent: string): string[] {
   const match = typesContent.match(/export type AgoraMethod =([\s\S]*?);/);
@@ -109,6 +114,47 @@ test('cocos runner injection imports test mode from the example bootstrap', asyn
   assert.match(injectScript, /TEST_MODE_LOADED/);
   assert.match(injectScript, /runAgoraCocosDeviceTestsWhenReady/);
   assert.doesNotMatch(injectScript, /maybeRunAgoraCocosApiTests\(\);/);
+});
+
+test('cocos runner injection supports the dynamic prefab bootstrap mount point', async () => {
+  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-inject-'));
+  await mkdir(`${fixtureRoot}/scripts`, { recursive: true });
+  await mkdir(`${fixtureRoot}/example/basic-call/assets/scripts`, { recursive: true });
+  await mkdir(`${fixtureRoot}/test_shard/integration_test_app`, { recursive: true });
+  await cp(
+    `${repoRoot}/test_shard/integration_test_app/src`,
+    `${fixtureRoot}/test_shard/integration_test_app/src`,
+    { recursive: true },
+  );
+  await writeFile(
+    `${fixtureRoot}/scripts/inject-cocos-test-runner.mjs`,
+    await readFile(`${repoRoot}/scripts/inject-cocos-test-runner.mjs`, 'utf8'),
+    'utf8',
+  );
+  await writeFile(
+    `${fixtureRoot}/example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts`,
+    await readFile(`${repoRoot}/example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts`, 'utf8'),
+    'utf8',
+  );
+
+  await execFileAsync('node', ['./scripts/inject-cocos-test-runner.mjs'], {
+    cwd: fixtureRoot,
+    env: {
+      ...process.env,
+      AGORA_COCOS_TEST_MODE: 'api',
+      TEST_APP_ID: 'test-app-id',
+    },
+  });
+
+  const bootstrapContent = await readFile(
+    `${fixtureRoot}/example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts`,
+    'utf8',
+  );
+  assert.match(
+    bootstrapContent,
+    /import \{ runAgoraCocosDeviceTestsWhenReady \} from '\.\/cocos-device-tests\/test-mode\.ts';/,
+  );
+  assert.match(bootstrapContent, /runAgoraCocosDeviceTestsWhenReady\(\);\n\n  return true;/);
 });
 
 test('cocos integration scripts build and launch android and ios test apps', async () => {

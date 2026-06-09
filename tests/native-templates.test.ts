@@ -1066,17 +1066,31 @@ public class Log {
     `package android.app;
 
 import android.content.Context;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import android.view.View;
 import android.view.ViewGroup;
 
 public class Activity extends Context {
+    public final List<String[]> permissionRequests = new ArrayList<>();
+    private final Set<String> grantedPermissions = new HashSet<>();
+
     public void runOnUiThread(Runnable runnable) {
         runnable.run();
     }
 
     public void addContentView(View view, ViewGroup.LayoutParams params) {}
-    public int checkSelfPermission(String permission) { return 0; }
-    public void requestPermissions(String[] permissions, int requestCode) {}
+    public int checkSelfPermission(String permission) {
+        return grantedPermissions.contains(permission) ? 0 : -1;
+    }
+    public void requestPermissions(String[] permissions, int requestCode) {
+        permissionRequests.add(permissions);
+    }
+    public void grantPermission(String permission) {
+        grantedPermissions.add(permission);
+    }
 }
 `,
     'utf8',
@@ -1265,7 +1279,9 @@ import android.app.Activity;
 import android.content.Context;
 
 public class GlobalObject {
-    public static Activity getActivity() { return new Activity(); }
+    private static Activity activity = new Activity();
+    public static Activity getActivity() { return activity; }
+    public static void setActivity(Activity nextActivity) { activity = nextActivity; }
     public static Context getContext() { return new Context(); }
 }
 `,
@@ -1637,4 +1653,93 @@ public class RtcEngine {
   ];
 
   await execFileAsync('/usr/bin/javac', ['-d', classesRoot, ...javaFiles]);
+
+  const permissionQueueTestFile = path.join(srcRoot, 'PermissionQueueTest.java');
+  await writeFile(
+    permissionQueueTestFile,
+    `import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
+import com.cocos.lib.GlobalObject;
+import io.agora.cocos.rtc.AgoraRtcPlugin;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
+
+public class PermissionQueueTest {
+    public static void main(String[] args) throws Exception {
+        Activity activity = new Activity();
+        GlobalObject.setActivity(activity);
+        AgoraRtcPlugin plugin = AgoraRtcPlugin.getInstance();
+        Class<?> pluginClass = plugin.getClass();
+
+        Field pendingActionsField = pluginClass.getDeclaredField("pendingPermissionActions");
+        pendingActionsField.setAccessible(true);
+        ((Queue<?>) pendingActionsField.get(plugin)).clear();
+        Field requestInFlightField = pluginClass.getDeclaredField("permissionRequestInFlight");
+        requestInFlightField.setAccessible(true);
+        requestInFlightField.setBoolean(plugin, false);
+        Field requestCodeField = pluginClass.getDeclaredField("RTC_PERMISSION_REQUEST_CODE");
+        requestCodeField.setAccessible(true);
+        int requestCode = requestCodeField.getInt(null);
+
+        Method ensurePermissions = pluginClass.getDeclaredMethod(
+            "ensureRtcPermissions",
+            String.class,
+            boolean.class,
+            boolean.class,
+            Runnable.class
+        );
+        ensurePermissions.setAccessible(true);
+
+        List<String> ranActions = new ArrayList<>();
+        ensurePermissions.invoke(plugin, "mic-only", false, true, (Runnable) () -> ranActions.add("mic-only"));
+        ensurePermissions.invoke(plugin, "camera-mic", true, true, (Runnable) () -> ranActions.add("camera-mic"));
+
+        assertEquals(1, activity.permissionRequests.size(), "first action should request microphone");
+        assertPermissions(activity.permissionRequests.get(0), Manifest.permission.RECORD_AUDIO);
+
+        activity.grantPermission(Manifest.permission.RECORD_AUDIO);
+        plugin.onRequestPermissionsResult(
+            requestCode,
+            new String[] { Manifest.permission.RECORD_AUDIO },
+            new int[] { PackageManager.PERMISSION_GRANTED }
+        );
+
+        assertEquals(1, ranActions.size(), "only the microphone action should run after microphone grant");
+        assertEquals("mic-only", ranActions.get(0), "microphone action should run first");
+        assertEquals(2, activity.permissionRequests.size(), "camera action should request the missing camera permission");
+        assertPermissions(activity.permissionRequests.get(1), Manifest.permission.CAMERA);
+
+        activity.grantPermission(Manifest.permission.CAMERA);
+        plugin.onRequestPermissionsResult(
+            requestCode,
+            new String[] { Manifest.permission.CAMERA },
+            new int[] { PackageManager.PERMISSION_GRANTED }
+        );
+
+        assertEquals(2, ranActions.size(), "queued camera action should run after camera grant");
+        assertEquals("camera-mic", ranActions.get(1), "camera action should run second");
+    }
+
+    private static void assertPermissions(String[] actual, String... expected) {
+        assertEquals(expected.length, actual.length, "permission count");
+        for (int index = 0; index < expected.length; index += 1) {
+            assertEquals(expected[index], actual[index], "permission at index " + index);
+        }
+    }
+
+    private static void assertEquals(Object expected, Object actual, String message) {
+        if (!expected.equals(actual)) {
+            throw new AssertionError(message + ": expected " + expected + " but got " + actual);
+        }
+    }
+}
+`,
+    'utf8',
+  );
+  await execFileAsync('/usr/bin/javac', ['-cp', classesRoot, '-d', classesRoot, permissionQueueTestFile]);
+  await execFileAsync('/usr/bin/java', ['-cp', classesRoot, 'PermissionQueueTest']);
 });
