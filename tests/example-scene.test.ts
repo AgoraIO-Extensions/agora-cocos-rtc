@@ -577,6 +577,19 @@ test('demo root and service route string uid and setParameters cases through sup
   assert.match(service, /applyParameterPreset\(parameters: Record<string, unknown>\)/);
 });
 
+test('example detail pages keep an in-panel log action without overlapping header controls', async () => {
+  const panel = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+
+  assert.match(panel, /buildCaseUtilitySection/);
+  assert.match(panel, /this\.buildButtonList\(parent, \['RefreshViews', 'OpenLog'\], 2, -6\)/);
+  assert.match(panel, /ACTION_LABELS\[name\] \?\? name/);
+  assert.doesNotMatch(panel, /ensureGlobalLogButton/);
+  assert.doesNotMatch(panel, /GlobalLogButton/);
+});
+
 test('example UI only exposes engine-texture rendering mode', async () => {
   const panel = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
