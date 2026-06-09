@@ -2,5 +2,12 @@
   "appId": "<YOUR_AGORA_APP_ID>",
   "token": "",
   "channelId": "<YOUR_CHANNEL_ID>",
-  "uid": 0
+  "uid": 1001,
+  "renderBackend": "engine-texture",
+  "autoPreview": true,
+  "autoJoin": false,
+  "publishCameraTrack": true,
+  "publishMicrophoneTrack": true,
+  "autoSubscribeAudio": true,
+  "autoSubscribeVideo": true
 }

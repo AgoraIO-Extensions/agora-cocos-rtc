@@ -552,7 +552,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "startPreview":
             requireEngine(requestId: requestId) { engine in
-                ensureRtcPermissions(requestId: requestId) {
+                ensureRtcPermissions(
+                    requestId: requestId,
+                    requiresCamera: true,
+                    requiresMicrophone: false
+                ) {
                     guard self.rtcEngine != nil else {
                         self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                         return
@@ -642,20 +646,112 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         }
         let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
 
-        ensureRtcPermissions(requestId: requestId) {
-            guard let engine = self.rtcEngine else {
-                self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
-                return
+        if let mediaOptionParams = params["options"] as? [String: Any] {
+            let mediaOptions = buildChannelMediaOptions(mediaOptionParams)
+            let requiresCameraPermission = mediaOptionBool(mediaOptionParams, key: "publishCameraTrack", defaultValue: true)
+            let requiresMicrophonePermission = mediaOptionBool(mediaOptionParams, key: "publishMicrophoneTrack", defaultValue: true)
+            ensureRtcPermissions(
+                requestId: requestId,
+                requiresCamera: requiresCameraPermission,
+                requiresMicrophone: requiresMicrophonePermission
+            ) {
+                guard let engine = self.rtcEngine else {
+                    self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+                    return
+                }
+                let result = engine.joinChannel(
+                    byToken: token,
+                    channelId: channelId,
+                    uid: uid,
+                    mediaOptions: mediaOptions,
+                    joinSuccess: nil
+                )
+                self.dispatchResult(requestId: requestId, method: "joinChannel", result: result)
             }
-            let result = engine.joinChannel(
-                byToken: token,
-                channelId: channelId,
-                info: nil,
-                uid: uid,
-                joinSuccess: nil
-            )
-            self.dispatchResult(requestId: requestId, method: "joinChannel", result: result)
+        } else {
+            ensureRtcPermissions(requestId: requestId) {
+                guard let engine = self.rtcEngine else {
+                    self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+                    return
+                }
+                let result = engine.joinChannel(
+                    byToken: token,
+                    channelId: channelId,
+                    info: nil,
+                    uid: uid,
+                    joinSuccess: nil
+                )
+                self.dispatchResult(requestId: requestId, method: "joinChannel", result: result)
+            }
         }
+    }
+
+    private func buildChannelMediaOptions(_ params: [String: Any]?) -> AgoraRtcChannelMediaOptions {
+        let options = AgoraRtcChannelMediaOptions()
+        guard let params else {
+            return options
+        }
+        if let rawValue = params["clientRoleType"] {
+            options.clientRoleType = parseClientRoleType(rawValue)
+        }
+        if let rawValue = params["channelProfile"] {
+            options.channelProfile = parseChannelProfile(rawValue)
+        }
+        if let value = params["publishCameraTrack"] as? Bool {
+            options.publishCameraTrack = value
+        }
+        if let value = params["publishMicrophoneTrack"] as? Bool {
+            options.publishMicrophoneTrack = value
+        }
+        if let value = params["autoSubscribeAudio"] as? Bool {
+            options.autoSubscribeAudio = value
+        }
+        if let value = params["autoSubscribeVideo"] as? Bool {
+            options.autoSubscribeVideo = value
+        }
+        if let value = params["enableAudioRecordingOrPlayout"] as? Bool {
+            options.enableAudioRecordingOrPlayout = value
+        }
+        if let value = params["token"] as? String {
+            options.token = value
+        }
+        if let value = params["parameters"] as? String {
+            options.parameters = value
+        }
+        return options
+    }
+
+    private func mediaOptionBool(_ params: [String: Any]?, key: String, defaultValue: Bool) -> Bool {
+        guard let value = params?[key] as? Bool else {
+            return defaultValue
+        }
+        return value
+    }
+
+    private func parseClientRoleType(_ rawValue: Any) -> AgoraClientRole {
+        if let value = rawValue as? Int {
+            return AgoraClientRole(rawValue: value) ?? .broadcaster
+        }
+        if let value = rawValue as? UInt {
+            return AgoraClientRole(rawValue: Int(value)) ?? .broadcaster
+        }
+        if let value = rawValue as? String, value == "audience" {
+            return .audience
+        }
+        return .broadcaster
+    }
+
+    private func parseChannelProfile(_ rawValue: Any) -> AgoraChannelProfile {
+        if let value = rawValue as? Int {
+            return AgoraChannelProfile(rawValue: value) ?? .liveBroadcasting
+        }
+        if let value = rawValue as? UInt {
+            return AgoraChannelProfile(rawValue: Int(value)) ?? .liveBroadcasting
+        }
+        if let value = rawValue as? String, value == "communication" {
+            return .communication
+        }
+        return .liveBroadcasting
     }
 
     private func requireEngine(requestId: String, action: (AgoraRtcEngineKit) -> Void) {
@@ -666,10 +762,17 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         action(engine)
     }
 
-    private func ensureRtcPermissions(requestId: String, action: @escaping () -> Void) {
-        ensureCameraPermission { cameraGranted in
-            guard cameraGranted else {
-                self.dispatchError(requestId: requestId, message: "Camera permission is required.")
+    private func ensureRtcPermissions(
+        requestId: String,
+        requiresCamera: Bool = true,
+        requiresMicrophone: Bool = true,
+        action: @escaping () -> Void
+    ) {
+        let continueWithMicrophone = {
+            guard requiresMicrophone else {
+                DispatchQueue.main.async {
+                    action()
+                }
                 return
             }
             self.ensureMicrophonePermission { microphoneGranted in
@@ -681,6 +784,17 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     action()
                 }
             }
+        }
+        guard requiresCamera else {
+            continueWithMicrophone()
+            return
+        }
+        ensureCameraPermission { cameraGranted in
+            guard cameraGranted else {
+                self.dispatchError(requestId: requestId, message: "Camera permission is required.")
+                return
+            }
+            continueWithMicrophone()
         }
     }
 

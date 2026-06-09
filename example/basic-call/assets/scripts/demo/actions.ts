@@ -1,0 +1,99 @@
+export const BASIC_VIDEO_ACTIONS = [
+  { name: 'JoinChannel', handler: 'toggleJoinChannel' },
+  { name: 'StartPreview', handler: 'togglePreview' },
+  { name: 'SwitchCamera', handler: 'triggerSwitchCamera' },
+  { name: 'MuteLocalVideo', handler: 'toggleMuteLocalVideo' },
+  { name: 'MuteAllRemoteVideo', handler: 'toggleMuteAllRemoteVideo' },
+  { name: 'ApplyEncoder', handler: 'applySelectedVideoEncoder' },
+  { name: 'RefreshViews', handler: 'refreshRtcViews' },
+  { name: 'OpenLog', handler: 'openStatusLogPage' },
+] as const;
+
+export const ADVANCED_ACTIONS = [
+  { name: 'Initialize', handler: 'initializeRtc' },
+  { name: 'Leave', handler: 'leaveRtcChannel' },
+  { name: 'Speaker', handler: 'toggleSpeakerphone' },
+  { name: 'Mic', handler: 'toggleLocalAudio' },
+  { name: 'Cam', handler: 'toggleLocalVideo' },
+  { name: 'Full Demo', handler: 'runCapabilityDemo' },
+  { name: 'Channel', handler: 'runChannelRoleDemo' },
+  { name: 'Mixing', handler: 'runMixingDemo' },
+  { name: 'Effect', handler: 'runEffectDemo' },
+  { name: 'Diag', handler: 'runDiagnosticsDemo' },
+  { name: 'Profile', handler: 'cycleChannelProfilePreset' },
+  { name: 'Role', handler: 'cycleClientRolePreset' },
+  { name: 'Encoder', handler: 'cycleVideoEncoderPreset' },
+  { name: 'Freeze', handler: 'toggleStatusFreeze' },
+  { name: 'Clear', handler: 'clearStatusLog' },
+  { name: 'EnableAudio', handler: 'toggleEnableAudio' },
+  { name: 'EnableLocalAudio', handler: 'toggleEnableLocalAudio' },
+  { name: 'MuteLocalAudio', handler: 'toggleMuteLocalAudio' },
+  { name: 'MuteRemoteAudio', handler: 'toggleMuteRemoteAudio' },
+  { name: 'MuteAllRemoteAudio', handler: 'toggleMuteAllRemoteAudio' },
+  { name: 'AudioVolumeIndication', handler: 'toggleAudioVolumeIndication' },
+  { name: 'DefaultAudioRoute', handler: 'toggleDefaultAudioRoute' },
+  { name: 'PlaybackVolume', handler: 'togglePlaybackVolume' },
+  { name: 'AudioProfile', handler: 'toggleAudioProfile' },
+  { name: 'EnableVideo', handler: 'toggleEnableVideo' },
+  { name: 'MuteRemoteVideo', handler: 'toggleMuteRemoteVideo' },
+  { name: 'BeautyEffect', handler: 'toggleBeautyEffect' },
+  { name: 'ContentInspect', handler: 'toggleContentInspect' },
+  { name: 'PlaybackUserVolume', handler: 'togglePlaybackUserVolume' },
+] as const;
+
+export const DEFAULT_BUTTON_LAYOUT = [...BASIC_VIDEO_ACTIONS, ...ADVANCED_ACTIONS] as const;
+
+export const SESSION_QUICK_BUTTONS = ['JoinChannel', 'StartPreview', 'SwitchCamera'] as const;
+
+export const BUTTON_SECTION_LAYOUT = [
+  { title: 'Connection', buttons: ['JoinChannel'] },
+  { title: 'Preview and camera', buttons: ['StartPreview', 'SwitchCamera', 'MuteLocalVideo', 'MuteAllRemoteVideo'] },
+  { title: 'Render and encoder', buttons: ['ApplyEncoder'] },
+  { title: 'Diagnostics', buttons: ['RefreshViews', 'OpenLog'] },
+  { title: 'Advanced', buttons: ADVANCED_ACTIONS.map((action) => action.name) },
+] as const;
+
+export const BASIC_VIDEO_ACTION_SECTIONS = BUTTON_SECTION_LAYOUT;
+
+export const ACTION_LABELS: Record<string, string> = {
+  JoinChannel: 'Join Channel',
+  StartPreview: 'Start Preview',
+  SwitchCamera: 'Switch Camera',
+  MuteLocalVideo: 'Camera On',
+  MuteAllRemoteVideo: 'Remote Video On',
+  ApplyEncoder: 'Apply Encoder',
+  RefreshViews: 'Refresh Views',
+  OpenLog: 'Log',
+  Initialize: 'Initialize',
+  Leave: 'Leave',
+  Speaker: 'Speaker',
+  Mic: 'Mic',
+  Cam: 'Cam',
+  'Full Demo': 'Full Demo',
+  Mixing: 'Mixing',
+  Effect: 'Effect',
+  Diag: 'Diagnostics',
+  Freeze: 'Freeze Log',
+  Clear: 'Clear Log',
+  Channel: 'Channel Demo',
+  Profile: 'Profile',
+  Role: 'Role',
+  Encoder: 'Encoder',
+  EnableAudio: 'Enable Audio',
+  EnableLocalAudio: 'Local Audio',
+  MuteLocalAudio: 'Mute Local Audio',
+  MuteRemoteAudio: 'Mute Remote Audio',
+  MuteAllRemoteAudio: 'Mute All Remote',
+  AudioVolumeIndication: 'Volume Indicator',
+  DefaultAudioRoute: 'Default Route',
+  PlaybackVolume: 'Playback Volume',
+  AudioProfile: 'Audio Profile',
+  EnableVideo: 'Enable Video',
+  MuteRemoteVideo: 'Mute Remote Video',
+  BeautyEffect: 'Beauty Effect',
+  ContentInspect: 'Content Inspect',
+  PlaybackUserVolume: 'User Volume',
+};
+
+export type DemoActionName = typeof DEFAULT_BUTTON_LAYOUT[number]['name'];
+export type DemoActionHandlerName = typeof DEFAULT_BUTTON_LAYOUT[number]['handler'];

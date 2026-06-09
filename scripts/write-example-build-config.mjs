@@ -8,19 +8,82 @@ const baseConfigPath = path.join(repoRoot, 'example/basic-call/assets/resources/
 const buildConfigPath = path.join(repoRoot, 'example/basic-call/assets/resources/agora-config.build.json');
 const buildConfigMetaPath = `${buildConfigPath}.meta`;
 
-const appId = process.env.APP_ID || process.env.TEST_APP_ID || '';
-if (!appId) {
-  console.error('APP_ID or TEST_APP_ID is required when writing the example build config.');
+function parseOptionalBoolean(name) {
+  const value = process.env[name];
+  if (value === undefined || value.trim() === '') {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+  console.error(`${name} must be a boolean value.`);
   process.exit(1);
 }
 
+function parseOptionalInteger(name) {
+  const value = process.env[name];
+  if (value === undefined || value.trim() === '') {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed < 0) {
+    console.error(`${name} must be a non-negative integer.`);
+    process.exit(1);
+  }
+  return parsed;
+}
+
+function setIfDefined(target, name, value) {
+  if (value !== undefined) {
+    target[name] = value;
+  }
+}
+
+function firstNonEmptyEnv(...names) {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value !== undefined && value.trim() !== '') {
+      return value;
+    }
+  }
+  return undefined;
+}
+
+function nonPlaceholderString(value) {
+  if (typeof value !== 'string') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!trimmed || /^<YOUR_[A-Z0-9_]+>$/.test(trimmed)) {
+    return undefined;
+  }
+  return value;
+}
+
 const baseConfig = JSON.parse(await readFile(baseConfigPath, 'utf8'));
+const appId = firstNonEmptyEnv('APP_ID', 'TEST_APP_ID') ?? nonPlaceholderString(baseConfig.appId);
+if (!appId) {
+  console.error('APP_ID or TEST_APP_ID is required when writing the example build config unless agora-config.json contains a real appId.');
+  process.exit(1);
+}
+
 const buildConfig = {
   ...baseConfig,
   appId,
-  channelId: process.env.CHANNEL_ID || process.env.TEST_CHANNEL_ID || 'testapi',
-  token: process.env.TOKEN || process.env.TEST_TOKEN || '',
+  channelId: firstNonEmptyEnv('CHANNEL_ID', 'TEST_CHANNEL_ID') ?? nonPlaceholderString(baseConfig.channelId) ?? 'testapi',
+  token: firstNonEmptyEnv('TOKEN', 'TEST_TOKEN') ?? (typeof baseConfig.token === 'string' ? baseConfig.token : ''),
 };
+setIfDefined(buildConfig, 'uid', parseOptionalInteger('TEST_UID') ?? parseOptionalInteger('UID'));
+setIfDefined(buildConfig, 'autoPreview', parseOptionalBoolean('AUTO_PREVIEW'));
+setIfDefined(buildConfig, 'autoJoin', parseOptionalBoolean('AUTO_JOIN'));
+setIfDefined(buildConfig, 'publishCameraTrack', parseOptionalBoolean('PUBLISH_CAMERA_TRACK'));
+setIfDefined(buildConfig, 'publishMicrophoneTrack', parseOptionalBoolean('PUBLISH_MICROPHONE_TRACK'));
+setIfDefined(buildConfig, 'autoSubscribeAudio', parseOptionalBoolean('AUTO_SUBSCRIBE_AUDIO'));
+setIfDefined(buildConfig, 'autoSubscribeVideo', parseOptionalBoolean('AUTO_SUBSCRIBE_VIDEO'));
 const buildConfigMeta = {
   ver: '2.0.1',
   importer: 'json',

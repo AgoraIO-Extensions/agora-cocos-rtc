@@ -11,8 +11,14 @@ test('dev-android script exports current source with Cocos CLI instead of old ru
   );
 
   assert.match(content, /CocosCreator\.app\/Contents\/MacOS\/CocosCreator/);
-  assert.match(content, /COCOS_BUILD_CONFIG=.*build-configs\/android-debug\.json/);
-  assert.match(content, /--build "configPath=\$COCOS_BUILD_CONFIG"/);
+  assert.match(content, /ANDROID_BUILD_CONFIG=.*build-configs\/android-debug\.json/);
+  assert.match(content, /ANDROID_COCOS_BUILD_CONFIG=.*build-android\/android-debug\.local\.json/);
+  assert.match(content, /ANDROID_NDK_HOME="\$\{ANDROID_NDK_HOME:-\$\{ANDROID_NDK_ROOT:-\}\}"/);
+  assert.match(content, /resolve_android_ndk_path\(\)/);
+  assert.match(content, /write_android_cocos_build_config\(\)/);
+  assert.match(content, /sdkPath/);
+  assert.match(content, /ndkPath/);
+  assert.match(content, /--build "configPath=\$ANDROID_COCOS_BUILD_CONFIG"/);
   assert.match(content, /ANDROID_RUNTIME_PLUGIN_DIR=/);
   assert.match(content, /ANDROID_EXPORTED_PLUGIN_DIR=/);
   assert.match(content, /cp -R "\$ANDROID_RUNTIME_PLUGIN_DIR\/\." "\$ANDROID_EXPORTED_PLUGIN_DIR\/"/);
@@ -23,6 +29,10 @@ test('dev-android script exports current source with Cocos CLI instead of old ru
   assert.match(content, /if \[\[ ! -x "\$ADB_BIN" \]\]; then/);
   assert.match(content, /if \[\[ ! -d "\$LOCAL_AGORA_MAVEN_DIR" \]\]; then/);
   assert.match(content, /node \.\/scripts\/fetch-agora-maven\.mjs >/);
+  assert.match(content, /has_example_build_config_env\(\)/);
+  assert.match(content, /AUTO_JOIN/);
+  assert.match(content, /PUBLISH_CAMERA_TRACK/);
+  assert.match(content, /node \.\/scripts\/write-example-build-config\.mjs >/);
   assert.match(content, /"\$ADB_BIN" install -g -r --no-streaming "\$APK_PATH"/);
   assert.match(content, /"\$ADB_BIN" shell am start -n "\$PACKAGE_NAME\/\$ACTIVITY_NAME"/);
   assert.doesNotMatch(content, /patch-exported-main-bundle/);

@@ -167,7 +167,7 @@ test('android bridge template wires supported advanced sdk methods to real Agora
   assert.match(bridgeContent, /preloadEffect/);
   assert.match(bridgeContent, /playEffect/);
   assert.match(bridgeContent, /stopEffect/);
-  assert.match(bridgeContent, /dispatchUnsupported\(requestId, "setDefaultAudioRouteToSpeakerphone"\)/);
+  assert.match(bridgeContent, /rtcEngine\.setDefaultAudioRoutetoSpeakerphone/);
 });
 
 test('android bridge template returns errors for bad native requests instead of timing out', async () => {
@@ -268,6 +268,41 @@ test('android bridge template resolves joinChannel after the sdk accepts the req
   assert.doesNotMatch(onJoinChannelSuccessMatch[0], /dispatchOk\(pendingJoinRequestId\)/);
 });
 
+test('android bridge template maps joinChannel media options from request payload', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  const handleJoinChannelMatch = bridgeContent.match(
+    /private void handleJoinChannel[\s\S]*?private void handleGetErrorDescription/,
+  );
+  assert.ok(handleJoinChannelMatch);
+  const handleJoinChannel = handleJoinChannelMatch[0];
+
+  assert.match(handleJoinChannel, /JSONObject mediaOptions = params != null \? params\.optJSONObject\("options"\) : null/);
+  assert.match(handleJoinChannel, /mediaOptionBoolean\(mediaOptions, "publishCameraTrack", true\)/);
+  assert.match(handleJoinChannel, /mediaOptionBoolean\(mediaOptions, "publishMicrophoneTrack", true\)/);
+  assert.match(handleJoinChannel, /continueJoinChannel\(requestId, token, channelId, uid, mediaOptions\)/);
+  assert.match(handleJoinChannel, /applyChannelMediaOptions\(options, mediaOptions\)/);
+  assert.doesNotMatch(handleJoinChannel, /options\.clientRoleType\s*=\s*Constants\.CLIENT_ROLE_BROADCASTER/);
+  assert.doesNotMatch(handleJoinChannel, /options\.publishCameraTrack\s*=\s*true/);
+  assert.doesNotMatch(handleJoinChannel, /options\.publishMicrophoneTrack\s*=\s*true/);
+  assert.doesNotMatch(handleJoinChannel, /options\.autoSubscribeAudio\s*=\s*true/);
+  assert.doesNotMatch(handleJoinChannel, /options\.autoSubscribeVideo\s*=\s*true/);
+
+  assert.match(bridgeContent, /private void applyChannelMediaOptions\(ChannelMediaOptions options, JSONObject mediaOptions\)/);
+  assert.match(bridgeContent, /options\.clientRoleType = parseClientRoleType\(mediaOptions\.opt\("clientRoleType"\)\)/);
+  assert.match(bridgeContent, /options\.channelProfile = parseChannelProfile\(mediaOptions\.opt\("channelProfile"\)\)/);
+  assert.match(bridgeContent, /options\.publishCameraTrack = optNullableBoolean\(mediaOptions, "publishCameraTrack"\)/);
+  assert.match(bridgeContent, /options\.publishMicrophoneTrack = optNullableBoolean\(mediaOptions, "publishMicrophoneTrack"\)/);
+  assert.match(bridgeContent, /options\.autoSubscribeAudio = optNullableBoolean\(mediaOptions, "autoSubscribeAudio"\)/);
+  assert.match(bridgeContent, /options\.autoSubscribeVideo = optNullableBoolean\(mediaOptions, "autoSubscribeVideo"\)/);
+});
+
 test('android bridge template requests rtc runtime permissions before camera and microphone use', async () => {
   const bridgeContent = await readFile(
     path.join(
@@ -283,6 +318,8 @@ test('android bridge template requests rtc runtime permissions before camera and
   assert.match(bridgeContent, /requestPermissions\(/);
   assert.match(bridgeContent, /pendingPermissionActions/);
   assert.match(bridgeContent, /onRequestPermissionsResult/);
+  assert.match(bridgeContent, /requiresCamera/);
+  assert.match(bridgeContent, /requiresMicrophone/);
 
   const handleJoinChannelMatch = bridgeContent.match(
     /private void handleJoinChannel[\s\S]*?private void handleGetErrorDescription/,
@@ -290,7 +327,7 @@ test('android bridge template requests rtc runtime permissions before camera and
   assert.ok(handleJoinChannelMatch);
   assertPatternBefore(
     handleJoinChannelMatch[0],
-    /ensureRtcPermissions\(requestId,[\s\S]*continueJoinChannel/,
+    /ensureRtcPermissions\([\s\S]*requestId,[\s\S]*requiresCameraPermission,[\s\S]*requiresMicrophonePermission,[\s\S]*continueJoinChannel/,
     /rtcEngine\.joinChannel/,
     'joinChannel must request camera and microphone permissions before invoking native sdk',
   );
@@ -301,10 +338,27 @@ test('android bridge template requests rtc runtime permissions before camera and
   assert.ok(handleStartPreviewMatch);
   assertPatternBefore(
     handleStartPreviewMatch[0],
-    /ensureRtcPermissions\(requestId,[\s\S]*continueStartPreview/,
+    /ensureRtcPermissions\(\s*requestId,\s*true,\s*false,[\s\S]*continueStartPreview/,
     /renderBackend\.startPreview/,
-    'startPreview must request camera and microphone permissions before invoking native sdk',
+    'startPreview must request only camera permission before invoking native sdk',
   );
+});
+
+test('android bridge template supports default audio route to speakerphone', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  const routeMatch = bridgeContent.match(
+    /private void handleSetDefaultAudioRouteToSpeakerphone[\s\S]*?private void handleSetEnableSpeakerphone/,
+  );
+  assert.ok(routeMatch);
+  assert.match(routeMatch[0], /rtcEngine\.setDefaultAudioRoutetoSpeakerphone\(params == null \|\| params\.optBoolean\("enabled", true\)\)/);
+  assert.doesNotMatch(routeMatch[0], /dispatchUnsupported/);
 });
 
 test('android bridge template dispatches expanded native rtc callbacks as js events', async () => {
@@ -430,6 +484,38 @@ test('ios bridge template resolves joinChannel after the sdk accepts the request
   assert.doesNotMatch(didJoinChannelMatch[0], /pendingJoinRequestId/);
 });
 
+test('ios bridge template maps joinChannel media options from request payload', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  const handleJoinChannelMatch = bridgeContent.match(
+    /private func handleJoinChannel\(requestId: String, params: \[String: Any\]\)[\s\S]*?private func requireEngine/,
+  );
+  assert.ok(handleJoinChannelMatch);
+  const handleJoinChannel = handleJoinChannelMatch[0];
+
+  assert.match(handleJoinChannel, /if let mediaOptionParams = params\["options"\] as\? \[String: Any\]/);
+  assert.match(handleJoinChannel, /let mediaOptions = buildChannelMediaOptions\(mediaOptionParams\)/);
+  assert.match(handleJoinChannel, /mediaOptionBool\(mediaOptionParams, key: "publishCameraTrack", defaultValue: true\)/);
+  assert.match(handleJoinChannel, /mediaOptionBool\(mediaOptionParams, key: "publishMicrophoneTrack", defaultValue: true\)/);
+  assert.match(handleJoinChannel, /uid: uid,\s*mediaOptions: mediaOptions,\s*joinSuccess: nil/);
+  assert.match(
+    handleJoinChannel,
+    /else\s*\{[\s\S]*?engine\.joinChannel\(\s*byToken: token,\s*channelId: channelId,\s*info: nil,\s*uid: uid,\s*joinSuccess: nil\s*\)/,
+  );
+
+  assert.match(bridgeContent, /private func buildChannelMediaOptions\(_ params: \[String: Any\]\?\) -> AgoraRtcChannelMediaOptions/);
+  assert.match(bridgeContent, /options\.clientRoleType = parseClientRoleType\(rawValue\)/);
+  assert.match(bridgeContent, /options\.channelProfile = parseChannelProfile\(rawValue\)/);
+  assert.match(bridgeContent, /options\.publishCameraTrack = value/);
+  assert.match(bridgeContent, /options\.publishMicrophoneTrack = value/);
+  assert.match(bridgeContent, /options\.autoSubscribeAudio = value/);
+  assert.match(bridgeContent, /options\.autoSubscribeVideo = value/);
+  assert.doesNotMatch(handleJoinChannel, /options\.startPreview = value/);
+});
+
 test('ios bridge template rejects unsafe invalid arguments before calling the rtc sdk', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
@@ -519,9 +605,9 @@ test('ios bridge template explicitly requests rtc permissions before camera and 
   assert.ok(startPreviewMatch);
   assertPatternBefore(
     startPreviewMatch[0],
-    /ensureRtcPermissions\(requestId: requestId/,
+    /ensureRtcPermissions\(\s*requestId: requestId,\s*requiresCamera: true,\s*requiresMicrophone: false/,
     /engine\.startPreview/,
-    'startPreview must request iOS camera and microphone permissions before invoking native sdk',
+    'startPreview must request only iOS camera permission before invoking native sdk',
   );
 
   const handleJoinChannelMatch = bridgeContent.match(
@@ -530,9 +616,9 @@ test('ios bridge template explicitly requests rtc permissions before camera and 
   assert.ok(handleJoinChannelMatch);
   assertPatternBefore(
     handleJoinChannelMatch[0],
-    /ensureRtcPermissions\(requestId: requestId/,
+    /ensureRtcPermissions\([\s\S]*requestId: requestId,[\s\S]*requiresCamera: requiresCameraPermission,[\s\S]*requiresMicrophone: requiresMicrophonePermission/,
     /engine\.joinChannel/,
-    'joinChannel must request iOS camera and microphone permissions before invoking native sdk',
+    'joinChannel must request required iOS permissions before invoking native sdk',
   );
 });
 
@@ -584,6 +670,120 @@ test('ios integration script registers all committed bridge templates in the exp
   assert.match(scriptContent, /\[\[AgoraRtcPlugin sharedInstance\] attachBridge\]/);
   assert.match(scriptContent, /NSCameraUsageDescription/);
   assert.match(scriptContent, /NSMicrophoneUsageDescription/);
+});
+
+test('ios integration script refreshes the configured Swift package exact version', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+  const withPackageIndex = scriptContent.indexOf('if WITH_PACKAGE');
+  const createPackageIndex = scriptContent.indexOf('unless package_ref', withPackageIndex);
+  const packageProductIndex = scriptContent.indexOf('unless package_product', createPackageIndex);
+
+  assert.ok(withPackageIndex >= 0, 'expected WITH_PACKAGE branch');
+  assert.ok(createPackageIndex >= 0, 'expected package creation branch');
+  assert.ok(packageProductIndex >= 0, 'expected package product branch');
+  assert.match(
+    scriptContent,
+    /unless package_ref[\s\S]+project\.root_object\.package_references << package_ref\s+end\s+package_ref\.requirement =/,
+  );
+  assert.match(scriptContent, /'kind' => 'exactVersion'/);
+  assert.match(scriptContent, /'version' => PACKAGE_VERSION/);
+});
+
+test('ios integration script removes stale Swift package products for the same repository', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+
+  assert.match(scriptContent, /remove_stale_swift_package_products/);
+  assert.match(scriptContent, /dependency\.package == package_ref/);
+  assert.match(scriptContent, /dependency\.product_name != package_product_name/);
+  assert.match(scriptContent, /frameworks_phase\.files/);
+  assert.match(scriptContent, /target\.package_product_dependencies\.delete\(dependency\)/);
+  assert.match(scriptContent, /dependency\.remove_from_project/);
+  assert.match(
+    scriptContent,
+    /remove_stale_swift_package_products\(target, frameworks_phase, package_ref, PACKAGE_PRODUCT\)/,
+  );
+});
+
+test('ios sdk config uses the product name declared by the local 4.5.3 Package.swift', async () => {
+  const sdkConfig = JSON.parse(
+    await readFile(path.join(repoRoot, 'sdk/agora-rtc/sdk-config.json'), 'utf8'),
+  );
+
+  assert.equal(sdkConfig.ios.packageProduct, 'RtcBasic');
+});
+
+test('ios integration script removes Cocos legacy build locations before enabling Swift packages', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+  const cleanupIndex = scriptContent.indexOf('remove_legacy_build_locations_for_swift_packages');
+  const withPackageIndex = scriptContent.indexOf('if WITH_PACKAGE');
+
+  assert.ok(cleanupIndex >= 0, 'expected legacy build location cleanup helper');
+  assert.ok(withPackageIndex >= 0, 'expected WITH_PACKAGE branch');
+  assert.ok(cleanupIndex < withPackageIndex, 'cleanup helper should be defined before package integration');
+  assert.match(scriptContent, /SYMROOT/);
+  assert.match(scriptContent, /OBJROOT/);
+  assert.match(scriptContent, /CONFIGURATION_BUILD_DIR/);
+  assert.match(scriptContent, /CONFIGURATION_TEMP_DIR/);
+  assert.match(scriptContent, /project\.targets\.flat_map\(&:build_configurations\)/);
+  assert.match(
+    scriptContent,
+    /remove_legacy_build_locations_for_swift_packages\(project\) if WITH_PACKAGE/,
+  );
+});
+
+test('ios integration script rewrites Cocos archive linker flags after clearing legacy build paths', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+
+  assert.match(scriptContent, /rewrite_cocos_archive_linker_flags/);
+  assert.match(scriptContent, /OTHER_LDFLAGS/);
+  assert.match(scriptContent, /archives\/#\{Regexp\.escape\(configuration\.name\)\}\/libcocos_engine\\\.a/);
+  assert.match(scriptContent, /boost\/container\/archives\/#\{Regexp\.escape\(configuration\.name\)\}\/libboost_container\\\.a/);
+  assert.match(scriptContent, /\$\(CONFIGURATION_BUILD_DIR\)\/libcocos_engine\.a/);
+  assert.match(scriptContent, /\$\(CONFIGURATION_BUILD_DIR\)\/libboost_container\.a/);
+  assert.match(scriptContent, /rewrite_cocos_archive_linker_flags\(target\)/);
+});
+
+test('ios integration script adds the app Frameworks runpath for embedded Swift package frameworks', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+
+  assert.match(scriptContent, /ensure_app_frameworks_runpath/);
+  assert.match(scriptContent, /LD_RUNPATH_SEARCH_PATHS/);
+  assert.match(scriptContent, /@executable_path\/Frameworks/);
+  assert.match(scriptContent, /ensure_app_frameworks_runpath\(target\)/);
+});
+
+test('ios integration script can remove simulator launch assets for local smoke builds', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+
+  assert.match(scriptContent, /SKIP_SIMULATOR_LAUNCH_ASSETS = ARGV\.include\?\('--skip-simulator-launch-assets'\)/);
+  assert.match(scriptContent, /remove_simulator_launch_assets/);
+  assert.match(scriptContent, /LaunchScreen\.storyboard/);
+  assert.match(scriptContent, /Images\.xcassets/);
+  assert.match(scriptContent, /target\.resources_build_phase\.files/);
+  assert.match(scriptContent, /ASSETCATALOG_COMPILER_APPICON_NAME/);
+  assert.match(scriptContent, /ASSETCATALOG_COMPILER_LAUNCHSTORYBOARD_NAME/);
+  assert.match(
+    scriptContent,
+    /remove_simulator_launch_assets\(target\) if SKIP_SIMULATOR_LAUNCH_ASSETS/,
+  );
 });
 
 test('ios bridge template manages native video canvas views for local and remote rendering', async () => {
@@ -747,12 +947,16 @@ public class JSONException extends Exception {
 public class JSONObject {
     public JSONObject() {}
     public JSONObject(String payload) throws JSONException {}
+    public boolean has(String key) { return false; }
+    public boolean isNull(String key) { return true; }
+    public Object opt(String key) { return null; }
     public String optString(String key) { return ""; }
     public String optString(String key, String defaultValue) { return defaultValue; }
     public JSONObject optJSONObject(String key) { return null; }
     public int optInt(String key) { return 0; }
     public int optInt(String key, int defaultValue) { return defaultValue; }
     public double optDouble(String key, double defaultValue) { return defaultValue; }
+    public boolean optBoolean(String key) { return false; }
     public boolean optBoolean(String key, boolean defaultValue) { return defaultValue; }
     public JSONObject put(String key, Object value) throws JSONException { return this; }
 }
@@ -862,17 +1066,31 @@ public class Log {
     `package android.app;
 
 import android.content.Context;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import android.view.View;
 import android.view.ViewGroup;
 
 public class Activity extends Context {
+    public final List<String[]> permissionRequests = new ArrayList<>();
+    private final Set<String> grantedPermissions = new HashSet<>();
+
     public void runOnUiThread(Runnable runnable) {
         runnable.run();
     }
 
     public void addContentView(View view, ViewGroup.LayoutParams params) {}
-    public int checkSelfPermission(String permission) { return 0; }
-    public void requestPermissions(String[] permissions, int requestCode) {}
+    public int checkSelfPermission(String permission) {
+        return grantedPermissions.contains(permission) ? 0 : -1;
+    }
+    public void requestPermissions(String[] permissions, int requestCode) {
+        permissionRequests.add(permissions);
+    }
+    public void grantPermission(String permission) {
+        grantedPermissions.add(permission);
+    }
 }
 `,
     'utf8',
@@ -1061,7 +1279,9 @@ import android.app.Activity;
 import android.content.Context;
 
 public class GlobalObject {
-    public static Activity getActivity() { return new Activity(); }
+    private static Activity activity = new Activity();
+    public static Activity getActivity() { return activity; }
+    public static void setActivity(Activity nextActivity) { activity = nextActivity; }
     public static Context getContext() { return new Context(); }
 }
 `,
@@ -1146,7 +1366,18 @@ public class IRtcEngineEventHandler {
     path.join(srcRoot, 'io/agora/rtc2/ChannelMediaOptions.java'),
     `package io.agora.rtc2;
 
-public class ChannelMediaOptions {}
+public class ChannelMediaOptions {
+    public Integer clientRoleType;
+    public Integer channelProfile;
+    public Boolean publishCameraTrack;
+    public Boolean publishMicrophoneTrack;
+    public Boolean autoSubscribeAudio;
+    public Boolean autoSubscribeVideo;
+    public Boolean enableAudioRecordingOrPlayout;
+    public Boolean startPreview;
+    public String token;
+    public String parameters;
+}
 `,
     'utf8',
   );
@@ -1332,7 +1563,7 @@ public class RtcEngine {
     public int muteAllRemoteAudioStreams(boolean muted) { return 0; }
     public int setAudioProfile(int profile, int scenario) { return 0; }
     public int enableAudioVolumeIndication(int interval, int smooth, boolean reportVad) { return 0; }
-    public int setDefaultAudioRouteToSpeakerphone(boolean enabled) { return 0; }
+    public int setDefaultAudioRoutetoSpeakerphone(boolean enabled) { return 0; }
     public boolean isSpeakerphoneEnabled() { return true; }
     public int setEnableSpeakerphone(boolean enabled) { return 0; }
     public int adjustPlaybackSignalVolume(int volume) { return 0; }
@@ -1422,4 +1653,120 @@ public class RtcEngine {
   ];
 
   await execFileAsync('/usr/bin/javac', ['-d', classesRoot, ...javaFiles]);
+
+  const permissionQueueTestFile = path.join(srcRoot, 'PermissionQueueTest.java');
+  await writeFile(
+    permissionQueueTestFile,
+    `import android.Manifest;
+import android.app.Activity;
+import android.content.pm.PackageManager;
+import com.cocos.lib.GlobalObject;
+import io.agora.cocos.rtc.AgoraRtcPlugin;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Queue;
+
+public class PermissionQueueTest {
+    public static void main(String[] args) throws Exception {
+        Activity activity = new Activity();
+        GlobalObject.setActivity(activity);
+        AgoraRtcPlugin plugin = AgoraRtcPlugin.getInstance();
+        Class<?> pluginClass = plugin.getClass();
+
+        Field pendingActionsField = pluginClass.getDeclaredField("pendingPermissionActions");
+        pendingActionsField.setAccessible(true);
+        ((Queue<?>) pendingActionsField.get(plugin)).clear();
+        Field requestInFlightField = pluginClass.getDeclaredField("permissionRequestInFlight");
+        requestInFlightField.setAccessible(true);
+        requestInFlightField.setBoolean(plugin, false);
+        Field requestCodeField = pluginClass.getDeclaredField("RTC_PERMISSION_REQUEST_CODE");
+        requestCodeField.setAccessible(true);
+        int requestCode = requestCodeField.getInt(null);
+
+        Method ensurePermissions = pluginClass.getDeclaredMethod(
+            "ensureRtcPermissions",
+            String.class,
+            boolean.class,
+            boolean.class,
+            Runnable.class
+        );
+        ensurePermissions.setAccessible(true);
+
+        List<String> ranActions = new ArrayList<>();
+        ensurePermissions.invoke(plugin, "mic-only", false, true, (Runnable) () -> ranActions.add("mic-only"));
+        ensurePermissions.invoke(plugin, "camera-mic", true, true, (Runnable) () -> ranActions.add("camera-mic"));
+
+        assertEquals(1, activity.permissionRequests.size(), "first action should request microphone");
+        assertPermissions(activity.permissionRequests.get(0), Manifest.permission.RECORD_AUDIO);
+
+        activity.grantPermission(Manifest.permission.RECORD_AUDIO);
+        plugin.onRequestPermissionsResult(
+            requestCode,
+            new String[] { Manifest.permission.RECORD_AUDIO },
+            new int[] { PackageManager.PERMISSION_GRANTED }
+        );
+
+        assertEquals(1, ranActions.size(), "only the microphone action should run after microphone grant");
+        assertEquals("mic-only", ranActions.get(0), "microphone action should run first");
+        assertEquals(2, activity.permissionRequests.size(), "camera action should request the missing camera permission");
+        assertPermissions(activity.permissionRequests.get(1), Manifest.permission.CAMERA);
+
+        activity.grantPermission(Manifest.permission.CAMERA);
+        plugin.onRequestPermissionsResult(
+            requestCode,
+            new String[] { Manifest.permission.CAMERA },
+            new int[] { PackageManager.PERMISSION_GRANTED }
+        );
+
+        assertEquals(2, ranActions.size(), "queued camera action should run after camera grant");
+        assertEquals("camera-mic", ranActions.get(1), "camera action should run second");
+
+        Activity partialDenialActivity = new Activity();
+        GlobalObject.setActivity(partialDenialActivity);
+        ((Queue<?>) pendingActionsField.get(plugin)).clear();
+        requestInFlightField.setBoolean(plugin, false);
+
+        List<String> partialDenialActions = new ArrayList<>();
+        ensurePermissions.invoke(plugin, "camera-mic-denied", true, true, (Runnable) () -> partialDenialActions.add("camera-mic-denied"));
+        ensurePermissions.invoke(plugin, "mic-only-granted", false, true, (Runnable) () -> partialDenialActions.add("mic-only-granted"));
+
+        assertEquals(1, partialDenialActivity.permissionRequests.size(), "mixed queue should request camera and microphone");
+        assertPermissions(
+            partialDenialActivity.permissionRequests.get(0),
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        );
+
+        partialDenialActivity.grantPermission(Manifest.permission.RECORD_AUDIO);
+        plugin.onRequestPermissionsResult(
+            requestCode,
+            new String[] { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO },
+            new int[] { -1, PackageManager.PERMISSION_GRANTED }
+        );
+
+        assertEquals(1, partialDenialActions.size(), "mic-only action should run when camera is denied but microphone is granted");
+        assertEquals("mic-only-granted", partialDenialActions.get(0), "mic-only action should not be failed by camera denial");
+        assertEquals(1, partialDenialActivity.permissionRequests.size(), "camera denial should not trigger another permission request");
+    }
+
+    private static void assertPermissions(String[] actual, String... expected) {
+        assertEquals(expected.length, actual.length, "permission count");
+        for (int index = 0; index < expected.length; index += 1) {
+            assertEquals(expected[index], actual[index], "permission at index " + index);
+        }
+    }
+
+    private static void assertEquals(Object expected, Object actual, String message) {
+        if (!expected.equals(actual)) {
+            throw new AssertionError(message + ": expected " + expected + " but got " + actual);
+        }
+    }
+}
+`,
+    'utf8',
+  );
+  await execFileAsync('/usr/bin/javac', ['-cp', classesRoot, '-d', classesRoot, permissionQueueTestFile]);
+  await execFileAsync('/usr/bin/java', ['-cp', classesRoot, 'PermissionQueueTest']);
 });
