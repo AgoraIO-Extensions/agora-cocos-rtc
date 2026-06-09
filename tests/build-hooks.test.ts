@@ -297,7 +297,16 @@ cc_ios_after_target(\${EXECUTABLE_NAME})
   assert.match(once, /agora-rtc\/AgoraRtcPlugin\.mm/);
   assert.match(once, /agora-rtc\/AgoraEngineTextureSlotBridge\.mm/);
   assert.match(once, /project\(\$\{APP_NAME\} CXX Swift\)/);
+  assert.match(once, /execute_process\(\s*COMMAND xcrun --find swiftc/);
+  assert.ok(
+    once.indexOf('CMAKE_Swift_COMPILER') < once.indexOf('project(${APP_NAME} CXX Swift)'),
+    'Swift compiler must be configured before CMake enables Swift in project().',
+  );
   assert.match(once, /CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "5\.0"/);
+  assert.equal(
+    [...once.matchAll(/execute_process\(\s*COMMAND xcrun --find swiftc/g)].length,
+    1,
+  );
   assert.equal(
     [...once.matchAll(/agora-rtc\/AgoraRtcPlugin\.mm/g)].length,
     2,
@@ -324,6 +333,7 @@ add_executable(\${EXECUTABLE_NAME} \${CC_ALL_SOURCES})
   assert.match(content, /agora-rtc\/AgoraRtcBridge\.swift/);
   assert.match(content, /agora-rtc\/AgoraRtcPlugin\.mm/);
   assert.match(content, /project\(\$\{APP_NAME\} CXX Swift\)/);
+  assert.match(content, /CMAKE_Swift_COMPILER/);
   assert.match(content, /CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION/);
 });
 

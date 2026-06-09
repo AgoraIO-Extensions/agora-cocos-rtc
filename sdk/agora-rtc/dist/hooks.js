@@ -49,6 +49,16 @@ set_source_files_properties(
 )
 
 set(CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "${sdkConfig.ios.swiftVersion}")`;
+const IOS_SWIFT_COMPILER_CMAKE_BLOCK = `if(NOT CMAKE_Swift_COMPILER)
+    execute_process(
+        COMMAND xcrun --find swiftc
+        OUTPUT_VARIABLE AGORA_COCOS_SWIFT_COMPILER
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if(AGORA_COCOS_SWIFT_COMPILER)
+        set(CMAKE_Swift_COMPILER "\${AGORA_COCOS_SWIFT_COMPILER}" CACHE FILEPATH "Swift compiler" FORCE)
+    endif()
+endif()`;
 
 function applyAndroidGradleDependencies(content) {
   const dependencyLines = sdkConfig.android.dependencies.map(
@@ -184,6 +194,13 @@ function patchIosCMakeRtcBridgeSources(content) {
     /project\(([^)]*\bCXX\b)(?![^)]*\bSwift\b)([^)]*)\)/,
     'project($1 Swift$2)',
   );
+
+  if (!next.includes('CMAKE_Swift_COMPILER')) {
+    next = next.replace(
+      /(project\([^)]*\bSwift\b[^)]*\))/,
+      `${IOS_SWIFT_COMPILER_CMAKE_BLOCK}\n\n$1`,
+    );
+  }
 
   if (next.includes('agora-rtc/AgoraRtcPlugin.mm')) {
     return next.includes('CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION')
