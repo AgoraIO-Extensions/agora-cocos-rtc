@@ -5,6 +5,26 @@ export type ActionResult = 'ok' | 'fail' | 'idle';
 export type ChannelProfile = 'communication' | 'liveBroadcasting';
 export type ClientRole = 'broadcaster' | 'audience';
 export type VideoEncoderPresetName = '360p' | '540p' | '720p';
+export type DemoCaseDisplayMode = 'audio' | 'video';
+export type DemoNavigationMode = 'caseList' | 'caseDetail';
+
+export interface DemoCaseSelectionState {
+  mode: DemoNavigationMode;
+  selectedCaseName: string | null;
+  displayMode: DemoCaseDisplayMode | null;
+}
+
+export interface AudioEffectMixingState {
+  effectPreloaded: boolean;
+  effectPlaying: boolean;
+  audioMixingStarted: boolean;
+  effectsVolume: number;
+  audioMixingPublishVolume: number;
+  audioMixingPlayoutVolume: number;
+  audioMixingVolume: number;
+  audioMixingPositionMs: number;
+  remoteAudioStateSummary: string;
+}
 
 export interface RuntimeConfigState {
   appId: string;

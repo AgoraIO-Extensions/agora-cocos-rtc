@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import os from 'node:os';
 import path from 'node:path';
 import {
+  access,
   mkdir,
   mkdtemp,
   readFile,
@@ -343,10 +344,13 @@ test('gitignore behavior matches the intended commit boundary', async () => {
     'example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts',
     'example/basic-call/assets/scripts/demo/RtcSessionService.ts',
     'example/basic-call/assets/scripts/demo/actions.ts',
+    'example/basic-call/assets/scripts/demo/cases/caseRegistry.ts',
+    'example/basic-call/assets/scripts/demo/cases/AudioEffectMixingCase.ts',
     'example/basic-call/assets/scripts/demo/panels/DemoHeaderPanel.ts',
     'example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts',
     'example/basic-call/assets/scripts/demo/panels/VideoStagePanel.ts',
     'example/basic-call/assets/scripts/demo/panels/LogPanel.ts',
+    'example/basic-call/assets/resources/audio/Agora.io-Interactions.mp3',
   ];
 
   const ignoredResult = await execFileAsync('git', ['check-ignore', ...ignoredPaths], {
@@ -356,6 +360,7 @@ test('gitignore behavior matches the intended commit boundary', async () => {
   assert.deepEqual(ignoredOutput, ignoredPaths.sort());
 
   for (const committedPath of committedPaths) {
+    await access(path.join(repoRoot, committedPath));
     await assert.rejects(
       execFileAsync('git', ['check-ignore', committedPath], { cwd: repoRoot }),
       /Command failed/,

@@ -309,6 +309,39 @@ test('demo action panel keeps basic video controls in a mobile-safe vertical ran
   assert.ok(diagnosticsY + 32 >= -155);
 });
 
+test('demo case registry exposes the approved flutter-aligned case list', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/cases/caseRegistry.ts`,
+    'utf8',
+  );
+
+  for (const name of [
+    'Basic',
+    'JoinChannelAudio',
+    'JoinChannelVideo',
+    'Advanced',
+    'AudioEffectMixing',
+    'SetVideoEncoderConfiguration',
+    'SetBeautyEffect',
+    'SetContentInspect',
+  ]) {
+    assert.match(content, new RegExp(`name:\\s*'${name}'`));
+  }
+
+  for (const unsupported of [
+    'StringUid',
+    'ChannelMediaRelay',
+    'ScreenSharing',
+    'MediaPlayer',
+    'PictureInPicture',
+  ]) {
+    assert.doesNotMatch(content, new RegExp(`name:\\s*'${unsupported}'`));
+  }
+
+  assert.match(content, /displayMode:\s*'audio'/);
+  assert.match(content, /displayMode:\s*'video'/);
+});
+
 test('example scene and template use landscape canvas dimensions', async () => {
   const sceneContent = await readFile(
     `${repoRoot}/example/basic-call/assets/scene/main.scene`,
