@@ -5,6 +5,7 @@ import {
   BASIC_VIDEO_ACTION_SECTIONS,
   DEFAULT_BUTTON_LAYOUT,
 } from '../actions.ts';
+import { DEMO_CASES, type DemoCaseDefinition } from '../cases/caseRegistry.ts';
 import type {
   ActionResult,
   BasicVideoConfigState,
@@ -28,11 +29,14 @@ const { ccclass, property } = _decorator;
 type ActionCallbacks = {
   onAction: (actionName: string) => void;
   onApplyConfig: (config: Partial<BasicVideoConfigState>) => void;
+  onSelectCase?: (caseName: string) => void;
+  onBackToCases?: () => void;
 };
 
 const CHANNEL_PROFILES: ChannelProfile[] = ['communication', 'liveBroadcasting'];
 const RENDER_BACKENDS: RenderBackend[] = ['engine-texture', 'surface-view', 'texture-view'];
 const VIDEO_ENCODERS: VideoEncoderPresetName[] = ['360p', '540p', '720p'];
+const AUDIO_EFFECT_MIXING_CASE_NAME = 'AudioEffectMixing';
 
 @ccclass('DemoActionPanel')
 export class DemoActionPanel extends Component {
@@ -44,8 +48,13 @@ export class DemoActionPanel extends Component {
 
   private onAction: ((actionName: string) => void) | null = null;
   private onApplyConfig: ((config: Partial<BasicVideoConfigState>) => void) | null = null;
+  private onSelectCase: ((caseName: string) => void) | null = null;
+  private onBackToCases: (() => void) | null = null;
   private config: BasicVideoConfigState | null = null;
   private sessionState: DemoSessionState | null = null;
+  private cases: readonly DemoCaseDefinition[] = DEMO_CASES;
+  private selectedCase: DemoCaseDefinition | null = null;
+  private lastRenderedCaseName: string | null = null;
   private channelInput: EditBox | null = null;
   private uidInput: EditBox | null = null;
   private profileLabel: Label | null = null;
@@ -64,9 +73,13 @@ export class DemoActionPanel extends Component {
     if (typeof callbacks === 'function') {
       this.onAction = callbacks;
       this.onApplyConfig = null;
+      this.onSelectCase = null;
+      this.onBackToCases = null;
     } else {
       this.onAction = callbacks.onAction;
       this.onApplyConfig = callbacks.onApplyConfig;
+      this.onSelectCase = callbacks.onSelectCase ?? null;
+      this.onBackToCases = callbacks.onBackToCases ?? null;
     }
     this.ensureContainers();
     this.ensureControls();
@@ -87,6 +100,13 @@ export class DemoActionPanel extends Component {
 
   setSessionState(state: DemoSessionState): void {
     this.sessionState = state;
+    this.refresh();
+  }
+
+  setCaseState(cases: readonly DemoCaseDefinition[], selectedCase: DemoCaseDefinition | null): void {
+    this.cases = cases;
+    this.selectedCase = selectedCase;
+    this.ensureControls();
     this.refresh();
   }
 
@@ -116,6 +136,52 @@ export class DemoActionPanel extends Component {
 
   private ensureControls(): void {
     this.ensureContainers();
+    const renderKey = this.selectedCase?.name ?? `__caseList:${this.cases.length}`;
+    if (this.lastRenderedCaseName === renderKey) {
+      return;
+    }
+    this.lastRenderedCaseName = renderKey;
+    if (!this.selectedCase) {
+      this.renderCaseList();
+      return;
+    }
+    this.renderCaseControls();
+  }
+
+  private renderCaseList(): void {
+    this.clearDynamicChildren();
+    ensureTransform(this.node, 420, 620);
+    ensureLabelNode(this.node, 'CaseListTitle', 360, 28, 'APIExample', 18, COLORS.textPrimary)
+      .node.setPosition(0, 270, 0);
+
+    let y = 220;
+    let currentSection = '';
+    for (const item of this.cases) {
+      if (item.section !== currentSection) {
+        currentSection = item.section;
+        ensureLabelNode(this.node, `CaseSection_${currentSection}`, 360, 24, currentSection, 15, COLORS.textMuted)
+          .node.setPosition(0, y, 0);
+        y -= 42;
+      }
+      const variant = item.name === AUDIO_EFFECT_MIXING_CASE_NAME ? 'primary' : 'secondary';
+      const button = ensureButtonNode(this.node, `Case_${item.name}`, 330, 36, item.name, variant);
+      button.node.setPosition(0, y, 0);
+      button.node.off(Node.EventType.TOUCH_END);
+      button.node.on(Node.EventType.TOUCH_END, () => this.onSelectCase?.(item.name), this);
+      y -= 44;
+    }
+  }
+
+  private renderCaseControls(): void {
+    this.clearDynamicChildren();
+    ensureTransform(this.node, 420, 620);
+    ensureLabelNode(this.node, 'CaseTitle', 260, 28, this.selectedCase?.name ?? '', 16, COLORS.textPrimary)
+      .node.setPosition(40, 280, 0);
+    const back = ensureButtonNode(this.node, 'BackButton', 92, 32, 'Back', 'ghost');
+    back.node.setPosition(-140, 280, 0);
+    back.node.off(Node.EventType.TOUCH_END);
+    back.node.on(Node.EventType.TOUCH_END, () => this.onBackToCases?.(), this);
+
     const connection = this.ensureContainer('ConnectionSection', 0, 180, 390, 150);
     const preview = this.ensureContainer('PreviewCameraSection', 0, 30, 390, 150);
     const render = this.ensureContainer('RenderEncoderSection', 0, -80, 390, 130);
@@ -128,6 +194,24 @@ export class DemoActionPanel extends Component {
     this.buildRenderSection(render);
     this.buildDiagnosticsSection(diagnostics);
     this.buildAdvancedSection(this.advancedSection);
+  }
+
+  private clearDynamicChildren(): void {
+    for (const child of [...this.node.children]) {
+      child.removeFromParent();
+      child.destroy();
+    }
+    this.labels.clear();
+    this.buttonNodes.clear();
+    this.buttonSizes.clear();
+    this.channelInput = null;
+    this.uidInput = null;
+    this.profileLabel = null;
+    this.renderLabel = null;
+    this.encoderLabel = null;
+    this.statusLabel = null;
+    this.advancedToggleLabel = null;
+    this.advancedSection = null;
   }
 
   private ensureContainer(name: string, x: number, y: number, width: number, height: number): Node {

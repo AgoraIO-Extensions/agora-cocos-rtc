@@ -342,6 +342,26 @@ test('demo case registry exposes the approved flutter-aligned case list', async 
   assert.match(content, /displayMode:\s*'video'/);
 });
 
+test('demo root supports case list navigation before case detail actions', async () => {
+  const rootContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+  const panelContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+
+  assert.match(rootContent, /selectedCaseName/);
+  assert.match(rootContent, /showCaseList/);
+  assert.match(rootContent, /selectDemoCase/);
+  assert.match(rootContent, /DEMO_CASES/);
+  assert.match(panelContent, /renderCaseList/);
+  assert.match(panelContent, /renderCaseControls/);
+  assert.match(panelContent, /Back/);
+  assert.match(panelContent, /AudioEffectMixing/);
+});
+
 test('example scene and template use landscape canvas dimensions', async () => {
   const sceneContent = await readFile(
     `${repoRoot}/example/basic-call/assets/scene/main.scene`,

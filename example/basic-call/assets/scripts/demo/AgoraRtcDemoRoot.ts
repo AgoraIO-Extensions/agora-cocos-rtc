@@ -4,6 +4,7 @@ import {
   type AgoraExampleRuntimeConfig,
 } from '../agoraRtcConfigOverride.ts';
 import { DEFAULT_BUTTON_LAYOUT } from './actions.ts';
+import { DEMO_CASES, findDemoCase, type DemoCaseDefinition } from './cases/caseRegistry.ts';
 import { RtcSessionService } from './RtcSessionService.ts';
 import type {
   ActionResult,
@@ -87,6 +88,11 @@ export class AgoraRtcDemoRoot extends Component {
   private statusLines: string[] = [];
   private actionResults = new Map<string, ActionResult>();
   private statusFrozen = false;
+  private selectedCase: DemoCaseDefinition | null = null;
+
+  private get selectedCaseName(): string | null {
+    return this.selectedCase?.name ?? null;
+  }
 
   onLoad(): void {
     this.resolvePanelBindings();
@@ -99,6 +105,8 @@ export class AgoraRtcDemoRoot extends Component {
     this.actionPanel?.initialize({
       onAction: (actionName) => { void this.invokeAction(actionName); },
       onApplyConfig: (config) => this.applyBasicVideoConfig(config),
+      onSelectCase: (caseName) => this.selectDemoCase(caseName),
+      onBackToCases: () => this.showCaseList(),
     });
     this.logPanel?.initialize({
       onClose: () => this.closeStatusLogPage(),
@@ -106,6 +114,9 @@ export class AgoraRtcDemoRoot extends Component {
       onFreeze: () => { void this.toggleStatusFreeze(); },
     });
     this.layoutResponsivePanels();
+    if (this.videoStagePanel) {
+      this.videoStagePanel.node.active = false;
+    }
   }
 
   async start(): Promise<void> {
@@ -316,6 +327,28 @@ export class AgoraRtcDemoRoot extends Component {
     this.logPanel?.hide();
   }
 
+  showCaseList(): void {
+    this.selectedCase = null;
+    if (this.videoStagePanel) {
+      this.videoStagePanel.node.active = false;
+    }
+    this.refreshPanels();
+  }
+
+  selectDemoCase(caseName: string): void {
+    const definition = findDemoCase(caseName);
+    if (!definition) {
+      this.pushStatus(`Unknown case: ${caseName}`);
+      return;
+    }
+    this.selectedCase = definition;
+    if (this.videoStagePanel) {
+      this.videoStagePanel.node.active = definition.displayMode === 'video';
+    }
+    this.pushStatus(`Case selected: ${this.selectedCaseName}`);
+    this.refreshPanels();
+  }
+
   private resolvePanelBindings(): void {
     this.headerPanel ??= this.ensurePanel('HeaderPanel', DemoHeaderPanel);
     this.actionPanel ??= this.ensurePanel('ActionPanel', DemoActionPanel);
@@ -469,6 +502,7 @@ export class AgoraRtcDemoRoot extends Component {
     const state = this.getSessionState();
     this.headerPanel?.setConfig(config);
     this.headerPanel?.setSummary(state);
+    this.actionPanel?.setCaseState(DEMO_CASES, this.selectedCase);
     this.actionPanel?.setConfig(config);
     this.actionPanel?.setSessionState(state);
     this.actionPanel?.refresh();
