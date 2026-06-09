@@ -32,13 +32,15 @@ export function createRequestId(): string {
 export function resolveBridgeTransport(
   runtime?: CocosBridgeRuntime,
 ): CocosJsbBridgeTransport | null {
-  if (!runtime?.sys?.isNative) {
+  const globalJsb = (globalThis as any).jsb;
+  const isNativeRuntime = runtime?.sys?.isNative ?? typeof globalJsb !== 'undefined';
+  if (!isNativeRuntime) {
     return null;
   }
 
   return (
-    runtime.native?.jsbBridgeWrapper ??
-    (globalThis as any).jsb?.jsbBridgeWrapper ??
+    runtime?.native?.jsbBridgeWrapper ??
+    globalJsb?.jsbBridgeWrapper ??
     null
   );
 }
@@ -46,13 +48,15 @@ export function resolveBridgeTransport(
 export function resolveEngineTextureBridge(
   runtime?: CocosBridgeRuntime,
 ): CocosEngineTextureBridge | null {
-  if (!runtime?.sys?.isNative) {
+  const globalJsb = (globalThis as any).jsb;
+  const isNativeRuntime = runtime?.sys?.isNative ?? typeof globalJsb !== 'undefined';
+  if (!isNativeRuntime) {
     return null;
   }
 
   return (
-    runtime.native?.agoraEngineTexture ??
-    (globalThis as any).jsb?.agoraEngineTexture ??
+    runtime?.native?.agoraEngineTexture ??
+    globalJsb?.agoraEngineTexture ??
     null
   );
 }

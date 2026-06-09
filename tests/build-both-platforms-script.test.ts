@@ -135,6 +135,10 @@ test('root readme does not expose internal example package workflow to sdk custo
 
 test('github build workflow can inject agora secrets and optionally upload platform packages', async () => {
   const content = await readFile(`${repoRoot}/.github/workflows/run_build_example.yml`, 'utf8');
+  const setupCocosAction = await readFile(
+    `${repoRoot}/.github/actions/setup-cocos-creator/action.yml`,
+    'utf8',
+  );
   const verifyIndex = content.indexOf('- name: Verify');
   const deliveryIndex = content.indexOf('- name: Package customer delivery');
   const configureIndex = content.indexOf('- name: Configure Agora example credentials');
@@ -154,11 +158,17 @@ test('github build workflow can inject agora secrets and optionally upload platf
   assert.match(content, /runs-on: \$\{\{ fromJson\(needs\.split-runner-labels\.outputs\.runner_labels\) \}\}/);
   assert.match(content, /COCOS_CREATOR_VERSION: 3\.8\.8/);
   assert.match(content, /COCOS_CREATOR_DOWNLOAD_URL: https:\/\/download\.cocos\.org\/CocosCreator\/v3\.8\.8\/CocosCreator-v3\.8\.8-mac-010512\.zip/);
+  assert.match(content, /uses: \.\/\.github\/actions\/setup-cocos-creator/);
+  assert.match(content, /version: \$\{\{ env\.COCOS_CREATOR_VERSION \}\}/);
+  assert.match(content, /download-url: \$\{\{ env\.COCOS_CREATOR_DOWNLOAD_URL \}\}/);
   assert.match(content, /name: Cache Cocos Creator installer/);
   assert.match(content, /key: cocos-creator-\$\{\{ runner\.os \}\}-\$\{\{ env\.COCOS_CREATOR_VERSION \}\}-010512/);
-  assert.match(content, /name: Install Cocos Creator/);
-  assert.match(content, /\/Applications\/Cocos\/Creator\/\$\{COCOS_CREATOR_VERSION\}\/CocosCreator\.app/);
-  assert.match(content, /find "\$extract_dir" -name CocosCreator\.app -type d/);
+  assert.doesNotMatch(content, /name: Install Cocos Creator/);
+  assert.match(setupCocosAction, /name: Setup Cocos Creator/);
+  assert.match(setupCocosAction, /outputs:[\s\S]*cocos-cli:/);
+  assert.match(setupCocosAction, /COCOS_CLI=\$cli_path/);
+  assert.match(setupCocosAction, /CocosCreator\.app/);
+  assert.match(setupCocosAction, /find "\$extract_dir" -name CocosCreator\.app -type d/);
   assert.match(content, /APP_ID:/);
   assert.match(content, /APP_ID: \$\{\{ secrets\.APP_ID \}\}/);
   assert.match(content, /CHANNEL_ID: testapi/);
