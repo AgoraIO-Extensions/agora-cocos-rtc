@@ -34,9 +34,21 @@ const COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK = `list(APPEND CC_COMMON_SOURCES
     \${CMAKE_CURRENT_LIST_DIR}/Classes/agora/AgoraEngineTextureBridge.h
     \${CMAKE_CURRENT_LIST_DIR}/Classes/agora/AgoraEngineTextureBridge.cpp
 )`;
-const COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_GUARDED_BLOCK = `if(NOT APPLE)
-${COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK}
-endif()`;
+const IOS_RTC_BRIDGE_CMAKE_BLOCK = `list(APPEND CC_PROJ_SOURCES
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcBridge.swift
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcPlugin.mm
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraEngineTextureSlotBridge.mm
+)
+
+set_source_files_properties(
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcBridge.swift
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcPlugin.mm
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraEngineTextureSlotBridge.mm
+    PROPERTIES
+    GENERATED FALSE
+)
+
+set(CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "${sdkConfig.ios.swiftVersion}")`;
 
 function applyAndroidGradleDependencies(content) {
   const dependencyLines = sdkConfig.android.dependencies.map(
@@ -151,18 +163,47 @@ async function copyTemplateDirectory(rootDir, sourceRelativePath, destinationRel
 
 function patchNativeCommonCMakeTextureBridge(content) {
   if (content.includes('Classes/agora/AgoraEngineTextureBridge.cpp')) {
-    if (content.includes('if(NOT APPLE)')) {
+    const guardedBlockPattern = /if\(NOT APPLE\)\s*list\(APPEND CC_COMMON_SOURCES\s+\$\{CMAKE_CURRENT_LIST_DIR\}\/Classes\/agora\/AgoraEngineTextureBridge\.h\s+\$\{CMAKE_CURRENT_LIST_DIR\}\/Classes\/agora\/AgoraEngineTextureBridge\.cpp\s*\)\s*endif\(\)/;
+    if (guardedBlockPattern.test(content)) {
+      return content.replace(guardedBlockPattern, COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK);
+    }
+    if (content.includes(COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK)) {
       return content;
     }
-    return content.replace(
-      COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK,
-      COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_GUARDED_BLOCK,
-    );
+    return content;
   }
 
   return `${content.trimEnd()}
 
-${COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_GUARDED_BLOCK}
+${COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK}
+`;
+}
+
+function patchIosCMakeRtcBridgeSources(content) {
+  let next = content.replace(
+    /project\(([^)]*\bCXX\b)(?![^)]*\bSwift\b)([^)]*)\)/,
+    'project($1 Swift$2)',
+  );
+
+  if (next.includes('agora-rtc/AgoraRtcPlugin.mm')) {
+    return next.includes('CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION')
+      ? next
+      : `${next.trimEnd()}
+
+set(CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "${sdkConfig.ios.swiftVersion}")
+`;
+  }
+
+  const includeAnchor = 'include(${CC_PROJECT_DIR}/../common/CMakeLists.txt)';
+  if (next.includes(includeAnchor)) {
+    return next.replace(includeAnchor, `${includeAnchor}
+
+${IOS_RTC_BRIDGE_CMAKE_BLOCK}`);
+  }
+
+  return `${next.trimEnd()}
+
+${IOS_RTC_BRIDGE_CMAKE_BLOCK}
 `;
 }
 
@@ -305,6 +346,23 @@ async function ensureIosAppDelegateBridgeAttachment(nativeSourceDir) {
   }
 
   return appDelegatePath;
+}
+
+async function ensureIosCMakeRtcBridgeSources(nativeSourceDir) {
+  const cmakePath = path.join(nativeSourceDir, 'CMakeLists.txt');
+  try {
+    const original = await readFile(cmakePath, 'utf8');
+    const patched = patchIosCMakeRtcBridgeSources(original);
+    if (patched !== original) {
+      await writeFile(cmakePath, patched, 'utf8');
+    }
+    return cmakePath;
+  } catch (error) {
+    if (error.code !== 'ENOENT') {
+      throw error;
+    }
+    return null;
+  }
 }
 
 function patchAndroidAppActivityBridgeAttachment(content) {
@@ -547,6 +605,7 @@ async function integrateIosExport(rootDir) {
 
   if (nativeSourceDir) {
     await ensureIosAppDelegateBridgeAttachment(nativeSourceDir);
+    await ensureIosCMakeRtcBridgeSources(nativeSourceDir);
     await ensureIosRtcUsageDescriptions(nativeSourceDir);
   }
 }
@@ -590,12 +649,14 @@ module.exports = {
   ensureAndroidAppActivityBridgeAttachment,
   ensureAndroidRtcPermissions,
   ensureIosRtcUsageDescriptions,
+  ensureIosCMakeRtcBridgeSources,
   ensureNativeEngineTextureBridge,
   ensureIosAppDelegateBridgeAttachment,
   onAfterBuild,
   patchAndroidAppActivityBridgeAttachment,
   patchAndroidRtcPermissions,
   patchIosRtcUsageDescriptions,
+  patchIosCMakeRtcBridgeSources,
   patchIosAppDelegateBridgeAttachment,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,
