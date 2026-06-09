@@ -358,6 +358,11 @@ test('android bridge template requests rtc runtime permissions before camera and
   assert.match(bridgeContent, /onRequestPermissionsResult/);
   assert.match(bridgeContent, /requiresCamera/);
   assert.match(bridgeContent, /requiresMicrophone/);
+  assert.match(bridgeContent, /private boolean requiresCameraPermission\(JSONObject mediaOptions\)/);
+  assert.match(bridgeContent, /mediaOptionBoolean\(mediaOptions, "startPreview", false\)/);
+  assert.match(bridgeContent, /mediaOptionBoolean\(mediaOptions, "publishSecondaryCameraTrack", false\)/);
+  assert.match(bridgeContent, /mediaOptionBoolean\(mediaOptions, "publishThirdCameraTrack", false\)/);
+  assert.match(bridgeContent, /mediaOptionBoolean\(mediaOptions, "publishFourthCameraTrack", false\)/);
 
   const handleJoinChannelMatch = bridgeContent.match(
     /private void handleJoinChannel[\s\S]*?private void handleGetErrorDescription/,
@@ -497,6 +502,8 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.match(inspectMatch[0], /inspectConfig\.serverConfig = config\.optString\("serverConfig"/);
   assert.match(inspectMatch[0], /JSONArray modules = config\.optJSONArray\("modules"\)/);
   assert.match(inspectMatch[0], /inspectConfig\.moduleCount = inspectConfig\.modules\.length/);
+  assert.match(bridgeContent, /module\.position = mapContentInspectModulePosition\(params != null \? params\.optInt\("position"/);
+  assert.match(bridgeContent, /private Constants\.VideoModulePosition mapContentInspectModulePosition\(int value\)/);
 });
 
 test('ios bridge template dispatches expanded sdk methods or explicit unsupported responses', async () => {
@@ -614,8 +621,8 @@ test('ios bridge template maps joinChannel media options from request payload', 
 
   assert.match(handleJoinChannel, /if let mediaOptionParams = params\["options"\] as\? \[String: Any\]/);
   assert.match(handleJoinChannel, /let mediaOptions = buildChannelMediaOptions\(mediaOptionParams\)/);
-  assert.match(handleJoinChannel, /mediaOptionBool\(mediaOptionParams, key: "publishCameraTrack", defaultValue: true\)/);
-  assert.match(handleJoinChannel, /mediaOptionBool\(mediaOptionParams, key: "publishMicrophoneTrack", defaultValue: true\)/);
+  assert.match(handleJoinChannel, /let requiresCameraPermission = requiresCameraPermission\(mediaOptionParams\)/);
+  assert.match(handleJoinChannel, /let requiresMicrophonePermission = requiresMicrophonePermission\(mediaOptionParams\)/);
   assert.match(handleJoinChannel, /uid: uid,\s*mediaOptions: mediaOptions,\s*joinSuccess: nil/);
   assert.match(
     handleJoinChannel,
@@ -651,6 +658,10 @@ test('ios bridge template maps joinChannel media options from request payload', 
   assert.match(bridgeContent, /options\.customVideoTrackId = value/);
   assert.match(bridgeContent, /options\.isAudioFilterable = value/);
   assert.match(bridgeContent, /if let value = params\["startPreview"\] as\? Bool/);
+  assert.doesNotMatch(bridgeContent, /options\.enableMultipath/);
+  assert.doesNotMatch(bridgeContent, /options\.uplinkMultipathMode/);
+  assert.doesNotMatch(bridgeContent, /options\.downlinkMultipathMode/);
+  assert.doesNotMatch(bridgeContent, /options\.preferMultipathType/);
   assert.match(handleJoinChannel, /if mediaOptionBool\(mediaOptionParams, key: "startPreview", defaultValue: false\)[\s\S]*engine\.startPreview\(\)/);
 });
 
@@ -696,6 +707,7 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(inspectMatch[0], /config\.extraInfo = extraInfo/);
   assert.match(inspectMatch[0], /config\.serverConfig = serverConfig/);
   assert.match(inspectMatch[0], /config\.modules = buildContentInspectModules/);
+  assert.doesNotMatch(bridgeContent, /module\.position/);
 
   assert.match(bridgeContent, /didOccurWarning warningCode/);
   assert.match(bridgeContent, /dispatchEvent\(name: "warning"/);
@@ -707,6 +719,18 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(bridgeContent, /dispatchEvent\(name: "localVideoStateChanged"/);
   assert.match(bridgeContent, /"elapsed": elapsed/);
   assert.match(bridgeContent, /private func channelStatsPayload/);
+  assert.match(bridgeContent, /"txKBitRate": stats\.txKBitrate/);
+  assert.match(bridgeContent, /"rxKBitRate": stats\.rxKBitrate/);
+  assert.match(bridgeContent, /"txAudioKBitRate": stats\.txAudioKBitrate/);
+  assert.match(bridgeContent, /"rxAudioKBitRate": stats\.rxAudioKBitrate/);
+  assert.match(bridgeContent, /"txVideoKBitRate": stats\.txVideoKBitrate/);
+  assert.match(bridgeContent, /"rxVideoKBitRate": stats\.rxVideoKBitrate/);
+  assert.doesNotMatch(bridgeContent, /"txKBitrate"/);
+  assert.doesNotMatch(bridgeContent, /"rxKBitrate"/);
+  assert.doesNotMatch(bridgeContent, /"txAudioKBitrate"/);
+  assert.doesNotMatch(bridgeContent, /"rxAudioKBitrate"/);
+  assert.doesNotMatch(bridgeContent, /"txVideoKBitrate"/);
+  assert.doesNotMatch(bridgeContent, /"rxVideoKBitrate"/);
   assert.match(bridgeContent, /"txAudioBytes": stats\.txAudioBytes/);
   assert.match(bridgeContent, /"memoryAppUsageInKbytes": stats\.memoryAppUsageInKbytes/);
 
@@ -799,6 +823,11 @@ test('ios bridge template explicitly requests rtc permissions before camera and 
   assert.match(bridgeContent, /AVCaptureDevice\.requestAccess\(for: \.video/);
   assert.match(bridgeContent, /AVAudioSession\.sharedInstance\(\)\.requestRecordPermission/);
   assert.match(bridgeContent, /ensureRtcPermissions/);
+  assert.match(bridgeContent, /private func requiresCameraPermission\(_ mediaOptions: \[String: Any\]\?\) -> Bool/);
+  assert.match(bridgeContent, /mediaOptionBool\(mediaOptions, key: "startPreview", defaultValue: false\)/);
+  assert.match(bridgeContent, /mediaOptionBool\(mediaOptions, key: "publishSecondaryCameraTrack", defaultValue: false\)/);
+  assert.match(bridgeContent, /mediaOptionBool\(mediaOptions, key: "publishThirdCameraTrack", defaultValue: false\)/);
+  assert.match(bridgeContent, /mediaOptionBool\(mediaOptions, key: "publishFourthCameraTrack", defaultValue: false\)/);
 
   const startPreviewMatch = bridgeContent.match(
     /case "startPreview":[\s\S]*?case "stopPreview":/,
@@ -1650,7 +1679,10 @@ public class Constants {
     }
 
     public enum VideoModulePosition {
-        VIDEO_MODULE_POSITION_PRE_RENDERER
+        VIDEO_MODULE_POSITION_POST_CAPTURER,
+        VIDEO_MODULE_POSITION_PRE_RENDERER,
+        VIDEO_MODULE_POSITION_PRE_ENCODER,
+        VIDEO_MODULE_POSITION_POST_CAPTURER_ORIGIN
     }
 }
 `,

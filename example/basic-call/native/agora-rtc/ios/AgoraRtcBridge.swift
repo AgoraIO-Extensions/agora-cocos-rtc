@@ -732,8 +732,8 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
 
         if let mediaOptionParams = params["options"] as? [String: Any] {
             let mediaOptions = buildChannelMediaOptions(mediaOptionParams)
-            let requiresCameraPermission = mediaOptionBool(mediaOptionParams, key: "publishCameraTrack", defaultValue: true)
-            let requiresMicrophonePermission = mediaOptionBool(mediaOptionParams, key: "publishMicrophoneTrack", defaultValue: true)
+            let requiresCameraPermission = requiresCameraPermission(mediaOptionParams)
+            let requiresMicrophonePermission = requiresMicrophonePermission(mediaOptionParams)
             func mediaOptionBool(_ params: [String: Any]?, key: String, defaultValue: Bool) -> Bool {
                 return self.mediaOptionBool(params, key: key, defaultValue: defaultValue)
             }
@@ -889,6 +889,18 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             return defaultValue
         }
         return value
+    }
+
+    private func requiresCameraPermission(_ mediaOptions: [String: Any]?) -> Bool {
+        return mediaOptionBool(mediaOptions, key: "publishCameraTrack", defaultValue: true)
+            || mediaOptionBool(mediaOptions, key: "startPreview", defaultValue: false)
+            || mediaOptionBool(mediaOptions, key: "publishSecondaryCameraTrack", defaultValue: false)
+            || mediaOptionBool(mediaOptions, key: "publishThirdCameraTrack", defaultValue: false)
+            || mediaOptionBool(mediaOptions, key: "publishFourthCameraTrack", defaultValue: false)
+    }
+
+    private func requiresMicrophonePermission(_ mediaOptions: [String: Any]?) -> Bool {
+        return mediaOptionBool(mediaOptions, key: "publishMicrophoneTrack", defaultValue: true)
     }
 
     private func parseClientRoleType(_ rawValue: Any) -> AgoraClientRole {
@@ -1380,10 +1392,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             "duration": stats.duration,
             "txBytes": stats.txBytes,
             "rxBytes": stats.rxBytes,
-            "txAudioKBitrate": stats.txAudioKBitrate,
-            "rxAudioKBitrate": stats.rxAudioKBitrate,
-            "txVideoKBitrate": stats.txVideoKBitrate,
-            "rxVideoKBitrate": stats.rxVideoKBitrate,
+            "txAudioKBitRate": stats.txAudioKBitrate,
+            "rxAudioKBitRate": stats.rxAudioKBitrate,
+            "txVideoKBitRate": stats.txVideoKBitrate,
+            "rxVideoKBitRate": stats.rxVideoKBitrate,
             "txAudioBytes": stats.txAudioBytes,
             "txVideoBytes": stats.txVideoBytes,
             "rxAudioBytes": stats.rxAudioBytes,
@@ -1397,8 +1409,8 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             "memoryTotalUsageRatio": stats.memoryTotalUsageRatio,
             "memoryAppUsageInKbytes": stats.memoryAppUsageInKbytes,
             "connectTimeMs": stats.connectTimeMs,
-            "txKBitrate": stats.txKBitrate,
-            "rxKBitrate": stats.rxKBitrate,
+            "txKBitRate": stats.txKBitrate,
+            "rxKBitRate": stats.rxKBitrate,
             "txPacketLossRate": stats.txPacketLossRate,
             "rxPacketLossRate": stats.rxPacketLossRate,
         ]

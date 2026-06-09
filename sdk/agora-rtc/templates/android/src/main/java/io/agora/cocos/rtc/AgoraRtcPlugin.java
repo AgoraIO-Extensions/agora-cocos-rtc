@@ -679,8 +679,8 @@ public final class AgoraRtcPlugin {
         }
 
         JSONObject mediaOptions = params != null ? params.optJSONObject("options") : null;
-        boolean requiresCameraPermission = mediaOptionBoolean(mediaOptions, "publishCameraTrack", true);
-        boolean requiresMicrophonePermission = mediaOptionBoolean(mediaOptions, "publishMicrophoneTrack", true);
+        boolean requiresCameraPermission = requiresCameraPermission(mediaOptions);
+        boolean requiresMicrophonePermission = requiresMicrophonePermission(mediaOptions);
 
         ensureRtcPermissions(
                 requestId,
@@ -844,6 +844,18 @@ public final class AgoraRtcPlugin {
     private boolean mediaOptionBoolean(JSONObject object, String key, boolean defaultValue) {
         Boolean value = optNullableBoolean(object, key);
         return value != null ? value : defaultValue;
+    }
+
+    private boolean requiresCameraPermission(JSONObject mediaOptions) {
+        return mediaOptionBoolean(mediaOptions, "publishCameraTrack", true)
+                || mediaOptionBoolean(mediaOptions, "startPreview", false)
+                || mediaOptionBoolean(mediaOptions, "publishSecondaryCameraTrack", false)
+                || mediaOptionBoolean(mediaOptions, "publishThirdCameraTrack", false)
+                || mediaOptionBoolean(mediaOptions, "publishFourthCameraTrack", false);
+    }
+
+    private boolean requiresMicrophonePermission(JSONObject mediaOptions) {
+        return mediaOptionBoolean(mediaOptions, "publishMicrophoneTrack", true);
     }
 
     private int parseClientRoleType(Object rawValue) {
@@ -1848,8 +1860,21 @@ public final class AgoraRtcPlugin {
         ContentInspectConfig.ContentInspectModule module = new ContentInspectConfig.ContentInspectModule();
         module.type = params != null ? params.optInt("type", ContentInspectConfig.CONTENT_INSPECT_TYPE_MODERATION) : ContentInspectConfig.CONTENT_INSPECT_TYPE_MODERATION;
         module.interval = params != null ? params.optInt("interval", 0) : 0;
-        module.position = Constants.VideoModulePosition.VIDEO_MODULE_POSITION_PRE_RENDERER;
+        module.position = mapContentInspectModulePosition(params != null ? params.optInt("position", 2) : 2);
         return module;
+    }
+
+    private Constants.VideoModulePosition mapContentInspectModulePosition(int value) {
+        switch (value) {
+            case 1:
+                return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_POST_CAPTURER;
+            case 4:
+                return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_PRE_ENCODER;
+            case 8:
+                return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_POST_CAPTURER_ORIGIN;
+            default:
+                return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_PRE_RENDERER;
+        }
     }
 
     private void dispatchEvent(String eventName, JSONObject payload) {

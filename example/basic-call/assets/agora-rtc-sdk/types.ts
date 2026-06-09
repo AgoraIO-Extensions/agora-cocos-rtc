@@ -117,6 +117,7 @@ export interface AgoraContentInspectConfig {
   modules?: Array<{
     type?: number;
     interval?: number;
+    /** Android ContentInspectModule only. iOS 4.5.3 exposes type and interval. */
     position?: number;
   }>;
 }
@@ -183,9 +184,13 @@ export interface AgoraChannelMediaOptions {
   isInteractiveAudience?: boolean;
   customVideoTrackId?: number;
   isAudioFilterable?: boolean;
+  /** Android ChannelMediaOptions only. */
   enableMultipath?: boolean;
+  /** Android ChannelMediaOptions only. */
   uplinkMultipathMode?: number;
+  /** Android ChannelMediaOptions only. */
   downlinkMultipathMode?: number;
+  /** Android ChannelMediaOptions only. */
   preferMultipathType?: number;
   token?: string;
   parameters?: string;
@@ -236,15 +241,40 @@ export interface AgoraBridgeEvent {
   payload?: unknown;
 }
 
+export interface AgoraRtcStatsPayload {
+  duration: number;
+  txBytes?: number;
+  rxBytes?: number;
+  txKBitRate?: number;
+  rxKBitRate?: number;
+  txAudioBytes?: number;
+  rxAudioBytes?: number;
+  txVideoBytes?: number;
+  rxVideoBytes?: number;
+  txAudioKBitRate?: number;
+  rxAudioKBitRate?: number;
+  txVideoKBitRate?: number;
+  rxVideoKBitRate?: number;
+  lastmileDelay?: number;
+  cpuTotalUsage?: number;
+  gatewayRtt?: number;
+  cpuAppUsage?: number;
+  users?: number;
+  connectTimeMs?: number;
+  txPacketLossRate?: number;
+  rxPacketLossRate?: number;
+  memoryAppUsageRatio?: number;
+  memoryTotalUsageRatio?: number;
+  memoryAppUsageInKbytes?: number;
+}
+
 export interface AgoraEventMap {
   joinChannelSuccess: {
     channelId: string;
     uid: number;
     elapsed: number;
   };
-  leaveChannel: {
-    duration: number;
-  };
+  leaveChannel: AgoraRtcStatsPayload;
   rejoinChannelSuccess: {
     channelId: string;
     uid: number;
@@ -321,32 +351,7 @@ export interface AgoraEventMap {
     }>;
     totalVolume: number;
   };
-  rtcStats: {
-    duration: number;
-    txBytes?: number;
-    rxBytes?: number;
-    txKBitRate?: number;
-    rxKBitRate?: number;
-    txAudioBytes?: number;
-    rxAudioBytes?: number;
-    txVideoBytes?: number;
-    rxVideoBytes?: number;
-    txAudioKBitRate?: number;
-    rxAudioKBitRate?: number;
-    txVideoKBitRate?: number;
-    rxVideoKBitRate?: number;
-    lastmileDelay?: number;
-    cpuTotalUsage?: number;
-    gatewayRtt?: number;
-    cpuAppUsage?: number;
-    users?: number;
-    connectTimeMs?: number;
-    txPacketLossRate?: number;
-    rxPacketLossRate?: number;
-    memoryAppUsageRatio?: number;
-    memoryTotalUsageRatio?: number;
-    memoryAppUsageInKbytes?: number;
-  };
+  rtcStats: AgoraRtcStatsPayload;
   contentInspectResult: {
     result: number;
   };

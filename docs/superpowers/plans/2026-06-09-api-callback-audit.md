@@ -1,5 +1,7 @@
 # API Callback Audit Implementation Plan
 
+> Status: This was the original docs-only audit plan. The PR was later expanded into implementation fixes for the reported API and callback gaps; use `docs/superpowers/reports/2026-06-09-api-callback-audit.md` and the PR diff as the current delivery record.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Produce a Chinese evidence-backed audit report for the current Agora Cocos RTC wrapper API and callback surface.

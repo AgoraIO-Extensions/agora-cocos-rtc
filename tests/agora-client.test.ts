@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import {
   AgoraErrorCode,
   createAgoraRtcClient,
   getAgoraEngineTextureBridge,
 } from '../sdk/agora-rtc/js/agora.ts';
+
+const sdkTypesSource = readFileSync('sdk/agora-rtc/js/types.ts', 'utf8');
 
 type SentMessage = { eventName: string; payload: string };
 type RemovedListener = { eventName: string; listener: (payload: unknown) => void };
@@ -215,6 +218,12 @@ test('client surfaces expanded native rtc callback events to subscribed listener
 
   assert.deepEqual(states, ['710:0']);
   assert.deepEqual(stats, ['12:2:34']);
+});
+
+test('public event types expose full stats payload for leaveChannel and rtcStats', () => {
+  assert.match(sdkTypesSource, /export interface AgoraRtcStatsPayload \{/);
+  assert.match(sdkTypesSource, /leaveChannel:\s*AgoraRtcStatsPayload;/);
+  assert.match(sdkTypesSource, /rtcStats:\s*AgoraRtcStatsPayload;/);
 });
 
 test('client surfaces warning and volume indication events to subscribed listeners', async () => {

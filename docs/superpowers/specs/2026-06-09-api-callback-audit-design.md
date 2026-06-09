@@ -1,5 +1,7 @@
 # API and Callback Audit Design
 
+> Status: This design captured the original audit-only scope. The PR was later expanded into implementation fixes for the reported API and callback gaps; use `docs/superpowers/reports/2026-06-09-api-callback-audit.md` and the PR diff as the current delivery record.
+
 Date: 2026-06-09
 
 ## Goal
