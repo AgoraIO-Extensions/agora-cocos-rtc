@@ -280,7 +280,7 @@ test('ensureIosAppDelegateBridgeAttachment skips exports without AppDelegate.mm'
   assert.equal(result, null);
 });
 
-test('patchIosCMakeRtcBridgeSources registers iOS bridge sources and Swift version once', () => {
+test('patchIosCMakeRtcBridgeSources registers Objective-C++ bridge sources without enabling Swift in CMake', () => {
   const original = `cmake_minimum_required(VERSION 3.8)
 
 project(\${APP_NAME} CXX)
@@ -298,7 +298,7 @@ cc_ios_after_target(\${EXECUTABLE_NAME})
   const once = patchIosCMakeRtcBridgeSources(original);
   const twice = patchIosCMakeRtcBridgeSources(once);
 
-  assert.match(once, /agora-rtc\/AgoraRtcBridge\.swift/);
+  assert.doesNotMatch(once, /agora-rtc\/AgoraRtcBridge\.swift/);
   assert.match(once, /agora-rtc\/AgoraRtcPlugin\.mm/);
   assert.match(once, /agora-rtc\/AgoraEngineTextureSlotBridge\.mm/);
   assert.match(once, /project\(\$\{APP_NAME\} CXX\)/);
@@ -308,6 +308,43 @@ cc_ios_after_target(\${EXECUTABLE_NAME})
     [...once.matchAll(/agora-rtc\/AgoraRtcPlugin\.mm/g)].length,
     2,
   );
+  assert.equal(once, twice);
+});
+
+test('patchIosCMakeRtcBridgeSources removes stale Swift bridge CMake entries', () => {
+  const original = `cmake_minimum_required(VERSION 3.8)
+
+project(\${APP_NAME} CXX Swift)
+
+set(CC_PROJ_SOURCES)
+
+include(\${CC_PROJECT_DIR}/../common/CMakeLists.txt)
+
+list(APPEND CC_PROJ_SOURCES
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcBridge.swift
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcPlugin.mm
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraEngineTextureSlotBridge.mm
+)
+
+set_source_files_properties(
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcBridge.swift
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcPlugin.mm
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraEngineTextureSlotBridge.mm
+    PROPERTIES
+    GENERATED FALSE
+)
+
+set(CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "5.0")
+`;
+
+  const once = patchIosCMakeRtcBridgeSources(original);
+  const twice = patchIosCMakeRtcBridgeSources(once);
+
+  assert.match(once, /project\(\$\{APP_NAME\} CXX\)/);
+  assert.doesNotMatch(once, /project\([^)]*\bSwift\b[^)]*\)/);
+  assert.doesNotMatch(once, /agora-rtc\/AgoraRtcBridge\.swift/);
+  assert.match(once, /agora-rtc\/AgoraRtcPlugin\.mm/);
+  assert.match(once, /agora-rtc\/AgoraEngineTextureSlotBridge\.mm/);
   assert.equal(once, twice);
 });
 
@@ -327,7 +364,7 @@ add_executable(\${EXECUTABLE_NAME} \${CC_ALL_SOURCES})
   const content = await readFile(path.join(root, 'CMakeLists.txt'), 'utf8');
 
   assert.equal(result, path.join(root, 'CMakeLists.txt'));
-  assert.match(content, /agora-rtc\/AgoraRtcBridge\.swift/);
+  assert.doesNotMatch(content, /agora-rtc\/AgoraRtcBridge\.swift/);
   assert.match(content, /agora-rtc\/AgoraRtcPlugin\.mm/);
   assert.match(content, /project\(\$\{APP_NAME\} CXX\)/);
   assert.doesNotMatch(content, /project\([^)]*\bSwift\b[^)]*\)/);

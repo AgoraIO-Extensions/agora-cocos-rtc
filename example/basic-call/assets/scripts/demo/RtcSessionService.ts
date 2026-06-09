@@ -7,8 +7,8 @@ import {
   sys,
 } from 'cc';
 
-import { createAgoraRtcClient, type AgoraRtcClient } from '../../agora-rtc-sdk/agora.ts';
-import type { AgoraVideoViewRect } from '../../agora-rtc-sdk/types.ts';
+import { createAgoraRtcClient, type AgoraRtcClient } from '../../../extensions/agora-rtc/js/agora.ts';
+import type { AgoraVideoViewRect } from '../../../extensions/agora-rtc/js/types.ts';
 import type {
   ChannelProfile,
   ClientRole,

@@ -5,7 +5,6 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 SDK_DIR="$ROOT_DIR/sdk/agora-rtc"
 TARGET_LINK="$ROOT_DIR/example/basic-call/extensions/agora-rtc"
-RUNTIME_SDK_DIR="$ROOT_DIR/example/basic-call/assets/agora-rtc-sdk"
 NATIVE_PLUGIN_DIR="$ROOT_DIR/example/basic-call/native/agora-rtc"
 SCENE_DIR="$ROOT_DIR/example/basic-call/assets/scene"
 SCRIPTS_DIR="$ROOT_DIR/example/basic-call/assets/scripts"
@@ -13,7 +12,6 @@ RESOURCES_DIR="$ROOT_DIR/example/basic-call/assets/resources"
 PREFABS_DIR="$ROOT_DIR/example/basic-call/assets/prefabs"
 
 mkdir -p "$(dirname "$TARGET_LINK")"
-mkdir -p "$RUNTIME_SDK_DIR"
 mkdir -p "$NATIVE_PLUGIN_DIR"
 mkdir -p "$SCENE_DIR"
 mkdir -p "$SCRIPTS_DIR"
@@ -25,10 +23,6 @@ mkdir -p "$SCRIPTS_DIR/demo/ui"
 node "$ROOT_DIR/scripts/sync-sdk-version.mjs" >/dev/null
 
 ln -sfn "../../../sdk/agora-rtc" "$TARGET_LINK"
-cp "$ROOT_DIR/sdk/agora-rtc/js/agora.ts" "$RUNTIME_SDK_DIR/agora.ts"
-cp "$ROOT_DIR/sdk/agora-rtc/js/types.ts" "$RUNTIME_SDK_DIR/types.ts"
-mkdir -p "$RUNTIME_SDK_DIR/internal"
-cp "$ROOT_DIR/sdk/agora-rtc/js/internal/bridge.ts" "$RUNTIME_SDK_DIR/internal/bridge.ts"
 cp "$ROOT_DIR/sdk/agora-rtc/cc_plugin.json" "$NATIVE_PLUGIN_DIR/cc_plugin.json"
 mkdir -p "$NATIVE_PLUGIN_DIR/android/src/main/java/io/agora/cocos/rtc"
 mkdir -p "$NATIVE_PLUGIN_DIR/ios"
@@ -1589,8 +1583,6 @@ write_prefab_meta "$PREFABS_DIR/LogPanel.prefab" "7f0fce55-1000-42b8-8b7b-1aaf80
 
 write_directory_meta "$SCENE_DIR" "2eae89cb-6f8e-4615-ac44-0012f1200001"
 write_directory_meta "$SCRIPTS_DIR" "2eae89cb-6f8e-4615-ac44-0012f1200002"
-write_directory_meta "$RUNTIME_SDK_DIR" "2eae89cb-6f8e-4615-ac44-0012f1200003"
-write_directory_meta "$RUNTIME_SDK_DIR/internal" "2eae89cb-6f8e-4615-ac44-0012f1200004"
 write_directory_meta "$RESOURCES_DIR" "2eae89cb-6f8e-4615-ac44-0012f1200005"
 write_directory_meta "$SCRIPTS_DIR/demo" "2eae89cb-6f8e-4615-ac44-0012f1200100"
 write_directory_meta "$SCRIPTS_DIR/demo/panels" "2eae89cb-6f8e-4615-ac44-0012f1200101"
@@ -1621,12 +1613,5 @@ write_typescript_meta "$SCRIPTS_DIR/demo/panels/LogPanel.ts" \
   "6f0fce55-1000-42b8-8b7b-1aaf80000107"
 write_typescript_meta "$SCRIPTS_DIR/demo/ui/uiStyles.ts" \
   "6f0fce55-1000-42b8-8b7b-1aaf80000108"
-
-write_typescript_meta "$RUNTIME_SDK_DIR/agora.ts" \
-  "6f0fce55-1000-42b8-8b7b-1aaf80000002"
-write_typescript_meta "$RUNTIME_SDK_DIR/types.ts" \
-  "6f0fce55-1000-42b8-8b7b-1aaf80000003"
-write_typescript_meta "$RUNTIME_SDK_DIR/internal/bridge.ts" \
-  "6f0fce55-1000-42b8-8b7b-1aaf80000004"
 
 echo "Linked $SDK_DIR -> $TARGET_LINK"

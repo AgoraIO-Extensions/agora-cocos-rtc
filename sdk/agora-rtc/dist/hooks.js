@@ -43,13 +43,11 @@ const COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK = `list(APPEND CC_COMMON_SOURCES
     \${CMAKE_CURRENT_LIST_DIR}/Classes/agora/AgoraEngineTextureBridge.cpp
 )`;
 const IOS_RTC_BRIDGE_CMAKE_BLOCK = `list(APPEND CC_PROJ_SOURCES
-    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcBridge.swift
     \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcPlugin.mm
     \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraEngineTextureSlotBridge.mm
 )
 
 set_source_files_properties(
-    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcBridge.swift
     \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcPlugin.mm
     \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraEngineTextureSlotBridge.mm
     PROPERTIES
@@ -565,8 +563,20 @@ ${COMMON_ENGINE_TEXTURE_BRIDGE_CMAKE_BLOCK}
 `;
 }
 
+function sanitizeIosCMakeSwiftBridge(content) {
+  return content
+    .replace(
+      /^([ \t]*project\([^)\n]*?)\s+Swift(\s*\)[ \t]*)$/gm,
+      '$1$2',
+    )
+    .replace(
+      /^[ \t]*\$\{CMAKE_CURRENT_LIST_DIR\}\/agora-rtc\/AgoraRtcBridge\.swift\s*\n/gm,
+      '',
+    );
+}
+
 function patchIosCMakeRtcBridgeSources(content) {
-  const next = content;
+  const next = sanitizeIosCMakeSwiftBridge(content);
 
   if (next.includes('agora-rtc/AgoraRtcPlugin.mm')) {
     return next.includes('CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION')
