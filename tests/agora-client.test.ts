@@ -416,6 +416,41 @@ test('client falls back to global jsbBridgeWrapper when runtime.native omits it'
   }
 });
 
+test('client resolves global jsbBridgeWrapper when no runtime options are supplied', async () => {
+  const transport = new MockTransport();
+  const originalJsb = globalThis.jsb;
+  globalThis.jsb = {
+    jsbBridgeWrapper: transport,
+  };
+
+  try {
+    const client = createAgoraRtcClient({
+      timeoutMs: 50,
+    });
+
+    const pending = client.initialize('global-bridge-app-id');
+    assert.equal(transport.sent.length, 1);
+    const request = JSON.parse(transport.sent[0].payload);
+    assert.equal(request.method, 'initialize');
+
+    transport.emit(
+      'agora:response',
+      JSON.stringify({
+        requestId: request.requestId,
+        ok: true,
+      }),
+    );
+
+    await pending;
+  } finally {
+    if (originalJsb === undefined) {
+      delete globalThis.jsb;
+    } else {
+      globalThis.jsb = originalJsb;
+    }
+  }
+});
+
 test('client supports ios jsb bridge wrapper method names', async () => {
   const transport = new MockIosStyleTransport();
   const client = createAgoraRtcClient({
