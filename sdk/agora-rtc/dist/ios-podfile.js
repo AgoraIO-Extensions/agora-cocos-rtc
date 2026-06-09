@@ -5,6 +5,10 @@ function renderPodfile(options = {}) {
   const projectName = options.projectName || 'agora-cocos-basic-call.xcodeproj';
   const ios = sdkConfig.ios;
 
+  if (ios.integrationMode !== 'cocoapods') {
+    throw new Error(`iOS integrationMode is ${ios.integrationMode}; use Swift Package Manager integration instead.`);
+  }
+
   return `platform :ios, '${ios.deploymentTarget}'
 
 project '${projectName}'

@@ -1,17 +1,12 @@
-import { director, Director, game, native, sys } from 'cc';
+import { director, Director, game, native, Node, sys, UITransform, view } from 'cc';
 
-import { AgoraRtcExampleController } from './AgoraRtcExampleController.ts';
+import { AgoraRtcDemoRoot } from './demo/AgoraRtcDemoRoot.ts';
 
-const MAX_MOUNT_ATTEMPTS = 200;
-let mountAttempts = 0;
-let mountLoopScheduled = false;
+const MAX_ROOT_ATTEMPTS = 120;
+let rootAttempts = 0;
+let rootLoopScheduled = false;
 
-function isControllerMounted(): boolean {
-  const canvas = director.getScene()?.getChildByName('Canvas');
-  return Boolean(canvas?.getComponent(AgoraRtcExampleController));
-}
-
-function ensureExampleControllerMounted(): boolean {
+function ensureDemoRootMounted(): boolean {
   const scene = director.getScene();
   const canvas = scene?.getChildByName('Canvas');
   if (!canvas) {
@@ -19,40 +14,42 @@ function ensureExampleControllerMounted(): boolean {
     return false;
   }
 
-  let component = canvas.getComponent(AgoraRtcExampleController);
-  if (!component) {
-    try {
-      component = canvas.addComponent(AgoraRtcExampleController);
-      console.log('[agora-rtc] bootstrap controller added', Boolean(component));
-    } catch (error) {
-      console.error('[agora-rtc] bootstrap add component failed', error);
-      return false;
-    }
-  } else {
-    console.log('[agora-rtc] bootstrap controller already present');
+  let demoRoot = canvas.getChildByName('DemoRoot');
+  if (!demoRoot) {
+    demoRoot = new Node('DemoRoot');
+    demoRoot.layer = canvas.layer;
+    demoRoot.setParent(canvas);
+    demoRoot.setPosition(0, 0, 0);
   }
 
-  component?.initializeUi();
-  console.log('[agora-rtc] bootstrap canvas child count', canvas.children.length);
+  const transform = demoRoot.getComponent(UITransform) ?? demoRoot.addComponent(UITransform);
+  const visibleSize = view.getVisibleSize();
+  transform.setContentSize(visibleSize.width, visibleSize.height);
+
+  if (!demoRoot.getComponent(AgoraRtcDemoRoot)) {
+    demoRoot.addComponent(AgoraRtcDemoRoot);
+    console.log('[agora-rtc] bootstrap demo root component added');
+  }
+
   return true;
 }
 
-function scheduleMountLoop() {
-  if (mountLoopScheduled) {
+function scheduleDemoRootCheck(): void {
+  if (rootLoopScheduled) {
     return;
   }
-  mountLoopScheduled = true;
-  mountAttempts = 0;
+  rootLoopScheduled = true;
+  rootAttempts = 0;
 
   const tick = () => {
-    mountAttempts += 1;
-    if (ensureExampleControllerMounted() || isControllerMounted()) {
-      mountLoopScheduled = false;
+    rootAttempts += 1;
+    if (ensureDemoRootMounted()) {
+      rootLoopScheduled = false;
       return;
     }
-    if (mountAttempts >= MAX_MOUNT_ATTEMPTS) {
-      console.error('[agora-rtc] bootstrap mount failed after retries');
-      mountLoopScheduled = false;
+    if (rootAttempts >= MAX_ROOT_ATTEMPTS) {
+      console.error('[agora-rtc] bootstrap demo root check failed after retries');
+      rootLoopScheduled = false;
       return;
     }
     setTimeout(tick, 50);
@@ -61,7 +58,7 @@ function scheduleMountLoop() {
   tick();
 }
 
-console.log('[agora-rtc] bootstrap module loaded v20260521-1');
+console.log('[agora-rtc] bootstrap module loaded v20260608-prefab-root');
 if (sys.isNative) {
   try {
     (globalThis as any).cc?.assetManager?.cacheManager?.clearCache?.();
@@ -78,8 +75,8 @@ if (sys.isNative) {
   }
 }
 
-director.on(Director.EVENT_AFTER_SCENE_LAUNCH, scheduleMountLoop);
-game.onPostProjectInitDelegate?.add?.(scheduleMountLoop);
-scheduleMountLoop();
+director.on(Director.EVENT_AFTER_SCENE_LAUNCH, scheduleDemoRootCheck);
+game.onPostProjectInitDelegate?.add?.(scheduleDemoRootCheck);
+scheduleDemoRootCheck();
 
 export {};

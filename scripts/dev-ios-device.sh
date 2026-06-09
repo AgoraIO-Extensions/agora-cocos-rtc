@@ -11,7 +11,7 @@ COCOS_CLI="/Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/MacOS/Coc
 COCOS_PROJECT_DIR="$ROOT_DIR/example/basic-call"
 COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/ios-debug.json"
 IOS_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-ios/ios/proj"
-WORKSPACE_PATH="$IOS_PROJECT_DIR/agora-cocos-basic-call.xcworkspace"
+PROJECT_PATH="$IOS_PROJECT_DIR/agora-cocos-basic-call.xcodeproj"
 SCHEME_NAME="agora-cocos-basic-call-mobile"
 DERIVED_DATA_PATH="/tmp/agora-cocos-ios-device-derived"
 RESULT_BUNDLE_PATH="/tmp/agora-cocos-ios-device-result.xcresult"
@@ -28,7 +28,9 @@ cd "$ROOT_DIR"
 security find-identity -v -p codesigning >/dev/null
 
 ./scripts/prepare-example.sh >/dev/null
-node ./scripts/generate-ios-podfile.mjs >/dev/null
+if [[ -n "${APP_ID:-}${TEST_APP_ID:-}${CHANNEL_ID:-}${TEST_CHANNEL_ID:-}${TOKEN:-}${TEST_TOKEN:-}${TEST_UID:-}${AUTO_PREVIEW:-}${AUTO_JOIN:-}${PUBLISH_CAMERA_TRACK:-}${PUBLISH_MICROPHONE_TRACK:-}${AUTO_SUBSCRIBE_AUDIO:-}${AUTO_SUBSCRIBE_VIDEO:-}" ]]; then
+  node ./scripts/write-example-build-config.mjs >/dev/null
+fi
 
 set +e
 "$COCOS_CLI" --project "$COCOS_PROJECT_DIR" --build "configPath=$COCOS_BUILD_CONFIG"
@@ -43,18 +45,16 @@ fi
 IOS_BUNDLE_ID="$IOS_BUNDLE_ID" \
 IOS_DEVELOPMENT_TEAM="$IOS_DEVELOPMENT_TEAM" \
 IOS_PROVISIONING_PROFILE_SPECIFIER="$IOS_PROVISIONING_PROFILE_SPECIFIER" \
-./scripts/integrate-ios-project.rb >/dev/null
+./scripts/integrate-ios-project.rb --with-package >/dev/null
 
 if [[ -d "$IOS_RUNTIME_PLUGIN_DIR" ]]; then
   mkdir -p "$IOS_EXPORTED_PLUGIN_DIR"
   cp -R "$IOS_RUNTIME_PLUGIN_DIR/." "$IOS_EXPORTED_PLUGIN_DIR/"
 fi
 
-cd "$IOS_PROJECT_DIR"
-env LANG="$LANG" LC_ALL="$LC_ALL" RUBYOPT="$RUBYOPT" pod install
 rm -rf "$RESULT_BUNDLE_PATH"
 
-xcodebuild -workspace "$WORKSPACE_PATH" \
+xcodebuild -project "$PROJECT_PATH" \
   -scheme "$SCHEME_NAME" \
   -configuration Debug \
   -destination "id=$IOS_DEVICE_ID" \
@@ -73,7 +73,7 @@ xcrun devicectl device process launch --device "$IOS_DEVICE_ID" "$IOS_BUNDLE_ID"
 
 echo
 echo "iOS device build/install/launch finished:"
-echo "  Workspace: $WORKSPACE_PATH"
+echo "  Project: $PROJECT_PATH"
 echo "  Scheme: $SCHEME_NAME"
 echo "  Bundle ID: $IOS_BUNDLE_ID"
 echo "  Team: $IOS_DEVELOPMENT_TEAM"

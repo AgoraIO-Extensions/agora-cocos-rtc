@@ -1,8 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { promisify } from 'node:util';
 
 const repoRoot = process.cwd();
+const execFileAsync = promisify(execFile);
 
 function extractAgoraMethods(typesContent: string): string[] {
   const match = typesContent.match(/export type AgoraMethod =([\s\S]*?);/);
@@ -46,8 +51,51 @@ test('cocos api test matrix covers every native Agora method and records paramet
   assert.match(testcasesContent, /lighteningContrastLevel/);
   assert.match(testcasesContent, /orientationMode/);
   assert.match(testcasesContent, /loopback/);
-  assert.match(testcasesContent, /publish/);
+  assert.match(
+    testcasesContent,
+    /id:\s*'channel\.join'[\s\S]*?expectedParams:[\s\S]*options:[\s\S]*clientRoleType:\s*'broadcaster'[\s\S]*publishCameraTrack:\s*true[\s\S]*publishMicrophoneTrack:\s*false[\s\S]*autoSubscribeAudio:\s*true[\s\S]*autoSubscribeVideo:\s*true/,
+    'device join testcase should record TS-provided ChannelMediaOptions',
+  );
+  assert.match(
+    testcasesContent,
+    /id:\s*'channel\.join'[\s\S]*?run:\s*\(client, context\) => client\.joinChannel\([\s\S]*?\{[\s\S]*clientRoleType:\s*'broadcaster'/,
+    'device join testcase should execute native joinChannel with options',
+  );
+  assert.match(
+    testcasesContent,
+    /id:\s*'mixing\.start'[\s\S]*?expectedParams:[\s\S]*?startPos:\s*0[\s\S]*?run:\s*\(client, context\) => client\.startAudioMixing\(\{[\s\S]*?startPos:\s*0,[\s\S]*?\}\)/,
+    'device startAudioMixing testcase should exercise the supported 4.5.3 bridge signature',
+  );
+  const mixingStartCase = testcasesContent.match(/id:\s*'mixing\.start'[\s\S]*?id:\s*'mixing\.pause'/)?.[0] ?? '';
+  assert.doesNotMatch(
+    mixingStartCase,
+    /\breplace\b/,
+    'device startAudioMixing testcase must not pass unsupported replace, even when false',
+  );
   assert.match(testcasesContent, /renderMode/);
+});
+
+test('cocos api test mode isolates the demo runtime from the device runner', async () => {
+  const demoRootContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+  const sessionServiceContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  assert.match(demoRootContent, /AGORA_COCOS_TEST_MODE/);
+  assert.match(
+    demoRootContent,
+    /if\s*\(\s*this\.isCocosTestMode\(\)\s*\)[\s\S]*?return;/,
+    'demo root should not initialize or preview RTC while API tests own the native engine',
+  );
+  assert.match(
+    sessionServiceContent,
+    /this\.setupRemoteVideoView\(uid\)\.catch/,
+    'background remote view setup should not produce unhandled promise rejections',
+  );
 });
 
 test('cocos api testcases accept native error evidence for platform-sensitive calls', async () => {
@@ -111,6 +159,47 @@ test('cocos runner injection imports test mode from the example bootstrap', asyn
   assert.doesNotMatch(injectScript, /maybeRunAgoraCocosApiTests\(\);/);
 });
 
+test('cocos runner injection supports the dynamic prefab bootstrap mount point', async () => {
+  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-inject-'));
+  await mkdir(`${fixtureRoot}/scripts`, { recursive: true });
+  await mkdir(`${fixtureRoot}/example/basic-call/assets/scripts`, { recursive: true });
+  await mkdir(`${fixtureRoot}/test_shard/integration_test_app`, { recursive: true });
+  await cp(
+    `${repoRoot}/test_shard/integration_test_app/src`,
+    `${fixtureRoot}/test_shard/integration_test_app/src`,
+    { recursive: true },
+  );
+  await writeFile(
+    `${fixtureRoot}/scripts/inject-cocos-test-runner.mjs`,
+    await readFile(`${repoRoot}/scripts/inject-cocos-test-runner.mjs`, 'utf8'),
+    'utf8',
+  );
+  await writeFile(
+    `${fixtureRoot}/example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts`,
+    await readFile(`${repoRoot}/example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts`, 'utf8'),
+    'utf8',
+  );
+
+  await execFileAsync('node', ['./scripts/inject-cocos-test-runner.mjs'], {
+    cwd: fixtureRoot,
+    env: {
+      ...process.env,
+      AGORA_COCOS_TEST_MODE: 'api',
+      TEST_APP_ID: 'test-app-id',
+    },
+  });
+
+  const bootstrapContent = await readFile(
+    `${fixtureRoot}/example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts`,
+    'utf8',
+  );
+  assert.match(
+    bootstrapContent,
+    /import \{ runAgoraCocosDeviceTestsWhenReady \} from '\.\/cocos-device-tests\/test-mode\.ts';/,
+  );
+  assert.match(bootstrapContent, /runAgoraCocosDeviceTestsWhenReady\(\);\n\n  return true;/);
+});
+
 test('cocos integration scripts build and launch android and ios test apps', async () => {
   const androidScript = await readFile(
     `${repoRoot}/scripts/run_cocos_integration_test_android.sh`,
@@ -124,6 +213,9 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /^#!\/usr\/bin\/env bash/);
   assert.match(androidScript, /TEST_APP_ID/);
   assert.match(androidScript, /AGORA_COCOS_TEST_MODE=api/);
+  assert.match(androidScript, /cocos-android-\$\{GITHUB_RUN_ID:-local\}-\$\{GITHUB_RUN_ATTEMPT:-1\}/);
+  assert.match(androidScript, /TEST_CHANNEL_ID="\$\{TEST_CHANNEL_ID:-\$\{CHANNEL_ID:-\$DEFAULT_TEST_CHANNEL_ID\}\}"/);
+  assert.match(androidScript, /TEST_UID="\$\{TEST_UID:-1001\}"/);
   assert.match(androidScript, /adb/);
   assert.match(androidScript, /logcat/);
   assert.match(androidScript, /TEST_TIMEOUT_SECONDS/);
@@ -160,6 +252,9 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /^#!\/usr\/bin\/env bash/);
   assert.match(iosScript, /TEST_APP_ID/);
   assert.match(iosScript, /AGORA_COCOS_TEST_MODE=api/);
+  assert.match(iosScript, /cocos-ios-\$\{GITHUB_RUN_ID:-local\}-\$\{GITHUB_RUN_ATTEMPT:-1\}/);
+  assert.match(iosScript, /TEST_CHANNEL_ID="\$\{TEST_CHANNEL_ID:-\$\{CHANNEL_ID:-\$DEFAULT_TEST_CHANNEL_ID\}\}"/);
+  assert.match(iosScript, /TEST_UID="\$\{TEST_UID:-1002\}"/);
   assert.match(iosScript, /xcrun simctl/);
   assert.match(iosScript, /TEST_TIMEOUT_SECONDS/);
   assert.match(iosScript, /SECONDS=0[\s\S]*while \[\[ \$SECONDS -lt \$TEST_TIMEOUT_SECONDS \]\]/);
@@ -169,6 +264,16 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /collect-cocos-test-report\.mjs/);
   assert.match(iosScript, /run_cocos_build "\$COCOS_BUILD_CONFIG" "iOS"/);
   assert.match(iosScript, /exit_code -ne 0 && \$exit_code -ne 36/);
+  assert.match(iosScript, /PROJECT_PATH="\$IOS_PROJECT_DIR\/agora-cocos-basic-call\.xcodeproj"/);
+  assert.match(iosScript, /SCHEME_NAME="agora-cocos-basic-call-mobile"/);
+  assert.match(iosScript, /xcodebuild -project "\$PROJECT_PATH"/);
+  assert.match(iosScript, /-scheme "\$SCHEME_NAME"/);
+  assert.match(iosScript, /-derivedDataPath "\$DERIVED_DATA_PATH"/);
+  assert.doesNotMatch(iosScript, /WORKSPACE_PATH=/);
+  assert.doesNotMatch(iosScript, /TARGET_NAME=/);
+  assert.doesNotMatch(iosScript, /\s-target(\s|=)/);
+  assert.doesNotMatch(iosScript, /generate-ios-podfile\.mjs/);
+  assert.doesNotMatch(iosScript, /pod install/);
   assert.match(iosScript, /ios-diagnostic\.log/);
   assert.match(iosScript, /collect_ios_diagnostics/);
   assert.match(iosScript, /resolve_ios_simulator_udid\(\)/);

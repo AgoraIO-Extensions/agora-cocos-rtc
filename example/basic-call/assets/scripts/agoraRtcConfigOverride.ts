@@ -4,6 +4,12 @@ export type AgoraExampleRuntimeConfig = {
   channelId?: string;
   uid?: number;
   renderBackend?: 'surface-view' | 'texture-view' | 'engine-texture';
+  autoPreview?: boolean;
+  autoJoin?: boolean;
+  publishCameraTrack?: boolean;
+  publishMicrophoneTrack?: boolean;
+  autoSubscribeAudio?: boolean;
+  autoSubscribeVideo?: boolean;
 };
 
 export const keyAppId = 'TEST_APP_ID';
@@ -45,6 +51,20 @@ function normalizeConfigValue(value: unknown) {
   return trimmed.startsWith('<') && trimmed.endsWith('>') ? '' : trimmed;
 }
 
+function resolveBooleanConfig(
+  buildValue: unknown,
+  baseValue: unknown,
+  defaultValue: boolean,
+) {
+  if (typeof buildValue === 'boolean') {
+    return buildValue;
+  }
+  if (typeof baseValue === 'boolean') {
+    return baseValue;
+  }
+  return defaultValue;
+}
+
 export function resolveAgoraExampleConfig(
   baseConfig: AgoraExampleRuntimeConfig | null | undefined,
   buildConfig?: AgoraExampleRuntimeConfig | null,
@@ -59,6 +79,16 @@ export function resolveAgoraExampleConfig(
   const token = override.getToken() || normalizeConfigValue(buildConfig?.token) || normalizeConfigValue(baseConfig?.token);
   const uid = typeof buildConfig?.uid === 'number' ? buildConfig.uid : baseConfig?.uid;
   const renderBackend = buildConfig?.renderBackend ?? baseConfig?.renderBackend;
+  const autoPreview = resolveBooleanConfig(buildConfig?.autoPreview, baseConfig?.autoPreview, true);
+  const autoJoin = resolveBooleanConfig(buildConfig?.autoJoin, baseConfig?.autoJoin, false);
+  const publishCameraTrack = resolveBooleanConfig(buildConfig?.publishCameraTrack, baseConfig?.publishCameraTrack, true);
+  const publishMicrophoneTrack = resolveBooleanConfig(
+    buildConfig?.publishMicrophoneTrack,
+    baseConfig?.publishMicrophoneTrack,
+    true,
+  );
+  const autoSubscribeAudio = resolveBooleanConfig(buildConfig?.autoSubscribeAudio, baseConfig?.autoSubscribeAudio, true);
+  const autoSubscribeVideo = resolveBooleanConfig(buildConfig?.autoSubscribeVideo, baseConfig?.autoSubscribeVideo, true);
 
   return {
     appId,
@@ -66,5 +96,11 @@ export function resolveAgoraExampleConfig(
     token,
     uid,
     renderBackend,
+    autoPreview,
+    autoJoin,
+    publishCameraTrack,
+    publishMicrophoneTrack,
+    autoSubscribeAudio,
+    autoSubscribeVideo,
   };
 }

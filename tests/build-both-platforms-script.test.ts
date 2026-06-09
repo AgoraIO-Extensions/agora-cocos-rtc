@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, rm } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -27,6 +27,8 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /AGORA_BUILD_CONFIG_PATH=/);
   assert.match(content, /APP_ID:-/);
   assert.match(content, /TEST_APP_ID:-/);
+  assert.match(content, /AUTO_JOIN:-/);
+  assert.match(content, /PUBLISH_CAMERA_TRACK:-/);
   assert.match(content, /write-example-build-config\.mjs/);
   assert.match(content, /<YOUR_AGORA_APP_ID>/);
   assert.match(content, /Please edit example\/basic-call\/assets\/resources\/agora-config\.json/);
@@ -45,21 +47,16 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /sync-android-app-bridge\.mjs/);
   assert.match(prepareContent, /sync-native-engine-texture-bridge\.mjs/);
   assert.match(prepareContent, /sync-android-app-bridge\.mjs/);
-  assert.match(content, /generate-ios-podfile\.mjs/);
-  assert.match(content, /integrate-ios-project\.rb/);
+  assert.doesNotMatch(content, /generate-ios-podfile\.mjs/);
+  assert.match(content, /integrate-ios-project\.rb --with-package/);
   assert.match(content, /ANDROID_GRADLE_OFFLINE="\$\{ANDROID_GRADLE_OFFLINE:-false\}"/);
   assert.match(content, /\.\/gradlew :agora-cocos-basic-call:assembleRelease/);
   assert.match(content, /\.\/gradlew --offline :agora-cocos-basic-call:assembleRelease/);
   assert.match(content, /validate_ios_signing\(\)/);
   assert.ok(
     content.indexOf('run_cocos_build "$IOS_BUILD_CONFIG" "iOS"') <
-      content.indexOf('node ./scripts/generate-ios-podfile.mjs'),
-    'iOS Podfile should be generated after Cocos exports the Xcode project directory',
-  );
-  assert.ok(
-    content.indexOf('node ./scripts/generate-ios-podfile.mjs') <
       content.indexOf('IOS_BUNDLE_ID="$IOS_BUNDLE_ID"'),
-    'iOS Podfile should be generated before integrating the exported Xcode project',
+    'iOS project should be exported before integrating the configured Swift package',
   );
   assert.ok(
     content.indexOf('run_cocos_build "$IOS_BUILD_CONFIG" "iOS"') <
@@ -72,7 +69,10 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /BUILD_PROVISION_PROFILE_TEAMID/);
   assert.match(content, /BUILD_PROVISION_PROFILE_IDENTITY/);
   assert.match(content, /IOS_CODE_SIGN_IDENTITY="\$BUILD_PROVISION_PROFILE_IDENTITY"/);
-  assert.match(content, /xcodebuild -workspace "\$IOS_WORKSPACE_PATH"/);
+  assert.match(content, /IOS_PROJECT_PATH="\$IOS_PROJECT_DIR\/agora-cocos-basic-call\.xcodeproj"/);
+  assert.doesNotMatch(content, /IOS_WORKSPACE_PATH=/);
+  assert.match(content, /xcodebuild -project "\$IOS_PROJECT_PATH"/);
+  assert.doesNotMatch(content, /xcodebuild -workspace/);
   assert.match(content, /-sdk iphoneos/);
   assert.match(content, /-destination generic\/platform=iOS/);
   assert.match(content, /archive/);
@@ -85,6 +85,7 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.doesNotMatch(content, /adb install/);
   assert.doesNotMatch(content, /simctl install/);
   assert.doesNotMatch(content, /simctl launch/);
+  assert.doesNotMatch(content, /pod install/);
   assert.match(content, /Release packages:/);
   assert.match(content, /print_build_artifacts\(\)/);
 });
@@ -123,6 +124,105 @@ test('example build config writer accepts command-line environment credentials',
 
   await rm(buildConfigPath, { force: true });
   await rm(buildConfigMetaPath, { force: true });
+});
+
+test('example build config writer accepts smoke media options', async () => {
+  const buildConfigPath = `${repoRoot}/example/basic-call/assets/resources/agora-config.build.json`;
+  const buildConfigMetaPath = `${buildConfigPath}.meta`;
+  await rm(buildConfigPath, { force: true });
+  await rm(buildConfigMetaPath, { force: true });
+
+  await execFileAsync('node', ['./scripts/write-example-build-config.mjs'], {
+    cwd: repoRoot,
+    env: {
+      ...process.env,
+      TEST_APP_ID: 'test-app-id',
+      TEST_CHANNEL_ID: 'testapi',
+      TEST_TOKEN: '',
+      UID: '501',
+      TEST_UID: '2002',
+      AUTO_PREVIEW: 'false',
+      AUTO_JOIN: 'true',
+      PUBLISH_CAMERA_TRACK: 'false',
+      PUBLISH_MICROPHONE_TRACK: 'false',
+      AUTO_SUBSCRIBE_AUDIO: 'true',
+      AUTO_SUBSCRIBE_VIDEO: 'true',
+    },
+  });
+
+  const buildConfig = JSON.parse(await readFile(buildConfigPath, 'utf8'));
+  assert.equal(buildConfig.uid, 2002);
+  assert.equal(buildConfig.autoPreview, false);
+  assert.equal(buildConfig.autoJoin, true);
+  assert.equal(buildConfig.publishCameraTrack, false);
+  assert.equal(buildConfig.publishMicrophoneTrack, false);
+  assert.equal(buildConfig.autoSubscribeAudio, true);
+  assert.equal(buildConfig.autoSubscribeVideo, true);
+
+  await rm(buildConfigPath, { force: true });
+  await rm(buildConfigMetaPath, { force: true });
+});
+
+test('example build config writer can apply smoke flags to an edited base config without env app id', async () => {
+  const baseConfigPath = `${repoRoot}/example/basic-call/assets/resources/agora-config.json`;
+  const buildConfigPath = `${repoRoot}/example/basic-call/assets/resources/agora-config.build.json`;
+  const buildConfigMetaPath = `${buildConfigPath}.meta`;
+  const originalBaseConfig = await readFile(baseConfigPath, 'utf8');
+  const baseConfig = {
+    ...JSON.parse(originalBaseConfig),
+    appId: 'base-app-id',
+    channelId: 'base-channel',
+    token: 'base-token',
+  };
+
+  await rm(buildConfigPath, { force: true });
+  await rm(buildConfigMetaPath, { force: true });
+  await writeFile(baseConfigPath, `${JSON.stringify(baseConfig, null, 2)}\n`, 'utf8');
+
+  try {
+    await execFileAsync('node', ['./scripts/write-example-build-config.mjs'], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        APP_ID: '',
+        TEST_APP_ID: '',
+        CHANNEL_ID: '',
+        TEST_CHANNEL_ID: '',
+        TOKEN: '',
+        TEST_TOKEN: '',
+        AUTO_JOIN: 'true',
+        PUBLISH_CAMERA_TRACK: 'false',
+      },
+    });
+
+    const buildConfig = JSON.parse(await readFile(buildConfigPath, 'utf8'));
+    assert.equal(buildConfig.appId, 'base-app-id');
+    assert.equal(buildConfig.channelId, 'base-channel');
+    assert.equal(buildConfig.token, 'base-token');
+    assert.equal(buildConfig.autoJoin, true);
+    assert.equal(buildConfig.publishCameraTrack, false);
+  } finally {
+    await writeFile(baseConfigPath, originalBaseConfig, 'utf8');
+    await rm(buildConfigPath, { force: true });
+    await rm(buildConfigMetaPath, { force: true });
+  }
+});
+
+test('example build config writer rejects non-integer smoke uid', async () => {
+  await assert.rejects(
+    execFileAsync('node', ['./scripts/write-example-build-config.mjs'], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        TEST_APP_ID: 'test-app-id',
+        TEST_UID: '1.9',
+      },
+    }),
+    (error: any) => {
+      assert.match(error.stderr, /TEST_UID must be a non-negative integer\./);
+      return true;
+    },
+  );
 });
 
 test('root readme does not expose internal example package workflow to sdk customers', async () => {
