@@ -78,6 +78,11 @@ await client.joinChannel(token, channelId, uid);
 - `adjustAudioMixingVolume`
 - `preloadEffect`
 - `playEffect`
+- `pauseEffect`
+- `resumeEffect`
+- `setEffectsVolume`
+- `adjustAudioMixingPublishVolume`
+- `adjustAudioMixingPlayoutVolume`
 - `stopEffect`
 - `setParameters`
 - `destroy`
@@ -88,3 +93,4 @@ await client.joinChannel(token, channelId, uid);
 - iOS uses `AgoraRtcEngine_iOS 4.5.3`.
 - Android currently returns explicit `unsupported` responses for `setDefaultAudioRouteToSpeakerphone` and `setAudioSessionOperationRestriction`.
 - `engine-texture` is the main Cocos texture rendering path for video frames.
+- `AudioEffectMixing` effect pause/resume and effect volume map to native audio effect APIs; audio mixing publish/playout volume maps to native audio mixing APIs.
