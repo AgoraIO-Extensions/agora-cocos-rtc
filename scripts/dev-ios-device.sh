@@ -21,11 +21,24 @@ IOS_EXPORTED_PLUGIN_DIR="$IOS_PROJECT_DIR/agora-rtc"
 IOS_BUNDLE_ID="${IOS_BUNDLE_ID:-io.agora.cocos.example}"
 IOS_DEVELOPMENT_TEAM="${IOS_DEVELOPMENT_TEAM:-}"
 IOS_PROVISIONING_PROFILE_SPECIFIER="${IOS_PROVISIONING_PROFILE_SPECIFIER:-}"
+IOS_CODE_SIGN_IDENTITY="${IOS_CODE_SIGN_IDENTITY:-Apple Development}"
+IOS_XCODE_DESTINATION_ID="${IOS_XCODE_DESTINATION_ID:-${IOS_DEVICE_ID:-}}"
 IOS_DEVICE_ID="${IOS_DEVICE_ID:-}"
 
 cd "$ROOT_DIR"
 
 security find-identity -v -p codesigning >/dev/null
+
+if [[ -z "$IOS_DEVELOPMENT_TEAM" || -z "$IOS_PROVISIONING_PROFILE_SPECIFIER" || -z "$IOS_DEVICE_ID" || -z "$IOS_XCODE_DESTINATION_ID" ]]; then
+  echo "iOS device build requires signing and device environment variables:" >&2
+  echo "  IOS_DEVELOPMENT_TEAM" >&2
+  echo "  IOS_PROVISIONING_PROFILE_SPECIFIER" >&2
+  echo "  IOS_DEVICE_ID" >&2
+  echo "  IOS_XCODE_DESTINATION_ID (defaults to IOS_DEVICE_ID when unset)" >&2
+  echo "Optional:" >&2
+  echo "  IOS_CODE_SIGN_IDENTITY (default: Apple Development)" >&2
+  exit 1
+fi
 
 ./scripts/prepare-example.sh >/dev/null
 if [[ -n "${APP_ID:-}${TEST_APP_ID:-}${CHANNEL_ID:-}${TEST_CHANNEL_ID:-}${TOKEN:-}${TEST_TOKEN:-}${TEST_UID:-}${AUTO_PREVIEW:-}${AUTO_JOIN:-}${PUBLISH_CAMERA_TRACK:-}${PUBLISH_MICROPHONE_TRACK:-}${AUTO_SUBSCRIBE_AUDIO:-}${AUTO_SUBSCRIBE_VIDEO:-}" ]]; then
@@ -45,6 +58,7 @@ fi
 IOS_BUNDLE_ID="$IOS_BUNDLE_ID" \
 IOS_DEVELOPMENT_TEAM="$IOS_DEVELOPMENT_TEAM" \
 IOS_PROVISIONING_PROFILE_SPECIFIER="$IOS_PROVISIONING_PROFILE_SPECIFIER" \
+IOS_CODE_SIGN_IDENTITY="$IOS_CODE_SIGN_IDENTITY" \
 ./scripts/integrate-ios-project.rb --with-package >/dev/null
 
 if [[ -d "$IOS_RUNTIME_PLUGIN_DIR" ]]; then
@@ -57,13 +71,9 @@ rm -rf "$RESULT_BUNDLE_PATH"
 xcodebuild -project "$PROJECT_PATH" \
   -scheme "$SCHEME_NAME" \
   -configuration Debug \
-  -destination "id=$IOS_DEVICE_ID" \
+  -destination "id=$IOS_XCODE_DESTINATION_ID" \
   -derivedDataPath "$DERIVED_DATA_PATH" \
   -resultBundlePath "$RESULT_BUNDLE_PATH" \
-  PRODUCT_BUNDLE_IDENTIFIER="$IOS_BUNDLE_ID" \
-  DEVELOPMENT_TEAM="$IOS_DEVELOPMENT_TEAM" \
-  CODE_SIGN_STYLE=Manual \
-  PROVISIONING_PROFILE_SPECIFIER="$IOS_PROVISIONING_PROFILE_SPECIFIER" \
   build
 
 APP_PATH="$DERIVED_DATA_PATH/Build/Products/Debug-iphoneos/${SCHEME_NAME}.app"
@@ -78,5 +88,6 @@ echo "  Scheme: $SCHEME_NAME"
 echo "  Bundle ID: $IOS_BUNDLE_ID"
 echo "  Team: $IOS_DEVELOPMENT_TEAM"
 echo "  Profile: $IOS_PROVISIONING_PROFILE_SPECIFIER"
+echo "  Xcode Destination: $IOS_XCODE_DESTINATION_ID"
 echo "  Device: $IOS_DEVICE_ID"
 echo "  Result Bundle: $RESULT_BUNDLE_PATH"

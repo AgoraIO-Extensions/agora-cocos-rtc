@@ -1,6 +1,6 @@
 import type { Node, Sprite, SpriteFrame, Texture2D } from 'cc';
 
-export type RenderBackend = 'surface-view' | 'texture-view' | 'engine-texture';
+export type RenderBackend = 'engine-texture';
 export type ActionResult = 'ok' | 'fail' | 'idle';
 export type ChannelProfile = 'communication' | 'liveBroadcasting';
 export type ClientRole = 'broadcaster' | 'audience';

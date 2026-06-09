@@ -111,6 +111,86 @@ function assertPatternBefore(
   );
 }
 
+function normalizeRotation(rotation: number) {
+  const normalized = ((rotation % 360) + 360) % 360;
+  return normalized === 90 || normalized === 180 || normalized === 270
+    ? normalized
+    : 0;
+}
+
+function mapTransformedPixel(
+  outputX: number,
+  outputY: number,
+  width: number,
+  height: number,
+  rotation: number,
+  mirror: boolean,
+  verticalFlip = false,
+  outputWidth?: number,
+  outputHeight?: number,
+) {
+  const normalizedRotation = normalizeRotation(rotation);
+  const swapsDimensions = normalizedRotation === 90 || normalizedRotation === 270;
+  const naturalWidth = swapsDimensions ? height : width;
+  const naturalHeight = swapsDimensions ? width : height;
+  const resolvedOutputWidth = outputWidth ?? naturalWidth;
+  const resolvedOutputHeight = outputHeight ?? naturalHeight;
+  const naturalX = Math.min(
+    naturalWidth - 1,
+    Math.max(0, Math.floor(outputX * naturalWidth / resolvedOutputWidth)),
+  );
+  const rawNaturalY = Math.min(
+    naturalHeight - 1,
+    Math.max(0, Math.floor(outputY * naturalHeight / resolvedOutputHeight)),
+  );
+  const naturalY = verticalFlip ? naturalHeight - 1 - rawNaturalY : rawNaturalY;
+  const mappedNaturalX = mirror ? naturalWidth - 1 - naturalX : naturalX;
+
+  switch (normalizedRotation) {
+    case 90:
+      return { x: naturalY, y: height - 1 - mappedNaturalX };
+    case 180:
+      return { x: width - 1 - mappedNaturalX, y: height - 1 - naturalY };
+    case 270:
+      return { x: width - 1 - naturalY, y: mappedNaturalX };
+    default:
+      return { x: mappedNaturalX, y: naturalY };
+  }
+}
+
+function transformPixelLabels(
+  labels: string[][],
+  rotation: number,
+  mirror: boolean,
+  targetWidth?: number,
+  targetHeight?: number,
+  verticalFlip = false,
+) {
+  const height = labels.length;
+  const width = labels[0].length;
+  const normalizedRotation = normalizeRotation(rotation);
+  const swapsDimensions = normalizedRotation === 90 || normalizedRotation === 270;
+  const outputWidth = targetWidth ?? (swapsDimensions ? height : width);
+  const outputHeight = targetHeight ?? (swapsDimensions ? width : height);
+
+  return Array.from({ length: outputHeight }, (_, outputY) =>
+    Array.from({ length: outputWidth }, (_, outputX) => {
+      const source = mapTransformedPixel(
+        outputX,
+        outputY,
+        width,
+        height,
+        rotation,
+        mirror,
+        verticalFlip,
+        outputWidth,
+        outputHeight,
+      );
+      return labels[source.y][source.x];
+    }),
+  );
+}
+
 test('ios swift bridge template passes a syntax-only compile', async () => {
   const swiftFile = path.join(
     repoRoot,
@@ -170,6 +250,210 @@ test('engine-texture backend emits texture slot lifecycle events instead of Base
   assert.match(iosSlotBridgeContent, /release_agora_engine_texture_slot/);
 });
 
+test('engine-texture raw frame path applies orientation before uploading texture data', async () => {
+  const templateContent = await readFile(engineTextureBackendTemplate, 'utf8');
+  const runtimeContent = await readFile(engineTextureBackendRuntime, 'utf8');
+  const iosSlotBridgeContent = await readFile(iosEngineTextureSlotBridgeTemplate, 'utf8');
+  const commonBridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/common/Classes/agora/AgoraEngineTextureBridge.cpp'),
+    'utf8',
+  );
+
+  for (const content of [templateContent, runtimeContent]) {
+    assert.match(content, /videoFrame\.getRotation\(\)/);
+    assert.match(content, /final boolean mirror = false;/);
+    assert.doesNotMatch(
+      content,
+      /VideoFrame\.SourceType\.kFrontCamera/,
+      'engine-texture should not add a selfie mirror on top of raw frame orientation.',
+    );
+    assert.match(content, /nativeUpdateI420Slot\([\s\S]*rotation,[\s\S]*mirror[\s\S]*\);/);
+    assert.doesNotMatch(
+      content,
+      /buffer\.rotate\(rotation\)|buffer\.mirror\(/,
+      'Android I420 buffers may not implement rotate/mirror, so native conversion must handle orientation.',
+    );
+  }
+
+  assert.match(iosSlotBridgeContent, /videoFrame\.rotation/);
+  assert.match(iosSlotBridgeContent, /mirroredVideoFrame:\(AgoraOutputVideoFrame \*\)videoFrame/);
+  assert.match(iosSlotBridgeContent, /update_agora_engine_texture_nv12_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
+  assert.match(
+    iosSlotBridgeContent,
+    /update_agora_engine_texture_nv12_slot\([\s\S]*static_cast<int>\(height\),\s*static_cast<int>\(videoFrame\.rotation\),\s*mirror[\s\S]*\);/,
+  );
+  assert.match(iosSlotBridgeContent, /update_agora_engine_texture_i420_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
+  assert.match(commonBridgeContent, /normalizeRotation/);
+  assert.match(commonBridgeContent, /mapTransformedPixel/);
+  assert.match(commonBridgeContent, /mirror/);
+});
+
+test('engine-texture local camera preview does not add an extra selfie mirror', async () => {
+  const androidTemplateContent = await readFile(engineTextureBackendTemplate, 'utf8');
+  const androidRuntimeContent = await readFile(engineTextureBackendRuntime, 'utf8');
+  const iosBridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  for (const content of [androidTemplateContent, androidRuntimeContent]) {
+    assert.match(content, /final boolean mirror = false;/);
+    assert.doesNotMatch(content, /kFrontCamera/);
+  }
+
+  assert.match(
+    iosBridgeContent,
+    /private func updateTextureSlot\(_ slot: TextureSlotState, videoFrame: AgoraOutputVideoFrame\) \{[\s\S]*mirror: false[\s\S]*dispatchTextureReadyIfNeeded/,
+  );
+  assert.doesNotMatch(
+    iosBridgeContent,
+    /updateTextureSlot\(slotId: slot\.slotId, videoFrame: videoFrame, mirror: usingFrontCamera\)/,
+  );
+});
+
+test('engine-texture iOS mirror is applied in display coordinates after rotation', async () => {
+  const commonBridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/common/Classes/agora/AgoraEngineTextureBridge.cpp'),
+    'utf8',
+  );
+
+  assert.match(
+    commonBridgeContent,
+    /const int normalizedRotation = normalizeRotation\(rotation\);/,
+  );
+  assert.match(
+    commonBridgeContent,
+    /const bool swapsDimensions = normalizedRotation == 90 \|\| normalizedRotation == 270;/,
+  );
+  assert.match(
+    commonBridgeContent,
+    /const int naturalWidth = swapsDimensions \? height : width;/,
+  );
+  assert.match(
+    commonBridgeContent,
+    /const int naturalX = std::min\(naturalWidth - 1, std::max\(0, outputX \* naturalWidth \/ outputWidth\)\);/,
+  );
+  assert.match(
+    commonBridgeContent,
+    /const int mappedNaturalX = mirror \? naturalWidth - 1 - naturalX : naturalX;/,
+  );
+  assert.doesNotMatch(
+    commonBridgeContent,
+    /sourceX = width - 1 - sourceX;/,
+    'Mirror must be applied in output/display coordinates before inverse rotation mapping.',
+  );
+  assertPatternBefore(
+    commonBridgeContent,
+    /const int mappedNaturalX = mirror \? naturalWidth - 1 - naturalX : naturalX;/,
+    /switch \(normalizedRotation\)/,
+    'iOS local mirror should stay horizontal after applying videoFrame.rotation',
+  );
+});
+
+test('engine-texture iOS coordinate mapping keeps mirror horizontal for rotated frames', () => {
+  const source = [
+    ['A', 'B', 'C'],
+    ['D', 'E', 'F'],
+  ];
+
+  assert.deepEqual(transformPixelLabels(source, 90, false), [
+    ['D', 'A'],
+    ['E', 'B'],
+    ['F', 'C'],
+  ]);
+  assert.deepEqual(transformPixelLabels(source, 90, true), [
+    ['A', 'D'],
+    ['B', 'E'],
+    ['C', 'F'],
+  ]);
+  assert.deepEqual(transformPixelLabels(source, 270, false), [
+    ['C', 'F'],
+    ['B', 'E'],
+    ['A', 'D'],
+  ]);
+  assert.deepEqual(transformPixelLabels(source, 270, true), [
+    ['F', 'C'],
+    ['E', 'B'],
+    ['D', 'A'],
+  ]);
+});
+
+test('engine-texture Android coordinate mapping supports native target-size scaling', () => {
+  const source = [
+    ['A', 'B', 'C', 'D'],
+    ['E', 'F', 'G', 'H'],
+  ];
+
+  assert.deepEqual(transformPixelLabels(source, 0, false, 2, 1), [
+    ['A', 'C'],
+  ]);
+  assert.deepEqual(transformPixelLabels(source, 90, true, 2, 4), [
+    ['A', 'E'],
+    ['B', 'F'],
+    ['C', 'G'],
+    ['D', 'H'],
+  ]);
+});
+
+test('engine-texture coordinate mapping preserves top-to-bottom upload order for Cocos textures', () => {
+  const source = [
+    ['top-left', 'top-right'],
+    ['bottom-left', 'bottom-right'],
+  ];
+
+  assert.deepEqual(transformPixelLabels(source, 0, false), source);
+  assert.deepEqual(transformPixelLabels(source, 0, true), [
+    ['top-right', 'top-left'],
+    ['bottom-right', 'bottom-left'],
+  ]);
+  assert.notDeepEqual(
+    transformPixelLabels(source, 0, false, undefined, undefined, true),
+    source,
+    'A vertical flip would upload the bottom camera row into the top Cocos texture row.',
+  );
+});
+
+test('engine-texture iOS requests a frame format with explicit rotation and mirror conversion', async () => {
+  const iosBridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+  const iosSlotBridgeContent = await readFile(iosEngineTextureSlotBridgeTemplate, 'utf8');
+
+  assert.match(
+    iosBridgeContent,
+    /func getVideoFormatPreference\(\) -> AgoraVideoFormat \{[\s\S]*return \.cvPixelNV12[\s\S]*\}/,
+  );
+  assert.doesNotMatch(iosBridgeContent, /\.CVPixelNV12/);
+  assert.doesNotMatch(
+    iosBridgeContent,
+    /func getVideoFormatPreference\(\) -> AgoraVideoFormat \{[\s\S]*return \.default[\s\S]*\}/,
+  );
+  assert.doesNotMatch(
+    iosSlotBridgeContent,
+    /case 13:\s*case 14:\s*\[self updateSlot:slotId pixelBuffer:videoFrame\.pixelBuffer\];/,
+    'CVPixelBuffer I420 must not bypass the rotation/mirror-aware conversion path.',
+  );
+});
+
+test('engine-texture iOS converts CVPixelBuffer I420 frames instead of dropping them', async () => {
+  const iosSlotBridgeContent = await readFile(iosEngineTextureSlotBridgeTemplate, 'utf8');
+
+  assert.match(
+    iosSlotBridgeContent,
+    /case 13:[\s\S]*CVPixelBufferGetBaseAddressOfPlane\(videoFrame\.pixelBuffer, 0\)[\s\S]*CVPixelBufferGetBaseAddressOfPlane\(videoFrame\.pixelBuffer, 1\)[\s\S]*CVPixelBufferGetBaseAddressOfPlane\(videoFrame\.pixelBuffer, 2\)/,
+  );
+  assert.match(
+    iosSlotBridgeContent,
+    /case 13:[\s\S]*update_agora_engine_texture_i420_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror[\s\S]*\);[\s\S]*break;/,
+  );
+  assert.doesNotMatch(
+    iosSlotBridgeContent,
+    /case 13:\s*break;/,
+    'CVPixelBuffer I420 frames should be converted, not ignored.',
+  );
+});
+
 test('android bridge template dispatches expanded sdk methods', async () => {
   const bridgeContent = await readFile(
     path.join(
@@ -210,7 +494,7 @@ test('android bridge template wires supported advanced sdk methods to real Agora
   assert.match(bridgeContent, /rtcEngine\.pauseAudioMixing/);
   assert.match(bridgeContent, /rtcEngine\.resumeAudioMixing/);
   assert.match(bridgeContent, /rtcEngine\.stopAudioMixing/);
-  assert.match(bridgeContent, /rtcEngine\.getAudioMixingCurrentPosition/);
+  assert.match(bridgeContent, /engine\.getAudioMixingCurrentPosition/);
   assert.match(bridgeContent, /rtcEngine\.setAudioMixingPosition/);
   assert.match(bridgeContent, /rtcEngine\.adjustAudioMixingVolume/);
   assert.match(bridgeContent, /rtcEngine\.getAudioEffectManager\(\)/);
@@ -225,6 +509,47 @@ test('android bridge template wires supported advanced sdk methods to real Agora
   assert.match(bridgeContent, /onRemoteAudioStateChanged/);
   assert.match(bridgeContent, /dispatchEvent\("remoteAudioStateChanged"/);
   assert.match(bridgeContent, /rtcEngine\.setDefaultAudioRoutetoSpeakerphone/);
+});
+
+test('android bridge template keeps blocking rtc calls off the Cocos game thread', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  const handleDestroyMatch = bridgeContent.match(
+    /private void handleDestroy[\s\S]*?private void handleSetVideoEncoderConfiguration/,
+  );
+  assert.ok(handleDestroyMatch);
+  assertPatternBefore(
+    handleDestroyMatch[0],
+    /dispatchOk\(requestId\);/,
+    /RtcEngine\.destroy\(\)/,
+    'destroy must resolve the JS request before running the potentially blocking sdk teardown',
+  );
+  assert.match(handleDestroyMatch[0], /new Thread\(\(\) -> \{/);
+  assert.match(handleDestroyMatch[0], /engineToDestroy = rtcEngine/);
+  assert.match(handleDestroyMatch[0], /rtcEngine = null/);
+
+  const handleGetAudioMixingCurrentPositionMatch = bridgeContent.match(
+    /private void handleGetAudioMixingCurrentPosition[\s\S]*?private void handleSetAudioMixingPosition/,
+  );
+  assert.ok(handleGetAudioMixingCurrentPositionMatch);
+  assertPatternBefore(
+    handleGetAudioMixingCurrentPositionMatch[0],
+    /new Thread\(\(\) -> \{/,
+    /engine\.getAudioMixingCurrentPosition\(\)/,
+    'getAudioMixingCurrentPosition must run the sdk query away from the Cocos game thread',
+  );
+  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /final RtcEngine engine = rtcEngine/);
+  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /NATIVE_QUERY_TIMEOUT_MS/);
+  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /AtomicBoolean completed/);
+  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /dispatchNativeMethodError\(/);
+  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /dispatchResponse\(jsonObject\(/);
+  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /dispatchNativeExceptionError\(requestId, "getAudioMixingCurrentPosition", error\)/);
 });
 
 test('android bridge template returns errors for bad native requests instead of timing out', async () => {
@@ -388,6 +713,23 @@ test('android bridge template maps joinChannel media options from request payloa
   assert.match(bridgeContent, /options\.preferMultipathType = optNullableInteger\(mediaOptions, "preferMultipathType"\)/);
   assert.match(bridgeContent, /options\.token = mediaOptions\.optString\("token"\)/);
   assert.match(bridgeContent, /options\.parameters = mediaOptions\.optString\("parameters"\)/);
+});
+
+test('android bridge template wires string uid account APIs to the native sdk', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /case "joinChannelWithUserAccount"/);
+  assert.match(bridgeContent, /case "getUserInfoByUserAccount"/);
+  assert.match(bridgeContent, /rtcEngine\.joinChannelWithUserAccount/);
+  assert.match(bridgeContent, /rtcEngine\.getUserInfoByUserAccount/);
+  assert.match(bridgeContent, /User account is required\./);
+  assert.match(bridgeContent, /userAccount/);
 });
 
 test('android bridge template requests rtc runtime permissions before camera and microphone use', async () => {
@@ -1020,7 +1362,8 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(inspectMatch[0], /config\.extraInfo = extraInfo/);
   assert.match(inspectMatch[0], /config\.serverConfig = serverConfig/);
   assert.match(inspectMatch[0], /config\.modules = buildContentInspectModules/);
-  assert.doesNotMatch(bridgeContent, /module\.position/);
+  assert.match(bridgeContent, /module\.position = parseContentInspectModulePosition/);
+  assert.match(bridgeContent, /private func parseContentInspectModulePosition/);
 
   const inspectModuleMatch = bridgeContent.match(
     /private func buildContentInspectModules[\s\S]*?private func intValue/,
@@ -1127,6 +1470,24 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(bridgeContent, /engine\.resumeEffect\(soundId\)/);
   assert.match(bridgeContent, /engine\.setEffectsVolume\(volume\)/);
   assert.match(bridgeContent, /engine\.stopEffect\(soundId\)/);
+});
+
+test('ios bridge template wires string uid account APIs to the native sdk', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /case "joinChannelWithUserAccount"/);
+  assert.match(bridgeContent, /case "getUserInfoByUserAccount"/);
+  assert.match(bridgeContent, /engine\.joinChannel\(byToken: token,/);
+  assert.match(bridgeContent, /channelId: channelId,/);
+  assert.match(bridgeContent, /userAccount: userAccount,/);
+  assert.doesNotMatch(bridgeContent, /joinChannel\(byUserAccount:/);
+  assert.match(bridgeContent, /engine\.getUserInfo\(byUserAccount: userAccount, withError: &errorCode\)/);
+  assert.match(bridgeContent, /var errorCode = AgoraErrorCode\.noError/);
+  assert.match(bridgeContent, /User account is required\./);
+  assert.match(bridgeContent, /userAccount/);
 });
 
 test('ios bridge template rejects unsafe invalid arguments before calling the rtc sdk', async () => {
@@ -1273,8 +1634,8 @@ test('ios content inspect module boundary matches the installed rtc objects head
   assert.ok(moduleMatch);
   assert.match(moduleMatch[0], /AgoraContentInspectType type/);
   assert.match(moduleMatch[0], /NSInteger interval/);
-  assert.doesNotMatch(moduleMatch[0], /position/);
-  assert.doesNotMatch(bridgeContent, /module\.position/);
+  assert.match(moduleMatch[0], /AgoraVideoModulePosition position/);
+  assert.match(bridgeContent, /module\.position = parseContentInspectModulePosition/);
 });
 
 test('ios plugin registrar attaches the js bridge wrapper and forwards responses back to script', async () => {
@@ -1978,11 +2339,19 @@ public class GlobalObject {
     `package io.agora.base;
 
 public class VideoFrame {
+    public enum SourceType {
+        kFrontCamera,
+        kBackCamera,
+        kUnspecified
+    }
+
     public interface Buffer {
         int getWidth();
         int getHeight();
         I420Buffer toI420();
         Buffer cropAndScale(int x, int y, int width, int height, int scaledWidth, int scaledHeight);
+        Buffer rotate(int rotation);
+        Buffer mirror(int type);
         void release();
     }
 
@@ -1997,6 +2366,8 @@ public class VideoFrame {
 
     public int getRotatedWidth() { return 0; }
     public int getRotatedHeight() { return 0; }
+    public int getRotation() { return 0; }
+    public SourceType getSourceType() { return SourceType.kUnspecified; }
     public Buffer getBuffer() { return null; }
 }
 `,
@@ -2107,6 +2478,18 @@ public class ChannelMediaOptions {
     public Integer preferMultipathType;
     public String token;
     public String parameters;
+}
+`,
+    'utf8',
+  );
+
+  await writeFile(
+    path.join(srcRoot, 'io/agora/rtc2/UserInfo.java'),
+    `package io.agora.rtc2;
+
+public class UserInfo {
+    public int uid;
+    public String userAccount;
 }
 `,
     'utf8',
@@ -2390,6 +2773,8 @@ public class RtcEngine {
     public void setupLocalVideo(VideoCanvas canvas) {}
     public void setupRemoteVideo(VideoCanvas canvas) {}
     public int joinChannel(String token, String channelId, int uid, ChannelMediaOptions options) { return 0; }
+    public int joinChannelWithUserAccount(String token, String channelId, String userAccount, ChannelMediaOptions options) { return 0; }
+    public int getUserInfoByUserAccount(String userAccount, UserInfo userInfo) { return 0; }
     public void leaveChannel() {}
     public int renewToken(String token) { return 0; }
     public int enableAudio() { return 0; }
@@ -2480,6 +2865,7 @@ public class RtcEngine {
     path.join(srcRoot, 'io/agora/rtc2/ChannelMediaOptions.java'),
     path.join(srcRoot, 'io/agora/rtc2/ClientRoleOptions.java'),
     path.join(srcRoot, 'io/agora/rtc2/RtcEngineConfig.java'),
+    path.join(srcRoot, 'io/agora/rtc2/UserInfo.java'),
     path.join(srcRoot, 'io/agora/rtc2/IAudioEffectManager.java'),
     path.join(srcRoot, 'io/agora/rtc2/Constants.java'),
     path.join(srcRoot, 'io/agora/rtc2/video/BeautyOptions.java'),
