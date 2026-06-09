@@ -10,11 +10,22 @@ const IOS_APP_DELEGATE_FORWARD_DECLARATION = `@interface AgoraRtcPlugin : NSObje
 const IOS_APP_DELEGATE_ATTACH_CALL = '    [[AgoraRtcPlugin sharedInstance] attachBridge];';
 const ANDROID_APP_ACTIVITY_IMPORT = 'import io.agora.cocos.rtc.AgoraRtcPlugin;';
 const ANDROID_APP_ACTIVITY_ATTACH_CALL = '        AgoraRtcPlugin.getInstance().attachBridge();';
+const ANDROID_APP_ACTIVITY_PERMISSION_FORWARDER = `    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        AgoraRtcPlugin.getInstance().onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+`;
+const ANDROID_APP_ACTIVITY_PERMISSION_FORWARD_CALL = '        AgoraRtcPlugin.getInstance().onRequestPermissionsResult(requestCode, permissions, grantResults);';
 const ANDROID_RTC_PERMISSIONS = [
   'android.permission.CAMERA',
   'android.permission.RECORD_AUDIO',
   'android.permission.MODIFY_AUDIO_SETTINGS',
 ];
+const IOS_RTC_USAGE_DESCRIPTIONS = {
+  NSCameraUsageDescription: 'Agora RTC needs camera access for local video preview and calls.',
+  NSMicrophoneUsageDescription: 'Agora RTC needs microphone access for voice calls.',
+};
 const COMMON_ENGINE_TEXTURE_BRIDGE_FILES = [
   'AgoraEngineTextureBridge.h',
   'AgoraEngineTextureBridge.cpp',
@@ -316,6 +327,27 @@ function patchAndroidAppActivityBridgeAttachment(content) {
     next = next.replace(launchAnchor, `${launchAnchor}\n${ANDROID_APP_ACTIVITY_ATTACH_CALL}`);
   }
 
+  if (!next.includes('AgoraRtcPlugin.getInstance().onRequestPermissionsResult')) {
+    const permissionCallbackMatch = next.match(
+      /public\s+void\s+onRequestPermissionsResult\s*\(\s*int\s+requestCode\s*,\s*String\[\]\s+permissions\s*,\s*int\[\]\s+grantResults\s*\)\s*\{/,
+    );
+    if (permissionCallbackMatch) {
+      const superCall = 'super.onRequestPermissionsResult(requestCode, permissions, grantResults);';
+      next = next.includes(superCall)
+        ? next.replace(superCall, `${superCall}\n${ANDROID_APP_ACTIVITY_PERMISSION_FORWARD_CALL}`)
+        : next.replace(
+          permissionCallbackMatch[0],
+          `${permissionCallbackMatch[0]}\n${ANDROID_APP_ACTIVITY_PERMISSION_FORWARD_CALL}`,
+        );
+    } else {
+      const classEndIndex = next.lastIndexOf('}');
+      if (classEndIndex < 0) {
+        throw new Error('Unable to patch Android AppActivity: class closing brace not found.');
+      }
+      next = `${next.slice(0, classEndIndex).trimEnd()}\n\n${ANDROID_APP_ACTIVITY_PERMISSION_FORWARDER}${next.slice(classEndIndex)}`;
+    }
+  }
+
   return next;
 }
 
@@ -384,6 +416,51 @@ async function ensureAndroidRtcPermissions(androidRootDir) {
   }
 
   return manifestPath;
+}
+
+function patchIosRtcUsageDescriptions(content) {
+  const missingEntries = Object.entries(IOS_RTC_USAGE_DESCRIPTIONS).filter(
+    ([key]) => !content.includes(`<key>${key}</key>`),
+  );
+
+  if (missingEntries.length === 0) {
+    return content;
+  }
+
+  const usageBlock = missingEntries
+    .map(([key, value]) => `\t<key>${key}</key>\n\t<string>${value}</string>`)
+    .join('\n');
+
+  const dictEndIndex = content.lastIndexOf('</dict>');
+  if (dictEndIndex >= 0) {
+    return `${content.slice(0, dictEndIndex).trimEnd()}\n${usageBlock}\n${content.slice(dictEndIndex)}`;
+  }
+
+  return content;
+}
+
+async function ensureIosRtcUsageDescriptions(rootDir) {
+  const infoPlistPath = await findFirstExistingPath(rootDir, [
+    'Info.plist',
+    'proj/Info.plist',
+    'native/engine/ios/Info.plist',
+    '../../native/engine/ios/Info.plist',
+    '../../../native/engine/ios/Info.plist',
+    '../native/engine/ios/Info.plist',
+  ]);
+
+  if (!infoPlistPath) {
+    return null;
+  }
+
+  const original = await readFile(infoPlistPath, 'utf8');
+  const patched = patchIosRtcUsageDescriptions(original);
+
+  if (patched !== original) {
+    await writeFile(infoPlistPath, patched, 'utf8');
+  }
+
+  return infoPlistPath;
 }
 
 async function integrateAndroidExport(rootDir) {
@@ -470,6 +547,7 @@ async function integrateIosExport(rootDir) {
 
   if (nativeSourceDir) {
     await ensureIosAppDelegateBridgeAttachment(nativeSourceDir);
+    await ensureIosRtcUsageDescriptions(nativeSourceDir);
   }
 }
 
@@ -511,11 +589,13 @@ module.exports = {
   copyIosTemplateFiles,
   ensureAndroidAppActivityBridgeAttachment,
   ensureAndroidRtcPermissions,
+  ensureIosRtcUsageDescriptions,
   ensureNativeEngineTextureBridge,
   ensureIosAppDelegateBridgeAttachment,
   onAfterBuild,
   patchAndroidAppActivityBridgeAttachment,
   patchAndroidRtcPermissions,
+  patchIosRtcUsageDescriptions,
   patchIosAppDelegateBridgeAttachment,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,

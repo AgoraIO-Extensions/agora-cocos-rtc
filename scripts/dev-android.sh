@@ -79,12 +79,19 @@ await writeFile(outputPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
 NODE
 }
 
+has_example_build_config_env() {
+  [[ -n "${APP_ID:-}${TEST_APP_ID:-}${CHANNEL_ID:-}${TEST_CHANNEL_ID:-}${TOKEN:-}${TEST_TOKEN:-}${TEST_UID:-}${AUTO_PREVIEW:-}${AUTO_JOIN:-}${PUBLISH_CAMERA_TRACK:-}${PUBLISH_MICROPHONE_TRACK:-}${AUTO_SUBSCRIBE_AUDIO:-}${AUTO_SUBSCRIBE_VIDEO:-}" ]]
+}
+
 if [[ ! -x "$ADB_BIN" ]]; then
   echo "adb not found at $ADB_BIN" >&2
   exit 1
 fi
 
 ./scripts/prepare-example.sh >/dev/null
+if has_example_build_config_env; then
+  node ./scripts/write-example-build-config.mjs >/dev/null
+fi
 if [[ ! -d "$LOCAL_AGORA_MAVEN_DIR" ]]; then
   node ./scripts/fetch-agora-maven.mjs >/dev/null
 fi

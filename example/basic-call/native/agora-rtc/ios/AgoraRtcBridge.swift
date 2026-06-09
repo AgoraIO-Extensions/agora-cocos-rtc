@@ -1,4 +1,5 @@
 import AgoraRtcKit
+import AVFoundation
 import Foundation
 import UIKit
 import CoreVideo
@@ -551,8 +552,14 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "startPreview":
             requireEngine(requestId: requestId) { engine in
-                let result = engine.startPreview()
-                dispatchResult(requestId: requestId, method: method, result: result)
+                ensureRtcPermissions(requestId: requestId) {
+                    guard self.rtcEngine != nil else {
+                        self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+                        return
+                    }
+                    let result = engine.startPreview()
+                    self.dispatchResult(requestId: requestId, method: method, result: result)
+                }
             }
         case "stopPreview":
             requireEngine(requestId: requestId) { engine in
@@ -635,15 +642,28 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         }
         let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
 
-        let mediaOptions = buildChannelMediaOptions(params["options"] as? [String: Any])
-        let result = engine.joinChannel(
-            byToken: token,
-            channelId: channelId,
-            uid: uid,
-            mediaOptions: mediaOptions,
-            joinSuccess: nil
-        )
-        dispatchResult(requestId: requestId, method: "joinChannel", result: result)
+        let mediaOptionParams = params["options"] as? [String: Any]
+        let mediaOptions = buildChannelMediaOptions(mediaOptionParams)
+        let requiresCameraPermission = mediaOptionBool(mediaOptionParams, key: "publishCameraTrack", defaultValue: true)
+        let requiresMicrophonePermission = mediaOptionBool(mediaOptionParams, key: "publishMicrophoneTrack", defaultValue: true)
+        ensureRtcPermissions(
+            requestId: requestId,
+            requiresCamera: requiresCameraPermission,
+            requiresMicrophone: requiresMicrophonePermission
+        ) {
+            guard let engine = self.rtcEngine else {
+                self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+                return
+            }
+            let result = engine.joinChannel(
+                byToken: token,
+                channelId: channelId,
+                uid: uid,
+                mediaOptions: mediaOptions,
+                joinSuccess: nil
+            )
+            self.dispatchResult(requestId: requestId, method: "joinChannel", result: result)
+        }
     }
 
     private func buildChannelMediaOptions(_ params: [String: Any]?) -> AgoraRtcChannelMediaOptions {
@@ -672,6 +692,9 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         if let value = params["enableAudioRecordingOrPlayout"] as? Bool {
             options.enableAudioRecordingOrPlayout = value
         }
+        if let value = params["startPreview"] as? Bool {
+            options.startPreview = value
+        }
         if let value = params["token"] as? String {
             options.token = value
         }
@@ -679,6 +702,13 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             options.parameters = value
         }
         return options
+    }
+
+    private func mediaOptionBool(_ params: [String: Any]?, key: String, defaultValue: Bool) -> Bool {
+        guard let value = params?[key] as? Bool else {
+            return defaultValue
+        }
+        return value
     }
 
     private func parseClientRoleType(_ rawValue: Any) -> AgoraClientRole {
@@ -713,6 +743,72 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             return
         }
         action(engine)
+    }
+
+    private func ensureRtcPermissions(
+        requestId: String,
+        requiresCamera: Bool = true,
+        requiresMicrophone: Bool = true,
+        action: @escaping () -> Void
+    ) {
+        let continueWithMicrophone = {
+            guard requiresMicrophone else {
+                DispatchQueue.main.async {
+                    action()
+                }
+                return
+            }
+            self.ensureMicrophonePermission { microphoneGranted in
+                guard microphoneGranted else {
+                    self.dispatchError(requestId: requestId, message: "Microphone permission is required.")
+                    return
+                }
+                DispatchQueue.main.async {
+                    action()
+                }
+            }
+        }
+        guard requiresCamera else {
+            continueWithMicrophone()
+            return
+        }
+        ensureCameraPermission { cameraGranted in
+            guard cameraGranted else {
+                self.dispatchError(requestId: requestId, message: "Camera permission is required.")
+                return
+            }
+            continueWithMicrophone()
+        }
+    }
+
+    private func ensureCameraPermission(completion: @escaping (Bool) -> Void) {
+        switch AVCaptureDevice.authorizationStatus(for: .video) {
+        case .authorized:
+            completion(true)
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { granted in
+                completion(granted)
+            }
+        case .denied, .restricted:
+            completion(false)
+        @unknown default:
+            completion(false)
+        }
+    }
+
+    private func ensureMicrophonePermission(completion: @escaping (Bool) -> Void) {
+        switch AVAudioSession.sharedInstance().recordPermission {
+        case .granted:
+            completion(true)
+        case .undetermined:
+            AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                completion(granted)
+            }
+        case .denied:
+            completion(false)
+        @unknown default:
+            completion(false)
+        }
     }
 
     private func requiredString(
@@ -1181,6 +1277,16 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             "state": state.rawValue,
             "reason": reason.rawValue,
         ])
+    }
+
+    func rtcEngine(_ engine: AgoraRtcEngineKit, audioMixingStateChanged state: AgoraAudioMixingStateType, reasonCode: AgoraAudioMixingReasonCode) {
+        dispatchEvent(name: "audioMixingStateChanged", payload: [
+            "state": state.rawValue,
+            "reason": reasonCode.rawValue,
+        ])
+        if state == .stopped && reasonCode == .allLoopsCompleted {
+            dispatchEvent(name: "audioMixingFinished", payload: [:])
+        }
     }
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, reportAudioVolumeIndicationOfSpeakers speakers: [AgoraRtcAudioVolumeInfo], totalVolume: Int) {

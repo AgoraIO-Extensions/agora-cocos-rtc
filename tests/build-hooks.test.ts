@@ -12,6 +12,7 @@ const {
   ensureAndroidAppActivityBridgeAttachment,
   ensureAgoraLocalMavenRepository,
   ensureAndroidRtcPermissions,
+  ensureIosRtcUsageDescriptions,
   ensureIosAppDelegateBridgeAttachment,
   ensureIosSetupGuide,
   ensureNativeEngineTextureBridge,
@@ -294,8 +295,14 @@ public class AppActivity extends CocosActivity {
 
   assert.match(once, /import io\.agora\.cocos\.rtc\.AgoraRtcPlugin;/);
   assert.match(once, /SDKWrapper\.shared\(\)\.init\(this\);\n        AgoraRtcPlugin\.getInstance\(\)\.attachBridge\(\);/);
+  assert.match(once, /onRequestPermissionsResult/);
+  assert.match(once, /AgoraRtcPlugin\.getInstance\(\)\.onRequestPermissionsResult\(requestCode, permissions, grantResults\)/);
   assert.equal(
     [...once.matchAll(/AgoraRtcPlugin\.getInstance\(\)\.attachBridge\(\);/g)].length,
+    1,
+  );
+  assert.equal(
+    [...once.matchAll(/AgoraRtcPlugin\.getInstance\(\)\.onRequestPermissionsResult/g)].length,
     1,
   );
   assert.equal(once, twice);
@@ -329,6 +336,7 @@ public class AppActivity extends CocosActivity {
 
   assert.match(content, /import io\.agora\.cocos\.rtc\.AgoraRtcPlugin;/);
   assert.match(content, /AgoraRtcPlugin\.getInstance\(\)\.attachBridge\(\);/);
+  assert.match(content, /AgoraRtcPlugin\.getInstance\(\)\.onRequestPermissionsResult\(requestCode, permissions, grantResults\)/);
 });
 
 test('ensureAndroidAppActivityBridgeAttachment skips exports without AppActivity.java', async () => {
@@ -370,6 +378,48 @@ test('ensureAndroidRtcPermissions patches exported release manifests with requir
     content.indexOf('android.permission.MODIFY_AUDIO_SETTINGS') < content.indexOf('<application'),
     'RTC permissions must be manifest-level entries before application',
   );
+});
+
+test('ensureIosRtcUsageDescriptions patches exported Info.plist with camera and microphone usage descriptions', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-plist-'));
+  const infoPlistPath = path.join(root, 'native/engine/ios/Info.plist');
+  await mkdir(path.dirname(infoPlistPath), { recursive: true });
+  await writeFile(
+    infoPlistPath,
+    `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Agora Cocos RTC</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+</dict>
+</plist>
+`,
+    'utf8',
+  );
+
+  const patchedPath = await ensureIosRtcUsageDescriptions(root);
+  const once = await readFile(infoPlistPath, 'utf8');
+  await ensureIosRtcUsageDescriptions(root);
+  const twice = await readFile(infoPlistPath, 'utf8');
+
+  assert.equal(patchedPath, infoPlistPath);
+  assert.match(once, /NSCameraUsageDescription/);
+  assert.match(once, /NSMicrophoneUsageDescription/);
+  assert.ok(
+    once.indexOf('</dict>') < once.indexOf('NSCameraUsageDescription'),
+    'iOS usage descriptions must be inserted after nested dict entries, not inside them',
+  );
+  assert.ok(
+    once.indexOf('NSCameraUsageDescription') < once.lastIndexOf('</dict>'),
+    'iOS usage descriptions must be top-level Info.plist entries before </dict>',
+  );
+  assert.equal(once, twice);
 });
 
 test('cocos extension entrypoints are loadable from commonjs', () => {

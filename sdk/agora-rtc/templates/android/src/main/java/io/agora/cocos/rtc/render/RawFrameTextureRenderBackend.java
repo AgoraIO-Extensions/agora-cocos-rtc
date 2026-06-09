@@ -2,6 +2,7 @@ package io.agora.cocos.rtc.render;
 
 import android.app.Activity;
 import android.os.SystemClock;
+import android.util.Log;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -17,7 +18,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, IVideoFrameObserver {
-    private static final long FRAME_INTERVAL_MS = 100L;
+    private static final String LOG_TAG = "AgoraRtcEngineTexture";
+    private static final long FRAME_DIAGNOSTIC_INTERVAL_MS = 2000L;
     private static final int REMOTE_TARGET_WIDTH = 854;
     private static final int REMOTE_TARGET_HEIGHT = 480;
     private static final int LOCAL_TARGET_WIDTH = 320;
@@ -35,14 +37,26 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       }
     }
 
+    private static final class FrameDiagnosticState {
+      long lastLogAtMs;
+      int frames;
+      int slotUpdates;
+
+      void reset() {
+        lastLogAtMs = 0L;
+        frames = 0;
+        slotUpdates = 0;
+      }
+    }
+
     private final AgoraRenderEventDispatcher eventDispatcher;
     private RtcEngine rtcEngine;
     private volatile boolean localTextureRequested;
     private volatile TextureSlotState localTextureSlot;
     private final Set<Integer> remoteTextureUids = ConcurrentHashMap.newKeySet();
     private final Map<Integer, TextureSlotState> remoteTextureSlots = new ConcurrentHashMap<>();
-    private long lastLocalDispatchAtMs;
-    private final Map<Integer, Long> lastRemoteDispatchAtMs = new ConcurrentHashMap<>();
+    private final FrameDiagnosticState localFrameDiagnostic = new FrameDiagnosticState();
+    private final Map<Integer, FrameDiagnosticState> remoteFrameDiagnostics = new ConcurrentHashMap<>();
 
     public RawFrameTextureRenderBackend(AgoraRenderEventDispatcher eventDispatcher) {
       this.eventDispatcher = eventDispatcher;
@@ -72,8 +86,8 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       remoteTextureUids.clear();
       releaseLocalTextureSlot();
       releaseRemoteTextureSlots();
-      lastRemoteDispatchAtMs.clear();
-      lastLocalDispatchAtMs = 0L;
+      localFrameDiagnostic.reset();
+      remoteFrameDiagnostics.clear();
     }
 
     @Override
@@ -119,7 +133,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       CocosHelper.runOnGameThread(() -> {
         int uid = params != null ? params.optInt("uid") : 0;
         remoteTextureUids.remove(uid);
-        lastRemoteDispatchAtMs.remove(uid);
+        remoteFrameDiagnostics.remove(uid);
         releaseRemoteTextureSlot(uid);
         callback.onSuccess();
       });
@@ -179,7 +193,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       if (!localTextureRequested || slot == null) {
         return true;
       }
-      dispatchFrameEvent("localVideoTextureUpdated", 0, slot, videoFrame);
+      updateTextureSlot("local", 0, slot, videoFrame, localFrameDiagnostic);
       return true;
     }
 
@@ -224,26 +238,22 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       if (!remoteTextureUids.contains(uid) || slot == null) {
         return true;
       }
-      dispatchFrameEvent("remoteVideoTextureUpdated", uid, slot, videoFrame);
+      updateTextureSlot("remote", uid, slot, videoFrame, getRemoteFrameDiagnostic(uid));
       return true;
     }
 
-    private void dispatchFrameEvent(String eventName, int uid, TextureSlotState slot, VideoFrame videoFrame) {
-      if (eventDispatcher == null || videoFrame == null || videoFrame.getBuffer() == null) {
+    private void updateTextureSlot(
+        String kind,
+        int uid,
+        TextureSlotState slot,
+        VideoFrame videoFrame,
+        FrameDiagnosticState diagnostic
+    ) {
+      if (videoFrame == null || videoFrame.getBuffer() == null) {
         return;
       }
-      long now = SystemClock.elapsedRealtime();
-      if ("localVideoTextureUpdated".equals(eventName)) {
-        if (now - lastLocalDispatchAtMs < FRAME_INTERVAL_MS) {
-          return;
-        }
-      } else {
-        long last = lastRemoteDispatchAtMs.containsKey(uid) ? lastRemoteDispatchAtMs.get(uid) : 0L;
-        if (now - last < FRAME_INTERVAL_MS) {
-          return;
-        }
-      }
 
+      diagnostic.frames++;
       VideoFrame.Buffer scaledBuffer = null;
       VideoFrame.I420Buffer i420Buffer = null;
       try {
@@ -267,12 +277,8 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
             slot.width,
             slot.height
         );
-        dispatchBackendState(eventName, 0, uid);
-        if ("localVideoTextureUpdated".equals(eventName)) {
-          lastLocalDispatchAtMs = now;
-        } else {
-          lastRemoteDispatchAtMs.put(uid, now);
-        }
+        diagnostic.slotUpdates++;
+        maybeLogFrameDiagnostic(kind, uid, slot, videoFrame, diagnostic);
       } finally {
         if (i420Buffer != null) {
           i420Buffer.release();
@@ -281,6 +287,42 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
           scaledBuffer.release();
         }
       }
+    }
+
+    private FrameDiagnosticState getRemoteFrameDiagnostic(int uid) {
+      FrameDiagnosticState existing = remoteFrameDiagnostics.get(uid);
+      if (existing != null) {
+        return existing;
+      }
+      FrameDiagnosticState created = new FrameDiagnosticState();
+      FrameDiagnosticState previous = remoteFrameDiagnostics.putIfAbsent(uid, created);
+      return previous != null ? previous : created;
+    }
+
+    private void maybeLogFrameDiagnostic(
+        String kind,
+        int uid,
+        TextureSlotState slot,
+        VideoFrame videoFrame,
+        FrameDiagnosticState diagnostic
+    ) {
+      long now = SystemClock.elapsedRealtime();
+      if (now - diagnostic.lastLogAtMs < FRAME_DIAGNOSTIC_INTERVAL_MS) {
+        return;
+      }
+      diagnostic.lastLogAtMs = now;
+      Log.i(
+          LOG_TAG,
+          "engine-texture frame kind=" + kind
+              + " uid=" + uid
+              + " slotId=" + slot.slotId
+              + " src=" + videoFrame.getBuffer().getWidth() + "x" + videoFrame.getBuffer().getHeight()
+              + " dst=" + slot.width + "x" + slot.height
+              + " frames=" + diagnostic.frames
+              + " slotUpdates=" + diagnostic.slotUpdates
+      );
+      diagnostic.frames = 0;
+      diagnostic.slotUpdates = 0;
     }
 
     private void ensureLocalTextureSlot() {
