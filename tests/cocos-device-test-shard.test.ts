@@ -225,11 +225,13 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /run_cocos_build "\$COCOS_BUILD_CONFIG" "iOS"/);
   assert.match(iosScript, /exit_code -ne 0 && \$exit_code -ne 36/);
   assert.match(iosScript, /PROJECT_PATH="\$IOS_PROJECT_DIR\/agora-cocos-basic-call\.xcodeproj"/);
-  assert.match(iosScript, /TARGET_NAME="agora-cocos-basic-call-mobile"/);
+  assert.match(iosScript, /SCHEME_NAME="agora-cocos-basic-call-mobile"/);
   assert.match(iosScript, /xcodebuild -project "\$PROJECT_PATH"/);
-  assert.match(iosScript, /-target "\$TARGET_NAME"/);
+  assert.match(iosScript, /-scheme "\$SCHEME_NAME"/);
+  assert.match(iosScript, /-derivedDataPath "\$DERIVED_DATA_PATH"/);
   assert.doesNotMatch(iosScript, /WORKSPACE_PATH=/);
-  assert.doesNotMatch(iosScript, /SCHEME_NAME=/);
+  assert.doesNotMatch(iosScript, /TARGET_NAME=/);
+  assert.doesNotMatch(iosScript, /\s-target(\s|=)/);
   assert.doesNotMatch(iosScript, /generate-ios-podfile\.mjs/);
   assert.doesNotMatch(iosScript, /pod install/);
   assert.match(iosScript, /ios-diagnostic\.log/);
