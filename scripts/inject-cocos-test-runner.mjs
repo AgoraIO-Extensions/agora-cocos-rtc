@@ -44,14 +44,21 @@ if (!nextBootstrapContent.includes(bootstrapImport)) {
 
 const testRunCall = 'runAgoraCocosDeviceTestsWhenReady();';
 if (!nextBootstrapContent.includes(testRunCall)) {
-  const mountAnchor = "console.log('[agora-rtc] bootstrap canvas child count', canvas.children.length);";
-  if (!nextBootstrapContent.includes(mountAnchor)) {
+  const injectionAnchors = [
+    {
+      anchor: "console.log('[agora-rtc] bootstrap canvas child count', canvas.children.length);",
+      replacement: (anchor) => `${anchor}\n  ${testRunCall}`,
+    },
+    {
+      anchor: '  return true;\n}\n\nfunction scheduleDemoRootCheck',
+      replacement: (anchor) => `  ${testRunCall}\n\n${anchor}`,
+    },
+  ];
+  const matchedAnchor = injectionAnchors.find(({ anchor }) => nextBootstrapContent.includes(anchor));
+  if (!matchedAnchor) {
     throw new Error('Unable to inject Cocos test runner: bootstrap mount anchor not found.');
   }
-  nextBootstrapContent = nextBootstrapContent.replace(
-    mountAnchor,
-    `${mountAnchor}\n  ${testRunCall}`,
-  );
+  nextBootstrapContent = nextBootstrapContent.replace(matchedAnchor.anchor, matchedAnchor.replacement(matchedAnchor.anchor));
 }
 
 if (nextBootstrapContent !== bootstrapContent) {

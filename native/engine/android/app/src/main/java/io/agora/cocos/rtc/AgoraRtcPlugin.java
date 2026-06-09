@@ -95,22 +95,26 @@ public final class AgoraRtcPlugin {
             }
         }
 
-        Activity activity = GlobalObject.getActivity();
-        while (!pendingPermissionActions.isEmpty()) {
-            PendingPermissionAction pendingAction = pendingPermissionActions.poll();
-            boolean actionGranted = granted;
-            if (actionGranted && activity != null) {
-                actionGranted = hasRtcPermissions(
-                        activity,
-                        pendingAction.requiresCamera,
-                        pendingAction.requiresMicrophone
-                );
-            }
-            if (actionGranted) {
-                pendingAction.action.run();
-            } else {
+        resumePendingPermissionActions(granted);
+    }
+
+    private void resumePendingPermissionActions(boolean permissionGrantResult) {
+        if (!permissionGrantResult) {
+            while (!pendingPermissionActions.isEmpty()) {
+                PendingPermissionAction pendingAction = pendingPermissionActions.poll();
                 dispatchError(pendingAction.requestId, "Camera and microphone permissions are required.");
             }
+            return;
+        }
+
+        while (!pendingPermissionActions.isEmpty() && !permissionRequestInFlight) {
+            PendingPermissionAction pendingAction = pendingPermissionActions.poll();
+            ensureRtcPermissions(
+                    pendingAction.requestId,
+                    pendingAction.requiresCamera,
+                    pendingAction.requiresMicrophone,
+                    pendingAction.action
+            );
         }
     }
 
