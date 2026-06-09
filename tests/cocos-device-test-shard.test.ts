@@ -254,6 +254,7 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /collect-cocos-test-report\.mjs/);
   assert.match(androidScript, /run-as "\$PACKAGE_NAME" cat "\$REPORT_REMOTE_PATH"/);
   assert.match(androidScript, /ANDROID_COCOS_BUILD_CONFIG=/);
+  assert.match(androidScript, /ANDROID_TEST_NDK_HOME=/);
   assert.match(androidScript, /ANDROID_TEST_ABI=/);
   assert.match(androidScript, /appABIs/);
   assert.match(androidScript, /android-apk-contents\.txt/);
@@ -415,6 +416,59 @@ exit 1
     0,
     'non-iOS runtime should skip simulator launch assets',
   );
+});
+
+test('android integration script prefers pinned test ndk over ambient ndk env', async () => {
+  const androidScript = await readFile(
+    `${repoRoot}/scripts/run_cocos_integration_test_android.sh`,
+    'utf8',
+  );
+  const functionMatch = androidScript.match(
+    /resolve_android_ndk_path\(\) \{[\s\S]*?\n\}\n\nwrite_android_cocos_build_config/,
+  );
+  assert.ok(functionMatch, 'expected Android NDK resolver function');
+
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-android-ndk-'));
+  const sdkRoot = path.join(tempRoot, 'sdk');
+  const ambientNdk = path.join(sdkRoot, 'ndk', '21.4.7075529');
+  const pinnedNdk = path.join(sdkRoot, 'ndk', '23.1.7779620');
+  const overrideNdk = path.join(sdkRoot, 'ndk', '25.1.8937393');
+
+  await Promise.all([
+    mkdir(ambientNdk, { recursive: true }),
+    mkdir(pinnedNdk, { recursive: true }),
+    mkdir(overrideNdk, { recursive: true }),
+  ]);
+  await Promise.all([
+    writeFile(path.join(ambientNdk, 'source.properties'), 'Pkg.Revision = 21.4.7075529\n', 'utf8'),
+    writeFile(path.join(pinnedNdk, 'source.properties'), 'Pkg.Revision = 23.1.7779620\n', 'utf8'),
+    writeFile(path.join(overrideNdk, 'source.properties'), 'Pkg.Revision = 25.1.8937393\n', 'utf8'),
+  ]);
+
+  const functionSource = functionMatch[0].replace(/\n\nwrite_android_cocos_build_config$/, '');
+  const runResolver = (env: NodeJS.ProcessEnv) =>
+    spawnSync('bash', ['-c', `${functionSource}\nresolve_android_ndk_path`], {
+      encoding: 'utf8',
+      env: {
+        PATH: process.env.PATH ?? '',
+        ...env,
+      },
+    });
+
+  const defaultResult = runResolver({
+    ANDROID_SDK_ROOT: sdkRoot,
+    ANDROID_NDK_HOME: ambientNdk,
+  });
+  assert.equal(defaultResult.status, 0);
+  assert.equal(defaultResult.stdout.trim(), pinnedNdk);
+
+  const overrideResult = runResolver({
+    ANDROID_SDK_ROOT: sdkRoot,
+    ANDROID_NDK_HOME: ambientNdk,
+    ANDROID_TEST_NDK_HOME: overrideNdk,
+  });
+  assert.equal(overrideResult.status, 0);
+  assert.equal(overrideResult.stdout.trim(), overrideNdk);
 });
 
 test('cocos run_test workflow exposes unit and device integration jobs', async () => {
