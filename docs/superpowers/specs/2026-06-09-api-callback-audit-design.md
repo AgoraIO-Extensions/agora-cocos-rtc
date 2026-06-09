@@ -66,7 +66,15 @@ These are starting hypotheses; the final audit must re-check evidence before sta
 
 Validation is evidence-based and static:
 
-- Run extraction commands for method, README, test, and native handler lists.
+- Run extraction commands and keep the resulting inventories for:
+  - `AgoraMethod` values.
+  - `AgoraRtcClient` public methods.
+  - README API Surface rows.
+  - Android native bridge handlers.
+  - iOS native bridge handlers.
+  - Integration API call cases.
+  - `AgoraEventMap` declarations.
+  - Android and iOS native event dispatch sites.
 - Inspect native callback dispatch payloads directly.
 - Use local Android AAR `javap` and local iOS headers for signature confirmation when needed.
 - Do not claim runtime behavior beyond what static source and headers prove.
@@ -74,6 +82,8 @@ Validation is evidence-based and static:
 ## Acceptance Criteria
 
 - The audit report distinguishes confirmed bugs from documentation gaps and optional enhancements.
-- Every confirmed finding has a concrete file and line reference.
+- The audit report is written in Chinese.
+- Every finding category has concrete source references, including confirmed missing parameters, documentation gaps, type-declared events not emitted, and optional enhancement candidates.
+- The report includes the inventory or matrix evidence used to support each classification.
 - The report does not classify unexposed Agora Native SDK fields as wrapper bugs.
 - No code is modified as part of the audit.
