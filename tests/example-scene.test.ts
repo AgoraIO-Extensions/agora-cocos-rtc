@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { promisify } from 'node:util';
 
 const repoRoot = process.cwd();
+const execFileAsync = promisify(execFile);
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const controllerUuid = '6f0fce55-1000-42b8-8b7b-1aaf80000001';
 const demoRootUuid = '6f0fce55-1000-42b8-8b7b-1aaf80000103';
@@ -99,6 +102,31 @@ test('new demo component scripts have stable Cocos metadata', async () => {
     const content = await readFile(`${repoRoot}/${path}`, 'utf8');
     assert.match(content, new RegExp(uuid));
   }
+});
+
+test('tracked Cocos asset metadata uuids are unique', async () => {
+  const { stdout } = await execFileAsync('git', ['ls-files', 'example/basic-call/assets'], {
+    cwd: repoRoot,
+  });
+  const metaPaths = stdout
+    .split('\n')
+    .filter((path) => path.endsWith('.meta'))
+    .sort();
+  const seen = new Map<string, string>();
+  const duplicates: string[] = [];
+
+  for (const metaPath of metaPaths) {
+    const content = await readFile(`${repoRoot}/${metaPath}`, 'utf8');
+    const uuid = JSON.parse(content).uuid;
+    const previousPath = seen.get(uuid);
+    if (previousPath) {
+      duplicates.push(`${uuid}: ${previousPath}, ${metaPath}`);
+      continue;
+    }
+    seen.set(uuid, metaPath);
+  }
+
+  assert.deepEqual(duplicates, []);
 });
 
 test('scene and prefabs serialize demo scripts by Cocos script uuid', async () => {

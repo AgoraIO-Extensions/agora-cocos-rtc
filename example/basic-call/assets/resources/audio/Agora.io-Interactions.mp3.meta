@@ -3,7 +3,12 @@
   "importer": "audio-clip",
   "imported": true,
   "uuid": "6f0fce55-1000-42b8-8b7b-1aaf80000111",
-  "files": [".json"],
+  "files": [
+    ".json",
+    ".mp3"
+  ],
   "subMetas": {},
-  "userData": {}
+  "userData": {
+    "downloadMode": 0
+  }
 }
