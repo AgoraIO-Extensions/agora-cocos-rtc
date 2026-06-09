@@ -251,10 +251,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "setClientRole":
             requireEngine(requestId: requestId) { engine in
-                let role = (params["role"] as? String) == "audience"
+                let agoraRole = (params["role"] as? String) == "audience"
                     ? AgoraClientRole.audience
                     : AgoraClientRole.broadcaster
-                let result = engine.setClientRole(role)
+                let options = buildClientRoleOptions(params["options"] as? [String: Any])
+                let result = engine.setClientRole(agoraRole, options: options)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "joinChannel":
@@ -358,7 +359,9 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             requireEngine(requestId: requestId) { engine in
                 let profileValue = params["profile"] as? Int ?? AgoraAudioProfile.default.rawValue
                 let profile = AgoraAudioProfile(rawValue: profileValue) ?? .default
-                let result = engine.setAudioProfile(profile)
+                let scenarioValue = params["scenario"] as? Int ?? AgoraAudioScenario.default.rawValue
+                let scenario = AgoraAudioScenario(rawValue: scenarioValue) ?? .default
+                let result = engine.setAudioProfile(profile, scenario: scenario)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "adjustPlaybackSignalVolume":
@@ -384,18 +387,35 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             requireEngine(requestId: requestId) { engine in
                 let width = params["width"] as? Int ?? 640
                 let height = params["height"] as? Int ?? 360
-                let frameRate = params["frameRate"] as? Int ?? 15
+                let frameRateValue = params["frameRate"] as? Int ?? 15
+                let frameRate = AgoraVideoFrameRate(rawValue: frameRateValue) ?? AgoraVideoFrameRate(rawValue: 15)!
                 let bitrate = params["bitrate"] as? Int ?? AgoraVideoBitrateStandard
                 let orientationModeValue = params["orientationMode"] as? Int ?? AgoraVideoOutputOrientationMode.adaptative.rawValue
                 let orientationMode = AgoraVideoOutputOrientationMode(rawValue: orientationModeValue) ?? .adaptative
-                let config = AgoraVideoEncoderConfiguration(
-                    width: width,
-                    height: height,
-                    frameRate: frameRate,
-                    bitrate: bitrate,
-                    orientationMode: orientationMode,
-                    mirrorMode: .auto
-                )
+                let mirrorModeValue = params["mirrorMode"] as? Int ?? Int(AgoraVideoMirrorMode.auto.rawValue)
+                let mirrorMode = AgoraVideoMirrorMode(rawValue: UInt(mirrorModeValue)) ?? .auto
+                let config = AgoraVideoEncoderConfiguration()
+                config.dimensions = CGSize(width: CGFloat(width), height: CGFloat(height))
+                config.frameRate = frameRate.rawValue
+                config.bitrate = bitrate
+                config.orientationMode = orientationMode
+                config.mirrorMode = mirrorMode
+                config.minBitrate = params["minBitrate"] as? Int ?? config.minBitrate
+                if let degradationPreferenceRawValue = params["degradationPreference"] {
+                    let degradationPreferenceValue = intValue(degradationPreferenceRawValue)
+                    if let degradationPreference = AgoraDegradationPreference(rawValue: degradationPreferenceValue) {
+                        config.degradationPreference = degradationPreference
+                    }
+                }
+                if let codecTypeRawValue = params["codecType"] {
+                    let codecTypeValue = intValue(codecTypeRawValue)
+                    if let codecType = AgoraVideoCodecType(rawValue: codecTypeValue) {
+                        config.codecType = codecType
+                    }
+                }
+                if let advancedVideoOptionsParams = params["advancedVideoOptions"] as? [String: Any] {
+                    config.advancedVideoOptions = buildAdvancedVideoOptions(advancedVideoOptionsParams)
+                }
                 let result = engine.setVideoEncoderConfiguration(config)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
@@ -451,15 +471,12 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             requireEngine(requestId: requestId) { engine in
                 let enabled = params["enabled"] as? Bool ?? false
                 let configObject = params["config"] as? [String: Any] ?? [:]
-                let module = AgoraContentInspectModule()
-                if let moduleRaw = configObject["module"] as? Int,
-                   let type = AgoraContentInspectType(rawValue: UInt(moduleRaw)) {
-                    module.type = type
-                }
-                module.interval = configObject["interval"] as? Int ?? 0
-                module.position = .preRenderer
                 let config = AgoraContentInspectConfig()
-                config.modules = [module]
+                let extraInfo = configObject["extraInfo"] as? String
+                config.extraInfo = extraInfo
+                let serverConfig = configObject["serverConfig"] as? String
+                config.serverConfig = serverConfig
+                config.modules = buildContentInspectModules(configObject)
                 let result = engine.enableContentInspect(enabled, config: config)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
@@ -540,10 +557,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 let loopCount = params["loopCount"] as? Int ?? 1
                 let pitch = params["pitch"] as? Double ?? 1.0
                 let pan = params["pan"] as? Double ?? 0.0
-                let gain = params["gain"] as? Int ?? 100
+                let gain = params["gain"] as? Double ?? 100.0
                 let publish = params["publish"] as? Bool ?? false
                 let startPos = params["startPos"] as? Int ?? 0
-                let result = engine.playEffect(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: gain, publish: publish, startPos: Int32(startPos))
+                let result = engine.playEffect(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: Int(gain), publish: publish, startPos: Int32(startPos))
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "pauseEffect":
@@ -651,7 +668,49 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             return
         }
 
-        rtcEngine = AgoraRtcEngineKit.sharedEngine(withAppId: appId, delegate: self)
+        let config = AgoraRtcEngineConfig()
+        config.appId = appId
+        if let channelProfileValue = params["channelProfile"] as? Int,
+           let channelProfile = AgoraChannelProfile(rawValue: channelProfileValue) {
+            config.channelProfile = channelProfile
+        }
+        if let license = params["license"] as? String {
+            config.license = license
+        }
+        if let audioScenarioValue = params["audioScenario"] as? Int,
+           let audioScenario = AgoraAudioScenario(rawValue: audioScenarioValue) {
+            config.audioScenario = audioScenario
+        }
+        if let areaCodeValue = params["areaCode"] as? UInt {
+            config.areaCode = AgoraAreaCodeType(rawValue: areaCodeValue) ?? config.areaCode
+        } else if let areaCodeValue = params["areaCode"] as? Int {
+            config.areaCode = AgoraAreaCodeType(rawValue: UInt(areaCodeValue)) ?? config.areaCode
+        }
+        if let threadPriorityValue = params["threadPriority"] as? Int,
+           let threadPriority = AgoraThreadPriorityType(rawValue: threadPriorityValue) {
+            config.threadPriority = threadPriority
+        }
+        if let domainLimit = params["domainLimit"] as? Bool {
+            config.domainLimit = domainLimit
+        }
+        if let autoRegisterAgoraExtensions = params["autoRegisterAgoraExtensions"] as? Bool {
+            config.autoRegisterAgoraExtensions = autoRegisterAgoraExtensions
+        }
+        if let logConfigParams = params["logConfig"] as? [String: Any] {
+            let logConfig = AgoraLogConfig()
+            logConfig.filePath = logConfigParams["filePath"] as? String
+            logConfig.fileSizeInKB = logConfigParams["fileSizeInKB"] as? Int ?? logConfig.fileSizeInKB
+            if let levelValue = logConfigParams["level"] as? Int,
+               let level = AgoraLogLevel(rawValue: levelValue) {
+                logConfig.level = level
+            } else if let levelValue = logConfigParams["level"] as? UInt,
+                      let level = AgoraLogLevel(rawValue: Int(levelValue)) {
+                logConfig.level = level
+            }
+            config.logConfig = logConfig
+        }
+
+        rtcEngine = AgoraRtcEngineKit.sharedEngine(with: config, delegate: self)
         _ = rtcEngine?.setVideoFrameDelegate(self)
         dispatchResponse([
             "requestId": requestId,
@@ -660,7 +719,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     private func handleJoinChannel(requestId: String, params: [String: Any]) {
-        guard let engine = rtcEngine else {
+        guard rtcEngine != nil else {
             dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
             return
         }
@@ -678,8 +737,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
 
         if let mediaOptionParams = params["options"] as? [String: Any] {
             let mediaOptions = buildChannelMediaOptions(mediaOptionParams)
-            let requiresCameraPermission = mediaOptionBool(mediaOptionParams, key: "publishCameraTrack", defaultValue: true)
-            let requiresMicrophonePermission = mediaOptionBool(mediaOptionParams, key: "publishMicrophoneTrack", defaultValue: true)
+            let requiresCameraPermission = requiresCameraPermission(mediaOptionParams)
+            let requiresMicrophonePermission = requiresMicrophonePermission(mediaOptionParams)
+            func mediaOptionBool(_ params: [String: Any]?, key: String, defaultValue: Bool) -> Bool {
+                return self.mediaOptionBool(params, key: key, defaultValue: defaultValue)
+            }
             ensureRtcPermissions(
                 requestId: requestId,
                 requiresCamera: requiresCameraPermission,
@@ -688,6 +750,13 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 guard let engine = self.rtcEngine else {
                     self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                     return
+                }
+                if mediaOptionBool(mediaOptionParams, key: "startPreview", defaultValue: false) {
+                    let previewResult = engine.startPreview()
+                    guard previewResult >= 0 else {
+                        self.dispatchResult(requestId: requestId, method: "startPreview", result: previewResult)
+                        return
+                    }
                 }
                 let result = engine.joinChannel(
                     byToken: token,
@@ -730,8 +799,44 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         if let value = params["publishCameraTrack"] as? Bool {
             options.publishCameraTrack = value
         }
+        if let value = params["publishSecondaryCameraTrack"] as? Bool {
+            options.publishSecondaryCameraTrack = value
+        }
         if let value = params["publishMicrophoneTrack"] as? Bool {
             options.publishMicrophoneTrack = value
+        }
+        if let value = params["publishScreenCaptureVideo"] as? Bool {
+            options.publishScreenCaptureVideo = value
+        }
+        if let value = params["publishScreenCaptureAudio"] as? Bool {
+            options.publishScreenCaptureAudio = value
+        }
+        if let value = params["publishCustomAudioTrack"] as? Bool {
+            options.publishCustomAudioTrack = value
+        }
+        if let value = params["publishCustomAudioTrackId"] as? Int {
+            options.publishCustomAudioTrackId = value
+        }
+        if let value = params["publishCustomVideoTrack"] as? Bool {
+            options.publishCustomVideoTrack = value
+        }
+        if let value = params["publishEncodedVideoTrack"] as? Bool {
+            options.publishEncodedVideoTrack = value
+        }
+        if let value = params["publishMediaPlayerAudioTrack"] as? Bool {
+            options.publishMediaPlayerAudioTrack = value
+        }
+        if let value = params["publishMediaPlayerVideoTrack"] as? Bool {
+            options.publishMediaPlayerVideoTrack = value
+        }
+        if let value = params["publishTranscodedVideoTrack"] as? Bool {
+            options.publishTranscodedVideoTrack = value
+        }
+        if let value = params["publishMixedAudioTrack"] as? Bool {
+            options.publishMixedAudioTrack = value
+        }
+        if let value = params["publishLipSyncTrack"] as? Bool {
+            options.publishLipSyncTrack = value
         }
         if let value = params["autoSubscribeAudio"] as? Bool {
             options.autoSubscribeAudio = value
@@ -742,8 +847,41 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         if let value = params["enableAudioRecordingOrPlayout"] as? Bool {
             options.enableAudioRecordingOrPlayout = value
         }
+        if let value = params["publishMediaPlayerId"] as? Int {
+            options.publishMediaPlayerId = value
+        }
+        if let rawValue = params["audienceLatencyLevel"] {
+            options.audienceLatencyLevel = parseAudienceLatencyLevel(rawValue)
+        }
+        if let rawValue = params["defaultVideoStreamType"] {
+            options.defaultVideoStreamType = parseVideoStreamType(rawValue)
+        }
+        if let value = params["audioDelayMs"] as? Int {
+            options.audioDelayMs = value
+        }
+        if let value = params["mediaPlayerAudioDelayMs"] as? Int {
+            options.mediaPlayerAudioDelayMs = value
+        }
         if let value = params["token"] as? String {
             options.token = value
+        }
+        if let value = params["enableBuiltInMediaEncryption"] as? Bool {
+            options.enableBuiltInMediaEncryption = value
+        }
+        if let value = params["publishRhythmPlayerTrack"] as? Bool {
+            options.publishRhythmPlayerTrack = value
+        }
+        if let value = params["isInteractiveAudience"] as? Bool {
+            options.isInteractiveAudience = value
+        }
+        if let value = params["customVideoTrackId"] as? Int {
+            options.customVideoTrackId = value
+        }
+        if let value = params["isAudioFilterable"] as? Bool {
+            options.isAudioFilterable = value
+        }
+        if let value = params["startPreview"] as? Bool {
+            _ = value
         }
         if let value = params["parameters"] as? String {
             options.parameters = value
@@ -756,6 +894,16 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             return defaultValue
         }
         return value
+    }
+
+    private func requiresCameraPermission(_ mediaOptions: [String: Any]?) -> Bool {
+        return mediaOptionBool(mediaOptions, key: "publishCameraTrack", defaultValue: true)
+            || mediaOptionBool(mediaOptions, key: "startPreview", defaultValue: false)
+            || mediaOptionBool(mediaOptions, key: "publishSecondaryCameraTrack", defaultValue: false)
+    }
+
+    private func requiresMicrophonePermission(_ mediaOptions: [String: Any]?) -> Bool {
+        return mediaOptionBool(mediaOptions, key: "publishMicrophoneTrack", defaultValue: true)
     }
 
     private func parseClientRoleType(_ rawValue: Any) -> AgoraClientRole {
@@ -782,6 +930,68 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             return .communication
         }
         return .liveBroadcasting
+    }
+
+    private func parseAudienceLatencyLevel(_ rawValue: Any) -> AgoraAudienceLatencyLevelType {
+        let value = intValue(rawValue)
+        return AgoraAudienceLatencyLevelType(rawValue: value) ?? AgoraAudienceLatencyLevelType(rawValue: 0)!
+    }
+
+    private func parseVideoStreamType(_ rawValue: Any) -> AgoraVideoStreamType {
+        let value = intValue(rawValue)
+        return AgoraVideoStreamType(rawValue: value) ?? AgoraVideoStreamType(rawValue: 0)!
+    }
+
+    private func buildClientRoleOptions(_ params: [String: Any]?) -> AgoraClientRoleOptions {
+        let options = AgoraClientRoleOptions()
+        if let rawValue = params?["audienceLatencyLevel"] {
+            options.audienceLatencyLevel = parseAudienceLatencyLevel(rawValue)
+        }
+        return options
+    }
+
+    private func buildAdvancedVideoOptions(_ params: [String: Any]?) -> AgoraAdvancedVideoOptions {
+        let options = AgoraAdvancedVideoOptions()
+        let encodingPreferenceValue = intValue(params?["encodingPreference"] ?? -1)
+        options.encodingPreference = AgoraEncodingPreference(rawValue: encodingPreferenceValue) ?? AgoraEncodingPreference(rawValue: -1)!
+        let compressionPreferenceValue = intValue(params?["compressionPreference"] ?? -1)
+        options.compressionPreference = AgoraCompressionPreference(rawValue: compressionPreferenceValue) ?? AgoraCompressionPreference(rawValue: -1)!
+        options.encodeAlpha = params?["encodeAlpha"] as? Bool ?? false
+        return options
+    }
+
+    private func buildContentInspectModules(_ params: [String: Any]) -> [AgoraContentInspectModule] {
+        if let moduleParams = params["modules"] as? [[String: Any]], !moduleParams.isEmpty {
+            return moduleParams.map { buildContentInspectModule($0) }
+        }
+        return [buildContentInspectModule([
+            "type": params["module"] ?? 1,
+            "interval": params["interval"] ?? 0,
+        ])]
+    }
+
+    private func buildContentInspectModule(_ params: [String: Any]) -> AgoraContentInspectModule {
+        let module = AgoraContentInspectModule()
+        let typeValue = UInt(intValue(params["type"] ?? 1))
+        module.type = AgoraContentInspectType(rawValue: typeValue) ?? AgoraContentInspectType(rawValue: 1)!
+        module.interval = intValue(params["interval"] ?? 0)
+        return module
+    }
+
+    private func intValue(_ rawValue: Any) -> Int {
+        if let value = rawValue as? Int {
+            return value
+        }
+        if let value = rawValue as? UInt {
+            return Int(value)
+        }
+        if let value = rawValue as? NSNumber {
+            return value.intValue
+        }
+        if let value = rawValue as? String {
+            return Int(value) ?? 0
+        }
+        return 0
     }
 
     private func requireEngine(requestId: String, action: (AgoraRtcEngineKit) -> Void) {
@@ -1180,6 +1390,35 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return mode == "fit" ? .fit : .hidden
     }
 
+    private func channelStatsPayload(_ stats: AgoraChannelStats) -> [String: Any] {
+        return [
+            "duration": stats.duration,
+            "txBytes": stats.txBytes,
+            "rxBytes": stats.rxBytes,
+            "txAudioKBitRate": stats.txAudioKBitrate,
+            "rxAudioKBitRate": stats.rxAudioKBitrate,
+            "txVideoKBitRate": stats.txVideoKBitrate,
+            "rxVideoKBitRate": stats.rxVideoKBitrate,
+            "txAudioBytes": stats.txAudioBytes,
+            "txVideoBytes": stats.txVideoBytes,
+            "rxAudioBytes": stats.rxAudioBytes,
+            "rxVideoBytes": stats.rxVideoBytes,
+            "lastmileDelay": stats.lastmileDelay,
+            "users": stats.userCount,
+            "cpuAppUsage": stats.cpuAppUsage,
+            "cpuTotalUsage": stats.cpuTotalUsage,
+            "gatewayRtt": stats.gatewayRtt,
+            "memoryAppUsageRatio": stats.memoryAppUsageRatio,
+            "memoryTotalUsageRatio": stats.memoryTotalUsageRatio,
+            "memoryAppUsageInKbytes": stats.memoryAppUsageInKbytes,
+            "connectTimeMs": stats.connectTimeMs,
+            "txKBitRate": stats.txKBitrate,
+            "rxKBitRate": stats.rxKBitrate,
+            "txPacketLossRate": stats.txPacketLossRate,
+            "rxPacketLossRate": stats.rxPacketLossRate,
+        ]
+    }
+
     private func dispatchResult(requestId: String, method: String, result: Int32) {
         if result == 0 {
             dispatchResponse([
@@ -1262,6 +1501,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         dispatchEvent(name: "joinChannelSuccess", payload: [
             "channelId": channel,
             "uid": uid,
+            "elapsed": elapsed,
         ])
     }
 
@@ -1274,31 +1514,37 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, didLeaveChannelWith stats: AgoraChannelStats) {
-        dispatchEvent(name: "leaveChannel", payload: [
-            "duration": stats.duration,
-        ])
+        dispatchEvent(name: "leaveChannel", payload: channelStatsPayload(stats))
     }
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, reportRtcStats stats: AgoraChannelStats) {
-        dispatchEvent(name: "rtcStats", payload: [
-            "duration": stats.duration,
-            "txBytes": stats.txBytes,
-            "rxBytes": stats.rxBytes,
-            "txAudioKBitrate": stats.txAudioKBitrate,
-            "rxAudioKBitrate": stats.rxAudioKBitrate,
-            "txVideoKBitrate": stats.txVideoKBitrate,
-            "rxVideoKBitrate": stats.rxVideoKBitrate,
-            "txKBitrate": stats.txKBitrate,
-            "rxKBitrate": stats.rxKBitrate,
-            "users": stats.userCount,
-            "txPacketLossRate": stats.txPacketLossRate,
-            "rxPacketLossRate": stats.rxPacketLossRate,
-        ])
+        dispatchEvent(name: "rtcStats", payload: channelStatsPayload(stats))
     }
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, didJoinedOfUid uid: UInt, elapsed: Int) {
         dispatchEvent(name: "userJoined", payload: [
             "uid": uid,
+            "elapsed": elapsed,
+        ])
+    }
+
+    func rtcEngine(_ engine: AgoraRtcEngineKit, firstLocalAudioFramePublished elapsed: Int) {
+        dispatchEvent(name: "firstLocalAudioFramePublished", payload: [
+            "elapsed": elapsed,
+        ])
+    }
+
+    func rtcEngine(_ engine: AgoraRtcEngineKit, contentInspectResult result: AgoraContentInspectResult) {
+        dispatchEvent(name: "contentInspectResult", payload: [
+            "result": result.rawValue,
+        ])
+    }
+
+    func rtcEngine(_ engine: AgoraRtcEngineKit, localVideoStateChangedOf state: AgoraVideoLocalState, reason: AgoraLocalVideoStreamReason, sourceType: AgoraVideoSourceType) {
+        dispatchEvent(name: "localVideoStateChanged", payload: [
+            "sourceType": sourceType.rawValue,
+            "state": state.rawValue,
+            "error": reason.rawValue,
         ])
     }
 

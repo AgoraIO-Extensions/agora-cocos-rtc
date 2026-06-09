@@ -45,4 +45,8 @@ test('package-sdk script creates a distributable zip with plugin manifests', asy
   assert.match(readme, /API Surface/);
   assert.match(readme, /client\.initialize\(appId\)/);
   assert.match(readme, /client\.joinChannel\(token, channelId, uid\)/);
+  assert.match(readme, /setNativeVideoOverlaySuspended/);
+  assert.match(readme, /Cocos render helpers/);
+  assert.match(readme, /native video overlay/);
+  assert.doesNotMatch(readme, /Android currently returns explicit `unsupported` responses for `setDefaultAudioRouteToSpeakerphone`/);
 });

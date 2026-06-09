@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 
 import org.json.JSONException;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayDeque;
@@ -20,10 +21,12 @@ import com.cocos.lib.GlobalObject;
 import com.cocos.lib.JsbBridgeWrapper;
 
 import io.agora.rtc2.ChannelMediaOptions;
+import io.agora.rtc2.ClientRoleOptions;
 import io.agora.rtc2.Constants;
 import io.agora.rtc2.IAudioEffectManager;
 import io.agora.rtc2.IRtcEngineEventHandler;
 import io.agora.rtc2.RtcEngine;
+import io.agora.rtc2.RtcEngineConfig;
 import io.agora.cocos.rtc.render.AgoraRenderBackend;
 import io.agora.cocos.rtc.render.AgoraRenderBackendFactory;
 import io.agora.cocos.rtc.render.AgoraRenderResultCallback;
@@ -383,12 +386,21 @@ public final class AgoraRtcPlugin {
         int agoraRole = "audience".equals(role)
                 ? Constants.CLIENT_ROLE_AUDIENCE
                 : Constants.CLIENT_ROLE_BROADCASTER;
-        int result = rtcEngine.setClientRole(agoraRole);
+        ClientRoleOptions options = buildClientRoleOptions(params != null ? params.optJSONObject("options") : null);
+        int result = rtcEngine.setClientRole(agoraRole, options);
         if (result < 0) {
             dispatchAgoraError(requestId, "setClientRole", result);
             return;
         }
         dispatchOk(requestId);
+    }
+
+    private ClientRoleOptions buildClientRoleOptions(JSONObject params) {
+        ClientRoleOptions options = new ClientRoleOptions();
+        if (params != null && params.has("audienceLatencyLevel") && !params.isNull("audienceLatencyLevel")) {
+            options.audienceLatencyLevel = params.optInt("audienceLatencyLevel", options.audienceLatencyLevel);
+        }
+        return options;
     }
 
     private void handleSetRenderBackend(String requestId, JSONObject params) {
@@ -447,18 +459,31 @@ public final class AgoraRtcPlugin {
         }
 
         try {
-            rtcEngine = RtcEngine.create(context, appId, new IRtcEngineEventHandler() {
+            RtcEngineConfig config = buildRtcEngineConfig(context, appId, params);
+            config.mEventHandler = new IRtcEngineEventHandler() {
+                @Override
+                public void onError(int err) {
+                    dispatchEvent("error", jsonObject(
+                            "code", err,
+                            "message", RtcEngine.getErrorDescription(err)
+                    ));
+                }
+
                 @Override
                 public void onJoinChannelSuccess(String channel, int uid, int elapsed) {
                     dispatchEvent("joinChannelSuccess", jsonObject(
                             "channelId", channel,
-                            "uid", uid
+                            "uid", uid,
+                            "elapsed", elapsed
                     ));
                 }
 
                 @Override
                 public void onUserJoined(int uid, int elapsed) {
-                    dispatchEvent("userJoined", jsonObject("uid", uid));
+                    dispatchEvent("userJoined", jsonObject(
+                            "uid", uid,
+                            "elapsed", elapsed
+                    ));
                 }
 
                 @Override
@@ -471,23 +496,12 @@ public final class AgoraRtcPlugin {
 
                 @Override
                 public void onLeaveChannel(IRtcEngineEventHandler.RtcStats stats) {
-                    dispatchEvent("leaveChannel", jsonObject(
-                            "duration", stats != null ? stats.totalDuration : 0
-                    ));
+                    dispatchEvent("leaveChannel", toRtcStatsPayload(stats));
                 }
 
                 @Override
                 public void onRtcStats(IRtcEngineEventHandler.RtcStats stats) {
-                    dispatchEvent("rtcStats", jsonObject(
-                            "duration", stats != null ? stats.totalDuration : 0,
-                            "txBytes", stats != null ? stats.txBytes : 0,
-                            "rxBytes", stats != null ? stats.rxBytes : 0,
-                            "txKBitRate", stats != null ? stats.txKBitRate : 0,
-                            "rxKBitRate", stats != null ? stats.rxKBitRate : 0,
-                            "users", stats != null ? stats.users : 0,
-                            "txPacketLossRate", stats != null ? stats.txPacketLossRate : 0,
-                            "rxPacketLossRate", stats != null ? stats.rxPacketLossRate : 0
-                    ));
+                    dispatchEvent("rtcStats", toRtcStatsPayload(stats));
                 }
 
                 @Override
@@ -575,7 +589,8 @@ public final class AgoraRtcPlugin {
                             "totalVolume", totalVolume
                     ));
                 }
-            });
+            };
+            rtcEngine = RtcEngine.create(config);
             if (rtcEngine == null) {
                 dispatchError(requestId, "RtcEngine.create returned null.");
                 return;
@@ -587,6 +602,58 @@ public final class AgoraRtcPlugin {
         } catch (Exception error) {
             dispatchError(requestId, "RtcEngine.create failed: " + error.getMessage());
         }
+    }
+
+    private RtcEngineConfig buildRtcEngineConfig(Context context, String appId, JSONObject params) {
+        RtcEngineConfig config = new RtcEngineConfig();
+        config.mContext = context;
+        config.mAppId = appId;
+        if (params == null) {
+            return config;
+        }
+        config.mAreaCode = params.optInt("areaCode", config.mAreaCode);
+        config.mChannelProfile = params.optInt("channelProfile", config.mChannelProfile);
+        if (params.has("license") && !params.isNull("license")) {
+            config.mLicense = params.optString("license", config.mLicense);
+        }
+        config.mAudioScenario = params.optInt("audioScenario", config.mAudioScenario);
+        if (params.has("autoRegisterAgoraExtensions") && !params.isNull("autoRegisterAgoraExtensions")) {
+            config.mAutoRegisterAgoraExtensions = params.optBoolean(
+                    "autoRegisterAgoraExtensions",
+                    config.mAutoRegisterAgoraExtensions
+            );
+        }
+        if (params.has("domainLimit") && !params.isNull("domainLimit")) {
+            config.mDomainLimit = params.optBoolean("domainLimit", config.mDomainLimit);
+        }
+        if (params.has("threadPriority") && !params.isNull("threadPriority")) {
+            config.mThreadPriority = params.optInt("threadPriority");
+        }
+        if (params.has("nativeLibPath") && !params.isNull("nativeLibPath")) {
+            config.mNativeLibPath = params.optString("nativeLibPath", config.mNativeLibPath);
+        }
+
+        JSONObject logConfigParams = params.optJSONObject("logConfig");
+        if (logConfigParams != null) {
+            RtcEngineConfig.LogConfig logConfig = new RtcEngineConfig.LogConfig();
+            if (logConfigParams.has("filePath") && !logConfigParams.isNull("filePath")) {
+                logConfig.filePath = logConfigParams.optString("filePath", logConfig.filePath);
+            }
+            logConfig.fileSizeInKB = logConfigParams.optInt("fileSizeInKB", logConfig.fileSizeInKB);
+            logConfig.level = logConfigParams.optInt("level", logConfig.level);
+            config.mLogConfig = logConfig;
+        }
+
+        JSONArray extensions = params.optJSONArray("extensions");
+        if (extensions != null) {
+            for (int index = 0; index < extensions.length(); index += 1) {
+                String extensionName = extensions.optString(index);
+                if (extensionName != null && !extensionName.trim().isEmpty()) {
+                    config.addExtension(extensions.optString(index));
+                }
+            }
+        }
+        return config;
     }
 
     private void handleJoinChannel(String requestId, JSONObject params) {
@@ -604,8 +671,8 @@ public final class AgoraRtcPlugin {
         }
 
         JSONObject mediaOptions = params != null ? params.optJSONObject("options") : null;
-        boolean requiresCameraPermission = mediaOptionBoolean(mediaOptions, "publishCameraTrack", true);
-        boolean requiresMicrophonePermission = mediaOptionBoolean(mediaOptions, "publishMicrophoneTrack", true);
+        boolean requiresCameraPermission = requiresCameraPermission(mediaOptions);
+        boolean requiresMicrophonePermission = requiresMicrophonePermission(mediaOptions);
 
         ensureRtcPermissions(
                 requestId,
@@ -645,8 +712,50 @@ public final class AgoraRtcPlugin {
         if (mediaOptions.has("publishCameraTrack")) {
             options.publishCameraTrack = optNullableBoolean(mediaOptions, "publishCameraTrack");
         }
+        if (mediaOptions.has("publishSecondaryCameraTrack")) {
+            options.publishSecondaryCameraTrack = optNullableBoolean(mediaOptions, "publishSecondaryCameraTrack");
+        }
+        if (mediaOptions.has("publishThirdCameraTrack")) {
+            options.publishThirdCameraTrack = optNullableBoolean(mediaOptions, "publishThirdCameraTrack");
+        }
+        if (mediaOptions.has("publishFourthCameraTrack")) {
+            options.publishFourthCameraTrack = optNullableBoolean(mediaOptions, "publishFourthCameraTrack");
+        }
         if (mediaOptions.has("publishMicrophoneTrack")) {
             options.publishMicrophoneTrack = optNullableBoolean(mediaOptions, "publishMicrophoneTrack");
+        }
+        if (mediaOptions.has("publishScreenCaptureVideo")) {
+            options.publishScreenCaptureVideo = optNullableBoolean(mediaOptions, "publishScreenCaptureVideo");
+        }
+        if (mediaOptions.has("publishScreenCaptureAudio")) {
+            options.publishScreenCaptureAudio = optNullableBoolean(mediaOptions, "publishScreenCaptureAudio");
+        }
+        if (mediaOptions.has("publishCustomAudioTrack")) {
+            options.publishCustomAudioTrack = optNullableBoolean(mediaOptions, "publishCustomAudioTrack");
+        }
+        if (mediaOptions.has("publishCustomAudioTrackId")) {
+            options.publishCustomAudioTrackId = optNullableInteger(mediaOptions, "publishCustomAudioTrackId");
+        }
+        if (mediaOptions.has("publishCustomVideoTrack")) {
+            options.publishCustomVideoTrack = optNullableBoolean(mediaOptions, "publishCustomVideoTrack");
+        }
+        if (mediaOptions.has("publishEncodedVideoTrack")) {
+            options.publishEncodedVideoTrack = optNullableBoolean(mediaOptions, "publishEncodedVideoTrack");
+        }
+        if (mediaOptions.has("publishMediaPlayerAudioTrack")) {
+            options.publishMediaPlayerAudioTrack = optNullableBoolean(mediaOptions, "publishMediaPlayerAudioTrack");
+        }
+        if (mediaOptions.has("publishMediaPlayerVideoTrack")) {
+            options.publishMediaPlayerVideoTrack = optNullableBoolean(mediaOptions, "publishMediaPlayerVideoTrack");
+        }
+        if (mediaOptions.has("publishTranscodedVideoTrack")) {
+            options.publishTranscodedVideoTrack = optNullableBoolean(mediaOptions, "publishTranscodedVideoTrack");
+        }
+        if (mediaOptions.has("publishMixedAudioTrack")) {
+            options.publishMixedAudioTrack = optNullableBoolean(mediaOptions, "publishMixedAudioTrack");
+        }
+        if (mediaOptions.has("publishLipSyncTrack")) {
+            options.publishLipSyncTrack = optNullableBoolean(mediaOptions, "publishLipSyncTrack");
         }
         if (mediaOptions.has("autoSubscribeAudio")) {
             options.autoSubscribeAudio = optNullableBoolean(mediaOptions, "autoSubscribeAudio");
@@ -657,8 +766,50 @@ public final class AgoraRtcPlugin {
         if (mediaOptions.has("enableAudioRecordingOrPlayout")) {
             options.enableAudioRecordingOrPlayout = optNullableBoolean(mediaOptions, "enableAudioRecordingOrPlayout");
         }
+        if (mediaOptions.has("publishMediaPlayerId")) {
+            options.publishMediaPlayerId = optNullableInteger(mediaOptions, "publishMediaPlayerId");
+        }
+        if (mediaOptions.has("audienceLatencyLevel")) {
+            options.audienceLatencyLevel = optNullableInteger(mediaOptions, "audienceLatencyLevel");
+        }
+        if (mediaOptions.has("defaultVideoStreamType")) {
+            options.defaultVideoStreamType = optNullableInteger(mediaOptions, "defaultVideoStreamType");
+        }
+        if (mediaOptions.has("audioDelayMs")) {
+            options.audioDelayMs = optNullableInteger(mediaOptions, "audioDelayMs");
+        }
+        if (mediaOptions.has("mediaPlayerAudioDelayMs")) {
+            options.mediaPlayerAudioDelayMs = optNullableInteger(mediaOptions, "mediaPlayerAudioDelayMs");
+        }
         if (mediaOptions.has("startPreview")) {
             options.startPreview = optNullableBoolean(mediaOptions, "startPreview");
+        }
+        if (mediaOptions.has("enableBuiltInMediaEncryption")) {
+            options.enableBuiltInMediaEncryption = optNullableBoolean(mediaOptions, "enableBuiltInMediaEncryption");
+        }
+        if (mediaOptions.has("publishRhythmPlayerTrack")) {
+            options.publishRhythmPlayerTrack = optNullableBoolean(mediaOptions, "publishRhythmPlayerTrack");
+        }
+        if (mediaOptions.has("isInteractiveAudience")) {
+            options.isInteractiveAudience = optNullableBoolean(mediaOptions, "isInteractiveAudience");
+        }
+        if (mediaOptions.has("customVideoTrackId")) {
+            options.customVideoTrackId = optNullableInteger(mediaOptions, "customVideoTrackId");
+        }
+        if (mediaOptions.has("isAudioFilterable")) {
+            options.isAudioFilterable = optNullableBoolean(mediaOptions, "isAudioFilterable");
+        }
+        if (mediaOptions.has("enableMultipath")) {
+            options.enableMultipath = optNullableBoolean(mediaOptions, "enableMultipath");
+        }
+        if (mediaOptions.has("uplinkMultipathMode")) {
+            options.uplinkMultipathMode = optNullableInteger(mediaOptions, "uplinkMultipathMode");
+        }
+        if (mediaOptions.has("downlinkMultipathMode")) {
+            options.downlinkMultipathMode = optNullableInteger(mediaOptions, "downlinkMultipathMode");
+        }
+        if (mediaOptions.has("preferMultipathType")) {
+            options.preferMultipathType = optNullableInteger(mediaOptions, "preferMultipathType");
         }
         if (mediaOptions.has("token") && !mediaOptions.isNull("token")) {
             options.token = mediaOptions.optString("token");
@@ -675,9 +826,28 @@ public final class AgoraRtcPlugin {
         return object.optBoolean(key);
     }
 
+    private Integer optNullableInteger(JSONObject object, String key) {
+        if (object == null || !object.has(key) || object.isNull(key)) {
+            return null;
+        }
+        return object.optInt(key);
+    }
+
     private boolean mediaOptionBoolean(JSONObject object, String key, boolean defaultValue) {
         Boolean value = optNullableBoolean(object, key);
         return value != null ? value : defaultValue;
+    }
+
+    private boolean requiresCameraPermission(JSONObject mediaOptions) {
+        return mediaOptionBoolean(mediaOptions, "publishCameraTrack", true)
+                || mediaOptionBoolean(mediaOptions, "startPreview", false)
+                || mediaOptionBoolean(mediaOptions, "publishSecondaryCameraTrack", false)
+                || mediaOptionBoolean(mediaOptions, "publishThirdCameraTrack", false)
+                || mediaOptionBoolean(mediaOptions, "publishFourthCameraTrack", false);
+    }
+
+    private boolean requiresMicrophonePermission(JSONObject mediaOptions) {
+        return mediaOptionBoolean(mediaOptions, "publishMicrophoneTrack", true);
     }
 
     private int parseClientRoleType(Object rawValue) {
@@ -810,8 +980,14 @@ public final class AgoraRtcPlugin {
     }
 
     private void handleEnableLocalAudio(String requestId, JSONObject params) {
-        if (rtcEngine != null) {
-            rtcEngine.enableLocalAudio(params != null && params.optBoolean("enabled", true));
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+        int result = rtcEngine.enableLocalAudio(params == null || params.optBoolean("enabled", true));
+        if (result < 0) {
+            dispatchAgoraError(requestId, "enableLocalAudio", result);
+            return;
         }
         dispatchOk(requestId);
     }
@@ -972,8 +1148,14 @@ public final class AgoraRtcPlugin {
     }
 
     private void handleEnableLocalVideo(String requestId, JSONObject params) {
-        if (rtcEngine != null) {
-            rtcEngine.enableLocalVideo(params != null && params.optBoolean("enabled", true));
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+        int result = rtcEngine.enableLocalVideo(params == null || params.optBoolean("enabled", true));
+        if (result < 0) {
+            dispatchAgoraError(requestId, "enableLocalVideo", result);
+            return;
         }
         dispatchOk(requestId);
     }
@@ -1044,7 +1226,23 @@ public final class AgoraRtcPlugin {
         configuration.dimensions = new VideoEncoderConfiguration.VideoDimensions(width, height);
         configuration.frameRate = frameRate;
         configuration.bitrate = bitrate;
+        if (params != null) {
+            configuration.minFrameRate = params.optInt("minFrameRate", configuration.minFrameRate);
+            configuration.minBitrate = params.optInt("minBitrate", configuration.minBitrate);
+        }
         configuration.orientationMode = mapOrientationMode(orientationMode);
+        if (params != null && params.has("mirrorMode") && !params.isNull("mirrorMode")) {
+            configuration.mirrorMode = mapMirrorMode(params.optInt("mirrorMode"));
+        }
+        if (params != null && params.has("degradationPreference") && !params.isNull("degradationPreference")) {
+            configuration.degradationPrefer = mapDegradationPreference(params.optInt("degradationPreference"));
+        }
+        if (params != null && params.has("codecType") && !params.isNull("codecType")) {
+            configuration.codecType = mapVideoCodecType(params.optInt("codecType"));
+        }
+        if (params != null && params.has("advancedVideoOptions") && !params.isNull("advancedVideoOptions")) {
+            configuration.advanceOptions = buildAdvancedVideoOptions(params.optJSONObject("advancedVideoOptions"));
+        }
 
         int result = rtcEngine.setVideoEncoderConfiguration(configuration);
         if (result < 0) {
@@ -1085,12 +1283,25 @@ public final class AgoraRtcPlugin {
         boolean enabled = params != null && params.optBoolean("enabled", false);
         JSONObject config = params != null ? params.optJSONObject("config") : null;
         ContentInspectConfig inspectConfig = new ContentInspectConfig();
-        ContentInspectConfig.ContentInspectModule module = new ContentInspectConfig.ContentInspectModule();
-        module.type = config != null ? config.optInt("module", ContentInspectConfig.CONTENT_INSPECT_TYPE_MODERATION) : ContentInspectConfig.CONTENT_INSPECT_TYPE_MODERATION;
-        module.interval = config != null ? config.optInt("interval", 0) : 0;
-        module.position = Constants.VideoModulePosition.VIDEO_MODULE_POSITION_PRE_RENDERER;
-        inspectConfig.modules = new ContentInspectConfig.ContentInspectModule[] { module };
-        inspectConfig.moduleCount = 1;
+        if (config != null) {
+            inspectConfig.extraInfo = config.optString("extraInfo", inspectConfig.extraInfo);
+            inspectConfig.serverConfig = config.optString("serverConfig", inspectConfig.serverConfig);
+            JSONArray modules = config.optJSONArray("modules");
+            if (modules != null && modules.length() > 0) {
+                inspectConfig.modules = new ContentInspectConfig.ContentInspectModule[modules.length()];
+                for (int index = 0; index < modules.length(); index += 1) {
+                    inspectConfig.modules[index] = buildContentInspectModule(modules.optJSONObject(index));
+                }
+            }
+        }
+        if (inspectConfig.modules == null || inspectConfig.modules.length == 0) {
+            ContentInspectConfig.ContentInspectModule module = new ContentInspectConfig.ContentInspectModule();
+            module.type = config != null ? config.optInt("module", ContentInspectConfig.CONTENT_INSPECT_TYPE_MODERATION) : ContentInspectConfig.CONTENT_INSPECT_TYPE_MODERATION;
+            module.interval = config != null ? config.optInt("interval", 0) : 0;
+            module.position = Constants.VideoModulePosition.VIDEO_MODULE_POSITION_PRE_RENDERER;
+            inspectConfig.modules = new ContentInspectConfig.ContentInspectModule[] { module };
+        }
+        inspectConfig.moduleCount = inspectConfig.modules.length;
 
         int result = rtcEngine.enableContentInspect(enabled, inspectConfig);
         if (result < 0) {
@@ -1567,6 +1778,117 @@ public final class AgoraRtcPlugin {
         }
     }
 
+    private VideoEncoderConfiguration.MIRROR_MODE_TYPE mapMirrorMode(int value) {
+        switch (value) {
+            case 1:
+                return VideoEncoderConfiguration.MIRROR_MODE_TYPE.MIRROR_MODE_ENABLED;
+            case 2:
+                return VideoEncoderConfiguration.MIRROR_MODE_TYPE.MIRROR_MODE_DISABLED;
+            default:
+                return VideoEncoderConfiguration.MIRROR_MODE_TYPE.MIRROR_MODE_AUTO;
+        }
+    }
+
+    private VideoEncoderConfiguration.DEGRADATION_PREFERENCE mapDegradationPreference(int value) {
+        switch (value) {
+            case -1:
+                return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.MAINTAIN_AUTO;
+            case 0:
+                return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.MAINTAIN_QUALITY;
+            case 1:
+                return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.MAINTAIN_FRAMERATE;
+            case 2:
+                return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.MAINTAIN_BALANCED;
+            case 3:
+                return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.MAINTAIN_RESOLUTION;
+            case 100:
+                return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.DISABLED;
+            default:
+                return VideoEncoderConfiguration.DEGRADATION_PREFERENCE.MAINTAIN_AUTO;
+        }
+    }
+
+    private VideoEncoderConfiguration.VIDEO_CODEC_TYPE mapVideoCodecType(int value) {
+        switch (value) {
+            case 0:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_NONE;
+            case 1:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_VP8;
+            case 2:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_H264;
+            case 3:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_H265;
+            case 6:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_GENERIC;
+            case 12:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_AV1;
+            case 13:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_VP9;
+            case 20:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_GENERIC_JPEG;
+            default:
+                return VideoEncoderConfiguration.VIDEO_CODEC_TYPE.VIDEO_CODEC_NONE;
+        }
+    }
+
+    private VideoEncoderConfiguration.AdvanceOptions buildAdvancedVideoOptions(JSONObject params) {
+        VideoEncoderConfiguration.AdvanceOptions options = new VideoEncoderConfiguration.AdvanceOptions();
+        if (params == null) {
+            return options;
+        }
+        options.encodingPreference = mapEncodingPreference(params.optInt("encodingPreference", -1));
+        options.compressionPreference = mapCompressionPreference(params.optInt("compressionPreference", -1));
+        options.encodeAlpha = params.optBoolean("encodeAlpha", options.encodeAlpha);
+        return options;
+    }
+
+    private VideoEncoderConfiguration.ENCODING_PREFERENCE mapEncodingPreference(int value) {
+        switch (value) {
+            case -1:
+                return VideoEncoderConfiguration.ENCODING_PREFERENCE.PREFER_AUTO;
+            case 0:
+                return VideoEncoderConfiguration.ENCODING_PREFERENCE.PREFER_SOFTWARE;
+            case 1:
+                return VideoEncoderConfiguration.ENCODING_PREFERENCE.PREFER_HARDWARE;
+            default:
+                return VideoEncoderConfiguration.ENCODING_PREFERENCE.PREFER_AUTO;
+        }
+    }
+
+    private VideoEncoderConfiguration.COMPRESSION_PREFERENCE mapCompressionPreference(int value) {
+        switch (value) {
+            case -1:
+                return VideoEncoderConfiguration.COMPRESSION_PREFERENCE.PREFER_COMPRESSION_AUTO;
+            case 0:
+                return VideoEncoderConfiguration.COMPRESSION_PREFERENCE.PREFER_LOW_LATENCY;
+            case 1:
+                return VideoEncoderConfiguration.COMPRESSION_PREFERENCE.PREFER_QUALITY;
+            default:
+                return VideoEncoderConfiguration.COMPRESSION_PREFERENCE.PREFER_COMPRESSION_AUTO;
+        }
+    }
+
+    private ContentInspectConfig.ContentInspectModule buildContentInspectModule(JSONObject params) {
+        ContentInspectConfig.ContentInspectModule module = new ContentInspectConfig.ContentInspectModule();
+        module.type = params != null ? params.optInt("type", ContentInspectConfig.CONTENT_INSPECT_TYPE_MODERATION) : ContentInspectConfig.CONTENT_INSPECT_TYPE_MODERATION;
+        module.interval = params != null ? params.optInt("interval", 0) : 0;
+        module.position = mapContentInspectModulePosition(params != null ? params.optInt("position", 2) : 2);
+        return module;
+    }
+
+    private Constants.VideoModulePosition mapContentInspectModulePosition(int value) {
+        switch (value) {
+            case 1:
+                return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_POST_CAPTURER;
+            case 4:
+                return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_PRE_ENCODER;
+            case 8:
+                return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_POST_CAPTURER_ORIGIN;
+            default:
+                return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_PRE_RENDERER;
+        }
+    }
+
     private void dispatchEvent(String eventName, JSONObject payload) {
         JSONObject event = jsonObject(
                 "eventName", eventName,
@@ -1587,6 +1909,35 @@ public final class AgoraRtcPlugin {
             throw new IllegalStateException("Failed to build JSON payload.", error);
         }
         return object;
+    }
+
+    private JSONObject toRtcStatsPayload(IRtcEngineEventHandler.RtcStats stats) {
+        return jsonObject(
+                "duration", stats != null ? stats.totalDuration : 0,
+                "txBytes", stats != null ? stats.txBytes : 0,
+                "rxBytes", stats != null ? stats.rxBytes : 0,
+                "txKBitRate", stats != null ? stats.txKBitRate : 0,
+                "rxKBitRate", stats != null ? stats.rxKBitRate : 0,
+                "txAudioBytes", stats != null ? stats.txAudioBytes : 0,
+                "rxAudioBytes", stats != null ? stats.rxAudioBytes : 0,
+                "txVideoBytes", stats != null ? stats.txVideoBytes : 0,
+                "rxVideoBytes", stats != null ? stats.rxVideoBytes : 0,
+                "txAudioKBitRate", stats != null ? stats.txAudioKBitRate : 0,
+                "rxAudioKBitRate", stats != null ? stats.rxAudioKBitRate : 0,
+                "txVideoKBitRate", stats != null ? stats.txVideoKBitRate : 0,
+                "rxVideoKBitRate", stats != null ? stats.rxVideoKBitRate : 0,
+                "lastmileDelay", stats != null ? stats.lastmileDelay : 0,
+                "cpuTotalUsage", stats != null ? stats.cpuTotalUsage : 0,
+                "gatewayRtt", stats != null ? stats.gatewayRtt : 0,
+                "cpuAppUsage", stats != null ? stats.cpuAppUsage : 0,
+                "users", stats != null ? stats.users : 0,
+                "connectTimeMs", stats != null ? stats.connectTimeMs : 0,
+                "txPacketLossRate", stats != null ? stats.txPacketLossRate : 0,
+                "rxPacketLossRate", stats != null ? stats.rxPacketLossRate : 0,
+                "memoryAppUsageRatio", stats != null ? stats.memoryAppUsageRatio : 0,
+                "memoryTotalUsageRatio", stats != null ? stats.memoryTotalUsageRatio : 0,
+                "memoryAppUsageInKbytes", stats != null ? stats.memoryAppUsageInKbytes : 0
+        );
     }
 
     private org.json.JSONArray toAudioVolumeArray(IRtcEngineEventHandler.AudioVolumeInfo[] speakers) {
