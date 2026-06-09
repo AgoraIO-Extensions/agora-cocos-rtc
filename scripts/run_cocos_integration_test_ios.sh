@@ -71,7 +71,30 @@ should_skip_simulator_launch_assets() {
       local sdk_build
       sdk_build=$(xcodebuild -version -sdk iphonesimulator ProductBuildVersion 2>/dev/null | tail -n 1 | tr -d '[:space:]')
       [[ -z "$sdk_build" ]] && return 1
-      xcrun simctl list runtimes 2>/dev/null | grep -Fq "$sdk_build" && return 1
+      if xcrun simctl list runtimes -j 2>/dev/null | node - "$sdk_build" <<'NODE'
+const fs = require('node:fs');
+
+const sdkBuild = process.argv[2];
+const data = JSON.parse(fs.readFileSync(0, 'utf8'));
+const runtimes = Array.isArray(data.runtimes) ? data.runtimes : [];
+const hasMatchingRuntime = runtimes.some((runtime) => {
+  if (runtime.isAvailable === false) {
+    return false;
+  }
+  const identity = [
+    runtime.name,
+    runtime.identifier,
+    runtime.platform,
+  ].filter(Boolean).join(' ');
+  const buildVersion = String(runtime.buildversion ?? runtime.buildVersion ?? '');
+  return /iOS/i.test(identity) && buildVersion === sdkBuild;
+});
+
+process.exit(hasMatchingRuntime ? 0 : 1);
+NODE
+      then
+        return 1
+      fi
       return 0
       ;;
     *)

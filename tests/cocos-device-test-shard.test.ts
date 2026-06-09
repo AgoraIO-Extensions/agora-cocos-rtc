@@ -292,6 +292,9 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /SYMROOT="\$IOS_PRODUCTS_DIR"/);
   assert.match(iosScript, /OBJROOT="\$IOS_INTERMEDIATES_DIR"/);
   assert.match(iosScript, /should_skip_simulator_launch_assets\(\)/);
+  assert.match(iosScript, /simctl list runtimes -j/);
+  assert.match(iosScript, /runtime\.isAvailable === false/);
+  assert.match(iosScript, /\/iOS\/i\.test\(identity\)/);
   assert.match(iosScript, /--skip-simulator-launch-assets/);
   assert.doesNotMatch(iosScript, /WORKSPACE_PATH=/);
   assert.doesNotMatch(iosScript, /TARGET_NAME=/);
