@@ -186,14 +186,11 @@ export class DemoActionPanel extends Component {
     const preview = this.ensureContainer('PreviewCameraSection', 0, 30, 390, 150);
     const render = this.ensureContainer('RenderEncoderSection', 0, -80, 390, 130);
     const diagnostics = this.ensureContainer('DiagnosticsSection', 0, -185, 390, 92);
-    this.advancedSection = this.ensureContainer('AdvancedSection', 0, -325, 390, 190);
-    this.advancedSection.active = this.advancedVisible;
 
     this.buildConnectionSection(connection);
-    this.buildPreviewSection(preview);
-    this.buildRenderSection(render);
-    this.buildDiagnosticsSection(diagnostics);
-    this.buildAdvancedSection(this.advancedSection);
+    this.buildSelectedCaseOptions(preview);
+    this.buildCaseActionButtons(render);
+    this.buildCaseUtilitySection(diagnostics);
   }
 
   private clearDynamicChildren(): void {
@@ -282,6 +279,67 @@ export class DemoActionPanel extends Component {
     const names = BASIC_VIDEO_ACTION_SECTIONS.find((section) => section.title === 'Advanced')?.buttons
       ?? ADVANCED_ACTIONS.map((action) => action.name);
     this.buildButtonList(parent, [...names], 3, 50, 112, 28, 118, 34);
+  }
+
+  private buildSelectedCaseOptions(parent: Node): void {
+    const title = ensureLabelNode(parent, 'SectionTitle', 360, 24, 'Case options', 14, COLORS.textPrimary);
+    title.node.setPosition(0, 58, 0);
+    switch (this.selectedCase?.name) {
+      case 'AudioEffectMixing':
+        this.buildAudioEffectMixingControls(parent);
+        return;
+      case 'SetBeautyEffect':
+        this.buildBeautyControls(parent);
+        return;
+      case 'SetVideoEncoderConfiguration':
+        this.buildEncoderControls(parent);
+        return;
+      case 'SetContentInspect':
+        this.buildContentInspectControls(parent);
+        return;
+      default:
+        ensureLabelNode(parent, 'DefaultCaseOptionsLabel', 340, 20, `Mode: ${this.selectedCase?.displayMode ?? 'audio'}`, 11, COLORS.textMuted)
+          .node.setPosition(0, 18, 0);
+    }
+  }
+
+  private buildAudioEffectMixingControls(parent: Node): void {
+    const state = this.sessionState?.audioEffectMixing;
+    ensureLabelNode(parent, 'AudioEffectUrlLabel', 340, 20, 'Effect: webdemo.agora.io/ding.mp3', 11, COLORS.textMuted)
+      .node.setPosition(0, 28, 0);
+    ensureLabelNode(parent, 'AudioMixingAssetLabel', 340, 20, 'Mixing: Agora.io-Interactions.mp3', 11, COLORS.textMuted)
+      .node.setPosition(0, 4, 0);
+    ensureLabelNode(parent, 'AudioMixingStateLabel', 340, 20, state?.remoteAudioStateSummary ?? '-', 11, COLORS.textMuted)
+      .node.setPosition(0, -20, 0);
+  }
+
+  private buildBeautyControls(parent: Node): void {
+    ensureLabelNode(parent, 'BeautyOptionsLabel', 340, 20, 'Beauty: contrast / lightening / smooth / red / sharp', 11, COLORS.textMuted)
+      .node.setPosition(0, 18, 0);
+  }
+
+  private buildEncoderControls(parent: Node): void {
+    ensureLabelNode(parent, 'EncoderOptionsLabel', 340, 20, 'Encoder: 640x480 / 480x480 / 480x240', 11, COLORS.textMuted)
+      .node.setPosition(0, 18, 0);
+  }
+
+  private buildContentInspectControls(parent: Node): void {
+    ensureLabelNode(parent, 'ContentInspectOptionsLabel', 340, 20, 'ContentInspect: module 0 interval 2s', 11, COLORS.textMuted)
+      .node.setPosition(0, 18, 0);
+  }
+
+  private buildCaseActionButtons(parent: Node): void {
+    const title = ensureLabelNode(parent, 'SectionTitle', 360, 24, 'Actions', 14, COLORS.textPrimary);
+    title.node.setPosition(0, 48, 0);
+    const selectedCase = this.selectedCase;
+    const names = selectedCase ? selectedCase.actions : [];
+    this.buildButtonList(parent, [...names], 2, 16, 176, 32, 184, 40);
+  }
+
+  private buildCaseUtilitySection(parent: Node): void {
+    const title = ensureLabelNode(parent, 'SectionTitle', 360, 22, 'Diagnostics', 14, COLORS.textPrimary);
+    title.node.setPosition(0, 32, 0);
+    this.buildButtonList(parent, ['RefreshViews', 'OpenLog'], 2, -6);
   }
 
   private buildButtonList(
@@ -402,6 +460,24 @@ export class DemoActionPanel extends Component {
     if (name === 'MuteAllRemoteVideo') {
       return this.sessionState?.allRemoteVideoMuted ? 'Remote Video Off' : 'Remote Video On';
     }
+    if (name === 'PlayEffect') {
+      return this.sessionState?.audioEffectMixing.effectPlaying ? 'Stop Effect' : 'Play Effect';
+    }
+    if (name === 'StartAudioMixing') {
+      return this.sessionState?.audioEffectMixing.audioMixingStarted ? 'Stop Mixing' : 'Start Mixing';
+    }
+    if (name === 'SetEffectsVolume') {
+      return `Effect ${this.sessionState?.audioEffectMixing.effectsVolume ?? 100}`;
+    }
+    if (name === 'AudioMixingPublishVolume') {
+      return `Pub ${this.sessionState?.audioEffectMixing.audioMixingPublishVolume ?? 100}`;
+    }
+    if (name === 'AudioMixingPlayoutVolume') {
+      return `Play ${this.sessionState?.audioEffectMixing.audioMixingPlayoutVolume ?? 100}`;
+    }
+    if (name === 'AudioMixingVolume') {
+      return `Mix ${this.sessionState?.audioEffectMixing.audioMixingVolume ?? 100}`;
+    }
     return ACTION_LABELS[name] ?? name;
   }
 
@@ -426,6 +502,12 @@ export class DemoActionPanel extends Component {
       return 'toggleOn';
     }
     if (name === 'MuteAllRemoteVideo' && !this.sessionState?.allRemoteVideoMuted) {
+      return 'toggleOn';
+    }
+    if (name === 'PlayEffect' && this.sessionState?.audioEffectMixing.effectPlaying) {
+      return 'toggleOn';
+    }
+    if (name === 'StartAudioMixing' && this.sessionState?.audioEffectMixing.audioMixingStarted) {
       return 'toggleOn';
     }
     return this.defaultVariantForAction(name);

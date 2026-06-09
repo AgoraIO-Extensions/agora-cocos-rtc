@@ -414,6 +414,20 @@ test('audio effect mixing case resolves a bundled local mixing asset', async () 
   assert.match(content, /https:\/\/webdemo\.agora\.io\/ding\.mp3/);
 });
 
+test('demo action panel renders case-specific controls instead of the full qa matrix', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /buildCaseActionButtons/);
+  assert.match(content, /selectedCase\.actions/);
+  assert.match(content, /buildAudioEffectMixingControls/);
+  assert.match(content, /buildBeautyControls/);
+  assert.match(content, /buildEncoderControls/);
+  assert.match(content, /buildContentInspectControls/);
+});
+
 test('example scene and template use landscape canvas dimensions', async () => {
   const sceneContent = await readFile(
     `${repoRoot}/example/basic-call/assets/scene/main.scene`,
