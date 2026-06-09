@@ -60,6 +60,19 @@ set(CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "${sdkConfig.ios.swiftVersion}")`;
 const IOS_SPM_PACKAGE_REF_ID = 'A90A00000000000000000101';
 const IOS_SPM_PRODUCT_ID = 'A90A00000000000000000102';
 const IOS_SPM_BUILD_FILE_ID = 'A90A00000000000000000103';
+const IOS_WORKSPACE_SETTINGS_TEMPLATE = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>BuildSystemType</key>
+\t<string>Latest</string>
+\t<key>BuildLocationStyle</key>
+\t<string>Unique</string>
+\t<key>IDEWorkspaceSharedSettings_AutocreateContextsIfNeeded</key>
+\t<false/>
+</dict>
+</plist>
+`;
 
 function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -185,6 +198,111 @@ function patchIosSwiftPackageRequirement(packageRefObject) {
     /^([ \t]*)repositoryURL = .*;$/m,
     (match, indent) => `${match}\n${indent}${requirementBlock}`,
   );
+}
+
+function quotePbxBuildSettingValue(value) {
+  const trimmed = String(value).trim().replace(/^"|"$/g, '');
+  return `"${trimmed}"`;
+}
+
+function formatPbxBuildSettingArray(indent, values) {
+  const uniqueValues = [];
+  for (const value of values) {
+    const normalized = String(value).trim().replace(/^"|"$/g, '');
+    if (normalized && !uniqueValues.includes(normalized)) {
+      uniqueValues.push(normalized);
+    }
+  }
+
+  const valueLines = uniqueValues
+    .map((value) => `${indent}  ${quotePbxBuildSettingValue(value)},`)
+    .join('\n');
+  return `${indent}LD_RUNPATH_SEARCH_PATHS = (\n${valueLines}\n${indent});`;
+}
+
+function ensureIosFrameworksRunpath(buildSettingsBody) {
+  const arrayPattern = /^([ \t]*)LD_RUNPATH_SEARCH_PATHS = \(\n([\s\S]*?)^\1\);/m;
+  if (arrayPattern.test(buildSettingsBody)) {
+    return buildSettingsBody.replace(arrayPattern, (match, indent, valuesBody) => {
+      if (valuesBody.includes('@executable_path/Frameworks')) {
+        return match;
+      }
+
+      const existingValues = [...valuesBody.matchAll(/^\s*"?([^",\n]+)"?,?\s*$/gm)]
+        .map((valueMatch) => valueMatch[1])
+        .filter(Boolean);
+      const values = existingValues.length > 0 ? existingValues : ['$(inherited)'];
+      return formatPbxBuildSettingArray(indent, [...values, '@executable_path/Frameworks']);
+    });
+  }
+
+  const scalarPattern = /^([ \t]*)LD_RUNPATH_SEARCH_PATHS = ([^;]*);$/m;
+  if (scalarPattern.test(buildSettingsBody)) {
+    return buildSettingsBody.replace(scalarPattern, (_match, indent, value) => {
+      const normalizedValue = String(value).trim().replace(/^"|"$/g, '');
+      const values = normalizedValue ? normalizedValue.split(/\s+/) : ['$(inherited)'];
+      return formatPbxBuildSettingArray(indent, [...values, '@executable_path/Frameworks']);
+    });
+  }
+
+  const settingIndent = buildSettingsBody.match(/^([ \t]+)[A-Za-z0-9_]+(?:\[[^\]]+\])? = /m)?.[1] || '\t\t\t';
+  const prefix = buildSettingsBody.endsWith('\n') || buildSettingsBody.length === 0 ? '' : '\n';
+  return `${buildSettingsBody}${prefix}${formatPbxBuildSettingArray(settingIndent, [
+    '$(inherited)',
+    '@executable_path/Frameworks',
+  ])}\n`;
+}
+
+function patchIosXcodeProjectBuildSettingsObject(objectText) {
+  return objectText.replace(
+    /(^[ \t]*buildSettings = \{\n)([\s\S]*?)(^[ \t]*\};)/m,
+    (match, start, body, end) => {
+      let patchedBody = body
+        .replace(
+          /^[ \t]*(?:SYMROOT|OBJROOT|CONFIGURATION_BUILD_DIR|CONFIGURATION_TEMP_DIR)(?:\[[^\]]+\])? = .*;\n?/gm,
+          '',
+        )
+        .replace(
+          /"[^"\n]*\/boost\/container\/archives\/[^/"\n]+\/libboost_container\.a"/g,
+          '"$(CONFIGURATION_BUILD_DIR)/libboost_container.a"',
+        )
+        .replace(
+          /"[^"\n]*\/archives\/[^/"\n]+\/libcocos_engine\.a"/g,
+          '"$(CONFIGURATION_BUILD_DIR)/libcocos_engine.a"',
+        );
+
+      patchedBody = ensureIosFrameworksRunpath(patchedBody);
+      return `${start}${patchedBody}${end}`;
+    },
+  );
+}
+
+function patchIosXcodeProjectBuildSettingsForSwiftPackage(content) {
+  let next = content;
+  for (const buildConfiguration of listPbxObjects(content, 'XCBuildConfiguration')) {
+    const patchedObject = patchIosXcodeProjectBuildSettingsObject(buildConfiguration.text);
+    if (patchedObject !== buildConfiguration.text) {
+      next = replacePbxObject(next, buildConfiguration, patchedObject);
+    }
+  }
+
+  return next;
+}
+
+function patchIosWorkspaceSettingsForSwiftPackage(content) {
+  const buildLocationPattern = /(<key>\s*BuildLocationStyle\s*<\/key>\s*<string>)[^<]*(<\/string>)/m;
+  if (buildLocationPattern.test(content)) {
+    return content.replace(buildLocationPattern, '$1Unique$2');
+  }
+
+  if (content.includes('</dict>')) {
+    return content.replace(
+      /([ \t]*<\/dict>)/,
+      '\t<key>BuildLocationStyle</key>\n\t<string>Unique</string>\n$1',
+    );
+  }
+
+  return IOS_WORKSPACE_SETTINGS_TEMPLATE;
 }
 
 function patchIosXcodeProjectSwiftPackage(content) {
@@ -315,7 +433,7 @@ function patchIosXcodeProjectSwiftPackage(content) {
     patchedFrameworksObject,
   );
 
-  return next;
+  return patchIosXcodeProjectBuildSettingsForSwiftPackage(next);
 }
 
 function applyAndroidGradleDependencies(content) {
@@ -663,6 +781,61 @@ async function findIosXcodeProjectFiles(rootDir) {
   return [...new Set(candidates)];
 }
 
+async function findIosWorkspaceSettingsFiles(pbxprojPath) {
+  const xcodeProjectDir = path.dirname(pbxprojPath);
+  const workspaceDir = path.join(xcodeProjectDir, 'project.xcworkspace');
+  const settingsPaths = [
+    path.join(workspaceDir, 'xcshareddata', 'WorkspaceSettings.xcsettings'),
+  ];
+
+  async function collectUserWorkspaceSettings(directory) {
+    let entries;
+    try {
+      entries = await readdir(directory, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        await collectUserWorkspaceSettings(fullPath);
+      } else if (entry.isFile() && entry.name === 'WorkspaceSettings.xcsettings') {
+        settingsPaths.push(fullPath);
+      }
+    }
+  }
+
+  await collectUserWorkspaceSettings(path.join(workspaceDir, 'xcuserdata'));
+  return [...new Set(settingsPaths)];
+}
+
+async function ensureIosWorkspaceSettingsForSwiftPackage(pbxprojPath) {
+  const patchedPaths = [];
+  for (const settingsPath of await findIosWorkspaceSettingsFiles(pbxprojPath)) {
+    let original;
+    let shouldCreate = false;
+    try {
+      original = await readFile(settingsPath, 'utf8');
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        throw error;
+      }
+      shouldCreate = true;
+      original = IOS_WORKSPACE_SETTINGS_TEMPLATE;
+    }
+
+    const patched = patchIosWorkspaceSettingsForSwiftPackage(original);
+    if (shouldCreate || patched !== original) {
+      await mkdir(path.dirname(settingsPath), { recursive: true });
+      await writeFile(settingsPath, patched, 'utf8');
+      patchedPaths.push(settingsPath);
+    }
+  }
+
+  return patchedPaths;
+}
+
 async function ensureIosXcodeProjectSwiftPackage(rootDir) {
   const pbxprojPaths = await findIosXcodeProjectFiles(rootDir);
   const patchedPaths = [];
@@ -683,6 +856,8 @@ async function ensureIosXcodeProjectSwiftPackage(rootDir) {
       await writeFile(pbxprojPath, patched, 'utf8');
       patchedPaths.push(pbxprojPath);
     }
+
+    patchedPaths.push(...await ensureIosWorkspaceSettingsForSwiftPackage(pbxprojPath));
   }
 
   return patchedPaths;
@@ -993,6 +1168,8 @@ module.exports = {
   patchAndroidAppActivityBridgeAttachment,
   patchAndroidRtcPermissions,
   patchIosRtcUsageDescriptions,
+  patchIosXcodeProjectBuildSettingsForSwiftPackage,
+  patchIosWorkspaceSettingsForSwiftPackage,
   patchIosCMakeRtcBridgeSources,
   patchIosXcodeProjectSwiftPackage,
   patchIosAppDelegateBridgeAttachment,

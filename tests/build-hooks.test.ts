@@ -20,9 +20,11 @@ const {
   ensureNativeEngineTextureBridge,
   findFirstExistingPath,
   onBeforeMake,
+  patchIosXcodeProjectBuildSettingsForSwiftPackage,
   patchAndroidAppActivityBridgeAttachment,
   patchIosAppDelegateBridgeAttachment,
   patchIosCMakeRtcBridgeSources,
+  patchIosWorkspaceSettingsForSwiftPackage,
   patchIosXcodeProjectSwiftPackage,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,
@@ -395,10 +397,45 @@ function createIosPbxprojFixture() {
 /* End PBXProject section */
 
 /* Begin XCBuildConfiguration section */
+    A1B2C3D4E5F60718293A4B5C /* Debug */ = {
+      isa = XCBuildConfiguration;
+      buildSettings = {
+        CODE_SIGN_IDENTITY = "iPhone Developer";
+        CODE_SIGN_STYLE = Manual;
+        CONFIGURATION_BUILD_DIR = "/tmp/agora-cocos-basic-call/build/ios/proj/archives/Debug";
+        CONFIGURATION_TEMP_DIR = "/tmp/agora-cocos-basic-call/build/ios/proj/tmp/Debug";
+        DEVELOPMENT_TEAM = ABCDE12345;
+        LD_RUNPATH_SEARCH_PATHS = "$(inherited)";
+        OBJROOT = "/tmp/agora-cocos-basic-call/build/ios/proj/obj";
+        OTHER_LDFLAGS = (
+          "$(inherited)",
+          "/tmp/agora-cocos-basic-call/build/ios/proj/archives/Debug/libcocos_engine.a",
+          "/tmp/agora-cocos-basic-call/build/ios/proj/boost/container/archives/Debug/libboost_container.a",
+        );
+        PRODUCT_BUNDLE_IDENTIFIER = io.agora.cocosbasiccall;
+        PROVISIONING_PROFILE_SPECIFIER = "Agora Dev Profile";
+        SYMROOT = "/tmp/agora-cocos-basic-call/build/ios/proj";
+      };
+      name = Debug;
+    };
 /* End XCBuildConfiguration section */
   };
   rootObject = F133864AD5934D1C837F0D69 /* Project object */;
 }
+`;
+}
+
+function createIosWorkspaceSettingsFixture(buildLocationStyle = 'UseTargetSettings') {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>BuildSystemType</key>
+\t<string>Latest</string>
+\t<key>BuildLocationStyle</key>
+\t<string>${buildLocationStyle}</string>
+</dict>
+</plist>
 `;
 }
 
@@ -423,34 +460,105 @@ test('patchIosXcodeProjectSwiftPackage adds Agora iOS SPM product to the app tar
   assert.equal(once, twice);
 });
 
+test('patchIosXcodeProjectBuildSettingsForSwiftPackage clears legacy build locations and preserves signing', () => {
+  const original = createIosPbxprojFixture();
+  const once = patchIosXcodeProjectBuildSettingsForSwiftPackage(original);
+  const twice = patchIosXcodeProjectBuildSettingsForSwiftPackage(once);
+
+  assert.doesNotMatch(once, /^\s*SYMROOT = /m);
+  assert.doesNotMatch(once, /^\s*OBJROOT = /m);
+  assert.doesNotMatch(once, /^\s*CONFIGURATION_BUILD_DIR = /m);
+  assert.doesNotMatch(once, /^\s*CONFIGURATION_TEMP_DIR = /m);
+  assert.match(once, /\$\(CONFIGURATION_BUILD_DIR\)\/libcocos_engine\.a/);
+  assert.match(once, /\$\(CONFIGURATION_BUILD_DIR\)\/libboost_container\.a/);
+  assert.doesNotMatch(once, /\/archives\/Debug\/libcocos_engine\.a/);
+  assert.doesNotMatch(once, /\/boost\/container\/archives\/Debug\/libboost_container\.a/);
+  assert.match(once, /LD_RUNPATH_SEARCH_PATHS = \(\s*"\$\(inherited\)",\s*"@executable_path\/Frameworks",\s*\);/);
+  assert.match(once, /CODE_SIGN_STYLE = Manual;/);
+  assert.match(once, /DEVELOPMENT_TEAM = ABCDE12345;/);
+  assert.match(once, /PROVISIONING_PROFILE_SPECIFIER = "Agora Dev Profile";/);
+  assert.match(once, /PRODUCT_BUNDLE_IDENTIFIER = io\.agora\.cocosbasiccall;/);
+  assert.equal(once, twice);
+});
+
+test('patchIosWorkspaceSettingsForSwiftPackage forces unique build locations once', () => {
+  const original = createIosWorkspaceSettingsFixture();
+  const once = patchIosWorkspaceSettingsForSwiftPackage(original);
+  const twice = patchIosWorkspaceSettingsForSwiftPackage(once);
+
+  assert.match(once, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
+  assert.doesNotMatch(once, /UseTargetSettings/);
+  assert.equal(once, twice);
+
+  const withoutBuildLocationStyle = `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+\t<key>BuildSystemType</key>
+\t<string>Latest</string>
+</dict>
+</plist>
+`;
+  const patched = patchIosWorkspaceSettingsForSwiftPackage(withoutBuildLocationStyle);
+  assert.match(patched, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
+});
+
 test('ensureIosXcodeProjectSwiftPackage patches generated Xcode project files', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-pbxproj-'));
   const pbxprojPath = path.join(
     root,
     'proj/agora-cocos-basic-call.xcodeproj/project.pbxproj',
   );
+  const userWorkspaceSettingsPath = path.join(
+    root,
+    'proj/agora-cocos-basic-call.xcodeproj/project.xcworkspace/xcuserdata/test.xcuserdatad/WorkspaceSettings.xcsettings',
+  );
   await mkdir(path.dirname(pbxprojPath), { recursive: true });
+  await mkdir(path.dirname(userWorkspaceSettingsPath), { recursive: true });
   await writeFile(pbxprojPath, createIosPbxprojFixture(), 'utf8');
+  await writeFile(userWorkspaceSettingsPath, createIosWorkspaceSettingsFixture(), 'utf8');
 
   const patchedPaths = await ensureIosXcodeProjectSwiftPackage(root);
   const content = await readFile(pbxprojPath, 'utf8');
+  const userWorkspaceSettings = await readFile(userWorkspaceSettingsPath, 'utf8');
+  const sharedWorkspaceSettings = await readFile(
+    path.join(
+      root,
+      'proj/agora-cocos-basic-call.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings',
+    ),
+    'utf8',
+  );
 
-  assert.deepEqual(patchedPaths, [pbxprojPath]);
+  assert.equal(patchedPaths.includes(pbxprojPath), true);
+  assert.equal(patchedPaths.includes(userWorkspaceSettingsPath), true);
   assert.match(content, /XCRemoteSwiftPackageReference/);
   assert.match(content, /productName = RtcBasic;/);
+  assert.doesNotMatch(content, /^\s*CONFIGURATION_BUILD_DIR = /m);
+  assert.match(content, /@executable_path\/Frameworks/);
+  assert.match(userWorkspaceSettings, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
+  assert.match(sharedWorkspaceSettings, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
 });
 
 test('onBeforeMake patches generated iOS Xcode project before native compilation', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-before-make-'));
   const pbxprojPath = path.join(root, 'agora-cocos-basic-call.xcodeproj/project.pbxproj');
+  const userWorkspaceSettingsPath = path.join(
+    root,
+    'agora-cocos-basic-call.xcodeproj/project.xcworkspace/xcuserdata/test.xcuserdatad/WorkspaceSettings.xcsettings',
+  );
   await mkdir(path.dirname(pbxprojPath), { recursive: true });
+  await mkdir(path.dirname(userWorkspaceSettingsPath), { recursive: true });
   await writeFile(pbxprojPath, createIosPbxprojFixture(), 'utf8');
+  await writeFile(userWorkspaceSettingsPath, createIosWorkspaceSettingsFixture(), 'utf8');
 
   await onBeforeMake(root, { platform: 'ios' });
   const content = await readFile(pbxprojPath, 'utf8');
+  const userWorkspaceSettings = await readFile(userWorkspaceSettingsPath, 'utf8');
 
   assert.match(content, /XCRemoteSwiftPackageReference/);
   assert.match(content, /RtcBasic in Frameworks/);
+  assert.doesNotMatch(content, /^\s*SYMROOT = /m);
+  assert.match(content, /@executable_path\/Frameworks/);
+  assert.match(userWorkspaceSettings, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
 });
 
 test('patchAndroidAppActivityBridgeAttachment attaches the native bridge after SDK init once', () => {
