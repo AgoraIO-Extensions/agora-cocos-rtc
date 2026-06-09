@@ -400,6 +400,20 @@ test('audio effect mixing case wires flutter-required controls', async () => {
   assert.match(rootContent, /runAudioEffectMixingAction/);
 });
 
+test('audio effect mixing case resolves a bundled local mixing asset', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/cases/AudioEffectMixingCase.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /Agora\.io-Interactions\.mp3/);
+  assert.match(content, /resolveAudioMixingAssetPath/);
+  assert.match(content, /native\.fileUtils/);
+  assert.match(content, /getWritablePath/);
+  assert.match(content, /copyFile/);
+  assert.match(content, /https:\/\/webdemo\.agora\.io\/ding\.mp3/);
+});
+
 test('example scene and template use landscape canvas dimensions', async () => {
   const sceneContent = await readFile(
     `${repoRoot}/example/basic-call/assets/scene/main.scene`,

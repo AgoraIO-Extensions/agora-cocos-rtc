@@ -4,6 +4,7 @@ import {
   type AgoraExampleRuntimeConfig,
 } from '../agoraRtcConfigOverride.ts';
 import { DEFAULT_BUTTON_LAYOUT } from './actions.ts';
+import { resolveAudioMixingAssetPath } from './cases/AudioEffectMixingCase.ts';
 import { DEMO_CASES, findDemoCase, type DemoCaseDefinition } from './cases/caseRegistry.ts';
 import { RtcSessionService } from './RtcSessionService.ts';
 import type {
@@ -497,7 +498,17 @@ export class AgoraRtcDemoRoot extends Component {
     actionName: string,
     action: (session: RtcSessionService, assetPath: string) => Promise<void>,
   ): Promise<void> {
-    await this.runSessionAction(actionName, (session) => action(session, 'audio/Agora.io-Interactions.mp3'));
+    this.createSession();
+    this.setActionResult(actionName, 'idle');
+    try {
+      const assetPath = resolveAudioMixingAssetPath();
+      await action(this.session!, assetPath);
+      this.setActionResult(actionName, 'ok');
+    } catch (error) {
+      this.setActionResult(actionName, 'fail');
+      this.pushStatus(`${actionName} failed: ${String(error)}`);
+      throw error;
+    }
   }
 
   private setActionResult(actionName: string, result: ActionResult): void {
