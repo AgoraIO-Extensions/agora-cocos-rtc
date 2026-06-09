@@ -1,5 +1,13 @@
 const path = require('node:path');
-const { access, copyFile, cp, mkdir, readFile, writeFile } = require('node:fs/promises');
+const {
+  access,
+  copyFile,
+  cp,
+  mkdir,
+  readFile,
+  readdir,
+  writeFile,
+} = require('node:fs/promises');
 const sdkConfig = require('./sdk-config.js');
 
 const IOS_GUIDE_RELATIVE_PATH = 'AGORA_RTC_SPM_SETUP.md';
@@ -47,6 +55,266 @@ set_source_files_properties(
 )
 
 set(CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "${sdkConfig.ios.swiftVersion}")`;
+const IOS_SPM_PACKAGE_REF_ID = 'A90A00000000000000000101';
+const IOS_SPM_PRODUCT_ID = 'A90A00000000000000000102';
+const IOS_SPM_BUILD_FILE_ID = 'A90A00000000000000000103';
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function getIosSwiftPackageName() {
+  return path.basename(sdkConfig.ios.packageUrl).replace(/\.git$/, '');
+}
+
+function findPbxSection(content, sectionName) {
+  const beginMarker = `/* Begin ${sectionName} section */`;
+  const endMarker = `/* End ${sectionName} section */`;
+  const beginIndex = content.indexOf(beginMarker);
+  const endIndex = content.indexOf(endMarker);
+
+  if (beginIndex < 0 || endIndex < beginIndex) {
+    return null;
+  }
+
+  return {
+    beginIndex,
+    endIndex,
+    beginMarker,
+    endMarker,
+    body: content.slice(beginIndex + beginMarker.length, endIndex),
+  };
+}
+
+function listPbxObjects(content, sectionName) {
+  const section = findPbxSection(content, sectionName);
+  if (!section) {
+    return [];
+  }
+
+  const objects = [];
+  const objectPattern = /^([ \t]*)([A-Za-z0-9]{24}) \/\* ([^*]+) \*\/ = \{[\s\S]*?^\1\};/gm;
+  let match;
+  while ((match = objectPattern.exec(section.body)) !== null) {
+    objects.push({
+      id: match[2],
+      comment: match[3],
+      text: match[0],
+    });
+  }
+  return objects;
+}
+
+function findPbxObject(content, sectionName, predicate) {
+  return listPbxObjects(content, sectionName).find(predicate) || null;
+}
+
+function ensurePbxSectionEntry(content, sectionName, entry, entryId) {
+  if (content.includes(`${entryId} /*`)) {
+    return content;
+  }
+
+  const section = findPbxSection(content, sectionName);
+  if (section) {
+    return `${content.slice(0, section.endIndex)}${entry}\n${content.slice(section.endIndex)}`;
+  }
+
+  const newSection = `\n/* Begin ${sectionName} section */\n${entry}\n/* End ${sectionName} section */\n`;
+  const anchor = '/* Begin XCBuildConfiguration section */';
+  if (content.includes(anchor)) {
+    return content.replace(anchor, `${newSection}\n${anchor}`);
+  }
+
+  const objectsEnd = '\n\t};\n\trootObject';
+  if (content.includes(objectsEnd)) {
+    return content.replace(objectsEnd, `${newSection}${objectsEnd}`);
+  }
+
+  return content;
+}
+
+function replacePbxObject(content, object, replacement) {
+  return content.replace(object.text, replacement);
+}
+
+function ensurePbxListItem(objectText, listName, itemLine) {
+  const itemId = itemLine.trim().split(/\s+/)[0];
+  if (objectText.includes(`${itemId} /*`)) {
+    return objectText;
+  }
+
+  const objectIndent = objectText.match(/^([ \t]*)/)?.[1] || '';
+  const propertyIndent = objectText.match(/\n([ \t]+)isa = /)?.[1] || `${objectIndent}\t`;
+
+  const listPattern = new RegExp(`(^[ \\t]*)${escapeRegExp(listName)} = \\(\\n([\\s\\S]*?^\\1\\);)`, 'm');
+  if (listPattern.test(objectText)) {
+    return objectText.replace(listPattern, (match, indent, rest) => {
+      return `${indent}${listName} = (\n${indent}\t${itemLine}\n${rest}`;
+    });
+  }
+
+  const insertionPattern = /(^[ \t]*)productName = /m;
+  if (insertionPattern.test(objectText)) {
+    return objectText.replace(insertionPattern, (match, indent) => {
+      return `${indent}${listName} = (\n${indent}\t${itemLine}\n${indent});\n${match}`;
+    });
+  }
+
+  const objectEnd = `\n${objectIndent}};`;
+  const objectEndIndex = objectText.lastIndexOf(objectEnd);
+  if (objectEndIndex < 0) {
+    return objectText;
+  }
+
+  return `${objectText.slice(0, objectEndIndex)}\n${propertyIndent}${listName} = (\n${propertyIndent}\t${itemLine}\n${propertyIndent});${objectText.slice(objectEndIndex)}`;
+}
+
+function patchIosSwiftPackageRequirement(packageRefObject) {
+  const requirementBlock = `requirement = {
+\t\t\t\tkind = exactVersion;
+\t\t\t\tversion = ${sdkConfig.ios.packageVersion};
+\t\t\t};`;
+
+  if (/requirement = \{[\s\S]*?\n\t\t\t\};/.test(packageRefObject.text)) {
+    return packageRefObject.text.replace(/requirement = \{[\s\S]*?\n\t\t\t\};/, requirementBlock);
+  }
+
+  return packageRefObject.text.replace(
+    /^([ \t]*)repositoryURL = .*;$/m,
+    (match, indent) => `${match}\n${indent}${requirementBlock}`,
+  );
+}
+
+function patchIosXcodeProjectSwiftPackage(content) {
+  const packageName = getIosSwiftPackageName();
+  const packageComment = `XCRemoteSwiftPackageReference "${packageName}"`;
+  const packageProduct = sdkConfig.ios.packageProduct;
+  const packageUrlPattern = new RegExp(
+    `repositoryURL = "?${escapeRegExp(sdkConfig.ios.packageUrl)}"?;`,
+  );
+
+  const appTarget = findPbxObject(
+    content,
+    'PBXNativeTarget',
+    (object) =>
+      object.text.includes('isa = PBXNativeTarget;') &&
+      object.text.includes('productType = "com.apple.product-type.application";'),
+  );
+  if (!appTarget) {
+    return content;
+  }
+
+  const frameworksPhaseMatch = appTarget.text.match(/^\s*([A-Za-z0-9]{24}) \/\* Frameworks \*\/,\s*$/m);
+  if (!frameworksPhaseMatch) {
+    return content;
+  }
+  const frameworksPhaseId = frameworksPhaseMatch[1];
+
+  const projectObject = findPbxObject(
+    content,
+    'PBXProject',
+    (object) => object.text.includes('isa = PBXProject;'),
+  );
+  if (!projectObject) {
+    return content;
+  }
+
+  const existingPackageRef = findPbxObject(
+    content,
+    'XCRemoteSwiftPackageReference',
+    (object) => packageUrlPattern.test(object.text),
+  );
+  const packageRefId = existingPackageRef?.id || IOS_SPM_PACKAGE_REF_ID;
+  const packageRefEntry = `\t\t${packageRefId} /* ${packageComment} */ = {
+\t\t\tisa = XCRemoteSwiftPackageReference;
+\t\t\trepositoryURL = "${sdkConfig.ios.packageUrl}";
+\t\t\trequirement = {
+\t\t\t\tkind = exactVersion;
+\t\t\t\tversion = ${sdkConfig.ios.packageVersion};
+\t\t\t};
+\t\t};`;
+
+  let next = content;
+  if (existingPackageRef) {
+    const patchedPackageRef = patchIosSwiftPackageRequirement(existingPackageRef);
+    next = replacePbxObject(next, existingPackageRef, patchedPackageRef);
+  } else {
+    next = ensurePbxSectionEntry(
+      next,
+      'XCRemoteSwiftPackageReference',
+      packageRefEntry,
+      packageRefId,
+    );
+  }
+
+  const existingProduct = findPbxObject(
+    next,
+    'XCSwiftPackageProductDependency',
+    (object) => object.text.includes(`productName = ${packageProduct};`),
+  );
+  const productId = existingProduct?.id || IOS_SPM_PRODUCT_ID;
+  const productEntry = `\t\t${productId} /* ${packageProduct} */ = {
+\t\t\tisa = XCSwiftPackageProductDependency;
+\t\t\tpackage = ${packageRefId} /* ${packageComment} */;
+\t\t\tproductName = ${packageProduct};
+\t\t};`;
+
+  if (!existingProduct) {
+    next = ensurePbxSectionEntry(
+      next,
+      'XCSwiftPackageProductDependency',
+      productEntry,
+      productId,
+    );
+  }
+
+  const buildFile = findPbxObject(
+    next,
+    'PBXBuildFile',
+    (object) => object.text.includes(`productRef = ${productId} /* ${packageProduct} */;`),
+  );
+  const buildFileId = buildFile?.id || IOS_SPM_BUILD_FILE_ID;
+  const buildFileEntry = `\t\t${buildFileId} /* ${packageProduct} in Frameworks */ = {isa = PBXBuildFile; productRef = ${productId} /* ${packageProduct} */; };`;
+
+  if (!buildFile) {
+    next = ensurePbxSectionEntry(next, 'PBXBuildFile', buildFileEntry, buildFileId);
+  }
+
+  const patchedProjectObject = ensurePbxListItem(
+    findPbxObject(next, 'PBXProject', (object) => object.id === projectObject.id).text,
+    'packageReferences',
+    `${packageRefId} /* ${packageComment} */,`,
+  );
+  next = replacePbxObject(
+    next,
+    findPbxObject(next, 'PBXProject', (object) => object.id === projectObject.id),
+    patchedProjectObject,
+  );
+
+  const patchedTargetObject = ensurePbxListItem(
+    findPbxObject(next, 'PBXNativeTarget', (object) => object.id === appTarget.id).text,
+    'packageProductDependencies',
+    `${productId} /* ${packageProduct} */,`,
+  );
+  next = replacePbxObject(
+    next,
+    findPbxObject(next, 'PBXNativeTarget', (object) => object.id === appTarget.id),
+    patchedTargetObject,
+  );
+
+  const patchedFrameworksObject = ensurePbxListItem(
+    findPbxObject(next, 'PBXFrameworksBuildPhase', (object) => object.id === frameworksPhaseId).text,
+    'files',
+    `${buildFileId} /* ${packageProduct} in Frameworks */,`,
+  );
+  next = replacePbxObject(
+    next,
+    findPbxObject(next, 'PBXFrameworksBuildPhase', (object) => object.id === frameworksPhaseId),
+    patchedFrameworksObject,
+  );
+
+  return next;
+}
 
 function applyAndroidGradleDependencies(content) {
   const dependencyLines = sdkConfig.android.dependencies.map(
@@ -372,6 +640,64 @@ async function ensureIosCMakeRtcBridgeSources(nativeSourceDir) {
   }
 }
 
+async function findIosXcodeProjectFiles(rootDir) {
+  const searchRoots = [
+    rootDir,
+    path.join(rootDir, 'proj'),
+    path.join(rootDir, 'build', 'ios', 'proj'),
+  ];
+  const candidates = [];
+  const seenRoots = new Set();
+
+  for (const searchRoot of searchRoots) {
+    if (seenRoots.has(searchRoot)) {
+      continue;
+    }
+    seenRoots.add(searchRoot);
+
+    let entries;
+    try {
+      entries = await readdir(searchRoot, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(searchRoot, entry.name);
+      if (entry.isDirectory() && entry.name.endsWith('.xcodeproj')) {
+        candidates.push(path.join(fullPath, 'project.pbxproj'));
+      }
+    }
+  }
+
+  return [...new Set(candidates)];
+}
+
+async function ensureIosXcodeProjectSwiftPackage(rootDir) {
+  const pbxprojPaths = await findIosXcodeProjectFiles(rootDir);
+  const patchedPaths = [];
+
+  for (const pbxprojPath of pbxprojPaths) {
+    let original;
+    try {
+      original = await readFile(pbxprojPath, 'utf8');
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        continue;
+      }
+      throw error;
+    }
+
+    const patched = patchIosXcodeProjectSwiftPackage(original);
+    if (patched !== original) {
+      await writeFile(pbxprojPath, patched, 'utf8');
+      patchedPaths.push(pbxprojPath);
+    }
+  }
+
+  return patchedPaths;
+}
+
 function patchAndroidAppActivityBridgeAttachment(content) {
   let next = content;
 
@@ -615,6 +941,8 @@ async function integrateIosExport(rootDir) {
     await ensureIosCMakeRtcBridgeSources(nativeSourceDir);
     await ensureIosRtcUsageDescriptions(nativeSourceDir);
   }
+
+  await ensureIosXcodeProjectSwiftPackage(rootDir);
 }
 
 function resolveBuildDirectory(options = {}, result = {}) {
@@ -645,6 +973,16 @@ async function onAfterBuild(options = {}, result = {}) {
   }
 }
 
+async function onBeforeMake(rootDir, options = {}) {
+  const platform = String(
+    options.platform || options.actualPlatform || options.name || '',
+  ).toLowerCase();
+
+  if (platform === 'ios' || rootDir.includes('/ios')) {
+    await ensureIosXcodeProjectSwiftPackage(rootDir);
+  }
+}
+
 module.exports = {
   applyAndroidGradleDependencies,
   ensureAgoraLocalMavenRepository,
@@ -656,14 +994,17 @@ module.exports = {
   ensureAndroidAppActivityBridgeAttachment,
   ensureAndroidRtcPermissions,
   ensureIosRtcUsageDescriptions,
+  ensureIosXcodeProjectSwiftPackage,
   ensureIosCMakeRtcBridgeSources,
   ensureNativeEngineTextureBridge,
   ensureIosAppDelegateBridgeAttachment,
   onAfterBuild,
+  onBeforeMake,
   patchAndroidAppActivityBridgeAttachment,
   patchAndroidRtcPermissions,
   patchIosRtcUsageDescriptions,
   patchIosCMakeRtcBridgeSources,
+  patchIosXcodeProjectSwiftPackage,
   patchIosAppDelegateBridgeAttachment,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,
