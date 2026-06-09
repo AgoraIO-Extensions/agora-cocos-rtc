@@ -110,6 +110,7 @@ test('cocos api testcases accept native error evidence for platform-sensitive ca
     'video.beauty',
     'mixing.pause',
     'mixing.resume',
+    'mixing.position-value',
     'mixing.set-position',
     'effect.pause',
     'effect.resume',

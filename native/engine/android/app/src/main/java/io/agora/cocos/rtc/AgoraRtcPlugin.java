@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.cocos.lib.CocosHelper;
 import com.cocos.lib.GlobalObject;
@@ -45,6 +46,7 @@ public final class AgoraRtcPlugin {
     private static final String CALLBACK_EVENT = "agora:event";
     private static final String REQUEST_EVENT = "agora:request";
     private static final int RTC_PERMISSION_REQUEST_CODE = 9108;
+    private static final long NATIVE_QUERY_TIMEOUT_MS = 5000L;
     private static final String[] RTC_RUNTIME_PERMISSIONS = new String[] {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO
@@ -1273,14 +1275,22 @@ public final class AgoraRtcPlugin {
     }
 
     private void handleDestroy(String requestId) {
-        if (renderBackend != null) {
-            renderBackend.release();
-        }
-        if (rtcEngine != null) {
-            RtcEngine.destroy();
-            rtcEngine = null;
-        }
+        final AgoraRenderBackend backendToRelease = renderBackend;
+        final RtcEngine engineToDestroy = rtcEngine;
+        renderBackend = AgoraRenderBackendFactory.create(
+                renderBackendType,
+                this::dispatchEvent
+        );
+        rtcEngine = null;
         dispatchOk(requestId);
+        if (backendToRelease != null) {
+            CocosHelper.runOnGameThread(backendToRelease::release);
+        }
+        new Thread(() -> {
+            if (engineToDestroy != null) {
+                RtcEngine.destroy();
+            }
+        }).start();
     }
 
     private void handleSetVideoEncoderConfiguration(String requestId, JSONObject params) {
@@ -1444,15 +1454,43 @@ public final class AgoraRtcPlugin {
     }
 
     private void handleGetAudioMixingCurrentPosition(String requestId) {
-        if (rtcEngine == null) {
+        final RtcEngine engine = rtcEngine;
+        if (engine == null) {
             dispatchError(requestId, "RtcEngine is not initialized.");
             return;
         }
-        dispatchResponse(jsonObject(
-                "requestId", requestId,
-                "ok", true,
-                "result", rtcEngine.getAudioMixingCurrentPosition()
-        ));
+        final AtomicBoolean completed = new AtomicBoolean(false);
+        new Thread(() -> {
+            try {
+                int position = engine.getAudioMixingCurrentPosition();
+                if (!completed.compareAndSet(false, true)) {
+                    return;
+                }
+                dispatchResponse(jsonObject(
+                        "requestId", requestId,
+                        "ok", true,
+                        "result", position
+                ));
+            } catch (Exception error) {
+                if (completed.compareAndSet(false, true)) {
+                    dispatchNativeExceptionError(requestId, "getAudioMixingCurrentPosition", error);
+                }
+            }
+        }).start();
+        new Thread(() -> {
+            try {
+                Thread.sleep(NATIVE_QUERY_TIMEOUT_MS);
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+            }
+            if (completed.compareAndSet(false, true)) {
+                dispatchNativeMethodError(
+                        requestId,
+                        "getAudioMixingCurrentPosition",
+                        "Native request timed out in Android audio mixing query."
+                );
+            }
+        }).start();
     }
 
     private void handleSetAudioMixingPosition(String requestId, JSONObject params) {
@@ -1795,11 +1833,31 @@ public final class AgoraRtcPlugin {
     }
 
     private void dispatchNativeExceptionError(String requestId, Exception error) {
+        dispatchNativeExceptionError(requestId, "", error);
+    }
+
+    private void dispatchNativeExceptionError(String requestId, String method, Exception error) {
         String message = error.getMessage();
-        dispatchError(
+        dispatchNativeMethodError(
                 requestId,
+                method,
                 "Native request failed: " + (message != null ? message : error.getClass().getSimpleName())
         );
+    }
+
+    private void dispatchNativeMethodError(String requestId, String method, String message) {
+        dispatchResponse(jsonObject(
+                "requestId", requestId,
+                "ok", false,
+                "error", jsonObject(
+                        "code", "native_failure",
+                        "message", message,
+                        "details", jsonObject(
+                                "method", method,
+                                "platform", "android"
+                        )
+                )
+        ));
     }
 
     private void dispatchUnsupported(String requestId, String method) {

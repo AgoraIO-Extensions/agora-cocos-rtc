@@ -494,7 +494,7 @@ test('android bridge template wires supported advanced sdk methods to real Agora
   assert.match(bridgeContent, /rtcEngine\.pauseAudioMixing/);
   assert.match(bridgeContent, /rtcEngine\.resumeAudioMixing/);
   assert.match(bridgeContent, /rtcEngine\.stopAudioMixing/);
-  assert.match(bridgeContent, /rtcEngine\.getAudioMixingCurrentPosition/);
+  assert.match(bridgeContent, /engine\.getAudioMixingCurrentPosition/);
   assert.match(bridgeContent, /rtcEngine\.setAudioMixingPosition/);
   assert.match(bridgeContent, /rtcEngine\.adjustAudioMixingVolume/);
   assert.match(bridgeContent, /rtcEngine\.getAudioEffectManager\(\)/);
@@ -509,6 +509,47 @@ test('android bridge template wires supported advanced sdk methods to real Agora
   assert.match(bridgeContent, /onRemoteAudioStateChanged/);
   assert.match(bridgeContent, /dispatchEvent\("remoteAudioStateChanged"/);
   assert.match(bridgeContent, /rtcEngine\.setDefaultAudioRoutetoSpeakerphone/);
+});
+
+test('android bridge template keeps blocking rtc calls off the Cocos game thread', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  const handleDestroyMatch = bridgeContent.match(
+    /private void handleDestroy[\s\S]*?private void handleSetVideoEncoderConfiguration/,
+  );
+  assert.ok(handleDestroyMatch);
+  assertPatternBefore(
+    handleDestroyMatch[0],
+    /dispatchOk\(requestId\);/,
+    /RtcEngine\.destroy\(\)/,
+    'destroy must resolve the JS request before running the potentially blocking sdk teardown',
+  );
+  assert.match(handleDestroyMatch[0], /new Thread\(\(\) -> \{/);
+  assert.match(handleDestroyMatch[0], /engineToDestroy = rtcEngine/);
+  assert.match(handleDestroyMatch[0], /rtcEngine = null/);
+
+  const handleGetAudioMixingCurrentPositionMatch = bridgeContent.match(
+    /private void handleGetAudioMixingCurrentPosition[\s\S]*?private void handleSetAudioMixingPosition/,
+  );
+  assert.ok(handleGetAudioMixingCurrentPositionMatch);
+  assertPatternBefore(
+    handleGetAudioMixingCurrentPositionMatch[0],
+    /new Thread\(\(\) -> \{/,
+    /engine\.getAudioMixingCurrentPosition\(\)/,
+    'getAudioMixingCurrentPosition must run the sdk query away from the Cocos game thread',
+  );
+  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /final RtcEngine engine = rtcEngine/);
+  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /NATIVE_QUERY_TIMEOUT_MS/);
+  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /AtomicBoolean completed/);
+  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /dispatchNativeMethodError\(/);
+  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /dispatchResponse\(jsonObject\(/);
+  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /dispatchNativeExceptionError\(requestId, "getAudioMixingCurrentPosition", error\)/);
 });
 
 test('android bridge template returns errors for bad native requests instead of timing out', async () => {
