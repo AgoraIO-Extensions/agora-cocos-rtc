@@ -88,7 +88,17 @@ export interface AgoraVideoEncoderConfiguration {
   height: number;
   frameRate?: number;
   bitrate?: number;
+  minFrameRate?: number;
+  minBitrate?: number;
   orientationMode?: number;
+  mirrorMode?: number;
+  degradationPreference?: number;
+  codecType?: number;
+  advancedVideoOptions?: {
+    encodingPreference?: number;
+    compressionPreference?: number;
+    encodeAlpha?: boolean;
+  };
 }
 
 export interface AgoraBeautyOptions {
@@ -102,24 +112,81 @@ export interface AgoraBeautyOptions {
 export interface AgoraContentInspectConfig {
   module?: number;
   interval?: number;
+  extraInfo?: string;
+  serverConfig?: string;
+  modules?: Array<{
+    type?: number;
+    interval?: number;
+    position?: number;
+  }>;
 }
 
 export type AgoraClientRole = 'broadcaster' | 'audience';
+
+export interface AgoraClientRoleOptions {
+  audienceLatencyLevel?: number;
+}
 
 export type AgoraChannelProfile =
   | 'communication'
   | 'liveBroadcasting';
 
+export interface AgoraRtcEngineConfig {
+  appId: string;
+  areaCode?: number;
+  channelProfile?: number;
+  license?: string;
+  audioScenario?: number;
+  autoRegisterAgoraExtensions?: boolean;
+  domainLimit?: boolean;
+  threadPriority?: number;
+  nativeLibPath?: string;
+  extensions?: string[];
+  logConfig?: {
+    filePath?: string;
+    fileSizeInKB?: number;
+    level?: number;
+  };
+}
+
 export interface AgoraChannelMediaOptions {
   clientRoleType?: AgoraClientRole | number;
   channelProfile?: AgoraChannelProfile | number;
   publishCameraTrack?: boolean;
+  publishSecondaryCameraTrack?: boolean;
+  publishThirdCameraTrack?: boolean;
+  publishFourthCameraTrack?: boolean;
   publishMicrophoneTrack?: boolean;
+  publishScreenCaptureVideo?: boolean;
+  publishScreenCaptureAudio?: boolean;
+  publishCustomAudioTrack?: boolean;
+  publishCustomAudioTrackId?: number;
+  publishCustomVideoTrack?: boolean;
+  publishEncodedVideoTrack?: boolean;
+  publishMediaPlayerAudioTrack?: boolean;
+  publishMediaPlayerVideoTrack?: boolean;
+  publishTranscodedVideoTrack?: boolean;
+  publishMixedAudioTrack?: boolean;
+  publishLipSyncTrack?: boolean;
   autoSubscribeAudio?: boolean;
   autoSubscribeVideo?: boolean;
   enableAudioRecordingOrPlayout?: boolean;
+  publishMediaPlayerId?: number;
+  audienceLatencyLevel?: number;
+  defaultVideoStreamType?: number;
+  audioDelayMs?: number;
+  mediaPlayerAudioDelayMs?: number;
   /** Android ChannelMediaOptions only. iOS exposes preview through startPreview(). */
   startPreview?: boolean;
+  enableBuiltInMediaEncryption?: boolean;
+  publishRhythmPlayerTrack?: boolean;
+  isInteractiveAudience?: boolean;
+  customVideoTrackId?: number;
+  isAudioFilterable?: boolean;
+  enableMultipath?: boolean;
+  uplinkMultipathMode?: number;
+  downlinkMultipathMode?: number;
+  preferMultipathType?: number;
   token?: string;
   parameters?: string;
 }
@@ -173,6 +240,7 @@ export interface AgoraEventMap {
   joinChannelSuccess: {
     channelId: string;
     uid: number;
+    elapsed: number;
   };
   leaveChannel: {
     duration: number;
@@ -205,20 +273,6 @@ export interface AgoraEventMap {
     uid: number;
     slotId: number;
   };
-  localVideoFrame: {
-    uid: number;
-    width: number;
-    height: number;
-    format: 'rgba8888';
-    dataBase64: string;
-  };
-  remoteVideoFrame: {
-    uid: number;
-    width: number;
-    height: number;
-    format: 'rgba8888';
-    dataBase64: string;
-  };
   renderBackendState: {
     backend: string;
     phase: string;
@@ -227,6 +281,7 @@ export interface AgoraEventMap {
   };
   userJoined: {
     uid: number;
+    elapsed: number;
   };
   userOffline: {
     uid: number;
@@ -272,9 +327,25 @@ export interface AgoraEventMap {
     rxBytes?: number;
     txKBitRate?: number;
     rxKBitRate?: number;
+    txAudioBytes?: number;
+    rxAudioBytes?: number;
+    txVideoBytes?: number;
+    rxVideoBytes?: number;
+    txAudioKBitRate?: number;
+    rxAudioKBitRate?: number;
+    txVideoKBitRate?: number;
+    rxVideoKBitRate?: number;
+    lastmileDelay?: number;
+    cpuTotalUsage?: number;
+    gatewayRtt?: number;
+    cpuAppUsage?: number;
     users?: number;
+    connectTimeMs?: number;
     txPacketLossRate?: number;
     rxPacketLossRate?: number;
+    memoryAppUsageRatio?: number;
+    memoryTotalUsageRatio?: number;
+    memoryAppUsageInKbytes?: number;
   };
   contentInspectResult: {
     result: number;

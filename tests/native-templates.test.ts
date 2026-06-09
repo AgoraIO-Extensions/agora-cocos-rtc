@@ -313,6 +313,32 @@ test('android bridge template maps joinChannel media options from request payloa
   assert.match(bridgeContent, /options\.publishMicrophoneTrack = optNullableBoolean\(mediaOptions, "publishMicrophoneTrack"\)/);
   assert.match(bridgeContent, /options\.autoSubscribeAudio = optNullableBoolean\(mediaOptions, "autoSubscribeAudio"\)/);
   assert.match(bridgeContent, /options\.autoSubscribeVideo = optNullableBoolean\(mediaOptions, "autoSubscribeVideo"\)/);
+  assert.match(bridgeContent, /options\.publishSecondaryCameraTrack = optNullableBoolean\(mediaOptions, "publishSecondaryCameraTrack"\)/);
+  assert.match(bridgeContent, /options\.publishScreenCaptureVideo = optNullableBoolean\(mediaOptions, "publishScreenCaptureVideo"\)/);
+  assert.match(bridgeContent, /options\.publishScreenCaptureAudio = optNullableBoolean\(mediaOptions, "publishScreenCaptureAudio"\)/);
+  assert.match(bridgeContent, /options\.publishCustomAudioTrack = optNullableBoolean\(mediaOptions, "publishCustomAudioTrack"\)/);
+  assert.match(bridgeContent, /options\.publishCustomAudioTrackId = optNullableInteger\(mediaOptions, "publishCustomAudioTrackId"\)/);
+  assert.match(bridgeContent, /options\.publishCustomVideoTrack = optNullableBoolean\(mediaOptions, "publishCustomVideoTrack"\)/);
+  assert.match(bridgeContent, /options\.publishEncodedVideoTrack = optNullableBoolean\(mediaOptions, "publishEncodedVideoTrack"\)/);
+  assert.match(bridgeContent, /options\.publishMediaPlayerAudioTrack = optNullableBoolean\(mediaOptions, "publishMediaPlayerAudioTrack"\)/);
+  assert.match(bridgeContent, /options\.publishMediaPlayerVideoTrack = optNullableBoolean\(mediaOptions, "publishMediaPlayerVideoTrack"\)/);
+  assert.match(bridgeContent, /options\.publishTranscodedVideoTrack = optNullableBoolean\(mediaOptions, "publishTranscodedVideoTrack"\)/);
+  assert.match(bridgeContent, /options\.publishMixedAudioTrack = optNullableBoolean\(mediaOptions, "publishMixedAudioTrack"\)/);
+  assert.match(bridgeContent, /options\.publishLipSyncTrack = optNullableBoolean\(mediaOptions, "publishLipSyncTrack"\)/);
+  assert.match(bridgeContent, /options\.publishMediaPlayerId = optNullableInteger\(mediaOptions, "publishMediaPlayerId"\)/);
+  assert.match(bridgeContent, /options\.audienceLatencyLevel = optNullableInteger\(mediaOptions, "audienceLatencyLevel"\)/);
+  assert.match(bridgeContent, /options\.defaultVideoStreamType = optNullableInteger\(mediaOptions, "defaultVideoStreamType"\)/);
+  assert.match(bridgeContent, /options\.audioDelayMs = optNullableInteger\(mediaOptions, "audioDelayMs"\)/);
+  assert.match(bridgeContent, /options\.mediaPlayerAudioDelayMs = optNullableInteger\(mediaOptions, "mediaPlayerAudioDelayMs"\)/);
+  assert.match(bridgeContent, /options\.enableBuiltInMediaEncryption = optNullableBoolean\(mediaOptions, "enableBuiltInMediaEncryption"\)/);
+  assert.match(bridgeContent, /options\.publishRhythmPlayerTrack = optNullableBoolean\(mediaOptions, "publishRhythmPlayerTrack"\)/);
+  assert.match(bridgeContent, /options\.isInteractiveAudience = optNullableBoolean\(mediaOptions, "isInteractiveAudience"\)/);
+  assert.match(bridgeContent, /options\.customVideoTrackId = optNullableInteger\(mediaOptions, "customVideoTrackId"\)/);
+  assert.match(bridgeContent, /options\.isAudioFilterable = optNullableBoolean\(mediaOptions, "isAudioFilterable"\)/);
+  assert.match(bridgeContent, /options\.enableMultipath = optNullableBoolean\(mediaOptions, "enableMultipath"\)/);
+  assert.match(bridgeContent, /options\.uplinkMultipathMode = optNullableInteger\(mediaOptions, "uplinkMultipathMode"\)/);
+  assert.match(bridgeContent, /options\.downlinkMultipathMode = optNullableInteger\(mediaOptions, "downlinkMultipathMode"\)/);
+  assert.match(bridgeContent, /options\.preferMultipathType = optNullableInteger\(mediaOptions, "preferMultipathType"\)/);
 });
 
 test('android bridge template requests rtc runtime permissions before camera and microphone use', async () => {
@@ -384,9 +410,16 @@ test('android bridge template dispatches expanded native rtc callbacks as js eve
 
   assert.match(bridgeContent, /onLeaveChannel/);
   assert.match(bridgeContent, /dispatchEvent\("leaveChannel"/);
-  assert.match(bridgeContent, /stats != null \? stats\.totalDuration : 0/);
+  assert.match(bridgeContent, /toRtcStatsPayload\(stats\)/);
+  assert.match(bridgeContent, /"txAudioBytes", stats != null \? stats\.txAudioBytes : 0/);
+  assert.match(bridgeContent, /"memoryAppUsageInKbytes", stats != null \? stats\.memoryAppUsageInKbytes : 0/);
   assert.match(bridgeContent, /onRtcStats/);
   assert.match(bridgeContent, /dispatchEvent\("rtcStats"/);
+  assert.match(bridgeContent, /onWarning\(int warn\)/);
+  assert.match(bridgeContent, /dispatchEvent\("warning"/);
+  assert.match(bridgeContent, /onError\(int err\)/);
+  assert.match(bridgeContent, /dispatchEvent\("error"/);
+  assert.match(bridgeContent, /"elapsed", elapsed/);
   assert.match(bridgeContent, /onRejoinChannelSuccess/);
   assert.match(bridgeContent, /dispatchEvent\("rejoinChannelSuccess"/);
   assert.match(bridgeContent, /onConnectionInterrupted/);
@@ -405,6 +438,65 @@ test('android bridge template dispatches expanded native rtc callbacks as js eve
   assert.match(bridgeContent, /dispatchEvent\("contentInspectResult"/);
   assert.match(bridgeContent, /onAudioVolumeIndication/);
   assert.match(bridgeContent, /dispatchEvent\("volumeIndication"/);
+});
+
+test('android bridge template maps expanded config objects and reliable results', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /import io\.agora\.rtc2\.RtcEngineConfig;/);
+  assert.match(bridgeContent, /RtcEngine\.create\(config\)/);
+  assert.match(bridgeContent, /config\.mAreaCode = params\.optInt\("areaCode", config\.mAreaCode\)/);
+  assert.match(bridgeContent, /config\.mLogConfig = logConfig/);
+  assert.match(bridgeContent, /config\.addExtension\(extensions\.optString\(index\)\)/);
+
+  const clientRoleMatch = bridgeContent.match(
+    /private void handleSetClientRole[\s\S]*?private void handleSetRenderBackend/,
+  );
+  assert.ok(clientRoleMatch);
+  assert.match(clientRoleMatch[0], /ClientRoleOptions options = buildClientRoleOptions/);
+  assert.match(clientRoleMatch[0], /rtcEngine\.setClientRole\(agoraRole, options\)/);
+
+  const audioMatch = bridgeContent.match(
+    /private void handleEnableLocalAudio[\s\S]*?private void handleMuteLocalAudioStream/,
+  );
+  assert.ok(audioMatch);
+  assert.match(audioMatch[0], /RtcEngine is not initialized\./);
+  assert.match(audioMatch[0], /int result = rtcEngine\.enableLocalAudio/);
+  assert.match(audioMatch[0], /dispatchAgoraError\(requestId, "enableLocalAudio", result\)/);
+
+  const videoMatch = bridgeContent.match(
+    /private void handleEnableLocalVideo[\s\S]*?private void handleMuteLocalVideoStream/,
+  );
+  assert.ok(videoMatch);
+  assert.match(videoMatch[0], /RtcEngine is not initialized\./);
+  assert.match(videoMatch[0], /int result = rtcEngine\.enableLocalVideo/);
+  assert.match(videoMatch[0], /dispatchAgoraError\(requestId, "enableLocalVideo", result\)/);
+
+  const encoderMatch = bridgeContent.match(
+    /private void handleSetVideoEncoderConfiguration[\s\S]*?private void handleSetBeautyEffectOptions/,
+  );
+  assert.ok(encoderMatch);
+  assert.match(encoderMatch[0], /configuration\.minFrameRate = params\.optInt\("minFrameRate"/);
+  assert.match(encoderMatch[0], /configuration\.minBitrate = params\.optInt\("minBitrate"/);
+  assert.match(encoderMatch[0], /configuration\.mirrorMode = mapMirrorMode/);
+  assert.match(encoderMatch[0], /configuration\.degradationPrefer = mapDegradationPreference/);
+  assert.match(encoderMatch[0], /configuration\.codecType = mapVideoCodecType/);
+  assert.match(encoderMatch[0], /configuration\.advanceOptions = buildAdvancedVideoOptions/);
+
+  const inspectMatch = bridgeContent.match(
+    /private void handleEnableContentInspect[\s\S]*?private void handleStartAudioMixing/,
+  );
+  assert.ok(inspectMatch);
+  assert.match(inspectMatch[0], /inspectConfig\.extraInfo = config\.optString\("extraInfo"/);
+  assert.match(inspectMatch[0], /inspectConfig\.serverConfig = config\.optString\("serverConfig"/);
+  assert.match(inspectMatch[0], /JSONArray modules = config\.optJSONArray\("modules"\)/);
+  assert.match(inspectMatch[0], /inspectConfig\.moduleCount = inspectConfig\.modules\.length/);
 });
 
 test('ios bridge template dispatches expanded sdk methods or explicit unsupported responses', async () => {
@@ -537,7 +629,92 @@ test('ios bridge template maps joinChannel media options from request payload', 
   assert.match(bridgeContent, /options\.publishMicrophoneTrack = value/);
   assert.match(bridgeContent, /options\.autoSubscribeAudio = value/);
   assert.match(bridgeContent, /options\.autoSubscribeVideo = value/);
-  assert.doesNotMatch(handleJoinChannel, /options\.startPreview = value/);
+  assert.match(bridgeContent, /options\.publishScreenCaptureVideo = value/);
+  assert.match(bridgeContent, /options\.publishScreenCaptureAudio = value/);
+  assert.match(bridgeContent, /options\.publishCustomAudioTrack = value/);
+  assert.match(bridgeContent, /options\.publishCustomAudioTrackId = value/);
+  assert.match(bridgeContent, /options\.publishCustomVideoTrack = value/);
+  assert.match(bridgeContent, /options\.publishEncodedVideoTrack = value/);
+  assert.match(bridgeContent, /options\.publishMediaPlayerAudioTrack = value/);
+  assert.match(bridgeContent, /options\.publishMediaPlayerVideoTrack = value/);
+  assert.match(bridgeContent, /options\.publishTranscodedVideoTrack = value/);
+  assert.match(bridgeContent, /options\.publishMixedAudioTrack = value/);
+  assert.match(bridgeContent, /options\.publishLipSyncTrack = value/);
+  assert.match(bridgeContent, /options\.publishMediaPlayerId = value/);
+  assert.match(bridgeContent, /options\.audienceLatencyLevel = parseAudienceLatencyLevel/);
+  assert.match(bridgeContent, /options\.defaultVideoStreamType = parseVideoStreamType/);
+  assert.match(bridgeContent, /options\.audioDelayMs = value/);
+  assert.match(bridgeContent, /options\.mediaPlayerAudioDelayMs = value/);
+  assert.match(bridgeContent, /options\.enableBuiltInMediaEncryption = value/);
+  assert.match(bridgeContent, /options\.publishRhythmPlayerTrack = value/);
+  assert.match(bridgeContent, /options\.isInteractiveAudience = value/);
+  assert.match(bridgeContent, /options\.customVideoTrackId = value/);
+  assert.match(bridgeContent, /options\.isAudioFilterable = value/);
+  assert.match(bridgeContent, /if let value = params\["startPreview"\] as\? Bool/);
+  assert.match(handleJoinChannel, /if mediaOptionBool\(mediaOptionParams, key: "startPreview", defaultValue: false\)[\s\S]*engine\.startPreview\(\)/);
+});
+
+test('ios bridge template maps expanded configs and callbacks', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /AgoraRtcEngineConfig\(\)/);
+  assert.match(bridgeContent, /sharedEngine\(with: config, delegate: self\)/);
+  assert.match(bridgeContent, /config\.areaCode = AgoraAreaCodeType\(rawValue:/);
+  assert.match(bridgeContent, /config\.logConfig = logConfig/);
+
+  const clientRoleMatch = bridgeContent.match(
+    /case "setClientRole":[\s\S]*?case "joinChannel":/,
+  );
+  assert.ok(clientRoleMatch);
+  assert.match(clientRoleMatch[0], /let options = buildClientRoleOptions/);
+  assert.match(clientRoleMatch[0], /engine\.setClientRole\(agoraRole, options: options\)/);
+
+  const audioProfileMatch = bridgeContent.match(
+    /case "setAudioProfile":[\s\S]*?case "adjustPlaybackSignalVolume":/,
+  );
+  assert.ok(audioProfileMatch);
+  assert.match(audioProfileMatch[0], /let scenario = AgoraAudioScenario\(rawValue: scenarioValue\)/);
+  assert.match(audioProfileMatch[0], /engine\.setAudioProfile\(profile, scenario: scenario\)/);
+
+  const encoderMatch = bridgeContent.match(
+    /case "setVideoEncoderConfiguration":[\s\S]*?case "setBeautyEffectOptions":/,
+  );
+  assert.ok(encoderMatch);
+  assert.match(encoderMatch[0], /mirrorModeValue/);
+  assert.match(encoderMatch[0], /config\.minBitrate = params\["minBitrate"\]/);
+  assert.match(encoderMatch[0], /config\.degradationPreference = degradationPreference/);
+  assert.match(encoderMatch[0], /config\.codecType = codecType/);
+  assert.match(encoderMatch[0], /config\.advancedVideoOptions = advancedVideoOptions/);
+
+  const inspectMatch = bridgeContent.match(
+    /case "enableContentInspect":[\s\S]*?case "setNativeVideoOverlaySuspended":/,
+  );
+  assert.ok(inspectMatch);
+  assert.match(inspectMatch[0], /config\.extraInfo = extraInfo/);
+  assert.match(inspectMatch[0], /config\.serverConfig = serverConfig/);
+  assert.match(inspectMatch[0], /config\.modules = buildContentInspectModules/);
+
+  assert.match(bridgeContent, /didOccurWarning warningCode/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "warning"/);
+  assert.match(bridgeContent, /firstLocalAudioFramePublished elapsed/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "firstLocalAudioFramePublished"/);
+  assert.match(bridgeContent, /contentInspectResult result/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "contentInspectResult"/);
+  assert.match(bridgeContent, /localVideoStateChangedOf state/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "localVideoStateChanged"/);
+  assert.match(bridgeContent, /"elapsed": elapsed/);
+  assert.match(bridgeContent, /private func channelStatsPayload/);
+  assert.match(bridgeContent, /"txAudioBytes": stats\.txAudioBytes/);
+  assert.match(bridgeContent, /"memoryAppUsageInKbytes": stats\.memoryAppUsageInKbytes/);
+
+  const playEffectMatch = bridgeContent.match(
+    /case "playEffect":[\s\S]*?case "stopEffect":/,
+  );
+  assert.ok(playEffectMatch);
+  assert.match(playEffectMatch[0], /let gain = params\["gain"\] as\? Double \?\? 100\.0/);
 });
 
 test('ios bridge template rejects unsafe invalid arguments before calling the rtc sdk', async () => {
@@ -977,6 +1154,7 @@ public class JSONObject {
     public String optString(String key) { return ""; }
     public String optString(String key, String defaultValue) { return defaultValue; }
     public JSONObject optJSONObject(String key) { return null; }
+    public JSONArray optJSONArray(String key) { return null; }
     public int optInt(String key) { return 0; }
     public int optInt(String key, int defaultValue) { return defaultValue; }
     public double optDouble(String key, double defaultValue) { return defaultValue; }
@@ -994,6 +1172,9 @@ public class JSONObject {
 
 public class JSONArray {
     public JSONArray put(Object value) { return this; }
+    public int length() { return 0; }
+    public JSONObject optJSONObject(int index) { return null; }
+    public String optString(int index) { return ""; }
 }
 `,
     'utf8',
@@ -1359,12 +1540,29 @@ public class IRtcEngineEventHandler {
         public int txBytes;
         public int rxBytes;
         public int txKBitRate;
+        public int txAudioBytes;
+        public int rxAudioBytes;
+        public int txVideoBytes;
+        public int rxVideoBytes;
         public int rxKBitRate;
+        public int txAudioKBitRate;
+        public int rxAudioKBitRate;
+        public int txVideoKBitRate;
+        public int rxVideoKBitRate;
+        public int lastmileDelay;
+        public int cpuTotalUsage;
+        public int gatewayRtt;
+        public int cpuAppUsage;
         public int users;
+        public int connectTimeMs;
         public int txPacketLossRate;
         public int rxPacketLossRate;
+        public int memoryAppUsageRatio;
+        public int memoryTotalUsageRatio;
+        public int memoryAppUsageInKbytes;
     }
 
+    public void onWarning(int code) {}
     public void onError(int code) {}
     public void onJoinChannelSuccess(String channel, int uid, int elapsed) {}
     public void onUserJoined(int uid, int elapsed) {}
@@ -1395,11 +1593,39 @@ public class ChannelMediaOptions {
     public Integer clientRoleType;
     public Integer channelProfile;
     public Boolean publishCameraTrack;
+    public Boolean publishSecondaryCameraTrack;
+    public Boolean publishThirdCameraTrack;
+    public Boolean publishFourthCameraTrack;
     public Boolean publishMicrophoneTrack;
+    public Boolean publishScreenCaptureVideo;
+    public Boolean publishScreenCaptureAudio;
+    public Boolean publishCustomAudioTrack;
+    public Integer publishCustomAudioTrackId;
+    public Boolean publishCustomVideoTrack;
+    public Boolean publishEncodedVideoTrack;
+    public Boolean publishMediaPlayerAudioTrack;
+    public Boolean publishMediaPlayerVideoTrack;
+    public Boolean publishTranscodedVideoTrack;
+    public Boolean publishMixedAudioTrack;
+    public Boolean publishLipSyncTrack;
     public Boolean autoSubscribeAudio;
     public Boolean autoSubscribeVideo;
     public Boolean enableAudioRecordingOrPlayout;
+    public Integer publishMediaPlayerId;
+    public Integer audienceLatencyLevel;
+    public Integer defaultVideoStreamType;
+    public Integer audioDelayMs;
+    public Integer mediaPlayerAudioDelayMs;
+    public Boolean enableBuiltInMediaEncryption;
+    public Boolean publishRhythmPlayerTrack;
+    public Boolean isInteractiveAudience;
+    public Integer customVideoTrackId;
+    public Boolean isAudioFilterable;
     public Boolean startPreview;
+    public Boolean enableMultipath;
+    public Integer uplinkMultipathMode;
+    public Integer downlinkMultipathMode;
+    public Integer preferMultipathType;
     public String token;
     public String parameters;
 }
@@ -1434,6 +1660,49 @@ public class Constants {
   await mkdir(path.join(srcRoot, 'io/agora/rtc2/video'), { recursive: true });
 
   await writeFile(
+    path.join(srcRoot, 'io/agora/rtc2/ClientRoleOptions.java'),
+    `package io.agora.rtc2;
+
+public class ClientRoleOptions {
+    public int audienceLatencyLevel;
+}
+`,
+    'utf8',
+  );
+
+  await writeFile(
+    path.join(srcRoot, 'io/agora/rtc2/RtcEngineConfig.java'),
+    `package io.agora.rtc2;
+
+import android.content.Context;
+
+public class RtcEngineConfig {
+    public IRtcEngineEventHandler mEventHandler;
+    public Context mContext;
+    public String mAppId;
+    public int mAreaCode;
+    public int mChannelProfile;
+    public String mLicense;
+    public int mAudioScenario;
+    public boolean mAutoRegisterAgoraExtensions;
+    public LogConfig mLogConfig;
+    public Integer mThreadPriority;
+    public String mNativeLibPath;
+    public boolean mDomainLimit;
+
+    public void addExtension(String extensionName) {}
+
+    public static class LogConfig {
+        public String filePath;
+        public int fileSizeInKB;
+        public int level;
+    }
+}
+`,
+    'utf8',
+  );
+
+  await writeFile(
     path.join(srcRoot, 'io/agora/rtc2/video/BeautyOptions.java'),
     `package io.agora.rtc2.video;
 
@@ -1457,6 +1726,8 @@ import io.agora.rtc2.Constants;
 
 public class ContentInspectConfig {
     public static final int CONTENT_INSPECT_TYPE_MODERATION = 1;
+    public String extraInfo;
+    public String serverConfig;
     public ContentInspectModule[] modules;
     public int moduleCount;
 
@@ -1477,8 +1748,14 @@ public class ContentInspectConfig {
 public class VideoEncoderConfiguration {
     public VideoDimensions dimensions;
     public int frameRate;
+    public int minFrameRate;
     public int bitrate;
+    public int minBitrate;
     public ORIENTATION_MODE orientationMode;
+    public DEGRADATION_PREFERENCE degradationPrefer;
+    public MIRROR_MODE_TYPE mirrorMode;
+    public AdvanceOptions advanceOptions;
+    public VIDEO_CODEC_TYPE codecType;
 
     public static class VideoDimensions {
         public int width;
@@ -1494,6 +1771,48 @@ public class VideoEncoderConfiguration {
         ORIENTATION_MODE_ADAPTIVE,
         ORIENTATION_MODE_FIXED_LANDSCAPE,
         ORIENTATION_MODE_FIXED_PORTRAIT
+    }
+
+    public enum MIRROR_MODE_TYPE {
+        MIRROR_MODE_AUTO,
+        MIRROR_MODE_ENABLED,
+        MIRROR_MODE_DISABLED
+    }
+
+    public enum DEGRADATION_PREFERENCE {
+        MAINTAIN_AUTO,
+        MAINTAIN_QUALITY,
+        MAINTAIN_FRAMERATE,
+        MAINTAIN_BALANCED,
+        MAINTAIN_RESOLUTION,
+        DISABLED
+    }
+
+    public enum VIDEO_CODEC_TYPE {
+        VIDEO_CODEC_NONE,
+        VIDEO_CODEC_VP8,
+        VIDEO_CODEC_H264,
+        VIDEO_CODEC_H265,
+        VIDEO_CODEC_AV1,
+        VIDEO_CODEC_VP9
+    }
+
+    public enum ENCODING_PREFERENCE {
+        PREFER_AUTO,
+        PREFER_SOFTWARE,
+        PREFER_HARDWARE
+    }
+
+    public enum COMPRESSION_PREFERENCE {
+        PREFER_COMPRESSION_AUTO,
+        PREFER_LOW_LATENCY,
+        PREFER_QUALITY
+    }
+
+    public static class AdvanceOptions {
+        public ENCODING_PREFERENCE encodingPreference;
+        public COMPRESSION_PREFERENCE compressionPreference;
+        public boolean encodeAlpha;
     }
 }
 `,
@@ -1573,12 +1892,17 @@ public class RtcEngine {
         return new RtcEngine();
     }
 
+    public static RtcEngine create(RtcEngineConfig config) throws Exception {
+        return new RtcEngine();
+    }
+
     public static void destroy() {}
 
     public int setLogFilter(int level) { return 0; }
     public int setLogFile(String path) { return 0; }
     public int setChannelProfile(int profile) { return 0; }
     public int setClientRole(int role) { return 0; }
+    public int setClientRole(int role, ClientRoleOptions options) { return 0; }
     public void setupLocalVideo(VideoCanvas canvas) {}
     public void setupRemoteVideo(VideoCanvas canvas) {}
     public int joinChannel(String token, String channelId, int uid, ChannelMediaOptions options) { return 0; }
@@ -1598,8 +1922,8 @@ public class RtcEngine {
     public int adjustUserPlaybackSignalVolume(int uid, int volume) { return 0; }
     public int enableVideo() { return 0; }
     public int disableVideo() { return 0; }
-    public void enableLocalAudio(boolean enabled) {}
-    public void enableLocalVideo(boolean enabled) {}
+    public int enableLocalAudio(boolean enabled) { return 0; }
+    public int enableLocalVideo(boolean enabled) { return 0; }
     public int muteLocalVideoStream(boolean muted) { return 0; }
     public int muteRemoteVideoStream(int uid, boolean muted) { return 0; }
     public int muteAllRemoteVideoStreams(boolean muted) { return 0; }
@@ -1670,6 +1994,8 @@ public class RtcEngine {
     path.join(srcRoot, 'io/agora/base/VideoFrame.java'),
     path.join(srcRoot, 'io/agora/rtc2/IRtcEngineEventHandler.java'),
     path.join(srcRoot, 'io/agora/rtc2/ChannelMediaOptions.java'),
+    path.join(srcRoot, 'io/agora/rtc2/ClientRoleOptions.java'),
+    path.join(srcRoot, 'io/agora/rtc2/RtcEngineConfig.java'),
     path.join(srcRoot, 'io/agora/rtc2/IAudioEffectManager.java'),
     path.join(srcRoot, 'io/agora/rtc2/Constants.java'),
     path.join(srcRoot, 'io/agora/rtc2/video/BeautyOptions.java'),

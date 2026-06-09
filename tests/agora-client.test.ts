@@ -100,6 +100,55 @@ test('initialize sends a native bridge request and resolves on matching response
   await pending;
 });
 
+test('initialize can dispatch native engine config options', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.initialize({
+    appId: 'test-app-id',
+    areaCode: 2,
+    channelProfile: 1,
+    license: 'license-key',
+    audioScenario: 3,
+    autoRegisterAgoraExtensions: false,
+    domainLimit: true,
+    threadPriority: 1,
+    nativeLibPath: '/sdk/lib',
+    extensions: ['agora_ai_noise_suppression'],
+    logConfig: {
+      filePath: '/tmp/agora.log',
+      fileSizeInKB: 2048,
+      level: 1,
+    },
+  });
+
+  const request = JSON.parse(transport.sent[0].payload);
+  assert.equal(request.method, 'initialize');
+  assert.deepEqual(request.params, {
+    appId: 'test-app-id',
+    areaCode: 2,
+    channelProfile: 1,
+    license: 'license-key',
+    audioScenario: 3,
+    autoRegisterAgoraExtensions: false,
+    domainLimit: true,
+    threadPriority: 1,
+    nativeLibPath: '/sdk/lib',
+    extensions: ['agora_ai_noise_suppression'],
+    logConfig: {
+      filePath: '/tmp/agora.log',
+      fileSizeInKB: 2048,
+      level: 1,
+    },
+  });
+
+  transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true }));
+  await pending;
+});
+
 test('client surfaces native rtc events to subscribed listeners', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -138,7 +187,7 @@ test('client surfaces expanded native rtc callback events to subscribed listener
     states.push(`${payload.state}:${payload.reason}`);
   });
   client.on('rtcStats', (payload) => {
-    stats.push(`${payload.duration}:${payload.users}`);
+    stats.push(`${payload.duration}:${payload.users}:${payload.txAudioBytes}`);
   });
 
   transport.emit(
@@ -159,12 +208,13 @@ test('client surfaces expanded native rtc callback events to subscribed listener
       payload: {
         duration: 12,
         users: 2,
+        txAudioBytes: 34,
       },
     }),
   );
 
   assert.deepEqual(states, ['710:0']);
-  assert.deepEqual(stats, ['12:2']);
+  assert.deepEqual(stats, ['12:2:34']);
 });
 
 test('client surfaces warning and volume indication events to subscribed listeners', async () => {
@@ -309,6 +359,32 @@ test('joinChannel dispatches optional channel media options from TypeScript', as
     autoSubscribeVideo: true,
     enableAudioRecordingOrPlayout: true,
     startPreview: true,
+    publishSecondaryCameraTrack: true,
+    publishScreenCaptureVideo: true,
+    publishScreenCaptureAudio: true,
+    publishCustomAudioTrack: true,
+    publishCustomAudioTrackId: 3,
+    publishCustomVideoTrack: true,
+    publishEncodedVideoTrack: true,
+    publishMediaPlayerAudioTrack: true,
+    publishMediaPlayerVideoTrack: true,
+    publishTranscodedVideoTrack: true,
+    publishMixedAudioTrack: true,
+    publishLipSyncTrack: true,
+    publishMediaPlayerId: 5,
+    audienceLatencyLevel: 1,
+    defaultVideoStreamType: 0,
+    audioDelayMs: 50,
+    mediaPlayerAudioDelayMs: 60,
+    enableBuiltInMediaEncryption: true,
+    publishRhythmPlayerTrack: true,
+    isInteractiveAudience: true,
+    customVideoTrackId: 7,
+    isAudioFilterable: false,
+    enableMultipath: true,
+    uplinkMultipathMode: 1,
+    downlinkMultipathMode: 2,
+    preferMultipathType: 3,
     token: 'override-token',
     parameters: '{"rtc.video.enabled":true}',
   });
@@ -328,6 +404,32 @@ test('joinChannel dispatches optional channel media options from TypeScript', as
       autoSubscribeVideo: true,
       enableAudioRecordingOrPlayout: true,
       startPreview: true,
+      publishSecondaryCameraTrack: true,
+      publishScreenCaptureVideo: true,
+      publishScreenCaptureAudio: true,
+      publishCustomAudioTrack: true,
+      publishCustomAudioTrackId: 3,
+      publishCustomVideoTrack: true,
+      publishEncodedVideoTrack: true,
+      publishMediaPlayerAudioTrack: true,
+      publishMediaPlayerVideoTrack: true,
+      publishTranscodedVideoTrack: true,
+      publishMixedAudioTrack: true,
+      publishLipSyncTrack: true,
+      publishMediaPlayerId: 5,
+      audienceLatencyLevel: 1,
+      defaultVideoStreamType: 0,
+      audioDelayMs: 50,
+      mediaPlayerAudioDelayMs: 60,
+      enableBuiltInMediaEncryption: true,
+      publishRhythmPlayerTrack: true,
+      isInteractiveAudience: true,
+      customVideoTrackId: 7,
+      isAudioFilterable: false,
+      enableMultipath: true,
+      uplinkMultipathMode: 1,
+      downlinkMultipathMode: 2,
+      preferMultipathType: 3,
       token: 'override-token',
       parameters: '{"rtc.video.enabled":true}',
     },
@@ -1179,8 +1281,40 @@ test('client dispatches expected native requests for all expanded public APIs', 
 
   await testApi('setLogFilter', () => client.setLogFilter(15), { level: 15 });
   await testApi('setLogFile', () => client.setLogFile('/path/to/log'), { path: '/path/to/log' });
-  await testApi('setVideoEncoderConfiguration', () => client.setVideoEncoderConfiguration({ width: 640, height: 360, frameRate: 15, bitrate: 0 }), { width: 640, height: 360, frameRate: 15, bitrate: 0 });
-  await testApi('setParameters', () => client.setParameters('{"key":"value"}'), { parameters: '{"key":"value"}' });
+  await testApi('setVideoEncoderConfiguration', () => client.setVideoEncoderConfiguration({
+    width: 640,
+    height: 360,
+    frameRate: 15,
+    bitrate: 0,
+    minFrameRate: 10,
+    minBitrate: 120,
+    orientationMode: 1,
+    mirrorMode: 2,
+    degradationPreference: 1,
+    codecType: 2,
+    advancedVideoOptions: {
+      encodingPreference: 1,
+      compressionPreference: 2,
+      encodeAlpha: true,
+    },
+  }), {
+    width: 640,
+    height: 360,
+    frameRate: 15,
+    bitrate: 0,
+    minFrameRate: 10,
+    minBitrate: 120,
+    orientationMode: 1,
+    mirrorMode: 2,
+    degradationPreference: 1,
+    codecType: 2,
+    advancedVideoOptions: {
+      encodingPreference: 1,
+      compressionPreference: 2,
+      encodeAlpha: true,
+    },
+  });
+  await testApi('setParameters', () => client.setParameters({ key: 'value' }), { parameters: '{"key":"value"}' });
   await testApi('enableVideo', () => client.enableVideo(true), { enabled: true });
   await testApi('muteLocalVideoStream', () => client.muteLocalVideoStream(true), { muted: true });
   await testApi('muteRemoteVideoStream', () => client.muteRemoteVideoStream(123, true), { uid: 123, muted: true });
@@ -1196,9 +1330,26 @@ test('client dispatches expected native requests for all expanded public APIs', 
   await testApi('adjustPlaybackSignalVolume', () => client.adjustPlaybackSignalVolume(50), { volume: 50 });
   await testApi('adjustUserPlaybackSignalVolume', () => client.adjustUserPlaybackSignalVolume(123, 50), { uid: 123, volume: 50 });
   await testApi('setAudioSessionOperationRestriction', () => client.setAudioSessionOperationRestriction(1), { restriction: 1 });
-  await testApi('setClientRole', () => client.setClientRole('audience'), { role: 'audience' });
+  await testApi('setClientRole', () => client.setClientRole('audience', { audienceLatencyLevel: 1 }), { role: 'audience', options: { audienceLatencyLevel: 1 } });
   await testApi('setBeautyEffectOptions', () => client.setBeautyEffectOptions(true, { lighteningLevel: 0.5, smoothnessLevel: 0.5, rednessLevel: 0.5, sharpnessLevel: 0.5 }), { enabled: true, options: { lighteningLevel: 0.5, smoothnessLevel: 0.5, rednessLevel: 0.5, sharpnessLevel: 0.5 } });
-  await testApi('enableContentInspect', () => client.enableContentInspect(true, {}), { enabled: true, config: {} });
+  await testApi('enableContentInspect', () => client.enableContentInspect(true, {
+    extraInfo: 'moderation-extra',
+    serverConfig: '{"region":"ap"}',
+    modules: [
+      { type: 1, interval: 2, position: 1 },
+      { type: 3, interval: 5 },
+    ],
+  }), {
+    enabled: true,
+    config: {
+      extraInfo: 'moderation-extra',
+      serverConfig: '{"region":"ap"}',
+      modules: [
+        { type: 1, interval: 2, position: 1 },
+        { type: 3, interval: 5 },
+      ],
+    },
+  });
   await testApi('pauseAudioMixing', () => client.pauseAudioMixing(), {});
   await testApi('resumeAudioMixing', () => client.resumeAudioMixing(), {});
   await testApi('stopAudioMixing', () => client.stopAudioMixing(), {});

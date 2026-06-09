@@ -7,9 +7,11 @@ import {
   type AgoraAudioMixingConfig,
   type AgoraBeautyOptions,
   type AgoraChannelMediaOptions,
+  type AgoraClientRoleOptions,
   type AgoraRenderBackend,
   type AgoraContentInspectConfig,
   type AgoraPlayEffectConfig,
+  type AgoraRtcEngineConfig,
   type AgoraVideoEncoderConfiguration,
   type AgoraVideoViewRect,
   type AgoraBridgeEvent,
@@ -87,8 +89,9 @@ export class AgoraRtcClient {
     return this.#invoke('setRenderBackend', { backend }) as Promise<void>;
   }
 
-  initialize(appId: string): Promise<void> {
-    return this.#invoke('initialize', { appId }) as Promise<void>;
+  initialize(config: string | AgoraRtcEngineConfig): Promise<void> {
+    const params = typeof config === 'string' ? { appId: config } : { ...config };
+    return this.#invoke('initialize', params) as Promise<void>;
   }
 
   getSdkVersion(): Promise<string> {
@@ -111,8 +114,12 @@ export class AgoraRtcClient {
     return this.#invoke('setChannelProfile', { profile }) as Promise<void>;
   }
 
-  setClientRole(role: 'broadcaster' | 'audience'): Promise<void> {
-    return this.#invoke('setClientRole', { role }) as Promise<void>;
+  setClientRole(role: 'broadcaster' | 'audience', options?: AgoraClientRoleOptions): Promise<void> {
+    const params: Record<string, unknown> = { role };
+    if (options !== undefined) {
+      params.options = options;
+    }
+    return this.#invoke('setClientRole', params) as Promise<void>;
   }
 
   joinChannel(
@@ -334,7 +341,7 @@ export class AgoraRtcClient {
 
   setParameters(parameters: string | Record<string, unknown>): Promise<void> {
     return this.#invoke('setParameters', {
-      parameters,
+      parameters: typeof parameters === 'string' ? parameters : JSON.stringify(parameters),
     }) as Promise<void>;
   }
 
