@@ -1327,6 +1327,26 @@ test('ios integration script registers all committed bridge templates in the exp
   assert.match(scriptContent, /NSMicrophoneUsageDescription/);
 });
 
+test('ios integration keeps Swift bridge registration in Xcode rather than CMake', async () => {
+  const integrationScript = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+  const hooksContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/dist/hooks.js'),
+    'utf8',
+  );
+  const iosCMakeBlock = hooksContent.match(
+    /const IOS_RTC_BRIDGE_CMAKE_BLOCK = `([\s\S]*?)`;/,
+  )?.[1] ?? '';
+
+  assert.match(integrationScript, /AgoraRtcBridge\.swift/);
+  assert.match(integrationScript, /target\.add_file_references\(\[file_ref\]\)/);
+  assert.match(iosCMakeBlock, /list\(APPEND CC_PROJ_SOURCES/);
+  assert.doesNotMatch(iosCMakeBlock, /AgoraRtcBridge\.swift/);
+  assert.doesNotMatch(hooksContent, /project\([^)]*\bSwift\b[^)]*\)/);
+});
+
 test('ios integration script refreshes the configured Swift package exact version', async () => {
   const scriptContent = await readFile(
     path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
