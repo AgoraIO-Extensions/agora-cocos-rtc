@@ -1,6 +1,6 @@
 import { _decorator, Component, EditBox, Label, Node } from 'cc';
 import type { DemoSessionState, RuntimeConfigState } from '../types.ts';
-import { COLORS, configureLabel, ensureButtonNode, ensureTransform } from '../ui/uiStyles.ts';
+import { bindButtonTouch, COLORS, configureLabel, ensureButtonNode, ensureTransform } from '../ui/uiStyles.ts';
 
 const { ccclass, property } = _decorator;
 
@@ -121,8 +121,9 @@ export class DemoHeaderPanel extends Component {
   }
 
   private bind(node: Node | null, handler: () => void): void {
-    node?.off(Node.EventType.TOUCH_END);
-    node?.on(Node.EventType.TOUCH_END, handler, this);
+    if (node) {
+      bindButtonTouch(node, handler, this);
+    }
   }
 
   private maskAppId(appId: string): string {
