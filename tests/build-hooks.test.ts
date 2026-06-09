@@ -14,13 +14,18 @@ const {
   ensureAndroidRtcPermissions,
   ensureIosCMakeRtcBridgeSources,
   ensureIosRtcUsageDescriptions,
+  ensureIosXcodeProjectSwiftPackage,
   ensureIosAppDelegateBridgeAttachment,
   ensureIosSetupGuide,
   ensureNativeEngineTextureBridge,
   findFirstExistingPath,
+  onBeforeMake,
+  patchIosXcodeProjectBuildSettingsForSwiftPackage,
   patchAndroidAppActivityBridgeAttachment,
   patchIosAppDelegateBridgeAttachment,
   patchIosCMakeRtcBridgeSources,
+  patchIosWorkspaceSettingsForSwiftPackage,
+  patchIosXcodeProjectSwiftPackage,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,
   rewriteAndroidGradlePluginVersion,
@@ -275,7 +280,7 @@ test('ensureIosAppDelegateBridgeAttachment skips exports without AppDelegate.mm'
   assert.equal(result, null);
 });
 
-test('patchIosCMakeRtcBridgeSources registers iOS bridge sources and Swift version once', () => {
+test('patchIosCMakeRtcBridgeSources registers Objective-C++ bridge sources without enabling Swift in CMake', () => {
   const original = `cmake_minimum_required(VERSION 3.8)
 
 project(\${APP_NAME} CXX)
@@ -293,22 +298,12 @@ cc_ios_after_target(\${EXECUTABLE_NAME})
   const once = patchIosCMakeRtcBridgeSources(original);
   const twice = patchIosCMakeRtcBridgeSources(once);
 
-  assert.match(once, /agora-rtc\/AgoraRtcBridge\.swift/);
+  assert.doesNotMatch(once, /agora-rtc\/AgoraRtcBridge\.swift/);
   assert.match(once, /agora-rtc\/AgoraRtcPlugin\.mm/);
   assert.match(once, /agora-rtc\/AgoraEngineTextureSlotBridge\.mm/);
-  assert.match(once, /project\(\$\{APP_NAME\} CXX Swift\)/);
-  assert.match(once, /execute_process\(\s*COMMAND xcrun --find swiftc/);
-  assert.match(once, /CMAKE_Swift_COMPILER_WORKS TRUE/);
-  assert.match(once, /CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY/);
-  assert.ok(
-    once.indexOf('CMAKE_Swift_COMPILER') < once.indexOf('project(${APP_NAME} CXX Swift)'),
-    'Swift compiler must be configured before CMake enables Swift in project().',
-  );
+  assert.match(once, /project\(\$\{APP_NAME\} CXX\)/);
+  assert.doesNotMatch(once, /project\([^)]*\bSwift\b[^)]*\)/);
   assert.match(once, /CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "5\.0"/);
-  assert.equal(
-    [...once.matchAll(/execute_process\(\s*COMMAND xcrun --find swiftc/g)].length,
-    1,
-  );
   assert.equal(
     [...once.matchAll(/agora-rtc\/AgoraRtcPlugin\.mm/g)].length,
     2,
@@ -316,38 +311,41 @@ cc_ios_after_target(\${EXECUTABLE_NAME})
   assert.equal(once, twice);
 });
 
-test('patchIosCMakeRtcBridgeSources moves existing Swift compiler block before project', () => {
-  const oldCompilerBlock = `if(NOT CMAKE_Swift_COMPILER)
-    execute_process(
-        COMMAND xcrun --find swiftc
-        OUTPUT_VARIABLE AGORA_COCOS_SWIFT_COMPILER
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-    if(AGORA_COCOS_SWIFT_COMPILER)
-        set(CMAKE_Swift_COMPILER "\${AGORA_COCOS_SWIFT_COMPILER}" CACHE FILEPATH "Swift compiler" FORCE)
-    endif()
-endif()`;
+test('patchIosCMakeRtcBridgeSources removes stale Swift bridge CMake entries', () => {
   const original = `cmake_minimum_required(VERSION 3.8)
 
 project(\${APP_NAME} CXX Swift)
 
-${oldCompilerBlock}
+set(CC_PROJ_SOURCES)
 
 include(\${CC_PROJECT_DIR}/../common/CMakeLists.txt)
+
+list(APPEND CC_PROJ_SOURCES
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcBridge.swift
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcPlugin.mm
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraEngineTextureSlotBridge.mm
+)
+
+set_source_files_properties(
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcBridge.swift
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraRtcPlugin.mm
+    \${CMAKE_CURRENT_LIST_DIR}/agora-rtc/AgoraEngineTextureSlotBridge.mm
+    PROPERTIES
+    GENERATED FALSE
+)
+
+set(CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "5.0")
 `;
 
-  const patched = patchIosCMakeRtcBridgeSources(original);
+  const once = patchIosCMakeRtcBridgeSources(original);
+  const twice = patchIosCMakeRtcBridgeSources(once);
 
-  assert.ok(
-    patched.indexOf('CMAKE_Swift_COMPILER') < patched.indexOf('project(${APP_NAME} CXX Swift)'),
-    'Swift compiler block must be moved before project() when an older export has it after project().',
-  );
-  assert.match(patched, /CMAKE_Swift_COMPILER_WORKS TRUE/);
-  assert.equal(
-    [...patched.matchAll(/execute_process\(\s*COMMAND xcrun --find swiftc/g)].length,
-    1,
-  );
-  assert.equal(patched, patchIosCMakeRtcBridgeSources(patched));
+  assert.match(once, /project\(\$\{APP_NAME\} CXX\)/);
+  assert.doesNotMatch(once, /project\([^)]*\bSwift\b[^)]*\)/);
+  assert.doesNotMatch(once, /agora-rtc\/AgoraRtcBridge\.swift/);
+  assert.match(once, /agora-rtc\/AgoraRtcPlugin\.mm/);
+  assert.match(once, /agora-rtc\/AgoraEngineTextureSlotBridge\.mm/);
+  assert.equal(once, twice);
 });
 
 test('ensureIosCMakeRtcBridgeSources patches exported iOS CMakeLists', async () => {
@@ -366,11 +364,238 @@ add_executable(\${EXECUTABLE_NAME} \${CC_ALL_SOURCES})
   const content = await readFile(path.join(root, 'CMakeLists.txt'), 'utf8');
 
   assert.equal(result, path.join(root, 'CMakeLists.txt'));
-  assert.match(content, /agora-rtc\/AgoraRtcBridge\.swift/);
+  assert.doesNotMatch(content, /agora-rtc\/AgoraRtcBridge\.swift/);
   assert.match(content, /agora-rtc\/AgoraRtcPlugin\.mm/);
-  assert.match(content, /project\(\$\{APP_NAME\} CXX Swift\)/);
-  assert.match(content, /CMAKE_Swift_COMPILER/);
+  assert.match(content, /project\(\$\{APP_NAME\} CXX\)/);
+  assert.doesNotMatch(content, /project\([^)]*\bSwift\b[^)]*\)/);
   assert.match(content, /CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION/);
+});
+
+function createIosPbxprojFixture() {
+  return `// !$*UTF8*$!
+{
+  archiveVersion = 1;
+  classes = {
+  };
+  objectVersion = 77;
+  objects = {
+
+/* Begin PBXBuildFile section */
+/* End PBXBuildFile section */
+
+/* Begin PBXFrameworksBuildPhase section */
+    DDB65CEEFE634E74A23CD384 /* Frameworks */ = {
+      isa = PBXFrameworksBuildPhase;
+      buildActionMask = 2147483647;
+      files = (
+      );
+      runOnlyForDeploymentPostprocessing = 0;
+    };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+    1570BE6E069448BFA13F8BDA /* agora-cocos-basic-call-mobile */ = {
+      isa = PBXNativeTarget;
+      buildConfigurationList = 7E280B21576347D0A0675D31 /* Build configuration list for PBXNativeTarget "agora-cocos-basic-call-mobile" */;
+      buildPhases = (
+        DDB65CEEFE634E74A23CD384 /* Frameworks */,
+      );
+      dependencies = (
+      );
+      name = "agora-cocos-basic-call-mobile";
+      productName = "agora-cocos-basic-call-mobile";
+      productReference = F1A74941342B40C9AE80CC7A /* agora-cocos-basic-call.app */;
+      productType = "com.apple.product-type.application";
+    };
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+    F133864AD5934D1C837F0D69 /* Project object */ = {
+      isa = PBXProject;
+      attributes = {
+        LastUpgradeCheck = 1600;
+      };
+      buildConfigurationList = 70C6AC196D0D4F5C86BD4257 /* Build configuration list for PBXProject "agora-cocos-basic-call" */;
+      compatibilityVersion = "Xcode 14.0";
+      developmentRegion = en;
+      hasScannedForEncodings = 0;
+      knownRegions = (
+        en,
+        Base,
+      );
+      mainGroup = 705052939DB94DD6B4F44731;
+      productRefGroup = 951E98A53DB744218999E631 /* Products */;
+      projectDirPath = "";
+      projectRoot = "";
+      targets = (
+        1570BE6E069448BFA13F8BDA /* agora-cocos-basic-call-mobile */,
+      );
+    };
+/* End PBXProject section */
+
+/* Begin XCBuildConfiguration section */
+    A1B2C3D4E5F60718293A4B5C /* Debug */ = {
+      isa = XCBuildConfiguration;
+      buildSettings = {
+        CODE_SIGN_IDENTITY = "iPhone Developer";
+        CODE_SIGN_STYLE = Manual;
+        CONFIGURATION_BUILD_DIR = "/tmp/agora-cocos-basic-call/build/ios/proj/archives/Debug";
+        CONFIGURATION_TEMP_DIR = "/tmp/agora-cocos-basic-call/build/ios/proj/tmp/Debug";
+        DEVELOPMENT_TEAM = ABCDE12345;
+        LD_RUNPATH_SEARCH_PATHS = "$(inherited)";
+        OBJROOT = "/tmp/agora-cocos-basic-call/build/ios/proj/obj";
+        OTHER_LDFLAGS = (
+          "$(inherited)",
+          "/tmp/agora-cocos-basic-call/build/ios/proj/archives/Debug/libcocos_engine.a",
+          "/tmp/agora-cocos-basic-call/build/ios/proj/boost/container/archives/Debug/libboost_container.a",
+        );
+        PRODUCT_BUNDLE_IDENTIFIER = io.agora.cocosbasiccall;
+        PROVISIONING_PROFILE_SPECIFIER = "Agora Dev Profile";
+        SYMROOT = "/tmp/agora-cocos-basic-call/build/ios/proj";
+      };
+      name = Debug;
+    };
+/* End XCBuildConfiguration section */
+  };
+  rootObject = F133864AD5934D1C837F0D69 /* Project object */;
+}
+`;
+}
+
+function createIosWorkspaceSettingsFixture(buildLocationStyle = 'UseTargetSettings') {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+\t<key>BuildSystemType</key>
+\t<string>Latest</string>
+\t<key>BuildLocationStyle</key>
+\t<string>${buildLocationStyle}</string>
+</dict>
+</plist>
+`;
+}
+
+test('patchIosXcodeProjectSwiftPackage adds Agora iOS SPM product to the app target once', () => {
+  const original = createIosPbxprojFixture();
+  const once = patchIosXcodeProjectSwiftPackage(original);
+  const twice = patchIosXcodeProjectSwiftPackage(once);
+
+  assert.match(once, /XCRemoteSwiftPackageReference/);
+  assert.match(once, new RegExp(sdkConfig.ios.packageUrl.replaceAll('.', '\\.')));
+  assert.match(once, /kind = exactVersion;/);
+  assert.match(once, new RegExp(`version = ${sdkConfig.ios.packageVersion.replaceAll('.', '\\.')};`));
+  assert.match(once, /XCSwiftPackageProductDependency/);
+  assert.match(once, new RegExp(`productName = ${sdkConfig.ios.packageProduct};`));
+  assert.match(once, /packageReferences = \(\s*A90A00000000000000000101 \/\* XCRemoteSwiftPackageReference "AgoraRtcEngine_iOS" \*\/,\s*\);/);
+  assert.match(once, /packageProductDependencies = \(\s*A90A00000000000000000102 \/\* RtcBasic \*\/,\s*\);/);
+  assert.match(once, /files = \(\s*A90A00000000000000000103 \/\* RtcBasic in Frameworks \*\/,\s*\);/);
+  assert.equal(
+    [...once.matchAll(/repositoryURL = "https:\/\/github\.com\/AgoraIO\/AgoraRtcEngine_iOS\.git";/g)].length,
+    1,
+  );
+  assert.equal(once, twice);
+});
+
+test('patchIosXcodeProjectBuildSettingsForSwiftPackage clears legacy build locations and preserves signing', () => {
+  const original = createIosPbxprojFixture();
+  const once = patchIosXcodeProjectBuildSettingsForSwiftPackage(original);
+  const twice = patchIosXcodeProjectBuildSettingsForSwiftPackage(once);
+
+  assert.doesNotMatch(once, /^\s*SYMROOT = /m);
+  assert.doesNotMatch(once, /^\s*OBJROOT = /m);
+  assert.doesNotMatch(once, /^\s*CONFIGURATION_BUILD_DIR = /m);
+  assert.doesNotMatch(once, /^\s*CONFIGURATION_TEMP_DIR = /m);
+  assert.match(once, /\$\(CONFIGURATION_BUILD_DIR\)\/libcocos_engine\.a/);
+  assert.match(once, /\$\(CONFIGURATION_BUILD_DIR\)\/libboost_container\.a/);
+  assert.doesNotMatch(once, /\/archives\/Debug\/libcocos_engine\.a/);
+  assert.doesNotMatch(once, /\/boost\/container\/archives\/Debug\/libboost_container\.a/);
+  assert.match(once, /LD_RUNPATH_SEARCH_PATHS = \(\s*"\$\(inherited\)",\s*"@executable_path\/Frameworks",\s*\);/);
+  assert.match(once, /CODE_SIGN_STYLE = Manual;/);
+  assert.match(once, /DEVELOPMENT_TEAM = ABCDE12345;/);
+  assert.match(once, /PROVISIONING_PROFILE_SPECIFIER = "Agora Dev Profile";/);
+  assert.match(once, /PRODUCT_BUNDLE_IDENTIFIER = io\.agora\.cocosbasiccall;/);
+  assert.equal(once, twice);
+});
+
+test('patchIosWorkspaceSettingsForSwiftPackage forces unique build locations once', () => {
+  const original = createIosWorkspaceSettingsFixture();
+  const once = patchIosWorkspaceSettingsForSwiftPackage(original);
+  const twice = patchIosWorkspaceSettingsForSwiftPackage(once);
+
+  assert.match(once, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
+  assert.doesNotMatch(once, /UseTargetSettings/);
+  assert.equal(once, twice);
+
+  const withoutBuildLocationStyle = `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+\t<key>BuildSystemType</key>
+\t<string>Latest</string>
+</dict>
+</plist>
+`;
+  const patched = patchIosWorkspaceSettingsForSwiftPackage(withoutBuildLocationStyle);
+  assert.match(patched, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
+});
+
+test('ensureIosXcodeProjectSwiftPackage patches generated Xcode project files', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-pbxproj-'));
+  const pbxprojPath = path.join(
+    root,
+    'proj/agora-cocos-basic-call.xcodeproj/project.pbxproj',
+  );
+  const userWorkspaceSettingsPath = path.join(
+    root,
+    'proj/agora-cocos-basic-call.xcodeproj/project.xcworkspace/xcuserdata/test.xcuserdatad/WorkspaceSettings.xcsettings',
+  );
+  await mkdir(path.dirname(pbxprojPath), { recursive: true });
+  await mkdir(path.dirname(userWorkspaceSettingsPath), { recursive: true });
+  await writeFile(pbxprojPath, createIosPbxprojFixture(), 'utf8');
+  await writeFile(userWorkspaceSettingsPath, createIosWorkspaceSettingsFixture(), 'utf8');
+
+  const patchedPaths = await ensureIosXcodeProjectSwiftPackage(root);
+  const content = await readFile(pbxprojPath, 'utf8');
+  const userWorkspaceSettings = await readFile(userWorkspaceSettingsPath, 'utf8');
+  const sharedWorkspaceSettings = await readFile(
+    path.join(
+      root,
+      'proj/agora-cocos-basic-call.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings',
+    ),
+    'utf8',
+  );
+
+  assert.equal(patchedPaths.includes(pbxprojPath), true);
+  assert.equal(patchedPaths.includes(userWorkspaceSettingsPath), true);
+  assert.match(content, /XCRemoteSwiftPackageReference/);
+  assert.match(content, /productName = RtcBasic;/);
+  assert.doesNotMatch(content, /^\s*CONFIGURATION_BUILD_DIR = /m);
+  assert.match(content, /@executable_path\/Frameworks/);
+  assert.match(userWorkspaceSettings, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
+  assert.match(sharedWorkspaceSettings, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
+});
+
+test('onBeforeMake patches generated iOS Xcode project before native compilation', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-before-make-'));
+  const pbxprojPath = path.join(root, 'agora-cocos-basic-call.xcodeproj/project.pbxproj');
+  const userWorkspaceSettingsPath = path.join(
+    root,
+    'agora-cocos-basic-call.xcodeproj/project.xcworkspace/xcuserdata/test.xcuserdatad/WorkspaceSettings.xcsettings',
+  );
+  await mkdir(path.dirname(pbxprojPath), { recursive: true });
+  await mkdir(path.dirname(userWorkspaceSettingsPath), { recursive: true });
+  await writeFile(pbxprojPath, createIosPbxprojFixture(), 'utf8');
+  await writeFile(userWorkspaceSettingsPath, createIosWorkspaceSettingsFixture(), 'utf8');
+
+  await onBeforeMake(root, { platform: 'ios' });
+  const content = await readFile(pbxprojPath, 'utf8');
+  const userWorkspaceSettings = await readFile(userWorkspaceSettingsPath, 'utf8');
+
+  assert.match(content, /XCRemoteSwiftPackageReference/);
+  assert.match(content, /RtcBasic in Frameworks/);
+  assert.doesNotMatch(content, /^\s*SYMROOT = /m);
+  assert.match(content, /@executable_path\/Frameworks/);
+  assert.match(userWorkspaceSettings, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
 });
 
 test('patchAndroidAppActivityBridgeAttachment attaches the native bridge after SDK init once', () => {

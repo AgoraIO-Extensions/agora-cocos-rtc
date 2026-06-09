@@ -1,4 +1,4 @@
-import type { AgoraVideoViewRect } from '../agora-rtc-sdk/types.ts';
+import type { AgoraVideoViewRect } from '../../extensions/agora-rtc/js/types.ts';
 
 export type AgoraHudActionId =
   | 'initialize'
