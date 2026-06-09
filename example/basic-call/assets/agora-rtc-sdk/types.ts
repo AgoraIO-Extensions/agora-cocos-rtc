@@ -311,6 +311,8 @@ export interface AgoraEventMap {
     phase: string;
     result: number;
     uid: number;
+    fallbackBackend?: string;
+    platform?: string;
   };
   userJoined: {
     uid: number;

@@ -10,6 +10,50 @@ import {
 
 const sdkTypesSource = readFileSync('sdk/agora-rtc/js/types.ts', 'utf8');
 
+function extractInterfaceContent(interfaceName: string): string {
+  const match = sdkTypesSource.match(new RegExp(`export interface ${interfaceName} \\{([\\s\\S]*?)\\n\\}`));
+  assert.ok(match, `${interfaceName} should exist in public types`);
+  return match[1];
+}
+
+function extractInterfaceFields(interfaceName: string): string[] {
+  return Array.from(
+    extractInterfaceContent(interfaceName).matchAll(/^\s{2}([a-zA-Z]\w+)\??:/gm),
+    (entry) => entry[1],
+  );
+}
+
+function extractNestedInterfaceFields(interfaceName: string, propertyName: string): string[] {
+  const content = extractInterfaceContent(interfaceName);
+  const propertyIndex = content.indexOf(`${propertyName}?:`);
+  assert.ok(propertyIndex >= 0, `${interfaceName}.${propertyName} should exist in public types`);
+  const nestedContent = content.slice(propertyIndex);
+  return Array.from(nestedContent.matchAll(/^\s{4}([a-zA-Z]\w+)\??:/gm), (entry) => entry[1]);
+}
+
+function assertFixtureCoversInterfaceFields(
+  interfaceName: string,
+  fixture: Record<string, unknown>,
+  ignoredFields: string[] = [],
+): void {
+  const ignored = new Set(ignoredFields);
+  const missing = extractInterfaceFields(interfaceName).filter(
+    (field) => !ignored.has(field) && !Object.prototype.hasOwnProperty.call(fixture, field),
+  );
+  assert.deepEqual(missing, [], `${interfaceName} fixture should cover every public field`);
+}
+
+function assertFixtureCoversNestedInterfaceFields(
+  interfaceName: string,
+  propertyName: string,
+  fixture: Record<string, unknown>,
+): void {
+  const missing = extractNestedInterfaceFields(interfaceName, propertyName).filter(
+    (field) => !Object.prototype.hasOwnProperty.call(fixture, field),
+  );
+  assert.deepEqual(missing, [], `${interfaceName}.${propertyName} fixture should cover every public field`);
+}
+
 type SentMessage = { eventName: string; payload: string };
 type RemovedListener = { eventName: string; listener: (payload: unknown) => void };
 
@@ -147,6 +191,12 @@ test('initialize can dispatch native engine config options', async () => {
       level: 1,
     },
   });
+  assertFixtureCoversInterfaceFields('AgoraRtcEngineConfig', request.params);
+  assertFixtureCoversNestedInterfaceFields(
+    'AgoraRtcEngineConfig',
+    'logConfig',
+    request.params.logConfig,
+  );
 
   transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true }));
   await pending;
@@ -224,6 +274,12 @@ test('public event types expose full stats payload for leaveChannel and rtcStats
   assert.match(sdkTypesSource, /export interface AgoraRtcStatsPayload \{/);
   assert.match(sdkTypesSource, /leaveChannel:\s*AgoraRtcStatsPayload;/);
   assert.match(sdkTypesSource, /rtcStats:\s*AgoraRtcStatsPayload;/);
+});
+
+test('public event types expose optional render backend fallback payload fields', () => {
+  assert.match(sdkTypesSource, /renderBackendState:\s*\{/);
+  assert.match(sdkTypesSource, /fallbackBackend\?: string;/);
+  assert.match(sdkTypesSource, /platform\?: string;/);
 });
 
 test('public event types do not expose fake warning callbacks', () => {
@@ -331,6 +387,36 @@ test('engine texture bridge resolves from global jsb namespace', () => {
   }
 });
 
+test('client engine texture helpers pass slotId to the native texture bridge', () => {
+  const observedTextureSlots: number[] = [];
+  const observedReadySlots: number[] = [];
+  const client = createAgoraRtcClient({
+    bridgeRuntime: {
+      native: {
+        agoraEngineTexture: {
+          getTexture(slotId: number) {
+            observedTextureSlots.push(slotId);
+            return { slotId };
+          },
+          isSlotReady(slotId: number) {
+            observedReadySlots.push(slotId);
+            return slotId === 7;
+          },
+        },
+      },
+      sys: {
+        isNative: true,
+      },
+    },
+    transport: new MockTransport(),
+  });
+
+  assert.deepEqual(client.getEngineTexture(7), { slotId: 7 });
+  assert.equal(client.isEngineTextureReady(7), true);
+  assert.deepEqual(observedTextureSlots, [7]);
+  assert.deepEqual(observedReadySlots, [7]);
+});
+
 test('client rejects native failures with an sdk error', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -381,6 +467,8 @@ test('joinChannel dispatches optional channel media options from TypeScript', as
     enableAudioRecordingOrPlayout: true,
     startPreview: true,
     publishSecondaryCameraTrack: true,
+    publishThirdCameraTrack: false,
+    publishFourthCameraTrack: false,
     publishScreenCaptureVideo: true,
     publishScreenCaptureAudio: true,
     publishCustomAudioTrack: true,
@@ -426,6 +514,8 @@ test('joinChannel dispatches optional channel media options from TypeScript', as
       enableAudioRecordingOrPlayout: true,
       startPreview: true,
       publishSecondaryCameraTrack: true,
+      publishThirdCameraTrack: false,
+      publishFourthCameraTrack: false,
       publishScreenCaptureVideo: true,
       publishScreenCaptureAudio: true,
       publishCustomAudioTrack: true,
@@ -455,6 +545,7 @@ test('joinChannel dispatches optional channel media options from TypeScript', as
       parameters: '{"rtc.video.enabled":true}',
     },
   });
+  assertFixtureCoversInterfaceFields('AgoraChannelMediaOptions', request.params.options);
 
   transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true }));
   await pending;
@@ -884,6 +975,7 @@ test('startAudioMixing dispatches the expected native request', async () => {
     cycle: 1,
     startPos: 0,
   });
+  assertFixtureCoversInterfaceFields('AgoraAudioMixingConfig', request.params);
 
   transport.emit(
     'agora:response',
@@ -1059,6 +1151,7 @@ test('setupLocalVideoView dispatches the expected native request', async () => {
     height: 400,
     renderMode: 'hidden',
   });
+  assertFixtureCoversInterfaceFields('AgoraVideoViewRect', request.params);
 
   transport.emit(
     'agora:response',
@@ -1096,6 +1189,7 @@ test('setupRemoteVideoView dispatches the expected native request', async () => 
     height: 600,
     renderMode: 'fit',
   });
+  assertFixtureCoversInterfaceFields('AgoraVideoViewRect', request.params);
 
   transport.emit(
     'agora:response',
@@ -1302,7 +1396,7 @@ test('client dispatches expected native requests for all expanded public APIs', 
 
   await testApi('setLogFilter', () => client.setLogFilter(15), { level: 15 });
   await testApi('setLogFile', () => client.setLogFile('/path/to/log'), { path: '/path/to/log' });
-  await testApi('setVideoEncoderConfiguration', () => client.setVideoEncoderConfiguration({
+  const fullVideoEncoderConfig = {
     width: 640,
     height: 360,
     frameRate: 15,
@@ -1318,23 +1412,18 @@ test('client dispatches expected native requests for all expanded public APIs', 
       compressionPreference: 2,
       encodeAlpha: true,
     },
-  }), {
-    width: 640,
-    height: 360,
-    frameRate: 15,
-    bitrate: 0,
-    minFrameRate: 10,
-    minBitrate: 120,
-    orientationMode: 1,
-    mirrorMode: 2,
-    degradationPreference: 1,
-    codecType: 2,
-    advancedVideoOptions: {
-      encodingPreference: 1,
-      compressionPreference: 2,
-      encodeAlpha: true,
-    },
-  });
+  };
+  await testApi(
+    'setVideoEncoderConfiguration',
+    () => client.setVideoEncoderConfiguration(fullVideoEncoderConfig),
+    fullVideoEncoderConfig,
+  );
+  assertFixtureCoversInterfaceFields('AgoraVideoEncoderConfiguration', fullVideoEncoderConfig);
+  assertFixtureCoversNestedInterfaceFields(
+    'AgoraVideoEncoderConfiguration',
+    'advancedVideoOptions',
+    fullVideoEncoderConfig.advancedVideoOptions,
+  );
   await testApi('setParameters', () => client.setParameters({ key: 'value' }), { parameters: '{"key":"value"}' });
   await testApi('enableVideo', () => client.enableVideo(true), { enabled: true });
   await testApi('muteLocalVideoStream', () => client.muteLocalVideoStream(true), { muted: true });
@@ -1351,26 +1440,41 @@ test('client dispatches expected native requests for all expanded public APIs', 
   await testApi('adjustPlaybackSignalVolume', () => client.adjustPlaybackSignalVolume(50), { volume: 50 });
   await testApi('adjustUserPlaybackSignalVolume', () => client.adjustUserPlaybackSignalVolume(123, 50), { uid: 123, volume: 50 });
   await testApi('setAudioSessionOperationRestriction', () => client.setAudioSessionOperationRestriction(1), { restriction: 1 });
-  await testApi('setClientRole', () => client.setClientRole('audience', { audienceLatencyLevel: 1 }), { role: 'audience', options: { audienceLatencyLevel: 1 } });
-  await testApi('setBeautyEffectOptions', () => client.setBeautyEffectOptions(true, { lighteningLevel: 0.5, smoothnessLevel: 0.5, rednessLevel: 0.5, sharpnessLevel: 0.5 }), { enabled: true, options: { lighteningLevel: 0.5, smoothnessLevel: 0.5, rednessLevel: 0.5, sharpnessLevel: 0.5 } });
-  await testApi('enableContentInspect', () => client.enableContentInspect(true, {
+  const clientRoleOptions = { audienceLatencyLevel: 1 };
+  await testApi('setClientRole', () => client.setClientRole('audience', clientRoleOptions), { role: 'audience', options: clientRoleOptions });
+  assertFixtureCoversInterfaceFields('AgoraClientRoleOptions', clientRoleOptions);
+
+  const fullBeautyOptions = {
+    lighteningContrastLevel: 1,
+    lighteningLevel: 0.5,
+    smoothnessLevel: 0.5,
+    rednessLevel: 0.5,
+    sharpnessLevel: 0.5,
+  };
+  await testApi('setBeautyEffectOptions', () => client.setBeautyEffectOptions(true, fullBeautyOptions), { enabled: true, options: fullBeautyOptions });
+  assertFixtureCoversInterfaceFields('AgoraBeautyOptions', fullBeautyOptions);
+
+  const fullContentInspectConfig = {
+    module: 0,
+    interval: 10,
     extraInfo: 'moderation-extra',
     serverConfig: '{"region":"ap"}',
     modules: [
       { type: 1, interval: 2, position: 1 },
       { type: 3, interval: 5 },
     ],
-  }), {
-    enabled: true,
-    config: {
-      extraInfo: 'moderation-extra',
-      serverConfig: '{"region":"ap"}',
-      modules: [
-        { type: 1, interval: 2, position: 1 },
-        { type: 3, interval: 5 },
-      ],
-    },
-  });
+  };
+  await testApi(
+    'enableContentInspect',
+    () => client.enableContentInspect(true, fullContentInspectConfig),
+    { enabled: true, config: fullContentInspectConfig },
+  );
+  assertFixtureCoversInterfaceFields('AgoraContentInspectConfig', fullContentInspectConfig);
+  assertFixtureCoversNestedInterfaceFields(
+    'AgoraContentInspectConfig',
+    'modules',
+    fullContentInspectConfig.modules[0],
+  );
   await testApi('pauseAudioMixing', () => client.pauseAudioMixing(), {});
   await testApi('resumeAudioMixing', () => client.resumeAudioMixing(), {});
   await testApi('stopAudioMixing', () => client.stopAudioMixing(), {});
@@ -1381,7 +1485,9 @@ test('client dispatches expected native requests for all expanded public APIs', 
   await testApi('setAudioMixingPosition', () => client.setAudioMixingPosition(1000), { positionMs: 1000 });
   await testApi('adjustAudioMixingVolume', () => client.adjustAudioMixingVolume(50), { volume: 50 });
   await testApi('preloadEffect', () => client.preloadEffect(1, '/path'), { soundId: 1, path: '/path' });
-  await testApi('playEffect', () => client.playEffect({ soundId: 1, path: '/path', loopCount: 1, pitch: 1, pan: 0, gain: 100, publish: false, startPos: 0 }), { soundId: 1, path: '/path', loopCount: 1, pitch: 1, pan: 0, gain: 100, publish: false, startPos: 0 });
+  const fullPlayEffectConfig = { soundId: 1, path: '/path', loopCount: 1, pitch: 1, pan: 0, gain: 100, publish: false, startPos: 0 };
+  await testApi('playEffect', () => client.playEffect(fullPlayEffectConfig), fullPlayEffectConfig);
+  assertFixtureCoversInterfaceFields('AgoraPlayEffectConfig', fullPlayEffectConfig);
   await testApi('stopEffect', () => client.stopEffect(1), { soundId: 1 });
   await testApi('updateLocalVideoView', () => client.updateLocalVideoView({ x: 0, y: 0, width: 100, height: 100, renderMode: 'fit' }), { x: 0, y: 0, width: 100, height: 100, renderMode: 'fit' });
   await testApi('updateRemoteVideoView', () => client.updateRemoteVideoView(123, { x: 0, y: 0, width: 100, height: 100, renderMode: 'fit' }), { uid: 123, x: 0, y: 0, width: 100, height: 100, renderMode: 'fit' });

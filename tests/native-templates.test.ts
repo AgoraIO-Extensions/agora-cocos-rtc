@@ -147,6 +147,14 @@ test('engine-texture backend emits texture slot lifecycle events instead of Base
   assert.match(templateContent, /remoteVideoTextureReady/);
   assert.match(templateContent, /localVideoTextureReleased/);
   assert.match(templateContent, /remoteVideoTextureReleased/);
+  assert.match(templateContent, /\.put\("slotId", slotId\)/);
+  assert.match(templateContent, /\.put\("width", width\)/);
+  assert.match(templateContent, /\.put\("height", height\)/);
+  assert.match(templateContent, /payload\.put\("uid", uid\)/);
+  assert.match(templateContent, /\.put\("backend", getType\(\)\)/);
+  assert.match(templateContent, /\.put\("phase", phase\)/);
+  assert.match(templateContent, /\.put\("result", result\)/);
+  assert.match(templateContent, /\.put\("uid", uid\)/);
   assert.match(templateContent, /FRAME_DIAGNOSTIC_INTERVAL_MS = 2000L/);
   assert.match(templateContent, /Log\.i\(\s*LOG_TAG/);
   assert.match(templateContent, /engine-texture frame/);
@@ -351,6 +359,8 @@ test('android bridge template maps joinChannel media options from request payloa
   assert.match(bridgeContent, /options\.autoSubscribeAudio = optNullableBoolean\(mediaOptions, "autoSubscribeAudio"\)/);
   assert.match(bridgeContent, /options\.autoSubscribeVideo = optNullableBoolean\(mediaOptions, "autoSubscribeVideo"\)/);
   assert.match(bridgeContent, /options\.publishSecondaryCameraTrack = optNullableBoolean\(mediaOptions, "publishSecondaryCameraTrack"\)/);
+  assert.match(bridgeContent, /options\.publishThirdCameraTrack = optNullableBoolean\(mediaOptions, "publishThirdCameraTrack"\)/);
+  assert.match(bridgeContent, /options\.publishFourthCameraTrack = optNullableBoolean\(mediaOptions, "publishFourthCameraTrack"\)/);
   assert.match(bridgeContent, /options\.publishScreenCaptureVideo = optNullableBoolean\(mediaOptions, "publishScreenCaptureVideo"\)/);
   assert.match(bridgeContent, /options\.publishScreenCaptureAudio = optNullableBoolean\(mediaOptions, "publishScreenCaptureAudio"\)/);
   assert.match(bridgeContent, /options\.publishCustomAudioTrack = optNullableBoolean\(mediaOptions, "publishCustomAudioTrack"\)/);
@@ -376,6 +386,8 @@ test('android bridge template maps joinChannel media options from request payloa
   assert.match(bridgeContent, /options\.uplinkMultipathMode = optNullableInteger\(mediaOptions, "uplinkMultipathMode"\)/);
   assert.match(bridgeContent, /options\.downlinkMultipathMode = optNullableInteger\(mediaOptions, "downlinkMultipathMode"\)/);
   assert.match(bridgeContent, /options\.preferMultipathType = optNullableInteger\(mediaOptions, "preferMultipathType"\)/);
+  assert.match(bridgeContent, /options\.token = mediaOptions\.optString\("token"\)/);
+  assert.match(bridgeContent, /options\.parameters = mediaOptions\.optString\("parameters"\)/);
 });
 
 test('android bridge template requests rtc runtime permissions before camera and microphone use', async () => {
@@ -453,7 +465,29 @@ test('android bridge template dispatches expanded native rtc callbacks as js eve
   assert.match(bridgeContent, /onLeaveChannel/);
   assert.match(bridgeContent, /dispatchEvent\("leaveChannel"/);
   assert.match(bridgeContent, /toRtcStatsPayload\(stats\)/);
+  assert.match(bridgeContent, /"duration", stats != null \? stats\.totalDuration : 0/);
+  assert.match(bridgeContent, /"txBytes", stats != null \? stats\.txBytes : 0/);
+  assert.match(bridgeContent, /"rxBytes", stats != null \? stats\.rxBytes : 0/);
+  assert.match(bridgeContent, /"txKBitRate", stats != null \? stats\.txKBitRate : 0/);
+  assert.match(bridgeContent, /"rxKBitRate", stats != null \? stats\.rxKBitRate : 0/);
   assert.match(bridgeContent, /"txAudioBytes", stats != null \? stats\.txAudioBytes : 0/);
+  assert.match(bridgeContent, /"rxAudioBytes", stats != null \? stats\.rxAudioBytes : 0/);
+  assert.match(bridgeContent, /"txVideoBytes", stats != null \? stats\.txVideoBytes : 0/);
+  assert.match(bridgeContent, /"rxVideoBytes", stats != null \? stats\.rxVideoBytes : 0/);
+  assert.match(bridgeContent, /"txAudioKBitRate", stats != null \? stats\.txAudioKBitRate : 0/);
+  assert.match(bridgeContent, /"rxAudioKBitRate", stats != null \? stats\.rxAudioKBitRate : 0/);
+  assert.match(bridgeContent, /"txVideoKBitRate", stats != null \? stats\.txVideoKBitRate : 0/);
+  assert.match(bridgeContent, /"rxVideoKBitRate", stats != null \? stats\.rxVideoKBitRate : 0/);
+  assert.match(bridgeContent, /"lastmileDelay", stats != null \? stats\.lastmileDelay : 0/);
+  assert.match(bridgeContent, /"cpuTotalUsage", stats != null \? stats\.cpuTotalUsage : 0/);
+  assert.match(bridgeContent, /"gatewayRtt", stats != null \? stats\.gatewayRtt : 0/);
+  assert.match(bridgeContent, /"cpuAppUsage", stats != null \? stats\.cpuAppUsage : 0/);
+  assert.match(bridgeContent, /"users", stats != null \? stats\.users : 0/);
+  assert.match(bridgeContent, /"connectTimeMs", stats != null \? stats\.connectTimeMs : 0/);
+  assert.match(bridgeContent, /"txPacketLossRate", stats != null \? stats\.txPacketLossRate : 0/);
+  assert.match(bridgeContent, /"rxPacketLossRate", stats != null \? stats\.rxPacketLossRate : 0/);
+  assert.match(bridgeContent, /"memoryAppUsageRatio", stats != null \? stats\.memoryAppUsageRatio : 0/);
+  assert.match(bridgeContent, /"memoryTotalUsageRatio", stats != null \? stats\.memoryTotalUsageRatio : 0/);
   assert.match(bridgeContent, /"memoryAppUsageInKbytes", stats != null \? stats\.memoryAppUsageInKbytes : 0/);
   assert.match(bridgeContent, /onRtcStats/);
   assert.match(bridgeContent, /dispatchEvent\("rtcStats"/);
@@ -461,6 +495,10 @@ test('android bridge template dispatches expanded native rtc callbacks as js eve
   assert.doesNotMatch(bridgeContent, /dispatchEvent\("warning"/);
   assert.match(bridgeContent, /onError\(int err\)/);
   assert.match(bridgeContent, /dispatchEvent\("error"/);
+  assert.match(bridgeContent, /"code", err/);
+  assert.match(bridgeContent, /"message", RtcEngine\.getErrorDescription\(err\)/);
+  assert.match(bridgeContent, /"channelId", channel/);
+  assert.match(bridgeContent, /"uid", uid/);
   assert.match(bridgeContent, /"elapsed", elapsed/);
   assert.match(bridgeContent, /onRejoinChannelSuccess/);
   assert.match(bridgeContent, /dispatchEvent\("rejoinChannelSuccess"/);
@@ -468,18 +506,29 @@ test('android bridge template dispatches expanded native rtc callbacks as js eve
   assert.match(bridgeContent, /dispatchEvent\("connectionInterrupted"/);
   assert.match(bridgeContent, /onConnectionStateChanged/);
   assert.match(bridgeContent, /dispatchEvent\("connectionStateChanged"/);
+  assert.match(bridgeContent, /"state", state/);
+  assert.match(bridgeContent, /"reason", reason/);
   assert.match(bridgeContent, /onRemoteVideoStateChanged/);
   assert.match(bridgeContent, /dispatchEvent\("remoteVideoStateChanged"/);
+  assert.match(bridgeContent, /"uid", uid,[\s\S]*"state", state,[\s\S]*"reason", reason,[\s\S]*"elapsed", elapsed/);
   assert.match(bridgeContent, /onLocalVideoStateChanged/);
   assert.match(bridgeContent, /dispatchEvent\("localVideoStateChanged"/);
+  assert.match(bridgeContent, /"sourceType", source != null \? source\.ordinal\(\) : 0/);
+  assert.match(bridgeContent, /"error", error/);
   assert.match(bridgeContent, /onAudioMixingFinished/);
   assert.match(bridgeContent, /dispatchEvent\("audioMixingFinished"/);
   assert.match(bridgeContent, /onAudioMixingStateChanged/);
   assert.match(bridgeContent, /dispatchEvent\("audioMixingStateChanged"/);
   assert.match(bridgeContent, /onContentInspectResult/);
   assert.match(bridgeContent, /dispatchEvent\("contentInspectResult"/);
+  assert.match(bridgeContent, /"result", result/);
   assert.match(bridgeContent, /onAudioVolumeIndication/);
   assert.match(bridgeContent, /dispatchEvent\("volumeIndication"/);
+  assert.match(bridgeContent, /"speakers", toAudioVolumeArray\(speakers\)/);
+  assert.match(bridgeContent, /"totalVolume", totalVolume/);
+  assert.match(bridgeContent, /"volume", speaker\.volume/);
+  assert.match(bridgeContent, /"vad", speaker\.vad/);
+  assert.match(bridgeContent, /"voicePitch", speaker\.voicePitch/);
 });
 
 test('android bridge template maps expanded config objects and reliable results', async () => {
@@ -493,7 +542,19 @@ test('android bridge template maps expanded config objects and reliable results'
 
   assert.match(bridgeContent, /import io\.agora\.rtc2\.RtcEngineConfig;/);
   assert.match(bridgeContent, /RtcEngine\.create\(config\)/);
+  assert.match(bridgeContent, /config\.mAppId = appId/);
   assert.match(bridgeContent, /config\.mAreaCode = params\.optInt\("areaCode", config\.mAreaCode\)/);
+  assert.match(bridgeContent, /config\.mChannelProfile = params\.optInt\("channelProfile", config\.mChannelProfile\)/);
+  assert.match(bridgeContent, /config\.mLicense = params\.optString\("license", config\.mLicense\)/);
+  assert.match(bridgeContent, /config\.mAudioScenario = params\.optInt\("audioScenario", config\.mAudioScenario\)/);
+  assert.match(bridgeContent, /config\.mAutoRegisterAgoraExtensions = params\.optBoolean\(/);
+  assert.match(bridgeContent, /"autoRegisterAgoraExtensions"/);
+  assert.match(bridgeContent, /config\.mDomainLimit = params\.optBoolean\("domainLimit", config\.mDomainLimit\)/);
+  assert.match(bridgeContent, /config\.mThreadPriority = params\.optInt\("threadPriority"\)/);
+  assert.match(bridgeContent, /config\.mNativeLibPath = params\.optString\("nativeLibPath", config\.mNativeLibPath\)/);
+  assert.match(bridgeContent, /logConfig\.filePath = logConfigParams\.optString\("filePath", logConfig\.filePath\)/);
+  assert.match(bridgeContent, /logConfig\.fileSizeInKB = logConfigParams\.optInt\("fileSizeInKB", logConfig\.fileSizeInKB\)/);
+  assert.match(bridgeContent, /logConfig\.level = logConfigParams\.optInt\("level", logConfig\.level\)/);
   assert.match(bridgeContent, /config\.mLogConfig = logConfig/);
   assert.match(bridgeContent, /config\.addExtension\(extensions\.optString\(index\)\)/);
 
@@ -502,6 +563,7 @@ test('android bridge template maps expanded config objects and reliable results'
   );
   assert.ok(clientRoleMatch);
   assert.match(clientRoleMatch[0], /ClientRoleOptions options = buildClientRoleOptions/);
+  assert.match(bridgeContent, /options\.audienceLatencyLevel = params\.optInt\("audienceLatencyLevel", options\.audienceLatencyLevel\)/);
   assert.match(clientRoleMatch[0], /rtcEngine\.setClientRole\(agoraRole, options\)/);
 
   const audioMatch = bridgeContent.match(
@@ -539,16 +601,106 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.doesNotMatch(encoderMatch[0], /mapVideoCodecType\(params != null \? params\.optInt\("codecType", 0\) : 0\)/);
   assert.doesNotMatch(encoderMatch[0], /buildAdvancedVideoOptions\(params != null \? params\.optJSONObject\("advancedVideoOptions"\) : null\)/);
 
+  const beautyMatch = bridgeContent.match(
+    /private void handleSetBeautyEffectOptions[\s\S]*?private void handleEnableContentInspect/,
+  );
+  assert.ok(beautyMatch);
+  assert.match(beautyMatch[0], /boolean enabled = params != null && params\.optBoolean\("enabled", false\)/);
+  assert.match(beautyMatch[0], /options\.optInt\("lighteningContrastLevel", BeautyOptions\.LIGHTENING_CONTRAST_NORMAL\)/);
+  assert.match(beautyMatch[0], /options\.optDouble\("lighteningLevel", 0\.0\)/);
+  assert.match(beautyMatch[0], /options\.optDouble\("smoothnessLevel", 0\.0\)/);
+  assert.match(beautyMatch[0], /options\.optDouble\("rednessLevel", 0\.0\)/);
+  assert.match(beautyMatch[0], /options\.optDouble\("sharpnessLevel", 0\.0\)/);
+
   const inspectMatch = bridgeContent.match(
     /private void handleEnableContentInspect[\s\S]*?private void handleStartAudioMixing/,
   );
   assert.ok(inspectMatch);
+  assert.match(inspectMatch[0], /boolean enabled = params != null && params\.optBoolean\("enabled", false\)/);
   assert.match(inspectMatch[0], /inspectConfig\.extraInfo = config\.optString\("extraInfo"/);
   assert.match(inspectMatch[0], /inspectConfig\.serverConfig = config\.optString\("serverConfig"/);
   assert.match(inspectMatch[0], /JSONArray modules = config\.optJSONArray\("modules"\)/);
+  assert.match(inspectMatch[0], /module\.type = config != null \? config\.optInt\("module", ContentInspectConfig\.CONTENT_INSPECT_TYPE_MODERATION\)/);
+  assert.match(inspectMatch[0], /module\.interval = config != null \? config\.optInt\("interval", 0\)/);
   assert.match(inspectMatch[0], /inspectConfig\.moduleCount = inspectConfig\.modules\.length/);
+  assert.match(bridgeContent, /module\.type = params != null \? params\.optInt\("type", ContentInspectConfig\.CONTENT_INSPECT_TYPE_MODERATION\)/);
+  assert.match(bridgeContent, /module\.interval = params != null \? params\.optInt\("interval", 0\)/);
   assert.match(bridgeContent, /module\.position = mapContentInspectModulePosition\(params != null \? params\.optInt\("position"/);
   assert.match(bridgeContent, /private Constants\.VideoModulePosition mapContentInspectModulePosition\(int value\)/);
+
+  const mixingMatch = bridgeContent.match(
+    /private void handleStartAudioMixing[\s\S]*?private void handlePauseAudioMixing/,
+  );
+  assert.ok(mixingMatch);
+  assert.match(mixingMatch[0], /String path = params != null \? params\.optString\("path", ""\) : ""/);
+  assert.match(mixingMatch[0], /boolean loopback = params != null && params\.optBoolean\("loopback", false\)/);
+  assert.match(mixingMatch[0], /int cycle = params != null \? params\.optInt\("cycle", 1\) : 1/);
+  assert.match(mixingMatch[0], /int startPos = params != null \? params\.optInt\("startPos", 0\) : 0/);
+  assert.match(mixingMatch[0], /rtcEngine\.startAudioMixing\(path, loopback, cycle, startPos\)/);
+
+  const playEffectMatch = bridgeContent.match(
+    /private void handlePlayEffect[\s\S]*?private void handlePauseEffect/,
+  );
+  assert.ok(playEffectMatch);
+  assert.match(playEffectMatch[0], /int soundId = params != null \? params\.optInt\("soundId", 0\) : 0/);
+  assert.match(playEffectMatch[0], /String path = params != null \? params\.optString\("path", ""\) : ""/);
+  assert.match(playEffectMatch[0], /int loopCount = params != null \? params\.optInt\("loopCount", 1\) : 1/);
+  assert.match(playEffectMatch[0], /double pitch = params != null \? params\.optDouble\("pitch", 1\.0\) : 1\.0/);
+  assert.match(playEffectMatch[0], /double pan = params != null \? params\.optDouble\("pan", 0\.0\) : 0\.0/);
+  assert.match(playEffectMatch[0], /double gain = params != null \? params\.optDouble\("gain", 100\.0\) : 100\.0/);
+  assert.match(playEffectMatch[0], /boolean publish = params != null && params\.optBoolean\("publish", false\)/);
+  assert.match(playEffectMatch[0], /int startPos = params != null \? params\.optInt\("startPos", 0\) : 0/);
+  assert.match(playEffectMatch[0], /effectManager\.playEffect\(soundId, path, loopCount, pitch, pan, gain, publish, startPos\)/);
+
+  const setPositionMatch = bridgeContent.match(
+    /private void handleSetAudioMixingPosition[\s\S]*?private void handleAdjustAudioMixingVolume/,
+  );
+  assert.ok(setPositionMatch);
+  assert.match(setPositionMatch[0], /rtcEngine\.setAudioMixingPosition\(params != null \? params\.optInt\("positionMs", 0\) : 0\)/);
+
+  const adjustVolumeMatch = bridgeContent.match(
+    /private void handleAdjustAudioMixingVolume[\s\S]*?private void handleAdjustAudioMixingPublishVolume/,
+  );
+  assert.ok(adjustVolumeMatch);
+  assert.match(adjustVolumeMatch[0], /rtcEngine\.adjustAudioMixingVolume\(params != null \? params\.optInt\("volume", 100\) : 100\)/);
+
+  const adjustPublishVolumeMatch = bridgeContent.match(
+    /private void handleAdjustAudioMixingPublishVolume[\s\S]*?private void handleAdjustAudioMixingPlayoutVolume/,
+  );
+  assert.ok(adjustPublishVolumeMatch);
+  assert.match(adjustPublishVolumeMatch[0], /rtcEngine\.adjustAudioMixingPublishVolume\(params != null \? params\.optInt\("volume", 100\) : 100\)/);
+
+  const adjustPlayoutVolumeMatch = bridgeContent.match(
+    /private void handleAdjustAudioMixingPlayoutVolume[\s\S]*?private void handlePreloadEffect/,
+  );
+  assert.ok(adjustPlayoutVolumeMatch);
+  assert.match(adjustPlayoutVolumeMatch[0], /rtcEngine\.adjustAudioMixingPlayoutVolume\(params != null \? params\.optInt\("volume", 100\) : 100\)/);
+
+  const preloadEffectMatch = bridgeContent.match(
+    /private void handlePreloadEffect[\s\S]*?private void handlePlayEffect/,
+  );
+  assert.ok(preloadEffectMatch);
+  assert.match(preloadEffectMatch[0], /int soundId = params != null \? params\.optInt\("soundId", 0\) : 0/);
+  assert.match(preloadEffectMatch[0], /String path = params != null \? params\.optString\("path", ""\) : ""/);
+  assert.match(preloadEffectMatch[0], /effectManager\.preloadEffect\(soundId, path\)/);
+
+  const setEffectsVolumeMatch = bridgeContent.match(
+    /private void handleSetEffectsVolume[\s\S]*?private void handleStopEffect/,
+  );
+  assert.ok(setEffectsVolumeMatch);
+  assert.match(setEffectsVolumeMatch[0], /double volume = params != null \? params\.optDouble\("volume", 100\.0\) : 100\.0/);
+  assert.match(setEffectsVolumeMatch[0], /effectManager\.setEffectsVolume\(volume\)/);
+
+  for (const [handler, nativeCall] of [
+    ['handlePauseEffect', 'pauseEffect'],
+    ['handleResumeEffect', 'resumeEffect'],
+    ['handleStopEffect', 'stopEffect'],
+  ]) {
+    const effectMatch = bridgeContent.match(new RegExp(`private void ${handler}[\\s\\S]*?private void`));
+    assert.ok(effectMatch, `${handler} should exist`);
+    assert.match(effectMatch[0], /params != null \? params\.optInt\("soundId", 0\) : 0/);
+    assert.match(effectMatch[0], new RegExp(`effectManager\\.${nativeCall}\\(`));
+  }
 });
 
 test('android bridge template maps video encoder enum raw values from rtc 4.5.3', async () => {
@@ -593,6 +745,7 @@ test('android bridge template maps video encoder enum raw values from rtc 4.5.3'
   assert.ok(advancedOptionsMatch);
   assert.match(advancedOptionsMatch[0], /params\.optInt\("encodingPreference", -1\)/);
   assert.match(advancedOptionsMatch[0], /params\.optInt\("compressionPreference", -1\)/);
+  assert.match(advancedOptionsMatch[0], /options\.encodeAlpha = params\.optBoolean\("encodeAlpha", options\.encodeAlpha\)/);
 
   const encodingMatch = bridgeContent.match(
     /private VideoEncoderConfiguration\.ENCODING_PREFERENCE mapEncodingPreference[\s\S]*?private VideoEncoderConfiguration\.COMPRESSION_PREFERENCE mapCompressionPreference/,
@@ -759,12 +912,16 @@ test('ios bridge template maps joinChannel media options from request payload', 
   assert.match(bridgeContent, /options\.defaultVideoStreamType = parseVideoStreamType/);
   assert.match(bridgeContent, /options\.audioDelayMs = value/);
   assert.match(bridgeContent, /options\.mediaPlayerAudioDelayMs = value/);
+  assert.match(bridgeContent, /options\.token = value/);
   assert.match(bridgeContent, /options\.enableBuiltInMediaEncryption = value/);
   assert.match(bridgeContent, /options\.publishRhythmPlayerTrack = value/);
   assert.match(bridgeContent, /options\.isInteractiveAudience = value/);
   assert.match(bridgeContent, /options\.customVideoTrackId = value/);
   assert.match(bridgeContent, /options\.isAudioFilterable = value/);
   assert.match(bridgeContent, /if let value = params\["startPreview"\] as\? Bool/);
+  assert.match(bridgeContent, /options\.parameters = value/);
+  assert.doesNotMatch(bridgeContent, /options\.publishThirdCameraTrack/);
+  assert.doesNotMatch(bridgeContent, /options\.publishFourthCameraTrack/);
   assert.doesNotMatch(bridgeContent, /options\.enableMultipath/);
   assert.doesNotMatch(bridgeContent, /options\.uplinkMultipathMode/);
   assert.doesNotMatch(bridgeContent, /options\.downlinkMultipathMode/);
@@ -780,14 +937,27 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
 
   assert.match(bridgeContent, /AgoraRtcEngineConfig\(\)/);
   assert.match(bridgeContent, /sharedEngine\(with: config, delegate: self\)/);
+  assert.match(bridgeContent, /config\.appId = appId/);
+  assert.match(bridgeContent, /config\.channelProfile = channelProfile/);
+  assert.match(bridgeContent, /config\.license = license/);
+  assert.match(bridgeContent, /config\.audioScenario = audioScenario/);
   assert.match(bridgeContent, /config\.areaCode = AgoraAreaCodeType\(rawValue:/);
+  assert.match(bridgeContent, /config\.threadPriority = threadPriority/);
+  assert.match(bridgeContent, /config\.domainLimit = domainLimit/);
+  assert.match(bridgeContent, /config\.autoRegisterAgoraExtensions = autoRegisterAgoraExtensions/);
+  assert.match(bridgeContent, /logConfig\.filePath = logConfigParams\["filePath"\] as\? String/);
+  assert.match(bridgeContent, /logConfig\.fileSizeInKB = logConfigParams\["fileSizeInKB"\] as\? Int \?\? logConfig\.fileSizeInKB/);
+  assert.match(bridgeContent, /logConfig\.level = level/);
   assert.match(bridgeContent, /config\.logConfig = logConfig/);
+  assert.doesNotMatch(bridgeContent, /config\.nativeLibPath/);
+  assert.doesNotMatch(bridgeContent, /config\.extensions/);
 
   const clientRoleMatch = bridgeContent.match(
     /case "setClientRole":[\s\S]*?case "joinChannel":/,
   );
   assert.ok(clientRoleMatch);
   assert.match(clientRoleMatch[0], /let options = buildClientRoleOptions/);
+  assert.match(bridgeContent, /options\.audienceLatencyLevel = parseAudienceLatencyLevel\(rawValue\)/);
   assert.match(clientRoleMatch[0], /engine\.setClientRole\(agoraRole, options: options\)/);
 
   const audioProfileMatch = bridgeContent.match(
@@ -827,46 +997,135 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.ok(advancedOptionsMatch);
   assert.match(advancedOptionsMatch[0], /params\?\["encodingPreference"\] \?\? -1/);
   assert.match(advancedOptionsMatch[0], /params\?\["compressionPreference"\] \?\? -1/);
+  assert.match(advancedOptionsMatch[0], /options\.encodeAlpha = params\?\["encodeAlpha"\] as\? Bool \?\? false/);
+
+  const beautyMatch = bridgeContent.match(
+    /case "setBeautyEffectOptions":[\s\S]*?case "setLogFilter":/,
+  );
+  assert.ok(beautyMatch);
+  assert.match(beautyMatch[0], /let enabled = params\["enabled"\] as\? Bool \?\? false/);
+  assert.match(beautyMatch[0], /optionsObject\["lighteningContrastLevel"\] as\? Int/);
+  assert.match(beautyMatch[0], /options\.lighteningContrastLevel = contrast/);
+  assert.match(beautyMatch[0], /options\.lighteningLevel = Float\(optionsObject\["lighteningLevel"\] as\? Double \?\? 0\.0\)/);
+  assert.match(beautyMatch[0], /options\.smoothnessLevel = Float\(optionsObject\["smoothnessLevel"\] as\? Double \?\? 0\.0\)/);
+  assert.match(beautyMatch[0], /options\.rednessLevel = Float\(optionsObject\["rednessLevel"\] as\? Double \?\? 0\.0\)/);
+  assert.match(beautyMatch[0], /options\.sharpnessLevel = Float\(optionsObject\["sharpnessLevel"\] as\? Double \?\? 0\.0\)/);
 
   const inspectMatch = bridgeContent.match(
     /case "enableContentInspect":[\s\S]*?case "setNativeVideoOverlaySuspended":/,
   );
   assert.ok(inspectMatch);
+  assert.match(inspectMatch[0], /let enabled = params\["enabled"\] as\? Bool \?\? false/);
   assert.match(inspectMatch[0], /config\.extraInfo = extraInfo/);
   assert.match(inspectMatch[0], /config\.serverConfig = serverConfig/);
   assert.match(inspectMatch[0], /config\.modules = buildContentInspectModules/);
   assert.doesNotMatch(bridgeContent, /module\.position/);
 
+  const inspectModuleMatch = bridgeContent.match(
+    /private func buildContentInspectModules[\s\S]*?private func intValue/,
+  );
+  assert.ok(inspectModuleMatch);
+  assert.match(inspectModuleMatch[0], /"type": params\["module"\] \?\? 1/);
+  assert.match(inspectModuleMatch[0], /"interval": params\["interval"\] \?\? 0/);
+  assert.match(inspectModuleMatch[0], /module\.type = AgoraContentInspectType\(rawValue: typeValue\)/);
+  assert.match(inspectModuleMatch[0], /module\.interval = intValue\(params\["interval"\] \?\? 0\)/);
+
   assert.doesNotMatch(bridgeContent, /didOccurWarning warningCode/);
   assert.doesNotMatch(bridgeContent, /dispatchEvent\(name: "warning"/);
   assert.match(bridgeContent, /firstLocalAudioFramePublished elapsed/);
   assert.match(bridgeContent, /dispatchEvent\(name: "firstLocalAudioFramePublished"/);
+  assert.match(bridgeContent, /"elapsed": elapsed/);
   assert.match(bridgeContent, /contentInspectResult result/);
   assert.match(bridgeContent, /dispatchEvent\(name: "contentInspectResult"/);
+  assert.match(bridgeContent, /"result": result\.rawValue/);
   assert.match(bridgeContent, /localVideoStateChangedOf state/);
   assert.match(bridgeContent, /dispatchEvent\(name: "localVideoStateChanged"/);
-  assert.match(bridgeContent, /"elapsed": elapsed/);
+  assert.match(bridgeContent, /"sourceType": sourceType\.rawValue/);
+  assert.match(bridgeContent, /"state": state\.rawValue/);
+  assert.match(bridgeContent, /"error": reason\.rawValue/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "joinChannelSuccess"/);
+  assert.match(bridgeContent, /"channelId": channel/);
+  assert.match(bridgeContent, /"uid": uid/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "rejoinChannelSuccess"/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "userOffline"/);
+  assert.match(bridgeContent, /"reason": reason\.rawValue/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "connectionStateChanged"/);
+  assert.match(bridgeContent, /"state": state\.rawValue/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "remoteVideoStateChanged"/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "remoteAudioStateChanged"/);
+  assert.match(bridgeContent, /dispatchEvent\(name: "audioMixingStateChanged"/);
+  assert.match(bridgeContent, /"speakers": speakers\.map/);
+  assert.match(bridgeContent, /"volume": speaker\.volume/);
+  assert.match(bridgeContent, /"vad": speaker\.vad/);
+  assert.match(bridgeContent, /"voicePitch": speaker\.voicePitch/);
+  assert.match(bridgeContent, /"totalVolume": totalVolume/);
   assert.match(bridgeContent, /private func channelStatsPayload/);
+  assert.match(bridgeContent, /"duration": stats\.duration/);
+  assert.match(bridgeContent, /"txBytes": stats\.txBytes/);
+  assert.match(bridgeContent, /"rxBytes": stats\.rxBytes/);
   assert.match(bridgeContent, /"txKBitRate": stats\.txKBitrate/);
   assert.match(bridgeContent, /"rxKBitRate": stats\.rxKBitrate/);
   assert.match(bridgeContent, /"txAudioKBitRate": stats\.txAudioKBitrate/);
   assert.match(bridgeContent, /"rxAudioKBitRate": stats\.rxAudioKBitrate/);
   assert.match(bridgeContent, /"txVideoKBitRate": stats\.txVideoKBitrate/);
   assert.match(bridgeContent, /"rxVideoKBitRate": stats\.rxVideoKBitrate/);
+  assert.match(bridgeContent, /"txAudioBytes": stats\.txAudioBytes/);
+  assert.match(bridgeContent, /"txVideoBytes": stats\.txVideoBytes/);
+  assert.match(bridgeContent, /"rxAudioBytes": stats\.rxAudioBytes/);
+  assert.match(bridgeContent, /"rxVideoBytes": stats\.rxVideoBytes/);
+  assert.match(bridgeContent, /"lastmileDelay": stats\.lastmileDelay/);
+  assert.match(bridgeContent, /"users": stats\.userCount/);
+  assert.match(bridgeContent, /"cpuAppUsage": stats\.cpuAppUsage/);
+  assert.match(bridgeContent, /"cpuTotalUsage": stats\.cpuTotalUsage/);
+  assert.match(bridgeContent, /"gatewayRtt": stats\.gatewayRtt/);
+  assert.match(bridgeContent, /"memoryAppUsageRatio": stats\.memoryAppUsageRatio/);
+  assert.match(bridgeContent, /"memoryTotalUsageRatio": stats\.memoryTotalUsageRatio/);
+  assert.match(bridgeContent, /"memoryAppUsageInKbytes": stats\.memoryAppUsageInKbytes/);
+  assert.match(bridgeContent, /"connectTimeMs": stats\.connectTimeMs/);
+  assert.match(bridgeContent, /"txPacketLossRate": stats\.txPacketLossRate/);
+  assert.match(bridgeContent, /"rxPacketLossRate": stats\.rxPacketLossRate/);
   assert.doesNotMatch(bridgeContent, /"txKBitrate"/);
   assert.doesNotMatch(bridgeContent, /"rxKBitrate"/);
   assert.doesNotMatch(bridgeContent, /"txAudioKBitrate"/);
   assert.doesNotMatch(bridgeContent, /"rxAudioKBitrate"/);
   assert.doesNotMatch(bridgeContent, /"txVideoKBitrate"/);
   assert.doesNotMatch(bridgeContent, /"rxVideoKBitrate"/);
-  assert.match(bridgeContent, /"txAudioBytes": stats\.txAudioBytes/);
-  assert.match(bridgeContent, /"memoryAppUsageInKbytes": stats\.memoryAppUsageInKbytes/);
 
   const playEffectMatch = bridgeContent.match(
     /case "playEffect":[\s\S]*?case "stopEffect":/,
   );
   assert.ok(playEffectMatch);
+  assert.match(playEffectMatch[0], /let soundId = Int32\(params\["soundId"\] as\? Int \?\? 0\)/);
+  assert.match(playEffectMatch[0], /let path = params\["path"\] as\? String \?\? ""/);
+  assert.match(playEffectMatch[0], /let loopCount = params\["loopCount"\] as\? Int \?\? 1/);
+  assert.match(playEffectMatch[0], /let pitch = params\["pitch"\] as\? Double \?\? 1\.0/);
+  assert.match(playEffectMatch[0], /let pan = params\["pan"\] as\? Double \?\? 0\.0/);
   assert.match(playEffectMatch[0], /let gain = params\["gain"\] as\? Double \?\? 100\.0/);
+  assert.match(playEffectMatch[0], /let publish = params\["publish"\] as\? Bool \?\? false/);
+  assert.match(playEffectMatch[0], /let startPos = params\["startPos"\] as\? Int \?\? 0/);
+  assert.match(playEffectMatch[0], /engine\.playEffect\(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: Int\(gain\), publish: publish, startPos: Int32\(startPos\)\)/);
+
+  const startMixingMatch = bridgeContent.match(
+    /case "startAudioMixing":[\s\S]*?case "pauseAudioMixing":/,
+  );
+  assert.ok(startMixingMatch);
+  assert.match(startMixingMatch[0], /key: "path"/);
+  assert.match(startMixingMatch[0], /let loopback = params\["loopback"\] as\? Bool \?\? false/);
+  assert.match(startMixingMatch[0], /let cycle = params\["cycle"\] as\? Int \?\? 1/);
+  assert.match(startMixingMatch[0], /let startPos = params\["startPos"\] as\? Int \?\? 0/);
+  assert.match(startMixingMatch[0], /engine\.startAudioMixing\(path, loopback: loopback, cycle: cycle, startPos: startPos\)/);
+
+  assert.match(bridgeContent, /let position = params\["positionMs"\] as\? Int \?\? 0/);
+  assert.match(bridgeContent, /engine\.setAudioMixingPosition\(position\)/);
+  assert.match(bridgeContent, /let volume = params\["volume"\] as\? Int \?\? 100/);
+  assert.match(bridgeContent, /engine\.adjustAudioMixingVolume\(volume\)/);
+  assert.match(bridgeContent, /engine\.adjustAudioMixingPublishVolume\(volume\)/);
+  assert.match(bridgeContent, /engine\.adjustAudioMixingPlayoutVolume\(volume\)/);
+  assert.match(bridgeContent, /engine\.preloadEffect\(soundId, filePath: path\)/);
+  assert.match(bridgeContent, /engine\.pauseEffect\(soundId\)/);
+  assert.match(bridgeContent, /engine\.resumeEffect\(soundId\)/);
+  assert.match(bridgeContent, /engine\.setEffectsVolume\(volume\)/);
+  assert.match(bridgeContent, /engine\.stopEffect\(soundId\)/);
 });
 
 test('ios bridge template rejects unsafe invalid arguments before calling the rtc sdk', async () => {
@@ -1212,6 +1471,8 @@ test('ios bridge template falls back unsupported render backends to surface-view
   assert.match(bridgeContent, /if requestedBackend == "texture-view"/);
   assert.match(bridgeContent, /dispatchEvent\(name: "renderBackendState"/);
   assert.match(bridgeContent, /"phase": "fallback"/);
+  assert.match(bridgeContent, /"fallbackBackend": renderBackend/);
+  assert.match(bridgeContent, /"platform": "ios"/);
 });
 
 test('ios bridge template routes engine-texture through AgoraVideoFrameDelegate instead of UIView overlay', async () => {
@@ -1232,6 +1493,10 @@ test('ios bridge template routes engine-texture through AgoraVideoFrameDelegate 
   assert.match(bridgeContent, /remoteVideoTextureReady/);
   assert.match(bridgeContent, /localVideoTextureReleased/);
   assert.match(bridgeContent, /remoteVideoTextureReleased/);
+  assert.match(bridgeContent, /"slotId": slot\.slotId/);
+  assert.match(bridgeContent, /"width": slot\.width/);
+  assert.match(bridgeContent, /"height": slot\.height/);
+  assert.match(bridgeContent, /payload\["uid"\] = uid/);
   assert.match(bridgeContent, /private func handleUpdateLocalVideoView\(requestId: String, params: \[String: Any\]\) \{\n        if renderBackend == "engine-texture" \{[\s\S]*?ensureLocalTextureSlot\(\)/);
   assert.match(bridgeContent, /private func handleUpdateRemoteVideoView\(requestId: String, params: \[String: Any\]\) \{\n        let uid = params\["uid"\][\s\S]*?\n        if renderBackend == "engine-texture" \{[\s\S]*?ensureRemoteTextureSlot\(uid\)/);
   assert.match(slotBridgeContent, /case 12:/);
