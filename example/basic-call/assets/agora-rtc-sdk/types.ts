@@ -88,7 +88,18 @@ export interface AgoraVideoEncoderConfiguration {
   height: number;
   frameRate?: number;
   bitrate?: number;
+  /** Android VideoEncoderConfiguration only. iOS ObjC 4.5.3 does not expose minFrameRate. */
+  minFrameRate?: number;
+  minBitrate?: number;
   orientationMode?: number;
+  mirrorMode?: number;
+  degradationPreference?: number;
+  codecType?: number;
+  advancedVideoOptions?: {
+    encodingPreference?: number;
+    compressionPreference?: number;
+    encodeAlpha?: boolean;
+  };
 }
 
 export interface AgoraBeautyOptions {
@@ -102,24 +113,88 @@ export interface AgoraBeautyOptions {
 export interface AgoraContentInspectConfig {
   module?: number;
   interval?: number;
+  extraInfo?: string;
+  serverConfig?: string;
+  modules?: Array<{
+    type?: number;
+    interval?: number;
+    /** Android ContentInspectModule only. iOS 4.5.3 exposes type and interval. */
+    position?: number;
+  }>;
 }
 
 export type AgoraClientRole = 'broadcaster' | 'audience';
+
+export interface AgoraClientRoleOptions {
+  audienceLatencyLevel?: number;
+}
 
 export type AgoraChannelProfile =
   | 'communication'
   | 'liveBroadcasting';
 
+export interface AgoraRtcEngineConfig {
+  appId: string;
+  areaCode?: number;
+  channelProfile?: number;
+  license?: string;
+  audioScenario?: number;
+  autoRegisterAgoraExtensions?: boolean;
+  domainLimit?: boolean;
+  threadPriority?: number;
+  nativeLibPath?: string;
+  extensions?: string[];
+  logConfig?: {
+    filePath?: string;
+    fileSizeInKB?: number;
+    level?: number;
+  };
+}
+
 export interface AgoraChannelMediaOptions {
   clientRoleType?: AgoraClientRole | number;
   channelProfile?: AgoraChannelProfile | number;
   publishCameraTrack?: boolean;
+  publishSecondaryCameraTrack?: boolean;
+  /** Android/C++ ChannelMediaOptions only. iOS ObjC 4.5.3 does not expose this field. */
+  publishThirdCameraTrack?: boolean;
+  /** Android/C++ ChannelMediaOptions only. iOS ObjC 4.5.3 does not expose this field. */
+  publishFourthCameraTrack?: boolean;
   publishMicrophoneTrack?: boolean;
+  publishScreenCaptureVideo?: boolean;
+  publishScreenCaptureAudio?: boolean;
+  publishCustomAudioTrack?: boolean;
+  publishCustomAudioTrackId?: number;
+  publishCustomVideoTrack?: boolean;
+  publishEncodedVideoTrack?: boolean;
+  publishMediaPlayerAudioTrack?: boolean;
+  publishMediaPlayerVideoTrack?: boolean;
+  publishTranscodedVideoTrack?: boolean;
+  publishMixedAudioTrack?: boolean;
+  publishLipSyncTrack?: boolean;
   autoSubscribeAudio?: boolean;
   autoSubscribeVideo?: boolean;
   enableAudioRecordingOrPlayout?: boolean;
+  publishMediaPlayerId?: number;
+  audienceLatencyLevel?: number;
+  defaultVideoStreamType?: number;
+  audioDelayMs?: number;
+  mediaPlayerAudioDelayMs?: number;
   /** Android ChannelMediaOptions only. iOS exposes preview through startPreview(). */
   startPreview?: boolean;
+  enableBuiltInMediaEncryption?: boolean;
+  publishRhythmPlayerTrack?: boolean;
+  isInteractiveAudience?: boolean;
+  customVideoTrackId?: number;
+  isAudioFilterable?: boolean;
+  /** Android ChannelMediaOptions only. */
+  enableMultipath?: boolean;
+  /** Android ChannelMediaOptions only. */
+  uplinkMultipathMode?: number;
+  /** Android ChannelMediaOptions only. */
+  downlinkMultipathMode?: number;
+  /** Android ChannelMediaOptions only. */
+  preferMultipathType?: number;
   token?: string;
   parameters?: string;
 }
@@ -169,14 +244,40 @@ export interface AgoraBridgeEvent {
   payload?: unknown;
 }
 
+export interface AgoraRtcStatsPayload {
+  duration: number;
+  txBytes?: number;
+  rxBytes?: number;
+  txKBitRate?: number;
+  rxKBitRate?: number;
+  txAudioBytes?: number;
+  rxAudioBytes?: number;
+  txVideoBytes?: number;
+  rxVideoBytes?: number;
+  txAudioKBitRate?: number;
+  rxAudioKBitRate?: number;
+  txVideoKBitRate?: number;
+  rxVideoKBitRate?: number;
+  lastmileDelay?: number;
+  cpuTotalUsage?: number;
+  gatewayRtt?: number;
+  cpuAppUsage?: number;
+  users?: number;
+  connectTimeMs?: number;
+  txPacketLossRate?: number;
+  rxPacketLossRate?: number;
+  memoryAppUsageRatio?: number;
+  memoryTotalUsageRatio?: number;
+  memoryAppUsageInKbytes?: number;
+}
+
 export interface AgoraEventMap {
   joinChannelSuccess: {
     channelId: string;
     uid: number;
+    elapsed: number;
   };
-  leaveChannel: {
-    duration: number;
-  };
+  leaveChannel: AgoraRtcStatsPayload;
   rejoinChannelSuccess: {
     channelId: string;
     uid: number;
@@ -205,28 +306,17 @@ export interface AgoraEventMap {
     uid: number;
     slotId: number;
   };
-  localVideoFrame: {
-    uid: number;
-    width: number;
-    height: number;
-    format: 'rgba8888';
-    dataBase64: string;
-  };
-  remoteVideoFrame: {
-    uid: number;
-    width: number;
-    height: number;
-    format: 'rgba8888';
-    dataBase64: string;
-  };
   renderBackendState: {
     backend: string;
     phase: string;
     result: number;
     uid: number;
+    fallbackBackend?: string;
+    platform?: string;
   };
   userJoined: {
     uid: number;
+    elapsed: number;
   };
   userOffline: {
     uid: number;
@@ -266,22 +356,9 @@ export interface AgoraEventMap {
     }>;
     totalVolume: number;
   };
-  rtcStats: {
-    duration: number;
-    txBytes?: number;
-    rxBytes?: number;
-    txKBitRate?: number;
-    rxKBitRate?: number;
-    users?: number;
-    txPacketLossRate?: number;
-    rxPacketLossRate?: number;
-  };
+  rtcStats: AgoraRtcStatsPayload;
   contentInspectResult: {
     result: number;
-  };
-  warning: {
-    code?: number | string;
-    message: string;
   };
   error: {
     code?: number | string;
