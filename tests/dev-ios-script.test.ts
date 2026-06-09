@@ -85,14 +85,33 @@ test('dev-ios-device script wires bundle id, team, provisioning profile, and dev
   assert.match(content, /node \.\/scripts\/write-example-build-config\.mjs >/);
   assert.match(content, /PROJECT_PATH="\$IOS_PROJECT_DIR\/agora-cocos-basic-call\.xcodeproj"/);
   assert.doesNotMatch(content, /WORKSPACE_PATH=/);
+  assert.match(content, /IOS_CODE_SIGN_IDENTITY="\$\{IOS_CODE_SIGN_IDENTITY:-Apple Development\}"/);
+  assert.match(content, /IOS_XCODE_DESTINATION_ID="\$\{IOS_XCODE_DESTINATION_ID:-\$\{IOS_DEVICE_ID:-\}\}"/);
+  assert.match(content, /IOS_DEVICE_ID="\$\{IOS_DEVICE_ID:-\}"/);
+  assert.match(content, /iOS device build requires signing and device environment variables/);
   assert.match(content, /security find-identity -v -p codesigning/);
   assert.doesNotMatch(content, /generate-ios-podfile\.mjs/);
   assert.match(content, /integrate-ios-project\.rb --with-package/);
   assert.doesNotMatch(content, /pod install/);
   assert.match(content, /xcodebuild -project "\$PROJECT_PATH"/);
   assert.doesNotMatch(content, /xcodebuild -workspace/);
+  assert.match(content, /-destination "id=\$IOS_XCODE_DESTINATION_ID"/);
+  assert.ok(
+    content.indexOf('IOS_CODE_SIGN_IDENTITY="$IOS_CODE_SIGN_IDENTITY" \\') <
+      content.indexOf('./scripts/integrate-ios-project.rb --with-package'),
+    'manual signing should be applied through integrate-ios-project before xcodebuild',
+  );
+  assert.doesNotMatch(content, /^\s+DEVELOPMENT_TEAM="\$IOS_DEVELOPMENT_TEAM" \\\s*$/m);
+  assert.doesNotMatch(content, /^\s+PROVISIONING_PROFILE_SPECIFIER="\$IOS_PROVISIONING_PROFILE_SPECIFIER" \\\s*$/m);
+  assert.doesNotMatch(content, /^\s+CODE_SIGN_IDENTITY="\$IOS_CODE_SIGN_IDENTITY" \\\s*$/m);
   assert.match(content, /devicectl device install app/);
+  assert.match(content, /devicectl device install app --device "\$IOS_DEVICE_ID"/);
   assert.match(content, /devicectl device process launch/);
+  assert.match(content, /devicectl device process launch --device "\$IOS_DEVICE_ID"/);
+  assert.doesNotMatch(content, /xuhui/);
+  assert.doesNotMatch(content, /rte_team_ios/);
+  assert.doesNotMatch(content, /56S4B84HA8/);
+  assert.doesNotMatch(content, /726DD8AE/);
 });
 
 test('agora native plugin manifest remains disabled because this project uses manual native integration', async () => {

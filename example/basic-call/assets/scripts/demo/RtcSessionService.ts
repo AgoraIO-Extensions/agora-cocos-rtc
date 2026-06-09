@@ -188,6 +188,42 @@ export class RtcSessionService {
     this.emitState();
   }
 
+  async joinWithUserAccount(userAccount: string): Promise<void> {
+    if (!this.initialized) {
+      await this.initializeRtc();
+    }
+    if (this.joined) {
+      this.log('Already joined');
+      return;
+    }
+    const config = this.options.getConfig();
+    if (!config.channelId.trim()) {
+      throw new Error('Channel ID is empty.');
+    }
+    if (!userAccount.trim()) {
+      throw new Error('User account is empty.');
+    }
+    const client = this.getClient();
+    await client.enableVideo(false);
+    this.videoEnabled = false;
+    await client.joinChannelWithUserAccount(
+      config.token,
+      config.channelId.trim(),
+      userAccount.trim(),
+    );
+    this.joined = true;
+    this.log(`String user account join request sent: ${userAccount.trim()}`);
+    this.emitState();
+  }
+
+  async getUserInfoByUserAccount(userAccount: string): Promise<void> {
+    if (!userAccount.trim()) {
+      throw new Error('User account is empty.');
+    }
+    const info = await this.getClient().getUserInfoByUserAccount(userAccount.trim());
+    this.log(`UserInfo ${info.userAccount ?? userAccount.trim()}: ${info.uid ?? '-'}`);
+  }
+
   async leaveRtcChannel(): Promise<void> {
     const client = this.getClient();
     await client.leaveChannel();
@@ -608,11 +644,22 @@ export class RtcSessionService {
     await client.setParameters('{"rtc.debug":true}');
   }
 
+  async applyParameterPreset(parameters: Record<string, unknown>): Promise<void> {
+    if (!this.initialized) {
+      await this.initializeRtc();
+    }
+    await this.getClient().setParameters(parameters);
+    this.log(`Parameters applied: ${JSON.stringify(parameters)}`);
+  }
+
   async teardownRtc(): Promise<void> {
     if (!this.client) {
       return;
     }
     try {
+      if (this.joined) {
+        await this.client.leaveChannel();
+      }
       if (this.previewStarted) {
         await this.client.stopPreview();
       }

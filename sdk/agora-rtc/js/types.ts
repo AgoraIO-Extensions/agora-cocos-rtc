@@ -24,6 +24,8 @@ export type AgoraMethod =
   | 'setChannelProfile'
   | 'setClientRole'
   | 'joinChannel'
+  | 'joinChannelWithUserAccount'
+  | 'getUserInfoByUserAccount'
   | 'leaveChannel'
   | 'renewToken'
   | 'enableAudio'
@@ -215,6 +217,11 @@ export interface AgoraPlayEffectConfig {
   gain?: number;
   publish?: boolean;
   startPos?: number;
+}
+
+export interface AgoraUserInfo {
+  uid?: number;
+  userAccount?: string;
 }
 
 export type AgoraRenderBackend =

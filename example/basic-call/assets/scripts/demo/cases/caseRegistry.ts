@@ -47,6 +47,17 @@ export const DEMO_CASES = [
     ],
   },
   {
+    name: 'StringUid',
+    section: 'Basic',
+    displayMode: 'audio',
+    actions: [
+      'Initialize',
+      'JoinWithUserAccount',
+      'GetUserInfoByUserAccount',
+      'Leave',
+    ],
+  },
+  {
     name: 'AudioEffectMixing',
     section: 'Advanced',
     displayMode: 'audio',
@@ -82,6 +93,24 @@ export const DEMO_CASES = [
     section: 'Advanced',
     displayMode: 'video',
     actions: ['StartPreview', 'JoinChannel', 'ContentInspect', 'Leave'],
+  },
+  {
+    name: 'ChannelProfile',
+    section: 'Advanced',
+    displayMode: 'audio',
+    actions: ['Profile', 'Role', 'Initialize', 'JoinChannel', 'Leave'],
+  },
+  {
+    name: 'SetParameters',
+    section: 'Advanced',
+    displayMode: 'audio',
+    actions: [
+      'KeepAudioSession',
+      'MixableAudio',
+      'RestartInterrupted',
+      'AutoMirror',
+      'DebugFlag',
+    ],
   },
 ] as const satisfies readonly DemoCaseDefinition[];
 

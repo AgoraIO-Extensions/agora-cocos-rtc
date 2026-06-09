@@ -608,6 +608,53 @@ test('client preserves native validation error details for bad api calls', async
   );
 });
 
+test('client dispatches string uid account APIs through the native bridge', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const joinPending = client.joinChannelWithUserAccount('demo-token', 'demo-channel', 'cocos-user-0');
+  const joinRequest = JSON.parse(transport.sent[0].payload);
+  assert.equal(joinRequest.method, 'joinChannelWithUserAccount');
+  assert.deepEqual(joinRequest.params, {
+    token: 'demo-token',
+    channelId: 'demo-channel',
+    userAccount: 'cocos-user-0',
+  });
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: joinRequest.requestId,
+      ok: true,
+    }),
+  );
+  await joinPending;
+
+  const infoPending = client.getUserInfoByUserAccount('cocos-user-0');
+  const infoRequest = JSON.parse(transport.sent[1].payload);
+  assert.equal(infoRequest.method, 'getUserInfoByUserAccount');
+  assert.deepEqual(infoRequest.params, {
+    userAccount: 'cocos-user-0',
+  });
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: infoRequest.requestId,
+      ok: true,
+      result: {
+        uid: 1001,
+        userAccount: 'cocos-user-0',
+      },
+    }),
+  );
+  assert.deepEqual(await infoPending, {
+    uid: 1001,
+    userAccount: 'cocos-user-0',
+  });
+});
+
 test('client ignores unknown and malformed native responses without poisoning pending requests', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({

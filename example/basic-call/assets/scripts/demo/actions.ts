@@ -49,6 +49,13 @@ export const ADVANCED_ACTIONS = [
   { name: 'AudioMixingPublishVolume', handler: 'applyAudioMixingPublishVolume' },
   { name: 'AudioMixingPlayoutVolume', handler: 'applyAudioMixingPlayoutVolume' },
   { name: 'AudioMixingVolume', handler: 'applyAudioMixingVolume' },
+  { name: 'JoinWithUserAccount', handler: 'joinWithUserAccount' },
+  { name: 'GetUserInfoByUserAccount', handler: 'getUserInfoByUserAccount' },
+  { name: 'KeepAudioSession', handler: 'applyKeepAudioSessionParameter' },
+  { name: 'MixableAudio', handler: 'applyMixableAudioParameter' },
+  { name: 'RestartInterrupted', handler: 'applyRestartInterruptedParameter' },
+  { name: 'AutoMirror', handler: 'applyAutoMirrorParameter' },
+  { name: 'DebugFlag', handler: 'applyDebugFlagParameter' },
 ] as const;
 
 export const DEFAULT_BUTTON_LAYOUT = [...BASIC_VIDEO_ACTIONS, ...ADVANCED_ACTIONS] as const;
@@ -113,6 +120,13 @@ export const ACTION_LABELS: Record<string, string> = {
   AudioMixingPublishVolume: 'Publish Vol',
   AudioMixingPlayoutVolume: 'Playout Vol',
   AudioMixingVolume: 'Mix Volume',
+  JoinWithUserAccount: 'Join Account',
+  GetUserInfoByUserAccount: 'Get UserInfo',
+  KeepAudioSession: 'Keep AudioSession',
+  MixableAudio: 'Mixable Audio',
+  RestartInterrupted: 'Restart Interrupted',
+  AutoMirror: 'Auto Mirror',
+  DebugFlag: 'Debug Flag',
 };
 
 export type DemoActionName = typeof DEFAULT_BUTTON_LAYOUT[number]['name'];

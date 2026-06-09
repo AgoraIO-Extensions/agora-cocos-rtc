@@ -5,6 +5,7 @@ import {
   HorizontalTextAlignment,
   Label,
   Node,
+  type EventTouch,
   UITransform,
   VerticalTextAlignment,
 } from 'cc';
@@ -106,7 +107,31 @@ export function ensureButtonNode(
   label.horizontalAlign = HorizontalTextAlignment.CENTER;
 
   node.getComponent(Button) ?? node.addComponent(Button);
+  const touchTargets: Node[] = [node, bgNode, labelNode];
+  for (const target of touchTargets) {
+    target.off(Node.EventType.TOUCH_END);
+    target.on(Node.EventType.TOUCH_END, (event: EventTouch) => {
+      event.propagationStopped = true;
+      node.emit('agora-button-click');
+    });
+  }
   return { node, label };
+}
+
+export function bindButtonTouch(buttonNode: Node, handler: () => void, target?: unknown): void {
+  let dispatching = false;
+  buttonNode.off('agora-button-click');
+  buttonNode.on('agora-button-click', () => {
+    if (dispatching) {
+      return;
+    }
+    dispatching = true;
+    try {
+      handler.call(target);
+    } finally {
+      dispatching = false;
+    }
+  });
 }
 
 export function ensureLabelNode(

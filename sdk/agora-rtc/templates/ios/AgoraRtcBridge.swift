@@ -260,6 +260,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "joinChannel":
             handleJoinChannel(requestId: requestId, params: params)
+        case "joinChannelWithUserAccount":
+            handleJoinChannelWithUserAccount(requestId: requestId, params: params)
+        case "getUserInfoByUserAccount":
+            handleGetUserInfoByUserAccount(requestId: requestId, params: params)
         case "leaveChannel":
             requireEngine(requestId: requestId) { engine in
                 let result = engine.leaveChannel(nil)
@@ -942,6 +946,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return AgoraVideoStreamType(rawValue: value) ?? AgoraVideoStreamType(rawValue: 0)!
     }
 
+    private func parseContentInspectModulePosition(_ rawValue: Any) -> AgoraVideoModulePosition {
+        let value = intValue(rawValue)
+        return AgoraVideoModulePosition(rawValue: value) ?? .preRenderer
+    }
+
     private func buildClientRoleOptions(_ params: [String: Any]?) -> AgoraClientRoleOptions {
         let options = AgoraClientRoleOptions()
         if let rawValue = params?["audienceLatencyLevel"] {
@@ -975,6 +984,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         let typeValue = UInt(intValue(params["type"] ?? 1))
         module.type = AgoraContentInspectType(rawValue: typeValue) ?? AgoraContentInspectType(rawValue: 1)!
         module.interval = intValue(params["interval"] ?? 0)
+        module.position = parseContentInspectModulePosition(params["position"] ?? AgoraVideoModulePosition.preRenderer.rawValue)
         return module
     }
 
@@ -992,6 +1002,74 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             return Int(value) ?? 0
         }
         return 0
+    }
+
+    private func handleJoinChannelWithUserAccount(requestId: String, params: [String: Any]) {
+        guard rtcEngine != nil else {
+            dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+            return
+        }
+
+        let token = params["token"] as? String
+        guard let channelId = requiredString(
+            params,
+            key: "channelId",
+            requestId: requestId,
+            message: "Channel ID is required."
+        ) else {
+            return
+        }
+        guard let userAccount = requiredString(
+            params,
+            key: "userAccount",
+            requestId: requestId,
+            message: "User account is required."
+        ) else {
+            return
+        }
+
+        ensureRtcPermissions(requestId: requestId) {
+            guard let engine = self.rtcEngine else {
+                self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+                return
+            }
+            let result = engine.joinChannel(byToken: token,
+                channelId: channelId,
+                userAccount: userAccount,
+                joinSuccess: nil
+            )
+            self.dispatchResult(requestId: requestId, method: "joinChannelWithUserAccount", result: result)
+        }
+    }
+
+    private func handleGetUserInfoByUserAccount(requestId: String, params: [String: Any]) {
+        guard let engine = rtcEngine else {
+            dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+            return
+        }
+        guard let userAccount = requiredString(
+            params,
+            key: "userAccount",
+            requestId: requestId,
+            message: "User account is required."
+        ) else {
+            return
+        }
+
+        var errorCode = AgoraErrorCode.noError
+        guard let userInfo = engine.getUserInfo(byUserAccount: userAccount, withError: &errorCode) else {
+            dispatchResult(requestId: requestId, method: "getUserInfoByUserAccount", result: Int32(errorCode.rawValue))
+            return
+        }
+
+        dispatchResponse([
+            "requestId": requestId,
+            "ok": true,
+            "result": [
+                "uid": userInfo.uid,
+                "userAccount": userInfo.userAccount ?? userAccount,
+            ],
+        ])
     }
 
     private func requireEngine(requestId: String, action: (AgoraRtcEngineKit) -> Void) {
@@ -1628,7 +1706,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     func getVideoFormatPreference() -> AgoraVideoFormat {
-        return .CVPixelNV12
+        return .cvPixelNV12
     }
 
     func getObservedFramePosition() -> AgoraVideoFramePosition {
