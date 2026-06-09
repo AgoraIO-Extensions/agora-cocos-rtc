@@ -446,14 +446,22 @@ test('android integration script prefers pinned test ndk over ambient ndk env', 
   ]);
 
   const functionSource = functionMatch[0].replace(/\n\nwrite_android_cocos_build_config$/, '');
-  const runResolver = (env: NodeJS.ProcessEnv) =>
-    spawnSync('bash', ['-c', `${functionSource}\nresolve_android_ndk_path`], {
+  const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+  const runResolver = (env: NodeJS.ProcessEnv) => {
+    const shellEnv = [
+      `ANDROID_SDK_ROOT=${shellQuote(env.ANDROID_SDK_ROOT ?? '')}`,
+      `ANDROID_NDK_HOME=${shellQuote(env.ANDROID_NDK_HOME ?? '')}`,
+      `ANDROID_NDK_ROOT=${shellQuote(env.ANDROID_NDK_ROOT ?? '')}`,
+      `ANDROID_TEST_NDK_HOME=${shellQuote(env.ANDROID_TEST_NDK_HOME ?? '')}`,
+    ].join('\n');
+
+    return spawnSync('bash', ['-c', `${functionSource}\n${shellEnv}\nresolve_android_ndk_path`], {
       encoding: 'utf8',
       env: {
         PATH: process.env.PATH ?? '',
-        ...env,
       },
     });
+  };
 
   const defaultResult = runResolver({
     ANDROID_SDK_ROOT: sdkRoot,
