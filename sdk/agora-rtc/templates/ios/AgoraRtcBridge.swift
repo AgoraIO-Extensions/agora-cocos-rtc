@@ -924,6 +924,15 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     private func handleUpdateLocalVideoView(requestId: String, params: [String: Any]) {
+        if renderBackend == "engine-texture" {
+            localTextureRequested = true
+            ensureLocalTextureSlot()
+            dispatchResponse([
+                "requestId": requestId,
+                "ok": true,
+            ])
+            return
+        }
         DispatchQueue.main.async {
             guard let view = self.localCanvasView else {
                 self.dispatchError(requestId: requestId, message: "Local video view is not attached.")
@@ -939,6 +948,15 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
 
     private func handleUpdateRemoteVideoView(requestId: String, params: [String: Any]) {
         let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+        if renderBackend == "engine-texture" {
+            remoteTextureUids.insert(uid)
+            ensureRemoteTextureSlot(uid)
+            dispatchResponse([
+                "requestId": requestId,
+                "ok": true,
+            ])
+            return
+        }
         DispatchQueue.main.async {
             guard let view = self.remoteCanvasViews[uid] else {
                 self.dispatchError(requestId: requestId, message: "Remote video view is not attached.")
