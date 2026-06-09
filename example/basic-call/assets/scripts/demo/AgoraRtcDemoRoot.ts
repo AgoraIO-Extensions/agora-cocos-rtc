@@ -301,6 +301,48 @@ export class AgoraRtcDemoRoot extends Component {
     await this.runSessionAction('Effect', (session) => session.runEffectDemo());
   }
 
+  async preloadAudioEffect(): Promise<void> {
+    await this.runSessionAction('PreloadEffect', (session) => session.preloadAudioEffect());
+  }
+
+  async togglePlayAudioEffect(): Promise<void> {
+    await this.runSessionAction('PlayEffect', (session) => session.togglePlayAudioEffect());
+  }
+
+  async pauseAudioEffect(): Promise<void> {
+    await this.runSessionAction('PauseEffect', (session) => session.pauseAudioEffect());
+  }
+
+  async resumeAudioEffect(): Promise<void> {
+    await this.runSessionAction('ResumeEffect', (session) => session.resumeAudioEffect());
+  }
+
+  async applyEffectsVolume(): Promise<void> {
+    await this.runSessionAction('SetEffectsVolume', (session) => session.applyEffectsVolume());
+  }
+
+  async toggleAudioMixing(): Promise<void> {
+    await this.runAudioEffectMixingAction('StartAudioMixing', (session, assetPath) =>
+      session.toggleAudioMixing(assetPath),
+    );
+  }
+
+  async applyAudioMixingPosition(): Promise<void> {
+    await this.runSessionAction('SetAudioMixingPosition', (session) => session.applyAudioMixingPosition());
+  }
+
+  async applyAudioMixingPublishVolume(): Promise<void> {
+    await this.runSessionAction('AudioMixingPublishVolume', (session) => session.applyAudioMixingPublishVolume());
+  }
+
+  async applyAudioMixingPlayoutVolume(): Promise<void> {
+    await this.runSessionAction('AudioMixingPlayoutVolume', (session) => session.applyAudioMixingPlayoutVolume());
+  }
+
+  async applyAudioMixingVolume(): Promise<void> {
+    await this.runSessionAction('AudioMixingVolume', (session) => session.applyAudioMixingVolume());
+  }
+
   async runDiagnosticsDemo(): Promise<void> {
     await this.runSessionAction('Diag', (session) => session.runDiagnosticsDemo());
   }
@@ -451,6 +493,13 @@ export class AgoraRtcDemoRoot extends Component {
     }
   }
 
+  private async runAudioEffectMixingAction(
+    actionName: string,
+    action: (session: RtcSessionService, assetPath: string) => Promise<void>,
+  ): Promise<void> {
+    await this.runSessionAction(actionName, (session) => action(session, 'audio/Agora.io-Interactions.mp3'));
+  }
+
   private setActionResult(actionName: string, result: ActionResult): void {
     this.actionResults.set(actionName, result);
     this.actionPanel?.setActionResult(actionName, result);
@@ -598,6 +647,17 @@ export class AgoraRtcDemoRoot extends Component {
       lastLocalVideoStatsSummary: '-',
       lastRemoteVideoStatsByUid: {},
       lastVolumeSummary: '-',
+      audioEffectMixing: {
+        effectPreloaded: false,
+        effectPlaying: false,
+        audioMixingStarted: false,
+        effectsVolume: 100,
+        audioMixingPublishVolume: 100,
+        audioMixingPlayoutVolume: 100,
+        audioMixingVolume: 100,
+        audioMixingPositionMs: 1000,
+        remoteAudioStateSummary: '-',
+      },
     };
   }
 }

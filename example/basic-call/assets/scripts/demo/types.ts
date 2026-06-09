@@ -72,6 +72,7 @@ export interface DemoSessionState {
   lastLocalVideoStatsSummary: string;
   lastRemoteVideoStatsByUid: Record<number, string>;
   lastVolumeSummary: string;
+  audioEffectMixing: AudioEffectMixingState;
 }
 
 export interface VideoTextureBinding {

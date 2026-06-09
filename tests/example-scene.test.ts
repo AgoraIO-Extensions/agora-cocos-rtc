@@ -362,6 +362,44 @@ test('demo root supports case list navigation before case detail actions', async
   assert.match(panelContent, /AudioEffectMixing/);
 });
 
+test('audio effect mixing case wires flutter-required controls', async () => {
+  const actionsContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/actions.ts`,
+    'utf8',
+  );
+  const serviceContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+  const rootContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  for (const name of [
+    'PreloadEffect',
+    'PlayEffect',
+    'PauseEffect',
+    'ResumeEffect',
+    'SetEffectsVolume',
+    'StartAudioMixing',
+    'SetAudioMixingPosition',
+    'AudioMixingPublishVolume',
+    'AudioMixingPlayoutVolume',
+    'AudioMixingVolume',
+  ]) {
+    assert.match(actionsContent, new RegExp(name));
+  }
+
+  assert.match(serviceContent, /pauseEffect/);
+  assert.match(serviceContent, /resumeEffect/);
+  assert.match(serviceContent, /setEffectsVolume/);
+  assert.match(serviceContent, /adjustAudioMixingPublishVolume/);
+  assert.match(serviceContent, /adjustAudioMixingPlayoutVolume/);
+  assert.match(serviceContent, /remoteAudioStateChanged/);
+  assert.match(rootContent, /runAudioEffectMixingAction/);
+});
+
 test('example scene and template use landscape canvas dimensions', async () => {
   const sceneContent = await readFile(
     `${repoRoot}/example/basic-call/assets/scene/main.scene`,
