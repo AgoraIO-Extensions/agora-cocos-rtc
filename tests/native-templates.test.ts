@@ -37,7 +37,37 @@ const iosEngineTextureSlotBridgeHeaderTemplate = path.join(
   'sdk/agora-rtc/templates/ios/AgoraEngineTextureSlotBridge.h',
 );
 const primaryRepoRoot = repoRoot.replace(/\/\.worktrees\/[^/]+$/, '');
+const iosDerivedDataRoots = Array.from(new Set([
+  process.env.IOS_DERIVED_DATA_PATH,
+  path.join('/tmp', 'agora-cocos-ios-api-tests-derived-main'),
+  path.join('/tmp', 'agora-cocos-ios-api-tests-derived'),
+  path.join('/tmp', 'agora-cocos-ios-all-platforms-derived'),
+  path.join('/tmp', 'agora-cocos-ios-derived'),
+  path.join('/tmp', 'agora-cocos-ios-device-derived'),
+  path.join(os.tmpdir(), 'agora-cocos-ios-api-tests-derived-main'),
+  path.join(os.tmpdir(), 'agora-cocos-ios-api-tests-derived'),
+  path.join(os.tmpdir(), 'agora-cocos-ios-all-platforms-derived'),
+  path.join(os.tmpdir(), 'agora-cocos-ios-derived'),
+  path.join(os.tmpdir(), 'agora-cocos-ios-device-derived'),
+].filter((value): value is string => Boolean(value))));
+
+function iosSwiftPackageHeaderCandidates(headerName: string) {
+  return iosDerivedDataRoots.flatMap((derivedDataRoot) => [
+    path.join(
+      derivedDataRoot,
+      'SourcePackages/artifacts/agorartcengine_ios/AgoraRtcKit/AgoraRtcKit.xcframework/ios-arm64_x86_64-simulator/AgoraRtcKit.framework/Headers',
+      headerName,
+    ),
+    path.join(
+      derivedDataRoot,
+      'Build/Products/Debug-iphonesimulator/AgoraRtcKit.framework/Headers',
+      headerName,
+    ),
+  ]);
+}
+
 const iosRtcDelegateHeaderCandidates = [
+  ...iosSwiftPackageHeaderCandidates('AgoraRtcEngineDelegate.h'),
   path.join(
     repoRoot,
     'example/basic-call/build-ios/ios/proj/Pods/AgoraRtcEngine_iOS/AgoraRtcKit.xcframework/ios-arm64_x86_64-simulator/AgoraRtcKit.framework/Headers/AgoraRtcEngineDelegate.h',
@@ -48,6 +78,7 @@ const iosRtcDelegateHeaderCandidates = [
   ),
 ];
 const iosRtcObjectsHeaderCandidates = [
+  ...iosSwiftPackageHeaderCandidates('AgoraObjects.h'),
   path.join(
     repoRoot,
     'example/basic-call/build-ios/ios/proj/Pods/AgoraRtcEngine_iOS/AgoraRtcKit.xcframework/ios-arm64_x86_64-simulator/AgoraRtcKit.framework/Headers/AgoraObjects.h',

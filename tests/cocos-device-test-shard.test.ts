@@ -252,6 +252,7 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /TEST_DONE status=/);
   assert.match(androidScript, /TEST_DONE status=fail/);
   assert.match(androidScript, /collect-cocos-test-report\.mjs/);
+  assert.match(androidScript, /run-as "\$PACKAGE_NAME" cat "\$REPORT_REMOTE_PATH"/);
   assert.match(androidScript, /ANDROID_COCOS_BUILD_CONFIG=/);
   assert.match(androidScript, /ANDROID_TEST_ABI=/);
   assert.match(androidScript, /appABIs/);
@@ -285,11 +286,16 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /PROJECT_PATH="\$IOS_PROJECT_DIR\/agora-cocos-basic-call\.xcodeproj"/);
   assert.match(iosScript, /SCHEME_NAME="agora-cocos-basic-call-mobile"/);
   assert.match(iosScript, /xcodebuild -project "\$PROJECT_PATH"/);
-  assert.match(iosScript, /-scheme "\$SCHEME_NAME"/);
-  assert.match(iosScript, /-derivedDataPath "\$DERIVED_DATA_PATH"/);
+  assert.match(iosScript, /-target "\$SCHEME_NAME"/);
+  assert.match(iosScript, /IOS_PRODUCTS_DIR="\$DERIVED_DATA_PATH\/Build\/Products"/);
+  assert.match(iosScript, /IOS_INTERMEDIATES_DIR="\$DERIVED_DATA_PATH\/Build\/Intermediates\.noindex"/);
+  assert.match(iosScript, /SYMROOT="\$IOS_PRODUCTS_DIR"/);
+  assert.match(iosScript, /OBJROOT="\$IOS_INTERMEDIATES_DIR"/);
+  assert.match(iosScript, /should_skip_simulator_launch_assets\(\)/);
+  assert.match(iosScript, /--skip-simulator-launch-assets/);
   assert.doesNotMatch(iosScript, /WORKSPACE_PATH=/);
   assert.doesNotMatch(iosScript, /TARGET_NAME=/);
-  assert.doesNotMatch(iosScript, /\s-target(\s|=)/);
+  assert.doesNotMatch(iosScript, /-derivedDataPath "\$DERIVED_DATA_PATH"/);
   assert.doesNotMatch(iosScript, /generate-ios-podfile\.mjs/);
   assert.doesNotMatch(iosScript, /pod install/);
   assert.match(iosScript, /ios-diagnostic\.log/);
@@ -298,6 +304,7 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /IOS_SIMULATOR_UDID="\$\(resolve_ios_simulator_udid\)"/);
   assert.match(iosScript, /simctl privacy "\$IOS_SIMULATOR_UDID" grant camera "\$IOS_BUNDLE_ID"/);
   assert.match(iosScript, /simctl privacy "\$IOS_SIMULATOR_UDID" grant microphone "\$IOS_BUNDLE_ID"/);
+  assert.match(iosScript, /rm -f "\$IOS_REPORT_SIM_PATH"/);
   assert.match(iosScript, /simctl install "\$IOS_SIMULATOR_UDID" "\$APP_PATH"/);
   assert.match(iosScript, /simctl get_app_container "\$IOS_SIMULATOR_UDID" "\$IOS_BUNDLE_ID" data/);
   assert.doesNotMatch(iosScript, /simctl (spawn|install|privacy|launch|get_app_container|io) booted/);

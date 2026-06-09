@@ -59,6 +59,29 @@ run_cocos_build() {
   echo "$label Cocos build completed with exit code $exit_code."
 }
 
+should_skip_simulator_launch_assets() {
+  case "${IOS_SIMULATOR_RESOURCE_MODE:-auto}" in
+    skip|true|1)
+      return 0
+      ;;
+    keep|false|0)
+      return 1
+      ;;
+    auto)
+      local sdk_build
+      sdk_build=$(xcodebuild -version -sdk iphonesimulator ProductBuildVersion 2>/dev/null | tail -n 1 | tr -d '[:space:]')
+      [[ -z "$sdk_build" ]] && return 1
+      xcrun simctl list runtimes 2>/dev/null | grep -Fq "$sdk_build" && return 1
+      return 0
+      ;;
+    *)
+      echo "Unsupported IOS_SIMULATOR_RESOURCE_MODE: ${IOS_SIMULATOR_RESOURCE_MODE:-auto}" >&2
+      echo "Expected auto, skip, or keep." >&2
+      exit 1
+      ;;
+  esac
+}
+
 resolve_ios_simulator_udid() {
   if [[ -n "${IOS_SIMULATOR_UDID:-}" ]]; then
     echo "$IOS_SIMULATOR_UDID"
@@ -179,7 +202,12 @@ node ./scripts/inject-cocos-test-runner.mjs
 log_step "Export iOS project with Cocos"
 run_cocos_build "$COCOS_BUILD_CONFIG" "iOS"
 node ./scripts/sync-native-engine-texture-bridge.mjs >/dev/null
-./scripts/integrate-ios-project.rb --with-package >/dev/null
+IOS_INTEGRATION_ARGS=(--with-package)
+if should_skip_simulator_launch_assets; then
+  IOS_INTEGRATION_ARGS+=(--skip-simulator-launch-assets)
+  echo "Skipping simulator launch assets because the installed simulator runtimes do not match the active iOS Simulator SDK."
+fi
+./scripts/integrate-ios-project.rb "${IOS_INTEGRATION_ARGS[@]}" >/dev/null
 if [[ -d "$IOS_RUNTIME_PLUGIN_DIR" ]]; then
   mkdir -p "$IOS_EXPORTED_PLUGIN_DIR"
   cp -R "$IOS_RUNTIME_PLUGIN_DIR/." "$IOS_EXPORTED_PLUGIN_DIR/"
@@ -187,13 +215,18 @@ fi
 
 log_step "Build iOS simulator app"
 cd "$IOS_PROJECT_DIR"
+IOS_PRODUCTS_DIR="$DERIVED_DATA_PATH/Build/Products"
+IOS_INTERMEDIATES_DIR="$DERIVED_DATA_PATH/Build/Intermediates.noindex"
+rm -rf "$DERIVED_DATA_PATH/Build"
+mkdir -p "$IOS_PRODUCTS_DIR" "$IOS_INTERMEDIATES_DIR"
 xcodebuild -project "$PROJECT_PATH" \
-  -scheme "$SCHEME_NAME" \
+  -target "$SCHEME_NAME" \
   -configuration Debug \
   -sdk iphonesimulator \
-  -derivedDataPath "$DERIVED_DATA_PATH" \
   CODE_SIGNING_ALLOWED=NO \
   CODE_SIGNING_REQUIRED=NO \
+  SYMROOT="$IOS_PRODUCTS_DIR" \
+  OBJROOT="$IOS_INTERMEDIATES_DIR" \
   build
 
 APP_PATH="$DERIVED_DATA_PATH/Build/Products/Debug-iphonesimulator/agora-cocos-basic-call-mobile.app"
@@ -209,6 +242,10 @@ echo "IOS_SIMULATOR_UDID=$IOS_SIMULATOR_UDID" > "$REPORT_DIR/ios-simulator-udid.
 xcrun simctl install "$IOS_SIMULATOR_UDID" "$APP_PATH"
 xcrun simctl privacy "$IOS_SIMULATOR_UDID" grant camera "$IOS_BUNDLE_ID" || true
 xcrun simctl privacy "$IOS_SIMULATOR_UDID" grant microphone "$IOS_BUNDLE_ID" || true
+refresh_ios_report_path
+if [[ -n "$IOS_REPORT_SIM_PATH" ]]; then
+  rm -f "$IOS_REPORT_SIM_PATH"
+fi
 xcrun simctl launch --terminate-running-process --stdout="$IOS_STDOUT_LOG_PATH" --stderr="$IOS_STDERR_LOG_PATH" "$IOS_SIMULATOR_UDID" "$IOS_BUNDLE_ID" \
   -AGORA_COCOS_TEST_MODE "$AGORA_COCOS_TEST_MODE" \
   -TEST_APP_ID "${TEST_APP_ID:-${APP_ID:-}}" \

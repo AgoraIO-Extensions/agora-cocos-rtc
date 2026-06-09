@@ -1,4 +1,4 @@
-import type { AgoraRtcClient } from '../../agora-rtc-sdk/agora.ts';
+import type { AgoraRtcClient } from '../../../extensions/agora-rtc/js/agora.ts';
 
 export type ApiEvidenceKind = 'response' | 'event' | 'error' | 'value';
 
