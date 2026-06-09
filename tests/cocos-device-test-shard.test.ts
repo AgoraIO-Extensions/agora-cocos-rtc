@@ -198,11 +198,24 @@ test('cocos runner injection supports the dynamic prefab bootstrap mount point',
     `${fixtureRoot}/example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts`,
     'utf8',
   );
+  const injectedRunnerContent = await readFile(
+    `${fixtureRoot}/example/basic-call/assets/scripts/cocos-device-tests/api_test_runner.ts`,
+    'utf8',
+  );
+  const injectedTestcasesContent = await readFile(
+    `${fixtureRoot}/example/basic-call/assets/scripts/cocos-device-tests/api_call_testcases.ts`,
+    'utf8',
+  );
   assert.match(
     bootstrapContent,
     /import \{ runAgoraCocosDeviceTestsWhenReady \} from '\.\/cocos-device-tests\/test-mode\.ts';/,
   );
   assert.match(bootstrapContent, /runAgoraCocosDeviceTestsWhenReady\(\);\n\n  return true;/);
+  assert.doesNotMatch(injectedRunnerContent, /\.\.\/\.\.\/agora-rtc-sdk/);
+  assert.doesNotMatch(injectedTestcasesContent, /\.\.\/\.\.\/agora-rtc-sdk/);
+  assert.match(injectedRunnerContent, /\.\.\/\.\.\/\.\.\/extensions\/agora-rtc\/js\/agora\.ts/);
+  assert.match(injectedRunnerContent, /\.\.\/\.\.\/\.\.\/extensions\/agora-rtc\/js\/internal\/bridge\.ts/);
+  assert.match(injectedTestcasesContent, /\.\.\/\.\.\/\.\.\/extensions\/agora-rtc\/js\/agora\.ts/);
 });
 
 test('cocos integration scripts build and launch android and ios test apps', async () => {

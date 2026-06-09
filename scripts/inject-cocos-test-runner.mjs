@@ -18,6 +18,22 @@ const runtimeGlobals = {
 
 await mkdir(targetDir, { recursive: true });
 await cp(sourceDir, targetDir, { recursive: true });
+const sdkImportRewrites = new Map([
+  ['../../agora-rtc-sdk/agora.ts', '../../../extensions/agora-rtc/js/agora.ts'],
+  ['../../agora-rtc-sdk/internal/bridge.ts', '../../../extensions/agora-rtc/js/internal/bridge.ts'],
+]);
+const tsFiles = (await readdir(targetDir)).filter((entry) => entry.endsWith('.ts')).sort();
+for (const filename of tsFiles) {
+  const testSourcePath = path.join(targetDir, filename);
+  let testSourceContent = await readFile(testSourcePath, 'utf8');
+  let nextTestSourceContent = testSourceContent;
+  for (const [sourceSpecifier, targetSpecifier] of sdkImportRewrites) {
+    nextTestSourceContent = nextTestSourceContent.replaceAll(sourceSpecifier, targetSpecifier);
+  }
+  if (nextTestSourceContent !== testSourceContent) {
+    await writeFile(testSourcePath, nextTestSourceContent, 'utf8');
+  }
+}
 await writeFile(
   path.join(targetDir, 'test-mode.ts'),
   [
@@ -79,7 +95,7 @@ function metaFor(uuid) {
   }, null, 2)}\n`;
 }
 
-const tsFiles = (await readdir(targetDir)).filter((entry) => entry.endsWith('.ts')).sort();
+const tsFilesWithTestMode = (await readdir(targetDir)).filter((entry) => entry.endsWith('.ts')).sort();
 await writeFile(
   `${targetDir}.meta`,
   `${JSON.stringify({
@@ -96,7 +112,7 @@ await writeFile(
   }, null, 2)}\n`,
   'utf8',
 );
-for (const [index, filename] of tsFiles.entries()) {
+for (const [index, filename] of tsFilesWithTestMode.entries()) {
   const metaPath = path.join(targetDir, `${filename}.meta`);
   await writeFile(metaPath, metaFor(`6f0fce55-2000-42b8-8b7b-1aaf80000${String(index).padStart(3, '0')}`), 'utf8');
 }
