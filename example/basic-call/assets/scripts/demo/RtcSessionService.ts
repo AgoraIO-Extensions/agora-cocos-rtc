@@ -656,20 +656,23 @@ export class RtcSessionService {
     if (!this.client) {
       return;
     }
+    const client = this.client;
     try {
       if (this.joined) {
-        await this.client.leaveChannel();
+        await this.teardownRtcStep('leaveChannel', () => client.leaveChannel());
       }
       if (this.previewStarted) {
-        await this.client.stopPreview();
+        await this.teardownRtcStep('stopPreview', () => client.stopPreview());
       }
       if (this.localViewAttached) {
-        await this.client.removeLocalVideoView();
+        await this.teardownRtcStep('removeLocalVideoView', () => client.removeLocalVideoView());
       }
       for (const uid of this.remoteUserUids) {
-        await this.client.removeRemoteVideoView(uid);
+        await this.teardownRtcStep(`removeRemoteVideoView:${uid}`, () =>
+          client.removeRemoteVideoView(uid),
+        );
       }
-      await this.client.destroy();
+      await this.teardownRtcStep('destroy', () => client.destroy());
     } finally {
       this.client = null;
       this.listenersBound = false;
@@ -947,6 +950,14 @@ export class RtcSessionService {
       this.log(`Demo success: ${label}`);
     } catch (error) {
       this.log(`Demo result: ${label} -> ${String(error)}`);
+    }
+  }
+
+  private async teardownRtcStep(label: string, action: () => Promise<unknown>): Promise<void> {
+    try {
+      await action();
+    } catch (error) {
+      this.recordAsyncError(`Teardown ${label}`, error);
     }
   }
 

@@ -80,7 +80,9 @@ test('example bootstrap no longer mounts the monolithic controller at runtime', 
   );
 
   assert.match(content, /EVENT_AFTER_SCENE_LAUNCH/);
-  assert.match(content, /profiler/);
+  assert.match(content, /const pipeline = director\.root\?\.pipeline/);
+  assert.match(content, /if \(pipeline\) \{[\s\S]*pipeline\.profiler = null;[\s\S]*hideStats\?\.\(\);[\s\S]*\}/);
+  assert.doesNotMatch(content, /game\.config\.showFPS = false/);
   assert.doesNotMatch(content, /canvas\.addComponent\(AgoraRtcExampleController\)/);
   assert.doesNotMatch(content, /ensureExampleControllerMounted/);
 });
@@ -631,12 +633,16 @@ test('returning to the case list tears down rtc and leaves channel first', async
 
   assert.match(root, /onBackToCases: \(\) => \{ void this\.backToCaseList\(\); \}/);
   assert.match(root, /private async backToCaseList\(\): Promise<void> \{[\s\S]*this\.closeStatusLogPage\(\)[\s\S]*await this\.session\?\.teardownRtc\(\)[\s\S]*this\.session = null[\s\S]*this\.showCaseList\(\)/);
-  assert.match(service, /if \(this\.joined\) \{[\s\S]*await this\.client\.leaveChannel\(\)/);
+  assert.match(service, /const client = this\.client;/);
+  assert.match(service, /await this\.teardownRtcStep\('leaveChannel', \(\) => client\.leaveChannel\(\)\)/);
+  assert.match(service, /await this\.teardownRtcStep\('destroy', \(\) => client\.destroy\(\)\)/);
   assert.ok(
-    service.indexOf('await this.client.leaveChannel()') <
-      service.indexOf('await this.client.destroy()'),
+    service.indexOf("await this.teardownRtcStep('leaveChannel'") <
+      service.indexOf("await this.teardownRtcStep('destroy'"),
     'leaveChannel should happen before destroy in teardownRtc',
   );
+  assert.match(service, /private async teardownRtcStep\(label: string, action: \(\) => Promise<unknown>\): Promise<void>/);
+  assert.match(service, /this\.recordAsyncError\(`Teardown \$\{label\}`/);
 });
 
 test('log panel fits landscape devices and keeps close controls visible', async () => {
