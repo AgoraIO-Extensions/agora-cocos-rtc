@@ -123,7 +123,7 @@ During implementation, do not change the configured SDK version just to refresh 
 - Modify: `test_shard/integration_test_app/src/api_call_testcases.ts`
 - Modify: `tests/cocos-device-test-shard.test.ts`
 
-- [ ] **Step 1: Add failing client request tests**
+- [x] **Step 1: Add failing client request tests**
 
 Add one test near the existing audio mixing/effect wrapper tests in `tests/agora-client.test.ts`:
 
@@ -172,7 +172,7 @@ test('AudioEffectMixing extra APIs dispatch expected native requests', async () 
 });
 ```
 
-- [ ] **Step 2: Add failing event forwarding test**
+- [x] **Step 2: Add failing event forwarding test**
 
 Add this test near the existing event forwarding tests:
 
@@ -206,7 +206,7 @@ test('client surfaces remote audio state change events', async () => {
 });
 ```
 
-- [ ] **Step 3: Add failing device API cases**
+- [x] **Step 3: Add failing device API cases**
 
 In `test_shard/integration_test_app/src/api_call_testcases.ts`, insert these cases after `effect.play` and before `effect.stop`:
 
@@ -248,7 +248,7 @@ In `test_shard/integration_test_app/src/api_call_testcases.ts`, insert these cas
   },
 ```
 
-- [ ] **Step 4: Add platform-sensitive evidence expectations**
+- [x] **Step 4: Add platform-sensitive evidence expectations**
 
 In `tests/cocos-device-test-shard.test.ts`, extend `platformSensitiveCaseIds`:
 
@@ -261,7 +261,7 @@ In `tests/cocos-device-test-shard.test.ts`, extend `platformSensitiveCaseIds`:
 
 Keep `effect.set-volume` as response-only because it can execute without active playback on Android/iOS when the effect manager accepts it.
 
-- [ ] **Step 5: Run failing SDK tests**
+- [x] **Step 5: Run failing SDK tests**
 
 Run:
 
@@ -271,7 +271,7 @@ npm test -- tests/agora-client.test.ts tests/cocos-device-test-shard.test.ts
 
 Expected: fail with TypeScript/runtime errors such as `client.pauseEffect is not a function` or missing `AgoraMethod` cases.
 
-- [ ] **Step 6: Commit failing tests**
+- [x] **Step 6: Commit failing tests**
 
 ```bash
 git add tests/agora-client.test.ts test_shard/integration_test_app/src/api_call_testcases.ts tests/cocos-device-test-shard.test.ts
@@ -287,7 +287,7 @@ git commit -m "test: cover audio effect mixing api additions"
 - Modify: `example/basic-call/assets/agora-rtc-sdk/types.ts`
 - Modify: `example/basic-call/assets/agora-rtc-sdk/agora.ts`
 
-- [ ] **Step 1: Add methods and event to SDK types**
+- [x] **Step 1: Add methods and event to SDK types**
 
 In `sdk/agora-rtc/js/types.ts`, add these entries to `AgoraMethod` after `playEffect`:
 
@@ -310,7 +310,7 @@ Add this event in `AgoraEventMap` near the existing audio events:
   };
 ```
 
-- [ ] **Step 2: Add wrapper methods**
+- [x] **Step 2: Add wrapper methods**
 
 In `sdk/agora-rtc/js/agora.ts`, add these methods after `playEffect` and before `stopEffect`:
 
@@ -336,7 +336,7 @@ In `sdk/agora-rtc/js/agora.ts`, add these methods after `playEffect` and before 
   }
 ```
 
-- [ ] **Step 3: Sync example SDK copies**
+- [x] **Step 3: Sync example SDK copies**
 
 Copy the changed SDK wrapper files into the example project:
 
@@ -345,7 +345,7 @@ cp sdk/agora-rtc/js/types.ts example/basic-call/assets/agora-rtc-sdk/types.ts
 cp sdk/agora-rtc/js/agora.ts example/basic-call/assets/agora-rtc-sdk/agora.ts
 ```
 
-- [ ] **Step 4: Update README API surface**
+- [x] **Step 4: Update README API surface**
 
 In `sdk/agora-rtc/README.md`, add the new methods under API Surface after `playEffect`:
 
@@ -363,7 +363,7 @@ Add one platform note:
 - `AudioEffectMixing` effect pause/resume and effect volume map to native audio effect APIs; audio mixing publish/playout volume map to native audio mixing APIs.
 ```
 
-- [ ] **Step 5: Run focused client tests**
+- [x] **Step 5: Run focused client tests**
 
 Run:
 
@@ -373,7 +373,7 @@ npm test -- tests/agora-client.test.ts
 
 Expected: client wrapper tests pass; native template tests still fail until bridge tasks are complete.
 
-- [ ] **Step 6: Commit SDK TypeScript changes**
+- [x] **Step 6: Commit SDK TypeScript changes**
 
 ```bash
 git add sdk/agora-rtc/js/types.ts sdk/agora-rtc/js/agora.ts sdk/agora-rtc/README.md example/basic-call/assets/agora-rtc-sdk/types.ts example/basic-call/assets/agora-rtc-sdk/agora.ts
@@ -387,7 +387,7 @@ git commit -m "feat: expose audio effect mixing bridge methods"
 - Modify: `sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java`
 - Modify: `example/basic-call/native/agora-rtc/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java`
 
-- [ ] **Step 1: Add failing Android bridge assertions**
+- [x] **Step 1: Add failing Android bridge assertions**
 
 In `tests/native-templates.test.ts`, extend `android bridge template dispatches expanded sdk methods`:
 
@@ -432,7 +432,7 @@ Update the Java stub `IRtcEngineEventHandler` class:
     public void onRemoteAudioStateChanged(int uid, int state, int reason, int elapsed) {}
 ```
 
-- [ ] **Step 2: Run failing native template tests**
+- [x] **Step 2: Run failing native template tests**
 
 Run:
 
@@ -442,7 +442,7 @@ npm test -- tests/native-templates.test.ts
 
 Expected: fail on missing Android bridge cases and handlers.
 
-- [ ] **Step 3: Add Android switch cases**
+- [x] **Step 3: Add Android switch cases**
 
 In `sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java`, add cases after `playEffect`:
 
@@ -464,7 +464,7 @@ In `sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlu
                 break;
 ```
 
-- [ ] **Step 4: Add Android event dispatch**
+- [x] **Step 4: Add Android event dispatch**
 
 Inside the existing `IRtcEngineEventHandler`, add:
 
@@ -480,7 +480,7 @@ Inside the existing `IRtcEngineEventHandler`, add:
                 }
 ```
 
-- [ ] **Step 5: Add Android handlers**
+- [x] **Step 5: Add Android handlers**
 
 Add handlers near the existing effect/mixing handlers:
 
@@ -569,13 +569,13 @@ Add handlers near the existing effect/mixing handlers:
     }
 ```
 
-- [ ] **Step 6: Sync Android example native copy**
+- [x] **Step 6: Sync Android example native copy**
 
 ```bash
 cp sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java example/basic-call/native/agora-rtc/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java
 ```
 
-- [ ] **Step 7: Run Android bridge tests**
+- [x] **Step 7: Run Android bridge tests**
 
 Run:
 
@@ -585,7 +585,7 @@ npm test -- tests/native-templates.test.ts
 
 Expected: Android assertions pass. iOS assertions fail only if Task 4's failing assertions were already added.
 
-- [ ] **Step 8: Commit Android bridge**
+- [x] **Step 8: Commit Android bridge**
 
 ```bash
 git add tests/native-templates.test.ts sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java example/basic-call/native/agora-rtc/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java
@@ -599,7 +599,7 @@ git commit -m "feat: bridge audio effect mixing APIs on android"
 - Modify: `sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift`
 - Modify: `example/basic-call/native/agora-rtc/ios/AgoraRtcBridge.swift`
 
-- [ ] **Step 1: Add failing iOS bridge assertions**
+- [x] **Step 1: Add failing iOS bridge assertions**
 
 In `tests/native-templates.test.ts`, extend the iOS bridge tests near existing audio mixing assertions:
 
@@ -618,7 +618,7 @@ In `tests/native-templates.test.ts`, extend the iOS bridge tests near existing a
   assert.match(bridgeContent, /dispatchEvent\(name: "remoteAudioStateChanged"/);
 ```
 
-- [ ] **Step 2: Run failing iOS template tests**
+- [x] **Step 2: Run failing iOS template tests**
 
 Run:
 
@@ -628,7 +628,7 @@ npm test -- tests/native-templates.test.ts
 
 Expected: fail on missing iOS cases and delegate dispatch.
 
-- [ ] **Step 3: Add Swift request cases**
+- [x] **Step 3: Add Swift request cases**
 
 In `sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift`, add cases after `playEffect` and before `stopEffect`, using the existing `requireEngine` and `dispatchResult` helpers:
 
@@ -669,7 +669,7 @@ In `sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift`, add cases after `playEffe
             }
 ```
 
-- [ ] **Step 4: Add Swift remote audio event dispatch**
+- [x] **Step 4: Add Swift remote audio event dispatch**
 
 Add this delegate method near the existing video/audio event delegates:
 
@@ -684,13 +684,13 @@ Add this delegate method near the existing video/audio event delegates:
     }
 ```
 
-- [ ] **Step 5: Sync iOS example native copy**
+- [x] **Step 5: Sync iOS example native copy**
 
 ```bash
 cp sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift example/basic-call/native/agora-rtc/ios/AgoraRtcBridge.swift
 ```
 
-- [ ] **Step 6: Run Swift parse and native template tests**
+- [x] **Step 6: Run Swift parse and native template tests**
 
 Run:
 
@@ -701,7 +701,7 @@ npm test -- tests/native-templates.test.ts
 
 Expected: Swift parse passes; native template tests pass.
 
-- [ ] **Step 7: Commit iOS bridge**
+- [x] **Step 7: Commit iOS bridge**
 
 ```bash
 git add tests/native-templates.test.ts sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift example/basic-call/native/agora-rtc/ios/AgoraRtcBridge.swift
@@ -718,7 +718,7 @@ git commit -m "feat: bridge audio effect mixing APIs on ios"
 - Create: `example/basic-call/assets/scripts/demo/cases/caseRegistry.ts.meta`
 - Modify: `example/basic-call/assets/scripts/demo/types.ts`
 
-- [ ] **Step 1: Add failing exact case registry test**
+- [x] **Step 1: Add failing exact case registry test**
 
 In `tests/example-scene.test.ts`, add:
 
@@ -757,7 +757,7 @@ test('demo case registry exposes the approved flutter-aligned case list', async 
 });
 ```
 
-- [ ] **Step 2: Add failing productization file expectations**
+- [x] **Step 2: Add failing productization file expectations**
 
 In `tests/productization.test.ts`, add these paths to the existing example source package/file list assertion:
 
@@ -769,7 +769,7 @@ In `tests/productization.test.ts`, add these paths to the existing example sourc
 
 When the existing assertion uses a tar listing, add exact path matches with the same `example-basic-call/...` prefix used for current demo files.
 
-- [ ] **Step 3: Run failing tests**
+- [x] **Step 3: Run failing tests**
 
 Run:
 
@@ -779,7 +779,7 @@ npm test -- tests/example-scene.test.ts tests/productization.test.ts
 
 Expected: fail because the case registry and audio asset do not exist yet.
 
-- [ ] **Step 4: Create case registry**
+- [x] **Step 4: Create case registry**
 
 Create `example/basic-call/assets/scripts/demo/cases/caseRegistry.ts`:
 
@@ -878,7 +878,7 @@ export function findDemoCase(name: string): DemoCaseDefinition | null {
 }
 ```
 
-- [ ] **Step 5: Add Cocos metadata**
+- [x] **Step 5: Add Cocos metadata**
 
 Create `example/basic-call/assets/scripts/demo/cases.meta` with a new stable UUID:
 
@@ -908,7 +908,7 @@ Create `example/basic-call/assets/scripts/demo/cases/caseRegistry.ts.meta`:
 }
 ```
 
-- [ ] **Step 6: Add case state types**
+- [x] **Step 6: Add case state types**
 
 In `example/basic-call/assets/scripts/demo/types.ts`, add:
 
@@ -935,7 +935,7 @@ export interface AudioEffectMixingState {
 }
 ```
 
-- [ ] **Step 7: Run focused tests**
+- [x] **Step 7: Run focused tests**
 
 Run:
 
@@ -945,7 +945,7 @@ npm test -- tests/example-scene.test.ts tests/productization.test.ts
 
 Expected: registry test passes. Productization fails on the missing `AudioEffectMixingCase.ts` and audio asset until Task 8 creates them.
 
-- [ ] **Step 8: Commit registry and types**
+- [x] **Step 8: Commit registry and types**
 
 ```bash
 git add tests/example-scene.test.ts tests/productization.test.ts example/basic-call/assets/scripts/demo/types.ts example/basic-call/assets/scripts/demo/cases.meta example/basic-call/assets/scripts/demo/cases/caseRegistry.ts example/basic-call/assets/scripts/demo/cases/caseRegistry.ts.meta
@@ -959,7 +959,7 @@ git commit -m "feat: add flutter-aligned case registry"
 - Modify: `example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`
 - Modify: `example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`
 
-- [ ] **Step 1: Add failing root and panel tests**
+- [x] **Step 1: Add failing root and panel tests**
 
 In `tests/example-scene.test.ts`, add:
 
@@ -985,7 +985,7 @@ test('demo root supports case list navigation before case detail actions', async
 });
 ```
 
-- [ ] **Step 2: Run failing test**
+- [x] **Step 2: Run failing test**
 
 Run:
 
@@ -995,7 +995,7 @@ npm test -- tests/example-scene.test.ts
 
 Expected: fail on missing navigation and render methods.
 
-- [ ] **Step 3: Add root navigation fields and callbacks**
+- [x] **Step 3: Add root navigation fields and callbacks**
 
 In `AgoraRtcDemoRoot.ts`, import registry helpers:
 
@@ -1048,7 +1048,7 @@ In `refreshPanels`, pass the case list and selected case:
     this.actionPanel?.setCaseState(DEMO_CASES, this.selectedCase);
 ```
 
-- [ ] **Step 4: Extend panel callback types**
+- [x] **Step 4: Extend panel callback types**
 
 In `DemoActionPanel.ts`, import case type:
 
@@ -1085,7 +1085,7 @@ Add:
   }
 ```
 
-- [ ] **Step 5: Render case list and detail controls**
+- [x] **Step 5: Render case list and detail controls**
 
 At the start of `ensureControls`, branch:
 
@@ -1166,7 +1166,7 @@ Add `clearDynamicChildren()`:
 
 Before using `clearDynamicChildren`, guard `ensureControls()` with a `lastRenderedCaseName` field so the panel rebuilds children only when switching between the list and a different case. `refresh()` should only update labels/buttons for the active tree.
 
-- [ ] **Step 6: Run focused navigation test**
+- [x] **Step 6: Run focused navigation test**
 
 Run:
 
@@ -1176,7 +1176,7 @@ npm test -- tests/example-scene.test.ts
 
 Expected: case navigation test passes.
 
-- [ ] **Step 7: Commit navigation UI**
+- [x] **Step 7: Commit navigation UI**
 
 ```bash
 git add tests/example-scene.test.ts example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts
@@ -1192,7 +1192,7 @@ git commit -m "feat: add flutter-style case navigation"
 - Modify: `example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`
 - Modify: `example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`
 
-- [ ] **Step 1: Add failing AudioEffectMixing control assertions**
+- [x] **Step 1: Add failing AudioEffectMixing control assertions**
 
 In `tests/example-scene.test.ts`, add:
 
@@ -1236,7 +1236,7 @@ test('audio effect mixing case wires flutter-required controls', async () => {
 });
 ```
 
-- [ ] **Step 2: Run failing case action test**
+- [x] **Step 2: Run failing case action test**
 
 Run:
 
@@ -1246,7 +1246,7 @@ npm test -- tests/example-scene.test.ts
 
 Expected: fail on missing actions/service methods.
 
-- [ ] **Step 3: Add action names and labels**
+- [x] **Step 3: Add action names and labels**
 
 In `example/basic-call/assets/scripts/demo/actions.ts`, add advanced action entries:
 
@@ -1278,7 +1278,7 @@ Add labels:
   AudioMixingVolume: 'Mix Volume',
 ```
 
-- [ ] **Step 4: Add service state fields**
+- [x] **Step 4: Add service state fields**
 
 In `RtcSessionService.ts`, add fields:
 
@@ -1298,7 +1298,7 @@ In `RtcSessionService.ts`, add fields:
 
 Extend `DemoSessionState` in `types.ts` with the matching summary fields or add a nested `audioEffectMixing` object if keeping state compact.
 
-- [ ] **Step 5: Add service methods**
+- [x] **Step 5: Add service methods**
 
 Add methods to `RtcSessionService`:
 
@@ -1406,7 +1406,7 @@ Add methods to `RtcSessionService`:
   }
 ```
 
-- [ ] **Step 6: Add remote audio event listener**
+- [x] **Step 6: Add remote audio event listener**
 
 In `bindRtcEventListeners`, add:
 
@@ -1418,7 +1418,7 @@ In `bindRtcEventListeners`, add:
     });
 ```
 
-- [ ] **Step 7: Wire root action handlers**
+- [x] **Step 7: Wire root action handlers**
 
 In `AgoraRtcDemoRoot.ts`, add methods:
 
@@ -1466,7 +1466,7 @@ In `AgoraRtcDemoRoot.ts`, add methods:
 
 Implement `runAudioEffectMixingAction` in Task 8 after asset resolution exists. For this task, make it call `runSessionAction` with a temporary string path `audio/Agora.io-Interactions.mp3`; Task 8 replaces it.
 
-- [ ] **Step 8: Run action tests**
+- [x] **Step 8: Run action tests**
 
 Run:
 
@@ -1476,7 +1476,7 @@ npm test -- tests/example-scene.test.ts
 
 Expected: tests pass for action registry and service method presence.
 
-- [ ] **Step 9: Commit service actions**
+- [x] **Step 9: Commit service actions**
 
 ```bash
 git add tests/example-scene.test.ts example/basic-call/assets/scripts/demo/actions.ts example/basic-call/assets/scripts/demo/RtcSessionService.ts example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts example/basic-call/assets/scripts/demo/types.ts
@@ -1495,7 +1495,7 @@ git commit -m "feat: wire audio effect mixing case actions"
 - Modify: `tests/example-scene.test.ts`
 - Modify: `tests/productization.test.ts`
 
-- [ ] **Step 1: Add failing asset helper tests**
+- [x] **Step 1: Add failing asset helper tests**
 
 In `tests/example-scene.test.ts`, add:
 
@@ -1515,7 +1515,7 @@ test('audio effect mixing case resolves a bundled local mixing asset', async () 
 });
 ```
 
-- [ ] **Step 2: Add local audio resource**
+- [x] **Step 2: Add local audio resource**
 
 Add `example/basic-call/assets/resources/audio/Agora.io-Interactions.mp3` by copying the exact Flutter example asset:
 
@@ -1553,7 +1553,7 @@ Create `example/basic-call/assets/resources/audio/Agora.io-Interactions.mp3.meta
 }
 ```
 
-- [ ] **Step 3: Add asset resolver helper**
+- [x] **Step 3: Add asset resolver helper**
 
 Create `example/basic-call/assets/scripts/demo/cases/AudioEffectMixingCase.ts`:
 
@@ -1623,7 +1623,7 @@ Create `AudioEffectMixingCase.ts.meta`:
 }
 ```
 
-- [ ] **Step 4: Use resolver in root**
+- [x] **Step 4: Use resolver in root**
 
 In `AgoraRtcDemoRoot.ts`, import:
 
@@ -1652,7 +1652,7 @@ Replace `runAudioEffectMixingAction` with:
   }
 ```
 
-- [ ] **Step 5: Run asset tests**
+- [x] **Step 5: Run asset tests**
 
 Run:
 
@@ -1662,7 +1662,7 @@ npm test -- tests/example-scene.test.ts tests/productization.test.ts
 
 Expected: tests pass for helper presence and package file expectations.
 
-- [ ] **Step 6: Commit asset handling**
+- [x] **Step 6: Commit asset handling**
 
 ```bash
 git add tests/example-scene.test.ts tests/productization.test.ts example/basic-call/assets/scripts/demo/cases/AudioEffectMixingCase.ts example/basic-call/assets/scripts/demo/cases/AudioEffectMixingCase.ts.meta example/basic-call/assets/resources/audio.meta example/basic-call/assets/resources/audio/Agora.io-Interactions.mp3 example/basic-call/assets/resources/audio/Agora.io-Interactions.mp3.meta example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts
@@ -1675,7 +1675,7 @@ git commit -m "feat: add local audio mixing asset handling"
 - Modify: `example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`
 - Modify: `tests/example-scene.test.ts`
 
-- [ ] **Step 1: Add failing per-case control tests**
+- [x] **Step 1: Add failing per-case control tests**
 
 In `tests/example-scene.test.ts`, add:
 
@@ -1695,7 +1695,7 @@ test('demo action panel renders case-specific controls instead of the full qa ma
 });
 ```
 
-- [ ] **Step 2: Run failing panel test**
+- [x] **Step 2: Run failing panel test**
 
 Run:
 
@@ -1705,7 +1705,7 @@ npm test -- tests/example-scene.test.ts
 
 Expected: fail on missing case-specific control helpers.
 
-- [ ] **Step 3: Restrict action buttons to selected case**
+- [x] **Step 3: Restrict action buttons to selected case**
 
 In `DemoActionPanel.ts`, replace `buildAdvancedSection`'s default use of all advanced actions in case detail mode with:
 
@@ -1718,7 +1718,7 @@ In `DemoActionPanel.ts`, replace `buildAdvancedSection`'s default use of all adv
 
 Call `buildCaseActionButtons` from `renderCaseControls()` after the common connection controls.
 
-- [ ] **Step 4: Add case-specific option sections**
+- [x] **Step 4: Add case-specific option sections**
 
 Add dispatch:
 
@@ -1771,7 +1771,7 @@ Add minimal helper methods that render stable labels and buttons using existing 
 
 The first implementation uses case action buttons and text labels for state changes. Do not add custom slider infrastructure in this task.
 
-- [ ] **Step 5: Run panel tests**
+- [x] **Step 5: Run panel tests**
 
 Run:
 
@@ -1781,7 +1781,7 @@ npm test -- tests/example-scene.test.ts
 
 Expected: pass.
 
-- [ ] **Step 6: Commit case controls**
+- [x] **Step 6: Commit case controls**
 
 ```bash
 git add tests/example-scene.test.ts example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts
@@ -1793,7 +1793,7 @@ git commit -m "feat: render case-specific rtc controls"
 **Files:**
 - Modify only if tests reveal missing packaging: `scripts/package-customer-delivery.sh`, `scripts/prepare-example.sh`, `tests/package-customer-delivery.test.ts`, `tests/productization.test.ts`
 
-- [ ] **Step 1: Run typecheck**
+- [x] **Step 1: Run typecheck**
 
 Run:
 
@@ -1803,7 +1803,7 @@ npm run typecheck
 
 Expected: pass. If it fails on Cocos types for `native.fileUtils.copyFile`, adjust `AudioEffectMixingCase.ts` `FileUtilsLike` typing only; do not loosen global type checking.
 
-- [ ] **Step 2: Run full test suite**
+- [x] **Step 2: Run full test suite**
 
 Run:
 
@@ -1813,7 +1813,7 @@ npm test
 
 Expected: pass. If productization/package tests fail because the new files are ignored by an allowlist, update only the allowlist entries for the new case files and audio asset.
 
-- [ ] **Step 3: Run package smoke**
+- [x] **Step 3: Run package smoke**
 
 Run:
 
@@ -1823,7 +1823,7 @@ Run:
 
 Expected: exits 0 and produces package output under `dist`.
 
-- [ ] **Step 4: Run prepare-example smoke**
+- [x] **Step 4: Run prepare-example smoke**
 
 Run:
 
@@ -1839,11 +1839,11 @@ git status --short
 
 Expected: only intended source/test/doc changes are present. If generated files changed unexpectedly, inspect before committing; do not revert user changes.
 
-- [ ] **Step 5: Update plan checklist if executing inline**
+- [x] **Step 5: Update plan checklist if executing inline**
 
 Mark completed checkboxes in this plan for tasks that were actually executed. Leave unexecuted optional device verification unchecked.
 
-- [ ] **Step 6: Commit final verification fixes**
+- [x] **Step 6: Commit final verification fixes**
 
 If Task 10 changed files:
 
