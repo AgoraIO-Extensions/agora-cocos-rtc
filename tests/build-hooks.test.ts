@@ -12,6 +12,7 @@ const {
   ensureAndroidAppActivityBridgeAttachment,
   ensureAgoraLocalMavenRepository,
   ensureAndroidRtcPermissions,
+  ensureIosCMakeRtcBridgeSources,
   ensureIosRtcUsageDescriptions,
   ensureIosAppDelegateBridgeAttachment,
   ensureIosSetupGuide,
@@ -19,6 +20,7 @@ const {
   findFirstExistingPath,
   patchAndroidAppActivityBridgeAttachment,
   patchIosAppDelegateBridgeAttachment,
+  patchIosCMakeRtcBridgeSources,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,
   rewriteAndroidGradlePluginVersion,
@@ -129,28 +131,28 @@ test('patchNativeCommonCMakeTextureBridge registers common engine texture bridge
   const once = patchNativeCommonCMakeTextureBridge(original);
   const twice = patchNativeCommonCMakeTextureBridge(once);
 
-  assert.match(
-    once,
-    /if\(NOT APPLE\)[\s\S]*Classes\/agora\/AgoraEngineTextureBridge\.h[\s\S]*Classes\/agora\/AgoraEngineTextureBridge\.cpp[\s\S]*endif\(\)/,
-  );
+  assert.match(once, /list\(APPEND CC_COMMON_SOURCES[\s\S]*Classes\/agora\/AgoraEngineTextureBridge\.h[\s\S]*Classes\/agora\/AgoraEngineTextureBridge\.cpp[\s\S]*\)/);
+  assert.doesNotMatch(once, /if\(NOT APPLE\)/);
   assert.equal(once, twice);
 });
 
-test('patchNativeCommonCMakeTextureBridge upgrades unguarded texture bridge sources', () => {
+test('patchNativeCommonCMakeTextureBridge upgrades platform-guarded texture bridge sources', () => {
   const original = `list(APPEND CC_COMMON_SOURCES
     \${CMAKE_CURRENT_LIST_DIR}/Classes/Game.h
     \${CMAKE_CURRENT_LIST_DIR}/Classes/Game.cpp
 )
 
+if(NOT APPLE)
 list(APPEND CC_COMMON_SOURCES
     \${CMAKE_CURRENT_LIST_DIR}/Classes/agora/AgoraEngineTextureBridge.h
     \${CMAKE_CURRENT_LIST_DIR}/Classes/agora/AgoraEngineTextureBridge.cpp
 )
+endif()
 `;
 
   const patched = patchNativeCommonCMakeTextureBridge(original);
 
-  assert.match(patched, /if\(NOT APPLE\)/);
+  assert.doesNotMatch(patched, /if\(NOT APPLE\)/);
   assert.equal(
     [...patched.matchAll(/Classes\/agora\/AgoraEngineTextureBridge\.cpp/g)].length,
     1,
@@ -271,6 +273,58 @@ test('ensureIosAppDelegateBridgeAttachment skips exports without AppDelegate.mm'
   const result = await ensureIosAppDelegateBridgeAttachment(root);
 
   assert.equal(result, null);
+});
+
+test('patchIosCMakeRtcBridgeSources registers iOS bridge sources and Swift version once', () => {
+  const original = `cmake_minimum_required(VERSION 3.8)
+
+project(\${APP_NAME} CXX)
+
+set(CC_PROJ_SOURCES)
+
+include(\${CC_PROJECT_DIR}/../common/CMakeLists.txt)
+set(EXECUTABLE_NAME \${APP_NAME}-mobile)
+
+cc_ios_before_target(\${EXECUTABLE_NAME})
+add_executable(\${EXECUTABLE_NAME} \${CC_ALL_SOURCES})
+cc_ios_after_target(\${EXECUTABLE_NAME})
+`;
+
+  const once = patchIosCMakeRtcBridgeSources(original);
+  const twice = patchIosCMakeRtcBridgeSources(once);
+
+  assert.match(once, /agora-rtc\/AgoraRtcBridge\.swift/);
+  assert.match(once, /agora-rtc\/AgoraRtcPlugin\.mm/);
+  assert.match(once, /agora-rtc\/AgoraEngineTextureSlotBridge\.mm/);
+  assert.match(once, /project\(\$\{APP_NAME\} CXX Swift\)/);
+  assert.match(once, /CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "5\.0"/);
+  assert.equal(
+    [...once.matchAll(/agora-rtc\/AgoraRtcPlugin\.mm/g)].length,
+    2,
+  );
+  assert.equal(once, twice);
+});
+
+test('ensureIosCMakeRtcBridgeSources patches exported iOS CMakeLists', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-cmake-'));
+  await writeFile(
+    path.join(root, 'CMakeLists.txt'),
+    `project(\${APP_NAME} CXX)
+set(CC_PROJ_SOURCES)
+include(\${CC_PROJECT_DIR}/../common/CMakeLists.txt)
+add_executable(\${EXECUTABLE_NAME} \${CC_ALL_SOURCES})
+`,
+    'utf8',
+  );
+
+  const result = await ensureIosCMakeRtcBridgeSources(root);
+  const content = await readFile(path.join(root, 'CMakeLists.txt'), 'utf8');
+
+  assert.equal(result, path.join(root, 'CMakeLists.txt'));
+  assert.match(content, /agora-rtc\/AgoraRtcBridge\.swift/);
+  assert.match(content, /agora-rtc\/AgoraRtcPlugin\.mm/);
+  assert.match(content, /project\(\$\{APP_NAME\} CXX Swift\)/);
+  assert.match(content, /CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION/);
 });
 
 test('patchAndroidAppActivityBridgeAttachment attaches the native bridge after SDK init once', () => {
