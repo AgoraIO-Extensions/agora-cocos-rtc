@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, rm } from 'node:fs/promises';
+import { readFile, rm, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
@@ -161,6 +161,51 @@ test('example build config writer accepts smoke media options', async () => {
 
   await rm(buildConfigPath, { force: true });
   await rm(buildConfigMetaPath, { force: true });
+});
+
+test('example build config writer can apply smoke flags to an edited base config without env app id', async () => {
+  const baseConfigPath = `${repoRoot}/example/basic-call/assets/resources/agora-config.json`;
+  const buildConfigPath = `${repoRoot}/example/basic-call/assets/resources/agora-config.build.json`;
+  const buildConfigMetaPath = `${buildConfigPath}.meta`;
+  const originalBaseConfig = await readFile(baseConfigPath, 'utf8');
+  const baseConfig = {
+    ...JSON.parse(originalBaseConfig),
+    appId: 'base-app-id',
+    channelId: 'base-channel',
+    token: 'base-token',
+  };
+
+  await rm(buildConfigPath, { force: true });
+  await rm(buildConfigMetaPath, { force: true });
+  await writeFile(baseConfigPath, `${JSON.stringify(baseConfig, null, 2)}\n`, 'utf8');
+
+  try {
+    await execFileAsync('node', ['./scripts/write-example-build-config.mjs'], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        APP_ID: '',
+        TEST_APP_ID: '',
+        CHANNEL_ID: '',
+        TEST_CHANNEL_ID: '',
+        TOKEN: '',
+        TEST_TOKEN: '',
+        AUTO_JOIN: 'true',
+        PUBLISH_CAMERA_TRACK: 'false',
+      },
+    });
+
+    const buildConfig = JSON.parse(await readFile(buildConfigPath, 'utf8'));
+    assert.equal(buildConfig.appId, 'base-app-id');
+    assert.equal(buildConfig.channelId, 'base-channel');
+    assert.equal(buildConfig.token, 'base-token');
+    assert.equal(buildConfig.autoJoin, true);
+    assert.equal(buildConfig.publishCameraTrack, false);
+  } finally {
+    await writeFile(baseConfigPath, originalBaseConfig, 'utf8');
+    await rm(buildConfigPath, { force: true });
+    await rm(buildConfigMetaPath, { force: true });
+  }
 });
 
 test('example build config writer rejects non-integer smoke uid', async () => {
