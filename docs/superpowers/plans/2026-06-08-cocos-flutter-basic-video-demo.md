@@ -1168,4 +1168,3 @@ Do not commit screenshots, build output, or app id config.
 - Scope: the plan stays within the existing single-scene Cocos demo and does not change the SDK bridge.
 - Type consistency: action names in `actions.ts`, root handler names, service methods, and tests use the same names: `JoinChannel`, `StartPreview`, `ApplyEncoder`, `startLocalPreview`, `applyVideoEncoderPreset`.
 - Credential safety: the only real app id use is in the ignored build config during smoke, then removed.
-

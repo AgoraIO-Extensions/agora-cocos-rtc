@@ -1722,6 +1722,33 @@ public class PermissionQueueTest {
 
         assertEquals(2, ranActions.size(), "queued camera action should run after camera grant");
         assertEquals("camera-mic", ranActions.get(1), "camera action should run second");
+
+        Activity partialDenialActivity = new Activity();
+        GlobalObject.setActivity(partialDenialActivity);
+        ((Queue<?>) pendingActionsField.get(plugin)).clear();
+        requestInFlightField.setBoolean(plugin, false);
+
+        List<String> partialDenialActions = new ArrayList<>();
+        ensurePermissions.invoke(plugin, "camera-mic-denied", true, true, (Runnable) () -> partialDenialActions.add("camera-mic-denied"));
+        ensurePermissions.invoke(plugin, "mic-only-granted", false, true, (Runnable) () -> partialDenialActions.add("mic-only-granted"));
+
+        assertEquals(1, partialDenialActivity.permissionRequests.size(), "mixed queue should request camera and microphone");
+        assertPermissions(
+            partialDenialActivity.permissionRequests.get(0),
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+        );
+
+        partialDenialActivity.grantPermission(Manifest.permission.RECORD_AUDIO);
+        plugin.onRequestPermissionsResult(
+            requestCode,
+            new String[] { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO },
+            new int[] { -1, PackageManager.PERMISSION_GRANTED }
+        );
+
+        assertEquals(1, partialDenialActions.size(), "mic-only action should run when camera is denied but microphone is granted");
+        assertEquals("mic-only-granted", partialDenialActions.get(0), "mic-only action should not be failed by camera denial");
+        assertEquals(1, partialDenialActivity.permissionRequests.size(), "camera denial should not trigger another permission request");
     }
 
     private static void assertPermissions(String[] actual, String... expected) {
