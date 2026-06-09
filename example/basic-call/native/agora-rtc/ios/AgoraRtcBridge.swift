@@ -394,14 +394,12 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 let orientationMode = AgoraVideoOutputOrientationMode(rawValue: orientationModeValue) ?? .adaptative
                 let mirrorModeValue = params["mirrorMode"] as? Int ?? Int(AgoraVideoMirrorMode.auto.rawValue)
                 let mirrorMode = AgoraVideoMirrorMode(rawValue: UInt(mirrorModeValue)) ?? .auto
-                let config = AgoraVideoEncoderConfiguration(
-                    width: width,
-                    height: height,
-                    frameRate: frameRate,
-                    bitrate: bitrate,
-                    orientationMode: orientationMode,
-                    mirrorMode: mirrorMode
-                )
+                let config = AgoraVideoEncoderConfiguration()
+                config.dimensions = CGSize(width: CGFloat(width), height: CGFloat(height))
+                config.frameRate = frameRate
+                config.bitrate = bitrate
+                config.orientationMode = orientationMode
+                config.mirrorMode = mirrorMode
                 config.minBitrate = params["minBitrate"] as? Int ?? config.minBitrate
                 if let degradationPreferenceRawValue = params["degradationPreference"] {
                     let degradationPreferenceValue = intValue(degradationPreferenceRawValue)

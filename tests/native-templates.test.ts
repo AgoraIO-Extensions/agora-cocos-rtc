@@ -803,6 +803,13 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.ok(encoderMatch);
   assert.match(encoderMatch[0], /mirrorModeValue/);
   assert.doesNotMatch(encoderMatch[0], /minFrameRate/);
+  assert.match(encoderMatch[0], /let config = AgoraVideoEncoderConfiguration\(\)/);
+  assert.match(encoderMatch[0], /config\.dimensions = CGSize\(width: CGFloat\(width\), height: CGFloat\(height\)\)/);
+  assert.match(encoderMatch[0], /config\.frameRate = frameRate/);
+  assert.match(encoderMatch[0], /config\.bitrate = bitrate/);
+  assert.match(encoderMatch[0], /config\.orientationMode = orientationMode/);
+  assert.match(encoderMatch[0], /config\.mirrorMode = mirrorMode/);
+  assert.doesNotMatch(encoderMatch[0], /AgoraVideoEncoderConfiguration\(\s*width:/);
   assert.match(encoderMatch[0], /config\.minBitrate = params\["minBitrate"\]/);
   assert.match(encoderMatch[0], /if let degradationPreferenceRawValue = params\["degradationPreference"\]/);
   assert.match(encoderMatch[0], /config\.degradationPreference = degradationPreference/);
