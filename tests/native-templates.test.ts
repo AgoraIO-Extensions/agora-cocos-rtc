@@ -975,7 +975,8 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.doesNotMatch(encoderMatch[0], /minFrameRate/);
   assert.match(encoderMatch[0], /let config = AgoraVideoEncoderConfiguration\(\)/);
   assert.match(encoderMatch[0], /config\.dimensions = CGSize\(width: CGFloat\(width\), height: CGFloat\(height\)\)/);
-  assert.match(encoderMatch[0], /config\.frameRate = frameRate/);
+  assert.match(encoderMatch[0], /config\.frameRate = frameRate\.rawValue/);
+  assert.doesNotMatch(encoderMatch[0], /config\.frameRate = frameRate\n/);
   assert.match(encoderMatch[0], /config\.bitrate = bitrate/);
   assert.match(encoderMatch[0], /config\.orientationMode = orientationMode/);
   assert.match(encoderMatch[0], /config\.mirrorMode = mirrorMode/);

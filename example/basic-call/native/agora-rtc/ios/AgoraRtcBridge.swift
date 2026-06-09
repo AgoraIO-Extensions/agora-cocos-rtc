@@ -396,7 +396,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 let mirrorMode = AgoraVideoMirrorMode(rawValue: UInt(mirrorModeValue)) ?? .auto
                 let config = AgoraVideoEncoderConfiguration()
                 config.dimensions = CGSize(width: CGFloat(width), height: CGFloat(height))
-                config.frameRate = frameRate
+                config.frameRate = frameRate.rawValue
                 config.bitrate = bitrate
                 config.orientationMode = orientationMode
                 config.mirrorMode = mirrorMode
