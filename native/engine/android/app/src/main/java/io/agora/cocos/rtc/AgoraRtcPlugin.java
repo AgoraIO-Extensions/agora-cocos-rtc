@@ -27,6 +27,7 @@ import io.agora.rtc2.IAudioEffectManager;
 import io.agora.rtc2.IRtcEngineEventHandler;
 import io.agora.rtc2.RtcEngine;
 import io.agora.rtc2.RtcEngineConfig;
+import io.agora.rtc2.UserInfo;
 import io.agora.cocos.rtc.render.AgoraRenderBackend;
 import io.agora.cocos.rtc.render.AgoraRenderBackendFactory;
 import io.agora.cocos.rtc.render.AgoraRenderResultCallback;
@@ -164,6 +165,12 @@ public final class AgoraRtcPlugin {
                 break;
             case "joinChannel":
                 handleJoinChannel(requestId, params);
+                break;
+            case "joinChannelWithUserAccount":
+                handleJoinChannelWithUserAccount(requestId, params);
+                break;
+            case "getUserInfoByUserAccount":
+                handleGetUserInfoByUserAccount(requestId, params);
                 break;
             case "leaveChannel":
                 handleLeaveChannel(requestId);
@@ -870,6 +877,71 @@ public final class AgoraRtcPlugin {
             return Constants.CHANNEL_PROFILE_COMMUNICATION;
         }
         return Constants.CHANNEL_PROFILE_LIVE_BROADCASTING;
+    }
+
+    private void handleJoinChannelWithUserAccount(String requestId, JSONObject params) {
+        String token = params != null ? params.optString("token") : "";
+        String channelId = params != null ? params.optString("channelId") : "";
+        String userAccount = params != null ? params.optString("userAccount") : "";
+
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+        if (channelId == null || channelId.trim().isEmpty()) {
+            dispatchError(requestId, "Channel ID is required.");
+            return;
+        }
+        if (userAccount == null || userAccount.trim().isEmpty()) {
+            dispatchError(requestId, "User account is required.");
+            return;
+        }
+
+        ensureRtcPermissions(requestId, () -> continueJoinChannelWithUserAccount(requestId, token, channelId, userAccount));
+    }
+
+    private void continueJoinChannelWithUserAccount(String requestId, String token, String channelId, String userAccount) {
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+
+        ChannelMediaOptions options = new ChannelMediaOptions();
+        int result = rtcEngine.joinChannelWithUserAccount(token, channelId, userAccount, options);
+        if (result < 0) {
+            dispatchAgoraError(requestId, "joinChannelWithUserAccount", result);
+            return;
+        }
+
+        dispatchOk(requestId);
+    }
+
+    private void handleGetUserInfoByUserAccount(String requestId, JSONObject params) {
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+        String userAccount = params != null ? params.optString("userAccount") : "";
+        if (userAccount == null || userAccount.trim().isEmpty()) {
+            dispatchError(requestId, "User account is required.");
+            return;
+        }
+
+        UserInfo userInfo = new UserInfo();
+        int result = rtcEngine.getUserInfoByUserAccount(userAccount, userInfo);
+        if (result < 0) {
+            dispatchAgoraError(requestId, "getUserInfoByUserAccount", result);
+            return;
+        }
+
+        dispatchResponse(jsonObject(
+                "requestId", requestId,
+                "ok", true,
+                "result", jsonObject(
+                        "uid", userInfo.uid,
+                        "userAccount", userInfo.userAccount
+                )
+        ));
     }
 
     private void handleGetErrorDescription(String requestId, JSONObject params) {

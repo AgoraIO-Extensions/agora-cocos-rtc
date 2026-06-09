@@ -78,8 +78,6 @@
                         static_cast<int>(uvStride),
                         static_cast<int>(width),
                         static_cast<int>(height),
-                        0,
-                        0,
                         static_cast<int>(videoFrame.rotation),
                         mirror
                     );

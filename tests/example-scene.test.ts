@@ -353,17 +353,19 @@ test('demo case registry exposes the approved flutter-aligned case list', async 
     'Basic',
     'JoinChannelAudio',
     'JoinChannelVideo',
+    'StringUid',
     'Advanced',
     'AudioEffectMixing',
     'SetVideoEncoderConfiguration',
     'SetBeautyEffect',
     'SetContentInspect',
+    'ChannelProfile',
+    'SetParameters',
   ]) {
     assert.match(content, new RegExp(`name:\\s*'${name}'`));
   }
 
   for (const unsupported of [
-    'StringUid',
     'ChannelMediaRelay',
     'ScreenSharing',
     'MediaPlayer',
@@ -515,5 +517,153 @@ test('example ships a runtime Agora config template', async () => {
   assert.match(content, /"channelId": "<YOUR_CHANNEL_ID>"/);
   assert.doesNotMatch(content, /\bappId["']?\s*:\s*["'][0-9a-f]{32}["']/i);
   assert.match(content, /"uid": 1001/);
-  assert.match(content, /"renderBackend": "(surface-view|texture-view|engine-texture)"/);
+  assert.match(content, /"renderBackend": "engine-texture"/);
+});
+
+test('rebased demo case registry keeps main architecture and adds string uid and parameter cases', async () => {
+  const registry = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/cases/caseRegistry.ts`,
+    'utf8',
+  );
+  const root = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  for (const name of [
+    'JoinChannelAudio',
+    'JoinChannelVideo',
+    'StringUid',
+    'AudioEffectMixing',
+    'SetVideoEncoderConfiguration',
+    'SetBeautyEffect',
+    'SetContentInspect',
+    'ChannelProfile',
+    'SetParameters',
+  ]) {
+    assert.match(registry, new RegExp(`name:\\s*'${name}'`));
+  }
+
+  assert.match(root, /DEMO_CASES/);
+  assert.match(root, /findDemoCase/);
+  assert.doesNotMatch(root, /\.\.\/examples\/index\.ts/);
+});
+
+test('demo root and service route string uid and setParameters cases through supported APIs', async () => {
+  const registry = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/cases/caseRegistry.ts`,
+    'utf8',
+  );
+  const root = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+  const service = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  assert.match(registry, /actions:\s*\[[\s\S]*'JoinWithUserAccount'[\s\S]*'GetUserInfoByUserAccount'/);
+  assert.match(root, /STRING_USER_ACCOUNT = 'cocos-user-0'/);
+  assert.match(root, /joinWithUserAccount\(\): Promise<void>/);
+  assert.match(root, /getUserInfoByUserAccount\(\): Promise<void>/);
+  assert.match(service, /joinChannelWithUserAccount/);
+  assert.match(service, /getUserInfoByUserAccount/);
+
+  assert.match(registry, /name:\s*'SetParameters'[\s\S]*'KeepAudioSession'[\s\S]*'MixableAudio'[\s\S]*'AutoMirror'/);
+  assert.match(root, /applyKeepAudioSessionParameter/);
+  assert.match(root, /applyMixableAudioParameter/);
+  assert.match(root, /applyAutoMirrorParameter/);
+  assert.match(service, /applyParameterPreset\(parameters: Record<string, unknown>\)/);
+});
+
+test('example UI only exposes engine-texture rendering mode', async () => {
+  const panel = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+  const root = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+  const configOverride = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/agoraRtcConfigOverride.ts`,
+    'utf8',
+  );
+  const types = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/types.ts`,
+    'utf8',
+  );
+
+  assert.doesNotMatch(panel, /RENDER_BACKENDS/);
+  assert.doesNotMatch(panel, /RenderToggle/);
+  assert.doesNotMatch(panel, /cycleRenderBackend/);
+  assert.doesNotMatch(panel, /surface-view|texture-view/);
+  assert.match(root, /this\.renderBackend = 'engine-texture'/);
+  assert.doesNotMatch(root, /this\.renderBackend = config\.renderBackend/);
+  assert.doesNotMatch(configOverride, /surface-view|texture-view/);
+  assert.match(types, /export type RenderBackend = 'engine-texture'/);
+  assert.doesNotMatch(types, /surface-view|texture-view/);
+});
+
+test('returning to the case list tears down rtc and leaves channel first', async () => {
+  const root = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+  const service = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  assert.match(root, /onBackToCases: \(\) => \{ void this\.backToCaseList\(\); \}/);
+  assert.match(root, /private async backToCaseList\(\): Promise<void> \{[\s\S]*this\.closeStatusLogPage\(\)[\s\S]*await this\.session\?\.teardownRtc\(\)[\s\S]*this\.session = null[\s\S]*this\.showCaseList\(\)/);
+  assert.match(service, /if \(this\.joined\) \{[\s\S]*await this\.client\.leaveChannel\(\)/);
+  assert.ok(
+    service.indexOf('await this.client.leaveChannel()') <
+      service.indexOf('await this.client.destroy()'),
+    'leaveChannel should happen before destroy in teardownRtc',
+  );
+});
+
+test('log panel fits landscape devices and keeps close controls visible', async () => {
+  const root = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+  const logPanel = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/LogPanel.ts`,
+    'utf8',
+  );
+
+  assert.match(root, /this\.logPanel\.applyLayout\(landscapeWidth, landscapeHeight\)/);
+  assert.match(logPanel, /applyLayout\(visibleWidth: number, visibleHeight: number\): void/);
+  assert.match(logPanel, /CloseButton/);
+  assert.match(logPanel, /'Close'/);
+  assert.match(logPanel, /LOG_PANEL_MAX_WIDTH/);
+  assert.match(logPanel, /buttonRight/);
+  assert.match(logPanel, /this\.closeButton\.setPosition/);
+  assert.doesNotMatch(logPanel, /BackButton/);
+});
+
+test('demo buttons route touch events through the full button hit area', async () => {
+  const panel = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+  const logPanel = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/LogPanel.ts`,
+    'utf8',
+  );
+  const styles = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/ui/uiStyles.ts`,
+    'utf8',
+  );
+
+  assert.match(styles, /const touchTargets:[^=]+=\s*\[node,\s*bgNode,\s*labelNode\]/);
+  assert.match(styles, /node\.emit\('agora-button-click'\)/);
+  assert.match(styles, /export function bindButtonTouch/);
+  assert.match(panel, /bindButtonTouch\(back\.node/);
+  assert.match(panel, /bindButtonTouch\(node, \(\) => this\.onAction\?/);
+  assert.match(logPanel, /bindButtonTouch/);
 });

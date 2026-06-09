@@ -278,6 +278,10 @@ test('engine-texture raw frame path applies orientation before uploading texture
   assert.match(iosSlotBridgeContent, /videoFrame\.rotation/);
   assert.match(iosSlotBridgeContent, /mirroredVideoFrame:\(AgoraOutputVideoFrame \*\)videoFrame/);
   assert.match(iosSlotBridgeContent, /update_agora_engine_texture_nv12_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
+  assert.match(
+    iosSlotBridgeContent,
+    /update_agora_engine_texture_nv12_slot\([\s\S]*static_cast<int>\(height\),\s*static_cast<int>\(videoFrame\.rotation\),\s*mirror[\s\S]*\);/,
+  );
   assert.match(iosSlotBridgeContent, /update_agora_engine_texture_i420_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
   assert.match(commonBridgeContent, /normalizeRotation/);
   assert.match(commonBridgeContent, /mapTransformedPixel/);
@@ -418,8 +422,9 @@ test('engine-texture iOS requests a frame format with explicit rotation and mirr
 
   assert.match(
     iosBridgeContent,
-    /func getVideoFormatPreference\(\) -> AgoraVideoFormat \{[\s\S]*return \.CVPixelNV12[\s\S]*\}/,
+    /func getVideoFormatPreference\(\) -> AgoraVideoFormat \{[\s\S]*return \.cvPixelNV12[\s\S]*\}/,
   );
+  assert.doesNotMatch(iosBridgeContent, /\.CVPixelNV12/);
   assert.doesNotMatch(
     iosBridgeContent,
     /func getVideoFormatPreference\(\) -> AgoraVideoFormat \{[\s\S]*return \.default[\s\S]*\}/,
@@ -667,6 +672,23 @@ test('android bridge template maps joinChannel media options from request payloa
   assert.match(bridgeContent, /options\.preferMultipathType = optNullableInteger\(mediaOptions, "preferMultipathType"\)/);
   assert.match(bridgeContent, /options\.token = mediaOptions\.optString\("token"\)/);
   assert.match(bridgeContent, /options\.parameters = mediaOptions\.optString\("parameters"\)/);
+});
+
+test('android bridge template wires string uid account APIs to the native sdk', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /case "joinChannelWithUserAccount"/);
+  assert.match(bridgeContent, /case "getUserInfoByUserAccount"/);
+  assert.match(bridgeContent, /rtcEngine\.joinChannelWithUserAccount/);
+  assert.match(bridgeContent, /rtcEngine\.getUserInfoByUserAccount/);
+  assert.match(bridgeContent, /User account is required\./);
+  assert.match(bridgeContent, /userAccount/);
 });
 
 test('android bridge template requests rtc runtime permissions before camera and microphone use', async () => {
@@ -1299,7 +1321,8 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(inspectMatch[0], /config\.extraInfo = extraInfo/);
   assert.match(inspectMatch[0], /config\.serverConfig = serverConfig/);
   assert.match(inspectMatch[0], /config\.modules = buildContentInspectModules/);
-  assert.doesNotMatch(bridgeContent, /module\.position/);
+  assert.match(bridgeContent, /module\.position = parseContentInspectModulePosition/);
+  assert.match(bridgeContent, /private func parseContentInspectModulePosition/);
 
   const inspectModuleMatch = bridgeContent.match(
     /private func buildContentInspectModules[\s\S]*?private func intValue/,
@@ -1406,6 +1429,24 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(bridgeContent, /engine\.resumeEffect\(soundId\)/);
   assert.match(bridgeContent, /engine\.setEffectsVolume\(volume\)/);
   assert.match(bridgeContent, /engine\.stopEffect\(soundId\)/);
+});
+
+test('ios bridge template wires string uid account APIs to the native sdk', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /case "joinChannelWithUserAccount"/);
+  assert.match(bridgeContent, /case "getUserInfoByUserAccount"/);
+  assert.match(bridgeContent, /engine\.joinChannel\(byToken: token,/);
+  assert.match(bridgeContent, /channelId: channelId,/);
+  assert.match(bridgeContent, /userAccount: userAccount,/);
+  assert.doesNotMatch(bridgeContent, /joinChannel\(byUserAccount:/);
+  assert.match(bridgeContent, /engine\.getUserInfo\(byUserAccount: userAccount, withError: &errorCode\)/);
+  assert.match(bridgeContent, /var errorCode = AgoraErrorCode\.noError/);
+  assert.match(bridgeContent, /User account is required\./);
+  assert.match(bridgeContent, /userAccount/);
 });
 
 test('ios bridge template rejects unsafe invalid arguments before calling the rtc sdk', async () => {
@@ -1552,8 +1593,8 @@ test('ios content inspect module boundary matches the installed rtc objects head
   assert.ok(moduleMatch);
   assert.match(moduleMatch[0], /AgoraContentInspectType type/);
   assert.match(moduleMatch[0], /NSInteger interval/);
-  assert.doesNotMatch(moduleMatch[0], /position/);
-  assert.doesNotMatch(bridgeContent, /module\.position/);
+  assert.match(moduleMatch[0], /AgoraVideoModulePosition position/);
+  assert.match(bridgeContent, /module\.position = parseContentInspectModulePosition/);
 });
 
 test('ios plugin registrar attaches the js bridge wrapper and forwards responses back to script', async () => {
@@ -2382,6 +2423,18 @@ public class ChannelMediaOptions {
   );
 
   await writeFile(
+    path.join(srcRoot, 'io/agora/rtc2/UserInfo.java'),
+    `package io.agora.rtc2;
+
+public class UserInfo {
+    public int uid;
+    public String userAccount;
+}
+`,
+    'utf8',
+  );
+
+  await writeFile(
     path.join(srcRoot, 'io/agora/rtc2/Constants.java'),
     `package io.agora.rtc2;
 
@@ -2659,6 +2712,8 @@ public class RtcEngine {
     public void setupLocalVideo(VideoCanvas canvas) {}
     public void setupRemoteVideo(VideoCanvas canvas) {}
     public int joinChannel(String token, String channelId, int uid, ChannelMediaOptions options) { return 0; }
+    public int joinChannelWithUserAccount(String token, String channelId, String userAccount, ChannelMediaOptions options) { return 0; }
+    public int getUserInfoByUserAccount(String userAccount, UserInfo userInfo) { return 0; }
     public void leaveChannel() {}
     public int renewToken(String token) { return 0; }
     public int enableAudio() { return 0; }
@@ -2749,6 +2804,7 @@ public class RtcEngine {
     path.join(srcRoot, 'io/agora/rtc2/ChannelMediaOptions.java'),
     path.join(srcRoot, 'io/agora/rtc2/ClientRoleOptions.java'),
     path.join(srcRoot, 'io/agora/rtc2/RtcEngineConfig.java'),
+    path.join(srcRoot, 'io/agora/rtc2/UserInfo.java'),
     path.join(srcRoot, 'io/agora/rtc2/IAudioEffectManager.java'),
     path.join(srcRoot, 'io/agora/rtc2/Constants.java'),
     path.join(srcRoot, 'io/agora/rtc2/video/BeautyOptions.java'),

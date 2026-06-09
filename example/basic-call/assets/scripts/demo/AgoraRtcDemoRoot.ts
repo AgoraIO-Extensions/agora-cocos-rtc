@@ -27,6 +27,7 @@ const PANEL_GAP = 20;
 const ACTION_PANEL_WIDTH = 420;
 const ACTION_PANEL_HEIGHT = 620;
 const MIN_VIDEO_STAGE_WIDTH = 360;
+const STRING_USER_ACCOUNT = 'cocos-user-0';
 
 type CocosTestGlobal = typeof globalThis & {
   AGORA_COCOS_TEST_MODE?: string;
@@ -107,7 +108,7 @@ export class AgoraRtcDemoRoot extends Component {
       onAction: (actionName) => { void this.invokeAction(actionName); },
       onApplyConfig: (config) => this.applyBasicVideoConfig(config),
       onSelectCase: (caseName) => this.selectDemoCase(caseName),
-      onBackToCases: () => this.showCaseList(),
+      onBackToCases: () => { void this.backToCaseList(); },
     });
     this.logPanel?.initialize({
       onClose: () => this.closeStatusLogPage(),
@@ -163,6 +164,18 @@ export class AgoraRtcDemoRoot extends Component {
 
   async joinRtcChannel(): Promise<void> {
     await this.runSessionAction('JoinChannel', (session) => session.joinRtcChannel());
+  }
+
+  async joinWithUserAccount(): Promise<void> {
+    await this.runSessionAction('JoinWithUserAccount', (session) =>
+      session.joinWithUserAccount(STRING_USER_ACCOUNT),
+    );
+  }
+
+  async getUserInfoByUserAccount(): Promise<void> {
+    await this.runSessionAction('GetUserInfoByUserAccount', (session) =>
+      session.getUserInfoByUserAccount(STRING_USER_ACCOUNT),
+    );
   }
 
   async toggleJoinChannel(): Promise<void> {
@@ -348,6 +361,26 @@ export class AgoraRtcDemoRoot extends Component {
     await this.runSessionAction('Diag', (session) => session.runDiagnosticsDemo());
   }
 
+  async applyKeepAudioSessionParameter(): Promise<void> {
+    await this.applyParameterPreset({ 'che.audio.keep.audiosession': true });
+  }
+
+  async applyMixableAudioParameter(): Promise<void> {
+    await this.applyParameterPreset({ 'che.audio.enable.mixable': true });
+  }
+
+  async applyRestartInterruptedParameter(): Promise<void> {
+    await this.applyParameterPreset({ 'che.audio.restart_when_interrupted': true });
+  }
+
+  async applyAutoMirrorParameter(): Promise<void> {
+    await this.applyParameterPreset({ 'che.video.frame_observer_auto_mirror': true });
+  }
+
+  async applyDebugFlagParameter(): Promise<void> {
+    await this.applyParameterPreset({ 'rtc.debug': true });
+  }
+
   async clearStatusLog(): Promise<void> {
     this.statusLines = [];
     this.refreshLogPanel();
@@ -376,6 +409,14 @@ export class AgoraRtcDemoRoot extends Component {
       this.videoStagePanel.node.active = false;
     }
     this.refreshPanels();
+  }
+
+  private async backToCaseList(): Promise<void> {
+    this.closeStatusLogPage();
+    await this.session?.teardownRtc();
+    this.session = null;
+    this.showCaseList();
+    this.pushStatus('Back to case list');
   }
 
   selectDemoCase(caseName: string): void {
@@ -435,7 +476,7 @@ export class AgoraRtcDemoRoot extends Component {
     this.token = typeof config.token === 'string' ? config.token : this.token;
     this.channelId = config.channelId?.trim() || this.channelId;
     this.uid = typeof config.uid === 'number' ? config.uid : this.uid;
-    this.renderBackend = config.renderBackend ?? this.renderBackend;
+    this.renderBackend = 'engine-texture';
     this.autoPreview = config.autoPreview ?? this.autoPreview;
     this.autoJoin = config.autoJoin ?? this.autoJoin;
     this.publishCameraTrack = config.publishCameraTrack ?? this.publishCameraTrack;
@@ -516,6 +557,10 @@ export class AgoraRtcDemoRoot extends Component {
     this.actionPanel?.setActionResult(actionName, result);
   }
 
+  private async applyParameterPreset(parameters: Record<string, unknown>): Promise<void> {
+    await this.runSessionAction('SetParameters', (session) => session.applyParameterPreset(parameters));
+  }
+
   private applyConfig(channelId: string, uid: number): void {
     this.channelId = channelId;
     this.uid = uid;
@@ -529,9 +574,6 @@ export class AgoraRtcDemoRoot extends Component {
     }
     if (typeof config.uid === 'number' && Number.isFinite(config.uid)) {
       this.uid = Math.max(0, Math.floor(config.uid));
-    }
-    if (config.renderBackend) {
-      this.renderBackend = config.renderBackend;
     }
     if (config.channelProfile) {
       this.channelProfile = config.channelProfile;
@@ -597,6 +639,7 @@ export class AgoraRtcDemoRoot extends Component {
     this.videoStagePanel?.node.setPosition(stageLeft + stageWidth / 2, 0, 0);
 
     if (this.logPanel) {
+      this.logPanel.applyLayout(landscapeWidth, landscapeHeight);
       this.logPanel.node.setScale(1, 1, 1);
       this.logPanel.node.setPosition(0, 0, 0);
     }
