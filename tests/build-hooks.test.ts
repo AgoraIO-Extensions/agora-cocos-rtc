@@ -298,6 +298,8 @@ cc_ios_after_target(\${EXECUTABLE_NAME})
   assert.match(once, /agora-rtc\/AgoraEngineTextureSlotBridge\.mm/);
   assert.match(once, /project\(\$\{APP_NAME\} CXX Swift\)/);
   assert.match(once, /execute_process\(\s*COMMAND xcrun --find swiftc/);
+  assert.match(once, /CMAKE_Swift_COMPILER_WORKS TRUE/);
+  assert.match(once, /CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY/);
   assert.ok(
     once.indexOf('CMAKE_Swift_COMPILER') < once.indexOf('project(${APP_NAME} CXX Swift)'),
     'Swift compiler must be configured before CMake enables Swift in project().',
@@ -312,6 +314,40 @@ cc_ios_after_target(\${EXECUTABLE_NAME})
     2,
   );
   assert.equal(once, twice);
+});
+
+test('patchIosCMakeRtcBridgeSources moves existing Swift compiler block before project', () => {
+  const oldCompilerBlock = `if(NOT CMAKE_Swift_COMPILER)
+    execute_process(
+        COMMAND xcrun --find swiftc
+        OUTPUT_VARIABLE AGORA_COCOS_SWIFT_COMPILER
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    if(AGORA_COCOS_SWIFT_COMPILER)
+        set(CMAKE_Swift_COMPILER "\${AGORA_COCOS_SWIFT_COMPILER}" CACHE FILEPATH "Swift compiler" FORCE)
+    endif()
+endif()`;
+  const original = `cmake_minimum_required(VERSION 3.8)
+
+project(\${APP_NAME} CXX Swift)
+
+${oldCompilerBlock}
+
+include(\${CC_PROJECT_DIR}/../common/CMakeLists.txt)
+`;
+
+  const patched = patchIosCMakeRtcBridgeSources(original);
+
+  assert.ok(
+    patched.indexOf('CMAKE_Swift_COMPILER') < patched.indexOf('project(${APP_NAME} CXX Swift)'),
+    'Swift compiler block must be moved before project() when an older export has it after project().',
+  );
+  assert.match(patched, /CMAKE_Swift_COMPILER_WORKS TRUE/);
+  assert.equal(
+    [...patched.matchAll(/execute_process\(\s*COMMAND xcrun --find swiftc/g)].length,
+    1,
+  );
+  assert.equal(patched, patchIosCMakeRtcBridgeSources(patched));
 });
 
 test('ensureIosCMakeRtcBridgeSources patches exported iOS CMakeLists', async () => {

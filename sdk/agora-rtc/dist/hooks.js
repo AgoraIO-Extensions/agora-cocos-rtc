@@ -49,7 +49,7 @@ set_source_files_properties(
 )
 
 set(CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "${sdkConfig.ios.swiftVersion}")`;
-const IOS_SWIFT_COMPILER_CMAKE_BLOCK = `if(NOT CMAKE_Swift_COMPILER)
+const IOS_SWIFT_COMPILER_DISCOVERY_CMAKE_BLOCK = `if(NOT CMAKE_Swift_COMPILER)
     execute_process(
         COMMAND xcrun --find swiftc
         OUTPUT_VARIABLE AGORA_COCOS_SWIFT_COMPILER
@@ -59,6 +59,9 @@ const IOS_SWIFT_COMPILER_CMAKE_BLOCK = `if(NOT CMAKE_Swift_COMPILER)
         set(CMAKE_Swift_COMPILER "\${AGORA_COCOS_SWIFT_COMPILER}" CACHE FILEPATH "Swift compiler" FORCE)
     endif()
 endif()`;
+const IOS_SWIFT_COMPILER_CMAKE_BLOCK = `${IOS_SWIFT_COMPILER_DISCOVERY_CMAKE_BLOCK}
+set(CMAKE_Swift_COMPILER_WORKS TRUE CACHE BOOL "Swift compiler check is handled by generated Xcode build" FORCE)
+set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)`;
 
 function applyAndroidGradleDependencies(content) {
   const dependencyLines = sdkConfig.android.dependencies.map(
@@ -195,12 +198,7 @@ function patchIosCMakeRtcBridgeSources(content) {
     'project($1 Swift$2)',
   );
 
-  if (!next.includes('CMAKE_Swift_COMPILER')) {
-    next = next.replace(
-      /(project\([^)]*\bSwift\b[^)]*\))/,
-      `${IOS_SWIFT_COMPILER_CMAKE_BLOCK}\n\n$1`,
-    );
-  }
+  next = ensureIosSwiftCompilerBlockBeforeProject(next);
 
   if (next.includes('agora-rtc/AgoraRtcPlugin.mm')) {
     return next.includes('CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION')
@@ -222,6 +220,24 @@ ${IOS_RTC_BRIDGE_CMAKE_BLOCK}`);
 
 ${IOS_RTC_BRIDGE_CMAKE_BLOCK}
 `;
+}
+
+function ensureIosSwiftCompilerBlockBeforeProject(content) {
+  const swiftProjectPattern = /project\([^)]*\bSwift\b[^)]*\)/;
+  if (!swiftProjectPattern.test(content)) {
+    return content;
+  }
+
+  let next = content;
+  for (const block of [IOS_SWIFT_COMPILER_CMAKE_BLOCK, IOS_SWIFT_COMPILER_DISCOVERY_CMAKE_BLOCK]) {
+    next = next.split(block).join('');
+  }
+  next = next.replace(/\n{3,}/g, '\n\n');
+
+  return next.replace(
+    swiftProjectPattern,
+    `${IOS_SWIFT_COMPILER_CMAKE_BLOCK}\n\n$&`,
+  );
 }
 
 function patchNativeGameTextureBridgeRegistration(content) {

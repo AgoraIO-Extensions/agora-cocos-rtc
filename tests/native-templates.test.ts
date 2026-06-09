@@ -47,6 +47,16 @@ const iosRtcDelegateHeaderCandidates = [
     'example/basic-call/build-ios/ios/proj/Pods/AgoraRtcEngine_iOS/AgoraRtcKit.xcframework/ios-arm64_x86_64-simulator/AgoraRtcKit.framework/Headers/AgoraRtcEngineDelegate.h',
   ),
 ];
+const iosRtcObjectsHeaderCandidates = [
+  path.join(
+    repoRoot,
+    'example/basic-call/build-ios/ios/proj/Pods/AgoraRtcEngine_iOS/AgoraRtcKit.xcframework/ios-arm64_x86_64-simulator/AgoraRtcKit.framework/Headers/AgoraObjects.h',
+  ),
+  path.join(
+    primaryRepoRoot,
+    'example/basic-call/build-ios/ios/proj/Pods/AgoraRtcEngine_iOS/AgoraRtcKit.xcframework/ios-arm64_x86_64-simulator/AgoraRtcKit.framework/Headers/AgoraObjects.h',
+  ),
+];
 
 async function readFirstExistingFile(filePaths: string[]) {
   for (const filePath of filePaths) {
@@ -522,8 +532,12 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.match(encoderMatch[0], /configuration\.degradationPrefer = mapDegradationPreference\(params\.optInt\("degradationPreference"\)\)/);
   assert.doesNotMatch(encoderMatch[0], /params\.optInt\("mirrorMode", 0\)/);
   assert.doesNotMatch(encoderMatch[0], /params\.optInt\("degradationPreference", 0\)/);
-  assert.match(encoderMatch[0], /configuration\.codecType = mapVideoCodecType/);
-  assert.match(encoderMatch[0], /configuration\.advanceOptions = buildAdvancedVideoOptions/);
+  assert.match(encoderMatch[0], /params\.has\("codecType"\) && !params\.isNull\("codecType"\)/);
+  assert.match(encoderMatch[0], /configuration\.codecType = mapVideoCodecType\(params\.optInt\("codecType"\)\)/);
+  assert.match(encoderMatch[0], /params\.has\("advancedVideoOptions"\) && !params\.isNull\("advancedVideoOptions"\)/);
+  assert.match(encoderMatch[0], /configuration\.advanceOptions = buildAdvancedVideoOptions\(params\.optJSONObject\("advancedVideoOptions"\)\)/);
+  assert.doesNotMatch(encoderMatch[0], /mapVideoCodecType\(params != null \? params\.optInt\("codecType", 0\) : 0\)/);
+  assert.doesNotMatch(encoderMatch[0], /buildAdvancedVideoOptions\(params != null \? params\.optJSONObject\("advancedVideoOptions"\) : null\)/);
 
   const inspectMatch = bridgeContent.match(
     /private void handleEnableContentInspect[\s\S]*?private void handleStartAudioMixing/,
@@ -790,8 +804,12 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(encoderMatch[0], /mirrorModeValue/);
   assert.doesNotMatch(encoderMatch[0], /minFrameRate/);
   assert.match(encoderMatch[0], /config\.minBitrate = params\["minBitrate"\]/);
+  assert.match(encoderMatch[0], /if let degradationPreferenceRawValue = params\["degradationPreference"\]/);
   assert.match(encoderMatch[0], /config\.degradationPreference = degradationPreference/);
+  assert.match(encoderMatch[0], /if let codecTypeRawValue = params\["codecType"\]/);
   assert.match(encoderMatch[0], /config\.codecType = codecType/);
+  assert.doesNotMatch(encoderMatch[0], /params\["degradationPreference"\] as\? Int \?\? 0/);
+  assert.doesNotMatch(encoderMatch[0], /params\["codecType"\] as\? Int \?\? 0/);
   assert.match(encoderMatch[0], /if let advancedVideoOptionsParams = params\["advancedVideoOptions"\] as\? \[String: Any\]/);
   assert.match(encoderMatch[0], /config\.advancedVideoOptions = buildAdvancedVideoOptions\(advancedVideoOptionsParams\)/);
   assert.doesNotMatch(encoderMatch[0], /let advancedVideoOptions = buildAdvancedVideoOptions\(params\["advancedVideoOptions"\] as\? \[String: Any\]\)[\s\S]*config\.advancedVideoOptions = advancedVideoOptions/);
@@ -969,6 +987,27 @@ test('ios bridge template only dispatches callbacks exposed by the installed rtc
   assert.match(delegateHeader.content, /didOccurError/);
   assert.doesNotMatch(delegateHeader.content, /didOccurWarning|warningCode/);
   assert.doesNotMatch(bridgeContent, /didOccurWarning|dispatchEvent\(name: "warning"/);
+});
+
+test('ios content inspect module boundary matches the installed rtc objects header', async (t) => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+  const objectsHeader = await readFirstExistingFile(iosRtcObjectsHeaderCandidates);
+  if (objectsHeader == null) {
+    t.skip('AgoraObjects.h is unavailable before iOS dependency restore');
+    return;
+  }
+
+  const moduleMatch = objectsHeader.content.match(
+    /@interface AgoraContentInspectModule:[\s\S]*?@end/,
+  );
+  assert.ok(moduleMatch);
+  assert.match(moduleMatch[0], /AgoraContentInspectType type/);
+  assert.match(moduleMatch[0], /NSInteger interval/);
+  assert.doesNotMatch(moduleMatch[0], /position/);
+  assert.doesNotMatch(bridgeContent, /module\.position/);
 });
 
 test('ios plugin registrar attaches the js bridge wrapper and forwards responses back to script', async () => {

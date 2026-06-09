@@ -1237,8 +1237,12 @@ public final class AgoraRtcPlugin {
         if (params != null && params.has("degradationPreference") && !params.isNull("degradationPreference")) {
             configuration.degradationPrefer = mapDegradationPreference(params.optInt("degradationPreference"));
         }
-        configuration.codecType = mapVideoCodecType(params != null ? params.optInt("codecType", 0) : 0);
-        configuration.advanceOptions = buildAdvancedVideoOptions(params != null ? params.optJSONObject("advancedVideoOptions") : null);
+        if (params != null && params.has("codecType") && !params.isNull("codecType")) {
+            configuration.codecType = mapVideoCodecType(params.optInt("codecType"));
+        }
+        if (params != null && params.has("advancedVideoOptions") && !params.isNull("advancedVideoOptions")) {
+            configuration.advanceOptions = buildAdvancedVideoOptions(params.optJSONObject("advancedVideoOptions"));
+        }
 
         int result = rtcEngine.setVideoEncoderConfiguration(configuration);
         if (result < 0) {

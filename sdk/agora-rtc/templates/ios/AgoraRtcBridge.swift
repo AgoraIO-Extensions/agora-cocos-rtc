@@ -403,12 +403,18 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     mirrorMode: mirrorMode
                 )
                 config.minBitrate = params["minBitrate"] as? Int ?? config.minBitrate
-                let degradationPreferenceValue = params["degradationPreference"] as? Int ?? 0
-                let degradationPreference = AgoraDegradationPreference(rawValue: degradationPreferenceValue) ?? AgoraDegradationPreference(rawValue: 0)!
-                config.degradationPreference = degradationPreference
-                let codecTypeValue = params["codecType"] as? Int ?? 0
-                let codecType = AgoraVideoCodecType(rawValue: codecTypeValue) ?? AgoraVideoCodecType(rawValue: 0)!
-                config.codecType = codecType
+                if let degradationPreferenceRawValue = params["degradationPreference"] {
+                    let degradationPreferenceValue = intValue(degradationPreferenceRawValue)
+                    if let degradationPreference = AgoraDegradationPreference(rawValue: degradationPreferenceValue) {
+                        config.degradationPreference = degradationPreference
+                    }
+                }
+                if let codecTypeRawValue = params["codecType"] {
+                    let codecTypeValue = intValue(codecTypeRawValue)
+                    if let codecType = AgoraVideoCodecType(rawValue: codecTypeValue) {
+                        config.codecType = codecType
+                    }
+                }
                 if let advancedVideoOptionsParams = params["advancedVideoOptions"] as? [String: Any] {
                     config.advancedVideoOptions = buildAdvancedVideoOptions(advancedVideoOptionsParams)
                 }
