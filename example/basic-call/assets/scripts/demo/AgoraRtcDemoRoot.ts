@@ -4,6 +4,8 @@ import {
   type AgoraExampleRuntimeConfig,
 } from '../agoraRtcConfigOverride.ts';
 import { DEFAULT_BUTTON_LAYOUT } from './actions.ts';
+import { resolveAudioMixingAssetPath } from './cases/AudioEffectMixingCase.ts';
+import { DEMO_CASES, findDemoCase, type DemoCaseDefinition } from './cases/caseRegistry.ts';
 import { RtcSessionService } from './RtcSessionService.ts';
 import type {
   ActionResult,
@@ -87,6 +89,11 @@ export class AgoraRtcDemoRoot extends Component {
   private statusLines: string[] = [];
   private actionResults = new Map<string, ActionResult>();
   private statusFrozen = false;
+  private selectedCase: DemoCaseDefinition | null = null;
+
+  private get selectedCaseName(): string | null {
+    return this.selectedCase?.name ?? null;
+  }
 
   onLoad(): void {
     this.resolvePanelBindings();
@@ -99,6 +106,8 @@ export class AgoraRtcDemoRoot extends Component {
     this.actionPanel?.initialize({
       onAction: (actionName) => { void this.invokeAction(actionName); },
       onApplyConfig: (config) => this.applyBasicVideoConfig(config),
+      onSelectCase: (caseName) => this.selectDemoCase(caseName),
+      onBackToCases: () => this.showCaseList(),
     });
     this.logPanel?.initialize({
       onClose: () => this.closeStatusLogPage(),
@@ -106,6 +115,9 @@ export class AgoraRtcDemoRoot extends Component {
       onFreeze: () => { void this.toggleStatusFreeze(); },
     });
     this.layoutResponsivePanels();
+    if (this.videoStagePanel) {
+      this.videoStagePanel.node.active = false;
+    }
   }
 
   async start(): Promise<void> {
@@ -290,6 +302,48 @@ export class AgoraRtcDemoRoot extends Component {
     await this.runSessionAction('Effect', (session) => session.runEffectDemo());
   }
 
+  async preloadAudioEffect(): Promise<void> {
+    await this.runSessionAction('PreloadEffect', (session) => session.preloadAudioEffect());
+  }
+
+  async togglePlayAudioEffect(): Promise<void> {
+    await this.runSessionAction('PlayEffect', (session) => session.togglePlayAudioEffect());
+  }
+
+  async pauseAudioEffect(): Promise<void> {
+    await this.runSessionAction('PauseEffect', (session) => session.pauseAudioEffect());
+  }
+
+  async resumeAudioEffect(): Promise<void> {
+    await this.runSessionAction('ResumeEffect', (session) => session.resumeAudioEffect());
+  }
+
+  async applyEffectsVolume(): Promise<void> {
+    await this.runSessionAction('SetEffectsVolume', (session) => session.applyEffectsVolume());
+  }
+
+  async toggleAudioMixing(): Promise<void> {
+    await this.runAudioEffectMixingAction('StartAudioMixing', (session, assetPath) =>
+      session.toggleAudioMixing(assetPath),
+    );
+  }
+
+  async applyAudioMixingPosition(): Promise<void> {
+    await this.runSessionAction('SetAudioMixingPosition', (session) => session.applyAudioMixingPosition());
+  }
+
+  async applyAudioMixingPublishVolume(): Promise<void> {
+    await this.runSessionAction('AudioMixingPublishVolume', (session) => session.applyAudioMixingPublishVolume());
+  }
+
+  async applyAudioMixingPlayoutVolume(): Promise<void> {
+    await this.runSessionAction('AudioMixingPlayoutVolume', (session) => session.applyAudioMixingPlayoutVolume());
+  }
+
+  async applyAudioMixingVolume(): Promise<void> {
+    await this.runSessionAction('AudioMixingVolume', (session) => session.applyAudioMixingVolume());
+  }
+
   async runDiagnosticsDemo(): Promise<void> {
     await this.runSessionAction('Diag', (session) => session.runDiagnosticsDemo());
   }
@@ -314,6 +368,28 @@ export class AgoraRtcDemoRoot extends Component {
 
   closeStatusLogPage(): void {
     this.logPanel?.hide();
+  }
+
+  showCaseList(): void {
+    this.selectedCase = null;
+    if (this.videoStagePanel) {
+      this.videoStagePanel.node.active = false;
+    }
+    this.refreshPanels();
+  }
+
+  selectDemoCase(caseName: string): void {
+    const definition = findDemoCase(caseName);
+    if (!definition) {
+      this.pushStatus(`Unknown case: ${caseName}`);
+      return;
+    }
+    this.selectedCase = definition;
+    if (this.videoStagePanel) {
+      this.videoStagePanel.node.active = definition.displayMode === 'video';
+    }
+    this.pushStatus(`Case selected: ${this.selectedCaseName}`);
+    this.refreshPanels();
   }
 
   private resolvePanelBindings(): void {
@@ -418,6 +494,23 @@ export class AgoraRtcDemoRoot extends Component {
     }
   }
 
+  private async runAudioEffectMixingAction(
+    actionName: string,
+    action: (session: RtcSessionService, assetPath: string) => Promise<void>,
+  ): Promise<void> {
+    this.createSession();
+    this.setActionResult(actionName, 'idle');
+    try {
+      const assetPath = resolveAudioMixingAssetPath();
+      await action(this.session!, assetPath);
+      this.setActionResult(actionName, 'ok');
+    } catch (error) {
+      this.setActionResult(actionName, 'fail');
+      this.pushStatus(`${actionName} failed: ${String(error)}`);
+      throw error;
+    }
+  }
+
   private setActionResult(actionName: string, result: ActionResult): void {
     this.actionResults.set(actionName, result);
     this.actionPanel?.setActionResult(actionName, result);
@@ -469,6 +562,7 @@ export class AgoraRtcDemoRoot extends Component {
     const state = this.getSessionState();
     this.headerPanel?.setConfig(config);
     this.headerPanel?.setSummary(state);
+    this.actionPanel?.setCaseState(DEMO_CASES, this.selectedCase);
     this.actionPanel?.setConfig(config);
     this.actionPanel?.setSessionState(state);
     this.actionPanel?.refresh();
@@ -564,6 +658,17 @@ export class AgoraRtcDemoRoot extends Component {
       lastLocalVideoStatsSummary: '-',
       lastRemoteVideoStatsByUid: {},
       lastVolumeSummary: '-',
+      audioEffectMixing: {
+        effectPreloaded: false,
+        effectPlaying: false,
+        audioMixingStarted: false,
+        effectsVolume: 100,
+        audioMixingPublishVolume: 100,
+        audioMixingPlayoutVolume: 100,
+        audioMixingVolume: 100,
+        audioMixingPositionMs: 1000,
+        remoteAudioStateSummary: '-',
+      },
     };
   }
 }

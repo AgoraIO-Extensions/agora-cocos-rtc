@@ -1,8 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
+import { promisify } from 'node:util';
 
 const repoRoot = process.cwd();
+const execFileAsync = promisify(execFile);
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const controllerUuid = '6f0fce55-1000-42b8-8b7b-1aaf80000001';
 const demoRootUuid = '6f0fce55-1000-42b8-8b7b-1aaf80000103';
@@ -99,6 +102,31 @@ test('new demo component scripts have stable Cocos metadata', async () => {
     const content = await readFile(`${repoRoot}/${path}`, 'utf8');
     assert.match(content, new RegExp(uuid));
   }
+});
+
+test('tracked Cocos asset metadata uuids are unique', async () => {
+  const { stdout } = await execFileAsync('git', ['ls-files', 'example/basic-call/assets'], {
+    cwd: repoRoot,
+  });
+  const metaPaths = stdout
+    .split('\n')
+    .filter((path) => path.endsWith('.meta'))
+    .sort();
+  const seen = new Map<string, string>();
+  const duplicates: string[] = [];
+
+  for (const metaPath of metaPaths) {
+    const content = await readFile(`${repoRoot}/${metaPath}`, 'utf8');
+    const uuid = JSON.parse(content).uuid;
+    const previousPath = seen.get(uuid);
+    if (previousPath) {
+      duplicates.push(`${uuid}: ${previousPath}, ${metaPath}`);
+      continue;
+    }
+    seen.set(uuid, metaPath);
+  }
+
+  assert.deepEqual(duplicates, []);
 });
 
 test('scene and prefabs serialize demo scripts by Cocos script uuid', async () => {
@@ -287,26 +315,151 @@ test('demo action registry prioritizes flutter-style basic video controls', asyn
   assert.ok(content.indexOf('JoinChannel') < content.indexOf('Full Demo'));
 });
 
-test('demo action panel keeps basic video controls in a mobile-safe vertical range', async () => {
+test('demo action panel renders left controls in a scroll view', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
     'utf8',
   );
-  const sectionY = (name: string) => {
-    const match = content.match(new RegExp(`const \\w+ = this\\.ensureContainer\\('${name}', 0, (-?\\d+),`));
-    assert.ok(match, `missing ${name} container`);
-    return Number(match[1]);
-  };
 
-  const connectionY = sectionY('ConnectionSection');
-  const previewY = sectionY('PreviewCameraSection');
-  const renderY = sectionY('RenderEncoderSection');
-  const diagnosticsY = sectionY('DiagnosticsSection');
+  assert.match(content, /ScrollView/);
+  assert.match(content, /ActionScrollView/);
+  assert.match(content, /ActionScrollContent/);
+  assert.match(content, /scrollView\.content = this\.scrollContent/);
+  assert.match(content, /clearScrollContent/);
+  assert.doesNotMatch(content, /for \(const child of \[\.\.\.this\.node\.children\]\)/);
+});
 
-  assert.ok(connectionY > previewY && previewY > renderY && renderY > diagnosticsY);
-  assert.ok(connectionY + 58 <= 240);
-  assert.ok(diagnosticsY + 43 <= renderY - 55);
-  assert.ok(diagnosticsY + 32 >= -155);
+test('demo action panel lays case sections from content flow to avoid overlap', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /appendSection/);
+  assert.match(content, /caseActionSectionHeight/);
+  assert.match(content, /Math\.ceil\(actionCount \/ CASE_ACTION_COLUMNS\)/);
+  assert.match(content, /this\.buildCaseActionButtons\(actions, actionHeight\)/);
+  assert.doesNotMatch(content, /ensureContainer\('ConnectionSection', 0, 180/);
+  assert.doesNotMatch(content, /ensureContainer\('DiagnosticsSection', 0, -185/);
+});
+
+test('demo case registry exposes the approved flutter-aligned case list', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/cases/caseRegistry.ts`,
+    'utf8',
+  );
+
+  for (const name of [
+    'Basic',
+    'JoinChannelAudio',
+    'JoinChannelVideo',
+    'Advanced',
+    'AudioEffectMixing',
+    'SetVideoEncoderConfiguration',
+    'SetBeautyEffect',
+    'SetContentInspect',
+  ]) {
+    assert.match(content, new RegExp(`name:\\s*'${name}'`));
+  }
+
+  for (const unsupported of [
+    'StringUid',
+    'ChannelMediaRelay',
+    'ScreenSharing',
+    'MediaPlayer',
+    'PictureInPicture',
+  ]) {
+    assert.doesNotMatch(content, new RegExp(`name:\\s*'${unsupported}'`));
+  }
+
+  assert.match(content, /displayMode:\s*'audio'/);
+  assert.match(content, /displayMode:\s*'video'/);
+});
+
+test('demo root supports case list navigation before case detail actions', async () => {
+  const rootContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+  const panelContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+
+  assert.match(rootContent, /selectedCaseName/);
+  assert.match(rootContent, /showCaseList/);
+  assert.match(rootContent, /selectDemoCase/);
+  assert.match(rootContent, /DEMO_CASES/);
+  assert.match(panelContent, /renderCaseList/);
+  assert.match(panelContent, /renderCaseControls/);
+  assert.match(panelContent, /Back/);
+  assert.match(panelContent, /AudioEffectMixing/);
+});
+
+test('audio effect mixing case wires flutter-required controls', async () => {
+  const actionsContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/actions.ts`,
+    'utf8',
+  );
+  const serviceContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+  const rootContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  for (const name of [
+    'PreloadEffect',
+    'PlayEffect',
+    'PauseEffect',
+    'ResumeEffect',
+    'SetEffectsVolume',
+    'StartAudioMixing',
+    'SetAudioMixingPosition',
+    'AudioMixingPublishVolume',
+    'AudioMixingPlayoutVolume',
+    'AudioMixingVolume',
+  ]) {
+    assert.match(actionsContent, new RegExp(name));
+  }
+
+  assert.match(serviceContent, /pauseEffect/);
+  assert.match(serviceContent, /resumeEffect/);
+  assert.match(serviceContent, /setEffectsVolume/);
+  assert.match(serviceContent, /adjustAudioMixingPublishVolume/);
+  assert.match(serviceContent, /adjustAudioMixingPlayoutVolume/);
+  assert.match(serviceContent, /remoteAudioStateChanged/);
+  assert.match(rootContent, /runAudioEffectMixingAction/);
+});
+
+test('audio effect mixing case resolves a bundled local mixing asset', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/cases/AudioEffectMixingCase.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /Agora\.io-Interactions\.mp3/);
+  assert.match(content, /resolveAudioMixingAssetPath/);
+  assert.match(content, /native\.fileUtils/);
+  assert.match(content, /getWritablePath/);
+  assert.match(content, /copyFile/);
+  assert.match(content, /https:\/\/webdemo\.agora\.io\/ding\.mp3/);
+});
+
+test('demo action panel renders case-specific controls instead of the full qa matrix', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /buildCaseActionButtons/);
+  assert.match(content, /selectedCase\.actions/);
+  assert.match(content, /buildAudioEffectMixingControls/);
+  assert.match(content, /buildBeautyControls/);
+  assert.match(content, /buildEncoderControls/);
+  assert.match(content, /buildContentInspectControls/);
 });
 
 test('example scene and template use landscape canvas dimensions', async () => {

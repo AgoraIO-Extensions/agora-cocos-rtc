@@ -308,6 +308,26 @@ export class AgoraRtcClient {
     return this.#invoke('playEffect', { ...config }) as Promise<void>;
   }
 
+  pauseEffect(soundId: number): Promise<void> {
+    return this.#invoke('pauseEffect', { soundId }) as Promise<void>;
+  }
+
+  resumeEffect(soundId: number): Promise<void> {
+    return this.#invoke('resumeEffect', { soundId }) as Promise<void>;
+  }
+
+  setEffectsVolume(volume: number): Promise<void> {
+    return this.#invoke('setEffectsVolume', { volume }) as Promise<void>;
+  }
+
+  adjustAudioMixingPublishVolume(volume: number): Promise<void> {
+    return this.#invoke('adjustAudioMixingPublishVolume', { volume }) as Promise<void>;
+  }
+
+  adjustAudioMixingPlayoutVolume(volume: number): Promise<void> {
+    return this.#invoke('adjustAudioMixingPlayoutVolume', { volume }) as Promise<void>;
+  }
+
   stopEffect(soundId: number): Promise<void> {
     return this.#invoke('stopEffect', { soundId }) as Promise<void>;
   }

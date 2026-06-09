@@ -209,6 +209,34 @@ test('client surfaces warning and volume indication events to subscribed listene
   assert.deepEqual(volumes, [90]);
 });
 
+test('client surfaces remote audio state change events', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+  const events: Array<string> = [];
+
+  client.on('remoteAudioStateChanged', (payload) => {
+    events.push(`${payload.uid}:${payload.state}:${payload.reason}:${payload.elapsed}`);
+  });
+
+  transport.emit(
+    'agora:event',
+    JSON.stringify({
+      eventName: 'remoteAudioStateChanged',
+      payload: {
+        uid: 2002,
+        state: 2,
+        reason: 5,
+        elapsed: 123,
+      },
+    }),
+  );
+
+  assert.deepEqual(events, ['2002:2:5:123']);
+});
+
 test('engine texture bridge resolves from global jsb namespace', () => {
   const originalJsb = globalThis.jsb;
   const bridge = {
@@ -766,6 +794,49 @@ test('startAudioMixing rejects replace because RTC 4.5.3 bridge signatures do no
       error.details.parameter === 'replace',
   );
   assert.equal(transport.sent.length, 0);
+});
+
+test('AudioEffectMixing extra APIs dispatch expected native requests', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  async function expectRequest(
+    action: () => Promise<unknown>,
+    method: string,
+    expectedParams: Record<string, unknown>,
+  ) {
+    const pending = action();
+    const request = JSON.parse(transport.sent.at(-1)!.payload);
+    assert.equal(request.method, method);
+    assert.deepEqual(request.params, expectedParams);
+
+    transport.emit(
+      'agora:response',
+      JSON.stringify({
+        requestId: request.requestId,
+        ok: true,
+      }),
+    );
+
+    await pending;
+  }
+
+  await expectRequest(() => client.pauseEffect(7), 'pauseEffect', { soundId: 7 });
+  await expectRequest(() => client.resumeEffect(7), 'resumeEffect', { soundId: 7 });
+  await expectRequest(() => client.setEffectsVolume(60), 'setEffectsVolume', { volume: 60 });
+  await expectRequest(
+    () => client.adjustAudioMixingPublishVolume(70),
+    'adjustAudioMixingPublishVolume',
+    { volume: 70 },
+  );
+  await expectRequest(
+    () => client.adjustAudioMixingPlayoutVolume(80),
+    'adjustAudioMixingPlayoutVolume',
+    { volume: 80 },
+  );
 });
 
 test('enableLocalAudio dispatches the expected native request', async () => {

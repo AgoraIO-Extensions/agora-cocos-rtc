@@ -291,6 +291,21 @@ public final class AgoraRtcPlugin {
             case "playEffect":
                 handlePlayEffect(requestId, params);
                 break;
+            case "pauseEffect":
+                handlePauseEffect(requestId, params);
+                break;
+            case "resumeEffect":
+                handleResumeEffect(requestId, params);
+                break;
+            case "setEffectsVolume":
+                handleSetEffectsVolume(requestId, params);
+                break;
+            case "adjustAudioMixingPublishVolume":
+                handleAdjustAudioMixingPublishVolume(requestId, params);
+                break;
+            case "adjustAudioMixingPlayoutVolume":
+                handleAdjustAudioMixingPlayoutVolume(requestId, params);
+                break;
             case "stopEffect":
                 handleStopEffect(requestId, params);
                 break;
@@ -500,6 +515,16 @@ public final class AgoraRtcPlugin {
                 @Override
                 public void onRemoteVideoStateChanged(int uid, int state, int reason, int elapsed) {
                     dispatchEvent("remoteVideoStateChanged", jsonObject(
+                            "uid", uid,
+                            "state", state,
+                            "reason", reason,
+                            "elapsed", elapsed
+                    ));
+                }
+
+                @Override
+                public void onRemoteAudioStateChanged(int uid, int state, int reason, int elapsed) {
+                    dispatchEvent("remoteAudioStateChanged", jsonObject(
                             "uid", uid,
                             "state", state,
                             "reason", reason,
@@ -1173,6 +1198,32 @@ public final class AgoraRtcPlugin {
         dispatchOk(requestId);
     }
 
+    private void handleAdjustAudioMixingPublishVolume(String requestId, JSONObject params) {
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+        int result = rtcEngine.adjustAudioMixingPublishVolume(params != null ? params.optInt("volume", 100) : 100);
+        if (result < 0) {
+            dispatchAgoraError(requestId, "adjustAudioMixingPublishVolume", result);
+            return;
+        }
+        dispatchOk(requestId);
+    }
+
+    private void handleAdjustAudioMixingPlayoutVolume(String requestId, JSONObject params) {
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+        int result = rtcEngine.adjustAudioMixingPlayoutVolume(params != null ? params.optInt("volume", 100) : 100);
+        if (result < 0) {
+            dispatchAgoraError(requestId, "adjustAudioMixingPlayoutVolume", result);
+            return;
+        }
+        dispatchOk(requestId);
+    }
+
     private void handlePreloadEffect(String requestId, JSONObject params) {
         if (rtcEngine == null) {
             dispatchError(requestId, "RtcEngine is not initialized.");
@@ -1214,6 +1265,63 @@ public final class AgoraRtcPlugin {
         int result = effectManager.playEffect(soundId, path, loopCount, pitch, pan, gain, publish, startPos);
         if (result < 0) {
             dispatchAgoraError(requestId, "playEffect", result);
+            return;
+        }
+        dispatchOk(requestId);
+    }
+
+    private void handlePauseEffect(String requestId, JSONObject params) {
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+        IAudioEffectManager effectManager = rtcEngine.getAudioEffectManager();
+        if (effectManager == null) {
+            dispatchError(requestId, "AudioEffectManager is unavailable.");
+            return;
+        }
+        int soundId = params != null ? params.optInt("soundId", 0) : 0;
+        int result = effectManager.pauseEffect(soundId);
+        if (result < 0) {
+            dispatchAgoraError(requestId, "pauseEffect", result);
+            return;
+        }
+        dispatchOk(requestId);
+    }
+
+    private void handleResumeEffect(String requestId, JSONObject params) {
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+        IAudioEffectManager effectManager = rtcEngine.getAudioEffectManager();
+        if (effectManager == null) {
+            dispatchError(requestId, "AudioEffectManager is unavailable.");
+            return;
+        }
+        int soundId = params != null ? params.optInt("soundId", 0) : 0;
+        int result = effectManager.resumeEffect(soundId);
+        if (result < 0) {
+            dispatchAgoraError(requestId, "resumeEffect", result);
+            return;
+        }
+        dispatchOk(requestId);
+    }
+
+    private void handleSetEffectsVolume(String requestId, JSONObject params) {
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+        IAudioEffectManager effectManager = rtcEngine.getAudioEffectManager();
+        if (effectManager == null) {
+            dispatchError(requestId, "AudioEffectManager is unavailable.");
+            return;
+        }
+        double volume = params != null ? params.optDouble("volume", 100.0) : 100.0;
+        int result = effectManager.setEffectsVolume(volume);
+        if (result < 0) {
+            dispatchAgoraError(requestId, "setEffectsVolume", result);
             return;
         }
         dispatchOk(requestId);

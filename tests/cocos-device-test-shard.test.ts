@@ -111,6 +111,10 @@ test('cocos api testcases accept native error evidence for platform-sensitive ca
     'mixing.pause',
     'mixing.resume',
     'mixing.set-position',
+    'effect.pause',
+    'effect.resume',
+    'mixing.adjust-publish-volume',
+    'mixing.adjust-playout-volume',
   ];
 
   for (const caseId of platformSensitiveCaseIds) {

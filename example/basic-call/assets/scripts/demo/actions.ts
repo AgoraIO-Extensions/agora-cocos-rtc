@@ -39,6 +39,16 @@ export const ADVANCED_ACTIONS = [
   { name: 'BeautyEffect', handler: 'toggleBeautyEffect' },
   { name: 'ContentInspect', handler: 'toggleContentInspect' },
   { name: 'PlaybackUserVolume', handler: 'togglePlaybackUserVolume' },
+  { name: 'PreloadEffect', handler: 'preloadAudioEffect' },
+  { name: 'PlayEffect', handler: 'togglePlayAudioEffect' },
+  { name: 'PauseEffect', handler: 'pauseAudioEffect' },
+  { name: 'ResumeEffect', handler: 'resumeAudioEffect' },
+  { name: 'SetEffectsVolume', handler: 'applyEffectsVolume' },
+  { name: 'StartAudioMixing', handler: 'toggleAudioMixing' },
+  { name: 'SetAudioMixingPosition', handler: 'applyAudioMixingPosition' },
+  { name: 'AudioMixingPublishVolume', handler: 'applyAudioMixingPublishVolume' },
+  { name: 'AudioMixingPlayoutVolume', handler: 'applyAudioMixingPlayoutVolume' },
+  { name: 'AudioMixingVolume', handler: 'applyAudioMixingVolume' },
 ] as const;
 
 export const DEFAULT_BUTTON_LAYOUT = [...BASIC_VIDEO_ACTIONS, ...ADVANCED_ACTIONS] as const;
@@ -93,6 +103,16 @@ export const ACTION_LABELS: Record<string, string> = {
   BeautyEffect: 'Beauty Effect',
   ContentInspect: 'Content Inspect',
   PlaybackUserVolume: 'User Volume',
+  PreloadEffect: 'Preload Effect',
+  PlayEffect: 'Play Effect',
+  PauseEffect: 'Pause Effect',
+  ResumeEffect: 'Resume Effect',
+  SetEffectsVolume: 'Effect Volume',
+  StartAudioMixing: 'Start Mixing',
+  SetAudioMixingPosition: 'Mix Position',
+  AudioMixingPublishVolume: 'Publish Vol',
+  AudioMixingPlayoutVolume: 'Playout Vol',
+  AudioMixingVolume: 'Mix Volume',
 };
 
 export type DemoActionName = typeof DEFAULT_BUTTON_LAYOUT[number]['name'];

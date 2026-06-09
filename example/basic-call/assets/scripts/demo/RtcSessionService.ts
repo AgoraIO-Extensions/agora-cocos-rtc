@@ -85,6 +85,17 @@ export class RtcSessionService {
   private lastLocalVideoStatsSummary = '-';
   private lastRemoteVideoStatsByUid = new Map<number, string>();
   private lastVolumeSummary = '-';
+  private audioEffectPreloaded = false;
+  private audioEffectPlaying = false;
+  private audioMixingStarted = false;
+  private effectsVolume = 100;
+  private audioMixingPublishVolume = 100;
+  private audioMixingPlayoutVolume = 100;
+  private audioMixingVolume = 100;
+  private audioMixingPositionMs = 1000;
+  private remoteAudioStateSummary = '-';
+  private readonly audioEffectSoundId = 1;
+  private readonly audioEffectUrl = 'https://webdemo.agora.io/ding.mp3';
 
   constructor(private readonly options: RtcSessionServiceOptions) {}
 
@@ -115,6 +126,17 @@ export class RtcSessionService {
       lastLocalVideoStatsSummary: this.lastLocalVideoStatsSummary,
       lastRemoteVideoStatsByUid: Object.fromEntries(this.lastRemoteVideoStatsByUid),
       lastVolumeSummary: this.lastVolumeSummary,
+      audioEffectMixing: {
+        effectPreloaded: this.audioEffectPreloaded,
+        effectPlaying: this.audioEffectPlaying,
+        audioMixingStarted: this.audioMixingStarted,
+        effectsVolume: this.effectsVolume,
+        audioMixingPublishVolume: this.audioMixingPublishVolume,
+        audioMixingPlayoutVolume: this.audioMixingPlayoutVolume,
+        audioMixingVolume: this.audioMixingVolume,
+        audioMixingPositionMs: this.audioMixingPositionMs,
+        remoteAudioStateSummary: this.remoteAudioStateSummary,
+      },
     };
   }
 
@@ -475,6 +497,104 @@ export class RtcSessionService {
     await this.callAndLogFailure('stopEffect', () => client.stopEffect(1));
   }
 
+  async preloadAudioEffect(): Promise<void> {
+    await this.getClient().preloadEffect(this.audioEffectSoundId, this.audioEffectUrl);
+    this.audioEffectPreloaded = true;
+    this.log(`Audio effect preloaded: ${this.audioEffectUrl}`);
+    this.emitState();
+  }
+
+  async togglePlayAudioEffect(): Promise<void> {
+    if (this.audioEffectPlaying) {
+      await this.getClient().stopEffect(this.audioEffectSoundId);
+      this.audioEffectPlaying = false;
+      this.log('Audio effect stopped');
+      this.emitState();
+      return;
+    }
+    await this.getClient().playEffect({
+      soundId: this.audioEffectSoundId,
+      path: this.audioEffectUrl,
+      loopCount: -1,
+      pitch: 1,
+      pan: 0,
+      gain: 100,
+      publish: true,
+      startPos: 0,
+    });
+    this.audioEffectPlaying = true;
+    this.log('Audio effect playing');
+    this.emitState();
+  }
+
+  async pauseAudioEffect(): Promise<void> {
+    await this.getClient().pauseEffect(this.audioEffectSoundId);
+    this.log('Audio effect paused');
+  }
+
+  async resumeAudioEffect(): Promise<void> {
+    await this.getClient().resumeEffect(this.audioEffectSoundId);
+    this.log('Audio effect resumed');
+  }
+
+  async applyEffectsVolume(volume = this.effectsVolume): Promise<void> {
+    const next = this.clampVolume(volume);
+    await this.getClient().setEffectsVolume(next);
+    this.effectsVolume = next;
+    this.log(`Effects volume: ${next}`);
+    this.emitState();
+  }
+
+  async toggleAudioMixing(path: string): Promise<void> {
+    if (this.audioMixingStarted) {
+      await this.getClient().stopAudioMixing();
+      this.audioMixingStarted = false;
+      this.log('Audio mixing stopped');
+      this.emitState();
+      return;
+    }
+    await this.getClient().startAudioMixing({
+      path,
+      loopback: false,
+      cycle: 1,
+      startPos: this.audioMixingPositionMs,
+    });
+    this.audioMixingStarted = true;
+    this.log(`Audio mixing started: ${path}`);
+    this.emitState();
+  }
+
+  async applyAudioMixingPosition(positionMs = this.audioMixingPositionMs): Promise<void> {
+    this.audioMixingPositionMs = Math.max(0, Math.floor(positionMs));
+    await this.getClient().setAudioMixingPosition(this.audioMixingPositionMs);
+    this.log(`Audio mixing position: ${this.audioMixingPositionMs}`);
+    this.emitState();
+  }
+
+  async applyAudioMixingPublishVolume(volume = this.audioMixingPublishVolume): Promise<void> {
+    const next = this.clampVolume(volume);
+    await this.getClient().adjustAudioMixingPublishVolume(next);
+    this.audioMixingPublishVolume = next;
+    this.log(`Audio mixing publish volume: ${next}`);
+    this.emitState();
+  }
+
+  async applyAudioMixingPlayoutVolume(volume = this.audioMixingPlayoutVolume): Promise<void> {
+    const next = this.clampVolume(volume);
+    await this.getClient().adjustAudioMixingPlayoutVolume(next);
+    this.audioMixingPlayoutVolume = next;
+    this.log(`Audio mixing playout volume: ${next}`);
+    this.emitState();
+  }
+
+  async applyAudioMixingVolume(volume = this.audioMixingVolume): Promise<void> {
+    const next = this.clampVolume(volume);
+    await this.getClient().adjustAudioMixingVolume(next);
+    this.audioMixingVolume = next;
+    this.log(`Audio mixing volume: ${next}`);
+    this.emitState();
+  }
+
   async runDiagnosticsDemo(): Promise<void> {
     const client = this.getClient();
     const errorDescription = await client.getErrorDescription(0);
@@ -510,6 +630,9 @@ export class RtcSessionService {
       this.joined = false;
       this.previewStarted = false;
       this.activeRemoteUid = null;
+      this.audioEffectPreloaded = false;
+      this.audioEffectPlaying = false;
+      this.audioMixingStarted = false;
       this.remoteUserUids.clear();
       this.localViewAttached = false;
       this.localTextureSlotId = null;
@@ -589,6 +712,11 @@ export class RtcSessionService {
     this.client.on('remoteVideoStateChanged', ({ uid, state, reason }) => {
       this.lastRemoteVideoStatsByUid.set(uid, `state ${state}/reason ${reason}`);
       this.log(`Remote video state: ${uid} state ${state} reason ${reason}`);
+      this.emitState();
+    });
+    this.client.on('remoteAudioStateChanged', ({ uid, state, reason, elapsed }) => {
+      this.remoteAudioStateSummary = `${uid}: state ${state}/reason ${reason}/${elapsed}ms`;
+      this.log(`Remote audio state: ${this.remoteAudioStateSummary}`);
       this.emitState();
     });
     this.client.on('localVideoTextureReady', ({ slotId, width, height }) => {
@@ -760,6 +888,10 @@ export class RtcSessionService {
     await this.callAndLogFailure('enableContentInspect', () =>
       this.getClient().enableContentInspect(true, { module: 0, interval: 0 }),
     );
+  }
+
+  private clampVolume(volume: number): number {
+    return Math.max(0, Math.min(100, Math.floor(volume)));
   }
 
   private async callAndLogFailure(label: string, action: () => Promise<unknown>): Promise<void> {

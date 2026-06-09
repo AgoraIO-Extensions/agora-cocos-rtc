@@ -67,6 +67,11 @@ export type AgoraMethod =
   | 'adjustAudioMixingVolume'
   | 'preloadEffect'
   | 'playEffect'
+  | 'pauseEffect'
+  | 'resumeEffect'
+  | 'setEffectsVolume'
+  | 'adjustAudioMixingPublishVolume'
+  | 'adjustAudioMixingPlayoutVolume'
   | 'stopEffect'
   | 'setParameters';
 
@@ -245,6 +250,12 @@ export interface AgoraEventMap {
   audioMixingStateChanged: {
     state: number;
     reason: number;
+  };
+  remoteAudioStateChanged: {
+    uid: number;
+    state: number;
+    reason: number;
+    elapsed: number;
   };
   volumeIndication: {
     speakers: Array<{
