@@ -1973,11 +1973,12 @@ test('ios bridge template builds AgoraRtcVideoCanvas from JS canvas payloads', a
   assert.match(bridgeContent, /canvas\.mirrorMode = mirrorMode\(from: params\)/);
   assert.match(bridgeContent, /canvas\.setupMode = videoViewSetupMode\(from: params\)/);
   assert.match(bridgeContent, /canvas\.sourceType = videoSourceType\(from: params\)/);
-  assert.match(bridgeContent, /canvas\.mediaPlayerId = intValue\(params\["mediaPlayerId"\] \?\? canvas\.mediaPlayerId\)/);
+  assert.match(bridgeContent, /canvas\.mediaPlayerId = Int32\(intValue\(params\["mediaPlayerId"\] \?\? canvas\.mediaPlayerId\)\)/);
   assert.match(bridgeContent, /canvas\.cropArea = cropArea/);
   assert.match(bridgeContent, /canvas\.backgroundColor = uint32Value\(params\["backgroundColor"\] \?\? canvas\.backgroundColor\)/);
   assert.match(bridgeContent, /canvas\.enableAlphaMask = boolValue\(params\["enableAlphaMask"\] \?\? canvas\.enableAlphaMask\)/);
   assert.match(bridgeContent, /canvas\.position = videoModulePosition\(from: params\)/);
+  assert.match(bridgeContent, /AgoraVideoModulePosition\(rawValue: value\) \?\? \.postCapture/);
   assert.match(bridgeContent, /case "adaptive":\s*return \.adaptive/);
   assert.match(bridgeContent, /let canvas = self\.localCanvas \?\? AgoraRtcVideoCanvas\(\)[\s\S]*self\.applyVideoCanvasParams\(canvas, params: params, fallbackUid: 0\)[\s\S]*_ = engine\.setupLocalVideo\(canvas\)/);
   assert.match(bridgeContent, /let canvas = self\.remoteCanvases\[uid\] \?\? AgoraRtcVideoCanvas\(\)[\s\S]*self\.applyVideoCanvasParams\(canvas, params: params, fallbackUid: uid\)[\s\S]*_ = engine\.setupRemoteVideo\(canvas\)/);

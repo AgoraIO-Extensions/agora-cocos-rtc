@@ -1535,7 +1535,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         canvas.mirrorMode = mirrorMode(from: params)
         canvas.setupMode = videoViewSetupMode(from: params)
         canvas.sourceType = videoSourceType(from: params)
-        canvas.mediaPlayerId = intValue(params["mediaPlayerId"] ?? canvas.mediaPlayerId)
+        canvas.mediaPlayerId = Int32(intValue(params["mediaPlayerId"] ?? canvas.mediaPlayerId))
         if let cropArea = rectValue(params["cropArea"]) {
             canvas.cropArea = cropArea
         }
@@ -1573,7 +1573,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
 
     private func videoModulePosition(from params: [String: Any]) -> AgoraVideoModulePosition {
         let value = intValue(params["position"] ?? AgoraVideoModulePosition.postCapture.rawValue)
-        return AgoraVideoModulePosition(rawValue: UInt(value)) ?? .postCapture
+        return AgoraVideoModulePosition(rawValue: value) ?? .postCapture
     }
 
     private func rectValue(_ rawValue: Any?) -> CGRect? {
