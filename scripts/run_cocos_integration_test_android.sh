@@ -256,12 +256,18 @@ write_android_apk_contents_report
 log_step "Install and launch Android test app"
 "$ADB_BIN" install -g -r --no-streaming "$APK_PATH"
 "$ADB_BIN" logcat -c
-"$ADB_BIN" shell am start -n "$PACKAGE_NAME/$ACTIVITY_NAME" \
-  --es AGORA_COCOS_TEST_MODE "$AGORA_COCOS_TEST_MODE" \
-  --es TEST_APP_ID "${TEST_APP_ID:-${APP_ID:-}}" \
-  --es TEST_TOKEN "${TEST_TOKEN:-${TOKEN:-}}" \
-  --es TEST_CHANNEL_ID "$TEST_CHANNEL_ID" \
+android_test_token="${TEST_TOKEN:-${TOKEN:-}}"
+ANDROID_LAUNCH_ARGS=(
+  shell am start -n "$PACKAGE_NAME/$ACTIVITY_NAME"
+  --es AGORA_COCOS_TEST_MODE "$AGORA_COCOS_TEST_MODE"
+  --es TEST_APP_ID "${TEST_APP_ID:-${APP_ID:-}}"
+  --es TEST_CHANNEL_ID "$TEST_CHANNEL_ID"
   --es TEST_UID "$TEST_UID"
+)
+if [[ -n "$android_test_token" ]]; then
+  ANDROID_LAUNCH_ARGS+=(--es TEST_TOKEN "$android_test_token")
+fi
+"$ADB_BIN" "${ANDROID_LAUNCH_ARGS[@]}"
 
 mkdir -p "$(dirname "$LOG_PATH")"
 : > "$LOG_PATH"
