@@ -350,6 +350,17 @@ test('android render backends build video canvas and texture slots from JS canva
   assert.match(engineTextureBackendContent, /resolveTextureHeight\(params, false\)/);
   assert.match(engineTextureBackendContent, /textureWidth/);
   assert.match(engineTextureBackendContent, /textureHeight/);
+  assert.match(engineTextureBackendContent, /resolveFrameObserverPosition\(\s*params,/);
+  assert.match(engineTextureBackendContent, /observedFramePosition/);
+  assert.match(engineTextureBackendContent, /POSITION_PRE_ENCODER/);
+  assert.doesNotMatch(engineTextureBackendContent, /return POSITION_POST_CAPTURER \| POSITION_PRE_RENDERER;/);
+  for (const content of [nativeViewBackendContent, engineTextureBackendContent]) {
+    assert.match(content, /public void startPreview\(JSONObject params, AgoraRenderResultCallback callback\)/);
+    assert.match(content, /rtcEngine\.startPreview\(resolvePreviewVideoSourceType\(params\)\)/);
+    assert.match(content, /public void stopPreview\(JSONObject params, AgoraRenderResultCallback callback\)/);
+    assert.match(content, /rtcEngine\.stopPreview\(resolvePreviewVideoSourceType\(params\)\)/);
+    assert.match(content, /protected Constants\.VideoSourceType resolvePreviewVideoSourceType\(JSONObject params\)/);
+  }
 });
 
 test('engine-texture backend emits texture slot lifecycle events instead of Base64 frame payloads', async () => {
@@ -934,6 +945,19 @@ test('android bridge template requests rtc runtime permissions before camera and
     /renderBackend\.startPreview/,
     'startPreview must request only camera permission before invoking native sdk',
   );
+
+  const handleLeaveChannelMatch = bridgeContent.match(
+    /private void handleLeaveChannel[\s\S]*?private void handleRenewToken/,
+  );
+  assert.ok(handleLeaveChannelMatch);
+  assert.match(handleLeaveChannelMatch[0], /hasLeaveChannelOptions\(params\)/);
+  assert.match(handleLeaveChannelMatch[0], /rtcEngine\.leaveChannel\(buildLeaveChannelOptions\(params\)\)/);
+  assert.match(handleLeaveChannelMatch[0], /rtcEngine\.leaveChannel\(\)/);
+  assert.match(bridgeContent, /private LeaveChannelOptions buildLeaveChannelOptions\(JSONObject params\)/);
+  assert.match(bridgeContent, /options\.stopAudioMixing = params\.optBoolean\("stopAudioMixing"\)/);
+  assert.match(bridgeContent, /options\.stopAllEffect = params\.optBoolean\("stopAllEffect"\)/);
+  assert.match(bridgeContent, /options\.unloadAllEffect = params\.optBoolean\("unloadAllEffect"\)/);
+  assert.match(bridgeContent, /options\.stopMicrophoneRecording = params\.optBoolean\("stopMicrophoneRecording"\)/);
 });
 
 test('android bridge template supports default audio route to speakerphone', async () => {
@@ -1111,6 +1135,8 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.match(beautyMatch[0], /options\.optDouble\("smoothnessLevel", 0\.0\)/);
   assert.match(beautyMatch[0], /options\.optDouble\("rednessLevel", 0\.0\)/);
   assert.match(beautyMatch[0], /options\.optDouble\("sharpnessLevel", 0\.0\)/);
+  assert.match(beautyMatch[0], /Constants\.MediaSourceType sourceType = mapMediaSourceType\(params != null \? params\.optInt\("sourceType", 2\) : 2\)/);
+  assert.match(beautyMatch[0], /rtcEngine\.setBeautyEffectOptions\(enabled, beautyOptions, sourceType\)/);
 
   const inspectMatch = bridgeContent.match(
     /private void handleEnableContentInspect[\s\S]*?private void handleStartAudioMixing/,
@@ -1184,7 +1210,8 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.ok(preloadEffectMatch);
   assert.match(preloadEffectMatch[0], /int soundId = params != null \? params\.optInt\("soundId", 0\) : 0/);
   assert.match(preloadEffectMatch[0], /String path = params != null \? params\.optString\("path", ""\) : ""/);
-  assert.match(preloadEffectMatch[0], /effectManager\.preloadEffect\(soundId, path\)/);
+  assert.match(preloadEffectMatch[0], /int startPos = params != null \? params\.optInt\("startPos", 0\) : 0/);
+  assert.match(preloadEffectMatch[0], /effectManager\.preloadEffect\(soundId, path, startPos\)/);
 
   const setEffectsVolumeMatch = bridgeContent.match(
     /private void handleSetEffectsVolume[\s\S]*?private void handleStopEffect/,
@@ -1300,6 +1327,14 @@ test('ios bridge template wires minimum real rtc engine methods and delegate cal
   assert.match(bridgeContent, /setClientRole/);
   assert.match(bridgeContent, /joinChannel\(/);
   assert.match(bridgeContent, /leaveChannel/);
+  assert.match(bridgeContent, /hasLeaveChannelOptions\(params\)/);
+  assert.match(bridgeContent, /engine\.leaveChannel\(buildLeaveChannelOptions\(params\), leaveChannelBlock: nil\)/);
+  assert.match(bridgeContent, /engine\.leaveChannel\(nil\)/);
+  assert.match(bridgeContent, /private func buildLeaveChannelOptions\(_ params: \[String: Any\]\) -> AgoraLeaveChannelOptions/);
+  assert.match(bridgeContent, /options\.stopAudioMixing = value/);
+  assert.match(bridgeContent, /options\.stopAllEffect = value/);
+  assert.match(bridgeContent, /options\.unloadAllEffect = value/);
+  assert.match(bridgeContent, /options\.stopMicrophoneRecording = value/);
   assert.match(bridgeContent, /renewToken/);
   assert.match(bridgeContent, /enableAudio/);
   assert.match(bridgeContent, /enableLocalAudio/);
@@ -1428,7 +1463,16 @@ test('ios bridge template maps joinChannel media options from request payload', 
   assert.match(bridgeContent, /options\.parameters = value/);
   assert.doesNotMatch(bridgeContent, /options\.publishThirdCameraTrack/);
   assert.doesNotMatch(bridgeContent, /options\.publishFourthCameraTrack/);
-  assert.match(handleJoinChannel, /if mediaOptionBool\(mediaOptionParams, key: "startPreview", defaultValue: false\)[\s\S]*engine\.startPreview\(\)/);
+  assert.match(handleJoinChannel, /if mediaOptionBool\(mediaOptionParams, key: "startPreview", defaultValue: false\)[\s\S]*engine\.startPreview\(self\.videoSourceType\(from: mediaOptionParams\)\)/);
+
+  const handleJoinChannelWithUserAccountMatch = bridgeContent.match(
+    /private func handleJoinChannelWithUserAccount\(requestId: String, params: \[String: Any\]\)[\s\S]*?private func handleGetUserInfoByUserAccount/,
+  );
+  assert.ok(handleJoinChannelWithUserAccountMatch);
+  assert.match(
+    handleJoinChannelWithUserAccountMatch[0],
+    /if self\.mediaOptionBool\(mediaOptionParams, key: "startPreview", defaultValue: false\)[\s\S]*engine\.startPreview\(self\.videoSourceType\(from: mediaOptionParams\)\)[\s\S]*engine\.joinChannel\(\s*byToken: token,\s*channelId: channelId,\s*userAccount: userAccount,\s*mediaOptions: mediaOptions,/,
+  );
 });
 
 test('ios bridge template maps expanded configs and callbacks', async () => {
@@ -1513,6 +1557,8 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(beautyMatch[0], /options\.smoothnessLevel = Float\(optionsObject\["smoothnessLevel"\] as\? Double \?\? 0\.0\)/);
   assert.match(beautyMatch[0], /options\.rednessLevel = Float\(optionsObject\["rednessLevel"\] as\? Double \?\? 0\.0\)/);
   assert.match(beautyMatch[0], /options\.sharpnessLevel = Float\(optionsObject\["sharpnessLevel"\] as\? Double \?\? 0\.0\)/);
+  assert.match(beautyMatch[0], /let sourceType = mediaSourceType\(from: params\)/);
+  assert.match(beautyMatch[0], /engine\.setBeautyEffectOptions\(enabled, options: options, sourceType: sourceType\)/);
 
   const inspectMatch = bridgeContent.match(
     /case "enableContentInspect":[\s\S]*?case "setNativeVideoOverlaySuspended":/,
@@ -1625,7 +1671,8 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(bridgeContent, /engine\.adjustAudioMixingVolume\(volume\)/);
   assert.match(bridgeContent, /engine\.adjustAudioMixingPublishVolume\(volume\)/);
   assert.match(bridgeContent, /engine\.adjustAudioMixingPlayoutVolume\(volume\)/);
-  assert.match(bridgeContent, /engine\.preloadEffect\(soundId, filePath: path\)/);
+  assert.match(bridgeContent, /let startPos = Int32\(params\["startPos"\] as\? Int \?\? 0\)/);
+  assert.match(bridgeContent, /engine\.preloadEffect\(soundId, filePath: path, startPos: startPos\)/);
   assert.match(bridgeContent, /engine\.pauseEffect\(soundId\)/);
   assert.match(bridgeContent, /engine\.resumeEffect\(soundId\)/);
   assert.match(bridgeContent, /engine\.setEffectsVolume\(volume\)/);
@@ -1751,6 +1798,15 @@ test('ios bridge template explicitly requests rtc permissions before camera and 
     /engine\.startPreview/,
     'startPreview must request only iOS camera permission before invoking native sdk',
   );
+  assert.match(startPreviewMatch[0], /let sourceType = videoSourceType\(from: params\)/);
+  assert.match(startPreviewMatch[0], /engine\.startPreview\(sourceType\)/);
+
+  const stopPreviewMatch = bridgeContent.match(
+    /case "stopPreview":[\s\S]*?case "switchCamera":/,
+  );
+  assert.ok(stopPreviewMatch);
+  assert.match(stopPreviewMatch[0], /let sourceType = videoSourceType\(from: params\)/);
+  assert.match(stopPreviewMatch[0], /engine\.stopPreview\(sourceType\)/);
 
   const handleJoinChannelMatch = bridgeContent.match(
     /private func handleJoinChannel[\s\S]*?private func requireEngine/,
@@ -2071,8 +2127,12 @@ test('ios bridge template routes engine-texture through AgoraVideoFrameDelegate 
   assert.match(bridgeContent, /"width": slot\.width/);
   assert.match(bridgeContent, /"height": slot\.height/);
   assert.match(bridgeContent, /let mirror = self\.resolveTextureMirror\(params\)/);
-  assert.match(bridgeContent, /TextureSlotState\(slotId: slotId, width: width, height: height, mirror: mirror\)/);
+  assert.match(bridgeContent, /TextureSlotState\([\s\S]*slotId: slotId,[\s\S]*width: width,[\s\S]*height: height,[\s\S]*mirror: mirror,[\s\S]*observerPosition: observerPosition[\s\S]*\)/);
   assert.match(bridgeContent, /updateTextureSlot\(slotId: slot\.slotId, videoFrame: videoFrame, mirror: slot\.mirror\)/);
+  assert.match(bridgeContent, /resolveFrameObserverPosition\(\s*params,/);
+  assert.match(bridgeContent, /observedFramePosition/);
+  assert.match(bridgeContent, /\.preEncoder/);
+  assert.doesNotMatch(bridgeContent, /return \[\.postCapture, \.preRenderer\]/);
   assert.match(bridgeContent, /payload\["uid"\] = uid/);
   assert.match(bridgeContent, /private func handleUpdateLocalVideoView\(requestId: String, params: \[String: Any\]\) \{\n        if renderBackend == "engine-texture" \{[\s\S]*?ensureLocalTextureSlot\(params\)/);
   assert.match(bridgeContent, /private func handleUpdateRemoteVideoView\(requestId: String, params: \[String: Any\]\) \{\n        let uid = uintValue\(params\["uid"\] \?\? 0\)[\s\S]*?\n        if renderBackend == "engine-texture" \{[\s\S]*?ensureRemoteTextureSlot\(uid, params: params\)/);
@@ -2713,6 +2773,20 @@ public class UserInfo {
   );
 
   await writeFile(
+    path.join(srcRoot, 'io/agora/rtc2/LeaveChannelOptions.java'),
+    `package io.agora.rtc2;
+
+public class LeaveChannelOptions {
+    public boolean stopAudioMixing;
+    public boolean stopAllEffect;
+    public boolean unloadAllEffect;
+    public boolean stopMicrophoneRecording;
+}
+`,
+    'utf8',
+  );
+
+  await writeFile(
     path.join(srcRoot, 'io/agora/rtc2/Constants.java'),
     `package io.agora.rtc2;
 
@@ -2726,7 +2800,19 @@ public class Constants {
     public static final int CLIENT_ROLE_AUDIENCE = 2;
 
     public enum VideoSourceType {
-        VIDEO_SOURCE_CAMERA_PRIMARY
+        VIDEO_SOURCE_CAMERA_PRIMARY;
+
+        public static VideoSourceType fromInt(int value) {
+            return VIDEO_SOURCE_CAMERA_PRIMARY;
+        }
+    }
+
+    public enum MediaSourceType {
+        PRIMARY_CAMERA_SOURCE;
+
+        public static int getValue(MediaSourceType sourceType) {
+            return 2;
+        }
     }
 
     public enum VideoModulePosition {
@@ -2910,6 +2996,7 @@ public class VideoEncoderConfiguration {
 
 public interface IAudioEffectManager {
     int preloadEffect(int soundId, String path);
+    int preloadEffect(int soundId, String path, int startPos);
     int playEffect(int soundId, String path, int loopCount, double pitch, double pan, double gain, boolean publish, int startPos);
     int pauseEffect(int soundId);
     int resumeEffect(int soundId);
@@ -2930,6 +3017,7 @@ public interface IVideoFrameObserver {
     int PROCESS_MODE_READ_ONLY = 0;
     int POSITION_POST_CAPTURER = 1;
     int POSITION_PRE_RENDERER = 2;
+    int POSITION_PRE_ENCODER = 4;
     int VIDEO_PIXEL_I420 = 1;
 
     boolean onCaptureVideoFrame(int sourceType, VideoFrame videoFrame);
@@ -3013,6 +3101,7 @@ public class RtcEngine {
     public int joinChannelWithUserAccount(String token, String channelId, String userAccount, ChannelMediaOptions options) { return 0; }
     public int getUserInfoByUserAccount(String userAccount, UserInfo userInfo) { return 0; }
     public void leaveChannel() {}
+    public int leaveChannel(LeaveChannelOptions options) { return 0; }
     public int renewToken(String token) { return 0; }
     public int enableAudio() { return 0; }
     public int disableAudio() { return 0; }
@@ -3037,6 +3126,7 @@ public class RtcEngine {
     public int setRemoteRenderMode(int uid, int renderMode, int mirrorMode) { return 0; }
     public int setVideoEncoderConfiguration(VideoEncoderConfiguration configuration) { return 0; }
     public int setBeautyEffectOptions(boolean enabled, BeautyOptions options) { return 0; }
+    public int setBeautyEffectOptions(boolean enabled, BeautyOptions options, Constants.MediaSourceType sourceType) { return 0; }
     public int enableContentInspect(boolean enabled, ContentInspectConfig config) { return 0; }
     public int setParameters(String parameters) { return 0; }
     public int startAudioMixing(String path, boolean loopback, int cycle, int startPos) { return 0; }
@@ -3050,7 +3140,9 @@ public class RtcEngine {
     public int setAudioMixingPosition(int position) { return 0; }
     public IAudioEffectManager getAudioEffectManager() { return null; }
     public int startPreview() { return 0; }
+    public int startPreview(Constants.VideoSourceType sourceType) { return 0; }
     public int stopPreview() { return 0; }
+    public int stopPreview(Constants.VideoSourceType sourceType) { return 0; }
     public int switchCamera() { return 0; }
     public int registerVideoFrameObserver(io.agora.rtc2.video.IVideoFrameObserver observer) { return 0; }
 }
@@ -3106,6 +3198,7 @@ public class RtcEngine {
     path.join(srcRoot, 'io/agora/rtc2/ClientRoleOptions.java'),
     path.join(srcRoot, 'io/agora/rtc2/RtcEngineConfig.java'),
     path.join(srcRoot, 'io/agora/rtc2/UserInfo.java'),
+    path.join(srcRoot, 'io/agora/rtc2/LeaveChannelOptions.java'),
     path.join(srcRoot, 'io/agora/rtc2/IAudioEffectManager.java'),
     path.join(srcRoot, 'io/agora/rtc2/Constants.java'),
     path.join(srcRoot, 'io/agora/rtc2/video/BeautyOptions.java'),

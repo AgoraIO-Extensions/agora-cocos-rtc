@@ -162,14 +162,14 @@ public abstract class AbstractNativeViewRenderBackend implements AgoraRenderBack
     }
 
     @Override
-    public void startPreview(AgoraRenderResultCallback callback) {
+    public void startPreview(JSONObject params, AgoraRenderResultCallback callback) {
       if (rtcEngine == null) {
         callback.onError("RtcEngine is not initialized.");
         return;
       }
 
       rtcEngine.enableVideo();
-      int result = rtcEngine.startPreview();
+      int result = rtcEngine.startPreview(resolvePreviewVideoSourceType(params));
       if (result < 0) {
         callback.onError("RtcEngine.startPreview failed: " + result);
         return;
@@ -178,13 +178,13 @@ public abstract class AbstractNativeViewRenderBackend implements AgoraRenderBack
     }
 
     @Override
-    public void stopPreview(AgoraRenderResultCallback callback) {
+    public void stopPreview(JSONObject params, AgoraRenderResultCallback callback) {
       if (rtcEngine == null) {
         callback.onError("RtcEngine is not initialized.");
         return;
       }
 
-      int result = rtcEngine.stopPreview();
+      int result = rtcEngine.stopPreview(resolvePreviewVideoSourceType(params));
       if (result < 0) {
         callback.onError("RtcEngine.stopPreview failed: " + result);
         return;
@@ -269,6 +269,15 @@ public abstract class AbstractNativeViewRenderBackend implements AgoraRenderBack
 
     protected int resolveVideoSourceType(JSONObject params) {
       return params != null ? params.optInt("sourceType", 0) : 0;
+    }
+
+    protected Constants.VideoSourceType resolvePreviewVideoSourceType(JSONObject params) {
+      return mapVideoSourceType(params != null ? params.optInt("sourceType", 0) : 0);
+    }
+
+    protected Constants.VideoSourceType mapVideoSourceType(int value) {
+      Constants.VideoSourceType sourceType = Constants.VideoSourceType.fromInt(value);
+      return sourceType != null ? sourceType : Constants.VideoSourceType.VIDEO_SOURCE_CAMERA_PRIMARY;
     }
 
     protected int resolveMediaPlayerId(JSONObject params) {
