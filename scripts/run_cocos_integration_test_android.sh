@@ -173,7 +173,11 @@ terminate_android_process_tree() {
 
 cleanup_android_test() {
   if [[ -n "$ANDROID_TIMEOUT_WATCHDOG_PID" ]]; then
-    kill "$ANDROID_TIMEOUT_WATCHDOG_PID" 2>/dev/null || true
+    # Kill the whole watchdog tree, not just the subshell: `kill <subshell>`
+    # leaves the `sleep` child orphaned and still running, and that orphan keeps
+    # the step's stdout/stderr pipe open, so the GitHub Actions step hangs (~the
+    # remaining sleep time) after the test and emulator teardown have finished.
+    terminate_android_process_tree "$ANDROID_TIMEOUT_WATCHDOG_PID"
     wait "$ANDROID_TIMEOUT_WATCHDOG_PID" 2>/dev/null || true
     ANDROID_TIMEOUT_WATCHDOG_PID=""
   fi
