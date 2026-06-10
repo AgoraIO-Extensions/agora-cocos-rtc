@@ -63,6 +63,11 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /ANDROID_GRADLE_OFFLINE="\$\{ANDROID_GRADLE_OFFLINE:-false\}"/);
   assert.match(content, /\.\/gradlew :agora-cocos-basic-call:assembleRelease/);
   assert.match(content, /\.\/gradlew --offline :agora-cocos-basic-call:assembleRelease/);
+  // Gradle CI hardening: keep the build from stalling after `assembleRelease`
+  // succeeds (lingering daemon + file-system watcher threads delay process exit).
+  assert.match(content, /ANDROID_GRADLE_CI_ARGS=\("--no-daemon" "--console=plain" "-Dorg\.gradle\.vfs\.watch=false"\)/);
+  assert.match(content, /assembleRelease "\$\{ANDROID_GRADLE_CI_ARGS\[@\]\}"/);
+  assert.match(content, /--offline :agora-cocos-basic-call:assembleRelease "\$\{ANDROID_GRADLE_CI_ARGS\[@\]\}"/);
   assert.match(content, /validate_ios_signing\(\)/);
   assert.ok(
     content.indexOf('run_cocos_build "$IOS_BUILD_CONFIG" "iOS"') <
@@ -310,6 +315,9 @@ test('github build workflow can inject agora secrets and optionally upload platf
   assert.match(content, /ANDROID_SDK_ROOT=/);
   assert.match(content, /ANDROID_NDK_HOME=/);
   assert.match(content, /npm run build:all-platforms -- "\$\{\{ matrix\.platform \}\}"/);
+  // The build step must be bounded so a hung Gradle/Cocos build fails fast
+  // instead of idling until the default 6-hour job timeout.
+  assert.match(content, /- name: Build selected example package\n\s+timeout-minutes: 60/);
   assert.match(content, /name: agora-cocos-example-android-apk/);
   assert.match(content, /outputs\/apk\/release\/\*\.apk/);
   assert.match(content, /name: agora-cocos-example-ios-ipa/);
