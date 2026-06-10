@@ -37,7 +37,41 @@ const iosEngineTextureSlotBridgeHeaderTemplate = path.join(
   'sdk/agora-rtc/templates/ios/AgoraEngineTextureSlotBridge.h',
 );
 const primaryRepoRoot = repoRoot.replace(/\/\.worktrees\/[^/]+$/, '');
+const iosIntegrationDerivedDataPath = path.join('/tmp', 'agora-cocos-ios-api-tests-derived');
+
+function iosDerivedDataRoots(env = process.env, tmpDir = os.tmpdir()) {
+  return Array.from(new Set([
+    env.IOS_DERIVED_DATA_PATH,
+    iosIntegrationDerivedDataPath,
+    path.join('/tmp', 'agora-cocos-ios-api-tests-derived-main'),
+    path.join('/tmp', 'agora-cocos-ios-all-platforms-derived'),
+    path.join('/tmp', 'agora-cocos-ios-derived'),
+    path.join('/tmp', 'agora-cocos-ios-device-derived'),
+    path.join(tmpDir, 'agora-cocos-ios-api-tests-derived'),
+    path.join(tmpDir, 'agora-cocos-ios-api-tests-derived-main'),
+    path.join(tmpDir, 'agora-cocos-ios-all-platforms-derived'),
+    path.join(tmpDir, 'agora-cocos-ios-derived'),
+    path.join(tmpDir, 'agora-cocos-ios-device-derived'),
+  ].filter((value): value is string => Boolean(value))));
+}
+
+function iosSwiftPackageHeaderCandidates(headerName: string) {
+  return iosDerivedDataRoots().flatMap((derivedDataRoot) => [
+    path.join(
+      derivedDataRoot,
+      'SourcePackages/artifacts/agorartcengine_ios/AgoraRtcKit/AgoraRtcKit.xcframework/ios-arm64_x86_64-simulator/AgoraRtcKit.framework/Headers',
+      headerName,
+    ),
+    path.join(
+      derivedDataRoot,
+      'Build/Products/Debug-iphonesimulator/AgoraRtcKit.framework/Headers',
+      headerName,
+    ),
+  ]);
+}
+
 const iosRtcDelegateHeaderCandidates = [
+  ...iosSwiftPackageHeaderCandidates('AgoraRtcEngineDelegate.h'),
   path.join(
     repoRoot,
     'example/basic-call/build-ios/ios/proj/Pods/AgoraRtcEngine_iOS/AgoraRtcKit.xcframework/ios-arm64_x86_64-simulator/AgoraRtcKit.framework/Headers/AgoraRtcEngineDelegate.h',
@@ -48,6 +82,7 @@ const iosRtcDelegateHeaderCandidates = [
   ),
 ];
 const iosRtcObjectsHeaderCandidates = [
+  ...iosSwiftPackageHeaderCandidates('AgoraObjects.h'),
   path.join(
     repoRoot,
     'example/basic-call/build-ios/ios/proj/Pods/AgoraRtcEngine_iOS/AgoraRtcKit.xcframework/ios-arm64_x86_64-simulator/AgoraRtcKit.framework/Headers/AgoraObjects.h',
@@ -73,6 +108,22 @@ async function readFirstExistingFile(filePaths: string[]) {
   }
   return null;
 }
+
+test('ios rtc header lookup prefers current integration derived data over stale roots', () => {
+  const explicitRoots = iosDerivedDataRoots(
+    { IOS_DERIVED_DATA_PATH: '/custom/ios-derived' },
+    '/var/folders/example/T',
+  );
+  assert.equal(explicitRoots[0], '/custom/ios-derived');
+  assert.equal(explicitRoots[1], iosIntegrationDerivedDataPath);
+  assert.ok(
+    explicitRoots.indexOf(path.join('/tmp', 'agora-cocos-ios-api-tests-derived-main')) >
+      explicitRoots.indexOf(iosIntegrationDerivedDataPath),
+  );
+
+  const defaultRoots = iosDerivedDataRoots({}, '/var/folders/example/T');
+  assert.equal(defaultRoots[0], iosIntegrationDerivedDataPath);
+});
 
 async function readEngineTextureLimits(filePath: string) {
   const content = await readFile(filePath, 'utf8');

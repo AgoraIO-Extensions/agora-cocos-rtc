@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import { cp, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -252,7 +252,9 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /TEST_DONE status=/);
   assert.match(androidScript, /TEST_DONE status=fail/);
   assert.match(androidScript, /collect-cocos-test-report\.mjs/);
+  assert.match(androidScript, /run-as "\$PACKAGE_NAME" cat "\$REPORT_REMOTE_PATH"/);
   assert.match(androidScript, /ANDROID_COCOS_BUILD_CONFIG=/);
+  assert.match(androidScript, /ANDROID_TEST_NDK_HOME=/);
   assert.match(androidScript, /ANDROID_TEST_ABI=/);
   assert.match(androidScript, /appABIs/);
   assert.match(androidScript, /android-apk-contents\.txt/);
@@ -285,11 +287,20 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /PROJECT_PATH="\$IOS_PROJECT_DIR\/agora-cocos-basic-call\.xcodeproj"/);
   assert.match(iosScript, /SCHEME_NAME="agora-cocos-basic-call-mobile"/);
   assert.match(iosScript, /xcodebuild -project "\$PROJECT_PATH"/);
-  assert.match(iosScript, /-scheme "\$SCHEME_NAME"/);
-  assert.match(iosScript, /-derivedDataPath "\$DERIVED_DATA_PATH"/);
+  assert.match(iosScript, /-target "\$SCHEME_NAME"/);
+  assert.match(iosScript, /IOS_PRODUCTS_DIR="\$DERIVED_DATA_PATH\/Build\/Products"/);
+  assert.match(iosScript, /IOS_INTERMEDIATES_DIR="\$DERIVED_DATA_PATH\/Build\/Intermediates\.noindex"/);
+  assert.match(iosScript, /SYMROOT="\$IOS_PRODUCTS_DIR"/);
+  assert.match(iosScript, /OBJROOT="\$IOS_INTERMEDIATES_DIR"/);
+  assert.match(iosScript, /should_skip_simulator_launch_assets\(\)/);
+  assert.match(iosScript, /simctl list runtimes -j/);
+  assert.match(iosScript, /SDK_BUILD="\$sdk_build" node -e/);
+  assert.match(iosScript, /runtime\.isAvailable === false/);
+  assert.match(iosScript, /\/iOS\/i\.test\(identity\)/);
+  assert.match(iosScript, /--skip-simulator-launch-assets/);
   assert.doesNotMatch(iosScript, /WORKSPACE_PATH=/);
   assert.doesNotMatch(iosScript, /TARGET_NAME=/);
-  assert.doesNotMatch(iosScript, /\s-target(\s|=)/);
+  assert.doesNotMatch(iosScript, /-derivedDataPath "\$DERIVED_DATA_PATH"/);
   assert.doesNotMatch(iosScript, /generate-ios-podfile\.mjs/);
   assert.doesNotMatch(iosScript, /pod install/);
   assert.match(iosScript, /ios-diagnostic\.log/);
@@ -298,6 +309,7 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /IOS_SIMULATOR_UDID="\$\(resolve_ios_simulator_udid\)"/);
   assert.match(iosScript, /simctl privacy "\$IOS_SIMULATOR_UDID" grant camera "\$IOS_BUNDLE_ID"/);
   assert.match(iosScript, /simctl privacy "\$IOS_SIMULATOR_UDID" grant microphone "\$IOS_BUNDLE_ID"/);
+  assert.match(iosScript, /rm -f "\$IOS_REPORT_SIM_PATH"/);
   assert.match(iosScript, /simctl install "\$IOS_SIMULATOR_UDID" "\$APP_PATH"/);
   assert.match(iosScript, /simctl get_app_container "\$IOS_SIMULATOR_UDID" "\$IOS_BUNDLE_ID" data/);
   assert.doesNotMatch(iosScript, /simctl (spawn|install|privacy|launch|get_app_container|io) booted/);
@@ -311,6 +323,160 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /--stderr="\$IOS_STDERR_LOG_PATH"/);
   assert.match(iosScript, /append_ios_runtime_logs/);
   assert.match(iosScript, /ios-timeout-screenshot\.png/);
+});
+
+test('ios simulator runtime filter uses piped simctl runtime json', async () => {
+  const iosScript = await readFile(
+    `${repoRoot}/scripts/run_cocos_integration_test_ios.sh`,
+    'utf8',
+  );
+  const functionMatch = iosScript.match(
+    /should_skip_simulator_launch_assets\(\) \{[\s\S]*?\n\}\n\nresolve_ios_simulator_udid/,
+  );
+  assert.ok(functionMatch, 'expected iOS simulator resource filter function');
+
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-runtime-filter-'));
+  const binDir = path.join(tempRoot, 'bin');
+  await mkdir(binDir, { recursive: true });
+  await writeFile(
+    path.join(binDir, 'xcodebuild'),
+    `#!/usr/bin/env bash
+if [[ "$*" == *"ProductBuildVersion"* ]]; then
+  printf '%s\\n' "\${STUB_SDK_BUILD:-23F73}"
+  exit 0
+fi
+exit 1
+`,
+    { encoding: 'utf8', mode: 0o755 },
+  );
+  await writeFile(
+    path.join(binDir, 'xcrun'),
+    `#!/usr/bin/env bash
+if [[ "$1" == "simctl" && "$2" == "list" && "$3" == "runtimes" && "$4" == "-j" ]]; then
+  printf '%s' "$STUB_RUNTIME_JSON"
+  exit 0
+fi
+exit 1
+`,
+    { encoding: 'utf8', mode: 0o755 },
+  );
+
+  const functionSource = functionMatch[0].replace(/\n\nresolve_ios_simulator_udid$/, '');
+  const runFilter = (runtimeData: unknown, sdkBuild = '23F73') =>
+    spawnSync('bash', ['-c', `set -o pipefail\n${functionSource}\nshould_skip_simulator_launch_assets`], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        IOS_SIMULATOR_RESOURCE_MODE: 'auto',
+        PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ''}`,
+        STUB_RUNTIME_JSON: JSON.stringify(runtimeData),
+        STUB_SDK_BUILD: sdkBuild,
+      },
+    });
+
+  assert.equal(
+    runFilter({
+      runtimes: [
+        {
+          name: 'iOS 26.5',
+          identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-26-5',
+          isAvailable: true,
+          buildversion: '23F73',
+        },
+      ],
+    }).status,
+    1,
+    'matching available iOS runtime should keep simulator launch assets',
+  );
+  assert.equal(
+    runFilter({
+      runtimes: [
+        {
+          name: 'iOS 26.5',
+          identifier: 'com.apple.CoreSimulator.SimRuntime.iOS-26-5',
+          isAvailable: false,
+          buildversion: '23F73',
+        },
+      ],
+    }).status,
+    0,
+    'unavailable iOS runtime should skip simulator launch assets',
+  );
+  assert.equal(
+    runFilter({
+      runtimes: [
+        {
+          name: 'watchOS 26.5',
+          identifier: 'com.apple.CoreSimulator.SimRuntime.watchOS-26-5',
+          isAvailable: true,
+          buildversion: '23F73',
+        },
+      ],
+    }).status,
+    0,
+    'non-iOS runtime should skip simulator launch assets',
+  );
+});
+
+test('android integration script prefers pinned test ndk over ambient ndk env', async () => {
+  const androidScript = await readFile(
+    `${repoRoot}/scripts/run_cocos_integration_test_android.sh`,
+    'utf8',
+  );
+  const functionMatch = androidScript.match(
+    /resolve_android_ndk_path\(\) \{[\s\S]*?\n\}\n\nwrite_android_cocos_build_config/,
+  );
+  assert.ok(functionMatch, 'expected Android NDK resolver function');
+
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-android-ndk-'));
+  const sdkRoot = path.join(tempRoot, 'sdk');
+  const ambientNdk = path.join(sdkRoot, 'ndk', '21.4.7075529');
+  const pinnedNdk = path.join(sdkRoot, 'ndk', '23.1.7779620');
+  const overrideNdk = path.join(sdkRoot, 'ndk', '25.1.8937393');
+
+  await Promise.all([
+    mkdir(ambientNdk, { recursive: true }),
+    mkdir(pinnedNdk, { recursive: true }),
+    mkdir(overrideNdk, { recursive: true }),
+  ]);
+  await Promise.all([
+    writeFile(path.join(ambientNdk, 'source.properties'), 'Pkg.Revision = 21.4.7075529\n', 'utf8'),
+    writeFile(path.join(pinnedNdk, 'source.properties'), 'Pkg.Revision = 23.1.7779620\n', 'utf8'),
+    writeFile(path.join(overrideNdk, 'source.properties'), 'Pkg.Revision = 25.1.8937393\n', 'utf8'),
+  ]);
+
+  const functionSource = functionMatch[0].replace(/\n\nwrite_android_cocos_build_config$/, '');
+  const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+  const runResolver = (env: NodeJS.ProcessEnv) => {
+    const shellEnv = [
+      `ANDROID_SDK_ROOT=${shellQuote(env.ANDROID_SDK_ROOT ?? '')}`,
+      `ANDROID_NDK_HOME=${shellQuote(env.ANDROID_NDK_HOME ?? '')}`,
+      `ANDROID_NDK_ROOT=${shellQuote(env.ANDROID_NDK_ROOT ?? '')}`,
+      `ANDROID_TEST_NDK_HOME=${shellQuote(env.ANDROID_TEST_NDK_HOME ?? '')}`,
+    ].join('\n');
+
+    return spawnSync('bash', ['-c', `${functionSource}\n${shellEnv}\nresolve_android_ndk_path`], {
+      encoding: 'utf8',
+      env: {
+        PATH: process.env.PATH ?? '',
+      },
+    });
+  };
+
+  const defaultResult = runResolver({
+    ANDROID_SDK_ROOT: sdkRoot,
+    ANDROID_NDK_HOME: ambientNdk,
+  });
+  assert.equal(defaultResult.status, 0);
+  assert.equal(defaultResult.stdout.trim(), pinnedNdk);
+
+  const overrideResult = runResolver({
+    ANDROID_SDK_ROOT: sdkRoot,
+    ANDROID_NDK_HOME: ambientNdk,
+    ANDROID_TEST_NDK_HOME: overrideNdk,
+  });
+  assert.equal(overrideResult.status, 0);
+  assert.equal(overrideResult.stdout.trim(), overrideNdk);
 });
 
 test('cocos run_test workflow exposes unit and device integration jobs', async () => {

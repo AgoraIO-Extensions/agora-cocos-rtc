@@ -16,6 +16,7 @@ ACTIVITY_NAME="com.cocos.game.AppActivity"
 ANDROID_SDK_ROOT_DEFAULT="$HOME/Library/Android/sdk"
 ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_SDK_ROOT_DEFAULT}"
 ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
+ANDROID_TEST_NDK_HOME="${ANDROID_TEST_NDK_HOME:-}"
 ADB_BIN="${ADB_BIN:-$ANDROID_SDK_ROOT/platform-tools/adb}"
 DEFAULT_AGORA_COCOS_TEST_MODE=api
 AGORA_COCOS_TEST_MODE="${AGORA_COCOS_TEST_MODE:-$DEFAULT_AGORA_COCOS_TEST_MODE}"
@@ -43,7 +44,7 @@ log_step() {
 resolve_android_ndk_path() {
   local candidate
 
-  for candidate in "$ANDROID_NDK_HOME" "$ANDROID_SDK_ROOT/ndk/23.1.7779620"; do
+  for candidate in "$ANDROID_TEST_NDK_HOME" "$ANDROID_SDK_ROOT/ndk/23.1.7779620" "$ANDROID_NDK_HOME"; do
     if [[ -n "$candidate" && -f "$candidate/source.properties" ]]; then
       echo "$candidate"
       return 0
@@ -275,7 +276,9 @@ while [[ $SECONDS -lt $TEST_TIMEOUT_SECONDS ]]; do
     fi
     REPORT_REMOTE_PATH="$(sed -n 's/.*TEST_DONE status=pass.* report=\([^ ]*\).*/\1/p' "$LOG_PATH" | tail -n 1)"
     if [[ -n "$REPORT_REMOTE_PATH" ]]; then
-      "$ADB_BIN" shell cat "$REPORT_REMOTE_PATH" > "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json" || true
+      if ! "$ADB_BIN" exec-out run-as "$PACKAGE_NAME" cat "$REPORT_REMOTE_PATH" > "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json"; then
+        "$ADB_BIN" shell cat "$REPORT_REMOTE_PATH" > "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json" || true
+      fi
       if [[ -s "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json" ]]; then
         node "$ROOT_DIR/scripts/collect-cocos-test-report.mjs" android "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json"
       fi
