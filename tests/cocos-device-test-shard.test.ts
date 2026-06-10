@@ -247,6 +247,13 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /sleep "\$ANDROID_SCRIPT_TIMEOUT_SECONDS"/);
   assert.match(androidScript, /kill -TERM "\$target_pid"/);
   assert.match(androidScript, /trap cleanup_android_test EXIT/);
+  // The cleanup must kill the watchdog's whole tree (including its `sleep`
+  // child); otherwise the orphaned sleep keeps the step's output pipe open and
+  // the job hangs for ~the remaining timeout after the test already finished.
+  assert.match(
+    androidScript,
+    /cleanup_android_test\(\)\s*\{[\s\S]*terminate_android_process_tree "\$ANDROID_TIMEOUT_WATCHDOG_PID"/,
+  );
   assert.match(
     androidScript,
     /ANDROID_LAUNCH_ARGS=\(/,
