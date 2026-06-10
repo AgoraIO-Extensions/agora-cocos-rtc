@@ -77,13 +77,32 @@ export type AgoraMethod =
   | 'stopEffect'
   | 'setParameters';
 
-export interface AgoraVideoViewRect {
+export interface AgoraRtcVideoCanvas {
+  uid?: number;
+  subviewUid?: number;
   x: number;
   y: number;
   width: number;
   height: number;
-  renderMode?: 'hidden' | 'fit';
+  renderMode?: 'hidden' | 'fit' | 'adaptive';
+  mirrorMode?: number;
+  setupMode?: number;
+  sourceType?: number;
+  mediaPlayerId?: number;
+  cropArea?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  backgroundColor?: number;
+  enableAlphaMask?: boolean;
+  position?: number;
+  textureWidth?: number;
+  textureHeight?: number;
 }
+
+export type AgoraVideoViewRect = AgoraRtcVideoCanvas;
 
 export interface AgoraVideoEncoderConfiguration {
   width: number;
@@ -115,12 +134,12 @@ export interface AgoraBeautyOptions {
 export interface AgoraContentInspectConfig {
   module?: number;
   interval?: number;
+  position?: number;
   extraInfo?: string;
   serverConfig?: string;
   modules?: Array<{
     type?: number;
     interval?: number;
-    /** Android ContentInspectModule only. iOS 4.5.3 exposes type and interval. */
     position?: number;
   }>;
 }
@@ -189,13 +208,9 @@ export interface AgoraChannelMediaOptions {
   isInteractiveAudience?: boolean;
   customVideoTrackId?: number;
   isAudioFilterable?: boolean;
-  /** Android ChannelMediaOptions only. */
   enableMultipath?: boolean;
-  /** Android ChannelMediaOptions only. */
   uplinkMultipathMode?: number;
-  /** Android ChannelMediaOptions only. */
   downlinkMultipathMode?: number;
-  /** Android ChannelMediaOptions only. */
   preferMultipathType?: number;
   token?: string;
   parameters?: string;

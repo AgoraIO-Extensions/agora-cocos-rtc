@@ -1,4 +1,4 @@
-import type { AgoraVideoViewRect } from '../../extensions/agora-rtc/js/types.ts';
+import type { AgoraRtcVideoCanvas } from '../../extensions/agora-rtc/js/types.ts';
 
 export type AgoraHudActionId =
   | 'initialize'
@@ -141,8 +141,8 @@ export function createDefaultAgoraHudLayout(
 export function worldRectToNativeOverlayRect(
   rect: AgoraHudRect,
   metrics: AgoraNativeViewMetrics,
-  renderMode: 'hidden' | 'fit' = 'hidden',
-): AgoraVideoViewRect {
+  renderMode: 'hidden' | 'fit' | 'adaptive' = 'hidden',
+): AgoraRtcVideoCanvas {
   return {
     x: Math.round(metrics.viewportX + rect.x * metrics.scaleX),
     y: Math.round(

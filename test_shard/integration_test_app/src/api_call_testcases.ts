@@ -21,7 +21,18 @@ export type ApiCallCase = {
 
 const remoteUid = 2002;
 const userAccount = 'cocos-user-0';
-const rect = { x: 24, y: 32, width: 240, height: 180, renderMode: 'fit' as const };
+const rect = {
+  x: 24,
+  y: 32,
+  width: 240,
+  height: 180,
+  renderMode: 'fit' as const,
+  mirrorMode: 2,
+  setupMode: 0,
+  sourceType: 0,
+  textureWidth: 240,
+  textureHeight: 180,
+};
 
 export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
@@ -94,9 +105,20 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
       token: '<TEST_TOKEN>',
       channelId: '<TEST_CHANNEL_ID>',
       userAccount,
+      options: {
+        publishCameraTrack: false,
+        publishMicrophoneTrack: false,
+        autoSubscribeAudio: true,
+        autoSubscribeVideo: true,
+      },
     },
     requiredEvidence: ['response', 'event', 'error'],
-    run: (client, context) => client.joinChannelWithUserAccount(context.token, context.channelId, userAccount),
+    run: (client, context) => client.joinChannelWithUserAccount(context.token, context.channelId, userAccount, {
+      publishCameraTrack: false,
+      publishMicrophoneTrack: false,
+      autoSubscribeAudio: true,
+      autoSubscribeVideo: true,
+    }),
   },
   {
     id: 'channel.get-user-info-by-user-account',

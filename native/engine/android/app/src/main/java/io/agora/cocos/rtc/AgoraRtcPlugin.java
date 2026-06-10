@@ -899,16 +899,26 @@ public final class AgoraRtcPlugin {
             return;
         }
 
-        ensureRtcPermissions(requestId, () -> continueJoinChannelWithUserAccount(requestId, token, channelId, userAccount));
+        JSONObject mediaOptions = params != null ? params.optJSONObject("options") : null;
+        boolean requiresCameraPermission = requiresCameraPermission(mediaOptions);
+        boolean requiresMicrophonePermission = requiresMicrophonePermission(mediaOptions);
+
+        ensureRtcPermissions(
+                requestId,
+                requiresCameraPermission,
+                requiresMicrophonePermission,
+                () -> continueJoinChannelWithUserAccount(requestId, token, channelId, userAccount, mediaOptions)
+        );
     }
 
-    private void continueJoinChannelWithUserAccount(String requestId, String token, String channelId, String userAccount) {
+    private void continueJoinChannelWithUserAccount(String requestId, String token, String channelId, String userAccount, JSONObject mediaOptions) {
         if (rtcEngine == null) {
             dispatchError(requestId, "RtcEngine is not initialized.");
             return;
         }
 
         ChannelMediaOptions options = new ChannelMediaOptions();
+        applyChannelMediaOptions(options, mediaOptions);
         int result = rtcEngine.joinChannelWithUserAccount(token, channelId, userAccount, options);
         if (result < 0) {
             dispatchAgoraError(requestId, "joinChannelWithUserAccount", result);
@@ -1380,7 +1390,7 @@ public final class AgoraRtcPlugin {
             ContentInspectConfig.ContentInspectModule module = new ContentInspectConfig.ContentInspectModule();
             module.type = config != null ? config.optInt("module", ContentInspectConfig.CONTENT_INSPECT_TYPE_MODERATION) : ContentInspectConfig.CONTENT_INSPECT_TYPE_MODERATION;
             module.interval = config != null ? config.optInt("interval", 0) : 0;
-            module.position = Constants.VideoModulePosition.VIDEO_MODULE_POSITION_PRE_RENDERER;
+            module.position = mapContentInspectModulePosition(config != null ? config.optInt("position", 2) : 2);
             inspectConfig.modules = new ContentInspectConfig.ContentInspectModule[] { module };
         }
         inspectConfig.moduleCount = inspectConfig.modules.length;

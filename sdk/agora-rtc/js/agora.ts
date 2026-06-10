@@ -12,9 +12,9 @@ import {
   type AgoraContentInspectConfig,
   type AgoraPlayEffectConfig,
   type AgoraRtcEngineConfig,
+  type AgoraRtcVideoCanvas,
   type AgoraUserInfo,
   type AgoraVideoEncoderConfiguration,
-  type AgoraVideoViewRect,
   type AgoraBridgeEvent,
   type AgoraBridgeRequest,
   type AgoraBridgeResponse,
@@ -136,8 +136,17 @@ export class AgoraRtcClient {
     return this.#invoke('joinChannel', params) as Promise<void>;
   }
 
-  joinChannelWithUserAccount(token: string, channelId: string, userAccount: string): Promise<void> {
-    return this.#invoke('joinChannelWithUserAccount', { token, channelId, userAccount }) as Promise<void>;
+  joinChannelWithUserAccount(
+    token: string,
+    channelId: string,
+    userAccount: string,
+    options?: AgoraChannelMediaOptions,
+  ): Promise<void> {
+    const params: Record<string, unknown> = { token, channelId, userAccount };
+    if (options !== undefined) {
+      params.options = options;
+    }
+    return this.#invoke('joinChannelWithUserAccount', params) as Promise<void>;
   }
 
   getUserInfoByUserAccount(userAccount: string): Promise<AgoraUserInfo> {
@@ -228,20 +237,20 @@ export class AgoraRtcClient {
     return this.#invoke('setVideoEncoderConfiguration', { ...config }) as Promise<void>;
   }
 
-  setupLocalVideoView(rect: AgoraVideoViewRect): Promise<void> {
-    return this.#invoke('setupLocalVideoView', { ...rect }) as Promise<void>;
+  setupLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void> {
+    return this.#invoke('setupLocalVideoView', { ...canvas }) as Promise<void>;
   }
 
-  setupRemoteVideoView(uid: number, rect: AgoraVideoViewRect): Promise<void> {
-    return this.#invoke('setupRemoteVideoView', { uid, ...rect }) as Promise<void>;
+  setupRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise<void> {
+    return this.#invoke('setupRemoteVideoView', { ...canvas, uid }) as Promise<void>;
   }
 
-  updateLocalVideoView(rect: AgoraVideoViewRect): Promise<void> {
-    return this.#invoke('updateLocalVideoView', { ...rect }) as Promise<void>;
+  updateLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void> {
+    return this.#invoke('updateLocalVideoView', { ...canvas }) as Promise<void>;
   }
 
-  updateRemoteVideoView(uid: number, rect: AgoraVideoViewRect): Promise<void> {
-    return this.#invoke('updateRemoteVideoView', { uid, ...rect }) as Promise<void>;
+  updateRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise<void> {
+    return this.#invoke('updateRemoteVideoView', { ...canvas, uid }) as Promise<void>;
   }
 
   removeLocalVideoView(): Promise<void> {

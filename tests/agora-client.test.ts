@@ -294,6 +294,11 @@ test('video encoder configuration documents platform-specific fields', () => {
   assert.match(sdkTypesSource, /minBitrate\?: number;/);
 });
 
+test('content inspect config exposes module position in the top-level shorthand', () => {
+  const contentInspectFields = extractInterfaceContent('AgoraContentInspectConfig');
+  assert.match(contentInspectFields, /^\s{2}position\?: number;/m);
+});
+
 test('client surfaces error and volume indication events to subscribed listeners', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -615,13 +620,26 @@ test('client dispatches string uid account APIs through the native bridge', asyn
     timeoutMs: 50,
   });
 
-  const joinPending = client.joinChannelWithUserAccount('demo-token', 'demo-channel', 'cocos-user-0');
+  const joinOptions = {
+    clientRoleType: 'broadcaster' as const,
+    publishCameraTrack: false,
+    publishMicrophoneTrack: false,
+    autoSubscribeAudio: true,
+    autoSubscribeVideo: true,
+  };
+  const joinPending = client.joinChannelWithUserAccount(
+    'demo-token',
+    'demo-channel',
+    'cocos-user-0',
+    joinOptions,
+  );
   const joinRequest = JSON.parse(transport.sent[0].payload);
   assert.equal(joinRequest.method, 'joinChannelWithUserAccount');
   assert.deepEqual(joinRequest.params, {
     token: 'demo-token',
     channelId: 'demo-channel',
     userAccount: 'cocos-user-0',
+    options: joinOptions,
   });
   transport.emit(
     'agora:response',
@@ -1182,23 +1200,47 @@ test('setupLocalVideoView dispatches the expected native request', async () => {
   });
 
   const pending = client.setupLocalVideoView({
+    uid: 0,
+    subviewUid: 0,
     x: 10,
     y: 20,
     width: 300,
     height: 400,
-    renderMode: 'hidden',
+    renderMode: 'adaptive',
+    mirrorMode: 1,
+    setupMode: 1,
+    sourceType: 0,
+    mediaPlayerId: 7,
+    cropArea: { x: 1, y: 2, width: 3, height: 4 },
+    backgroundColor: 0x11223344,
+    enableAlphaMask: true,
+    position: 2,
+    textureWidth: 640,
+    textureHeight: 360,
   });
   const request = JSON.parse(transport.sent[0].payload);
 
   assert.equal(request.method, 'setupLocalVideoView');
   assert.deepEqual(request.params, {
+    uid: 0,
+    subviewUid: 0,
     x: 10,
     y: 20,
     width: 300,
     height: 400,
-    renderMode: 'hidden',
+    renderMode: 'adaptive',
+    mirrorMode: 1,
+    setupMode: 1,
+    sourceType: 0,
+    mediaPlayerId: 7,
+    cropArea: { x: 1, y: 2, width: 3, height: 4 },
+    backgroundColor: 0x11223344,
+    enableAlphaMask: true,
+    position: 2,
+    textureWidth: 640,
+    textureHeight: 360,
   });
-  assertFixtureCoversInterfaceFields('AgoraVideoViewRect', request.params);
+  assertFixtureCoversInterfaceFields('AgoraRtcVideoCanvas', request.params);
 
   transport.emit(
     'agora:response',
@@ -1211,7 +1253,7 @@ test('setupLocalVideoView dispatches the expected native request', async () => {
   await pending;
 });
 
-test('setupRemoteVideoView dispatches the expected native request', async () => {
+test('setupRemoteVideoView dispatches AgoraRtcVideoCanvas fields to native', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
     transport,
@@ -1219,24 +1261,47 @@ test('setupRemoteVideoView dispatches the expected native request', async () => 
   });
 
   const pending = client.setupRemoteVideoView(42, {
+    uid: 99,
+    subviewUid: 5,
     x: 30,
     y: 40,
     width: 500,
     height: 600,
     renderMode: 'fit',
+    mirrorMode: 2,
+    setupMode: 1,
+    sourceType: 0,
+    mediaPlayerId: 11,
+    cropArea: { x: 4, y: 3, width: 2, height: 1 },
+    backgroundColor: 0x55667788,
+    enableAlphaMask: false,
+    position: 4,
+    textureWidth: 1280,
+    textureHeight: 720,
   });
   const request = JSON.parse(transport.sent[0].payload);
 
   assert.equal(request.method, 'setupRemoteVideoView');
   assert.deepEqual(request.params, {
     uid: 42,
+    subviewUid: 5,
     x: 30,
     y: 40,
     width: 500,
     height: 600,
     renderMode: 'fit',
+    mirrorMode: 2,
+    setupMode: 1,
+    sourceType: 0,
+    mediaPlayerId: 11,
+    cropArea: { x: 4, y: 3, width: 2, height: 1 },
+    backgroundColor: 0x55667788,
+    enableAlphaMask: false,
+    position: 4,
+    textureWidth: 1280,
+    textureHeight: 720,
   });
-  assertFixtureCoversInterfaceFields('AgoraVideoViewRect', request.params);
+  assertFixtureCoversInterfaceFields('AgoraRtcVideoCanvas', request.params);
 
   transport.emit(
     'agora:response',
@@ -1504,6 +1569,7 @@ test('client dispatches expected native requests for all expanded public APIs', 
   const fullContentInspectConfig = {
     module: 0,
     interval: 10,
+    position: 2,
     extraInfo: 'moderation-extra',
     serverConfig: '{"region":"ap"}',
     modules: [
@@ -1536,8 +1602,88 @@ test('client dispatches expected native requests for all expanded public APIs', 
   await testApi('playEffect', () => client.playEffect(fullPlayEffectConfig), fullPlayEffectConfig);
   assertFixtureCoversInterfaceFields('AgoraPlayEffectConfig', fullPlayEffectConfig);
   await testApi('stopEffect', () => client.stopEffect(1), { soundId: 1 });
-  await testApi('updateLocalVideoView', () => client.updateLocalVideoView({ x: 0, y: 0, width: 100, height: 100, renderMode: 'fit' }), { x: 0, y: 0, width: 100, height: 100, renderMode: 'fit' });
-  await testApi('updateRemoteVideoView', () => client.updateRemoteVideoView(123, { x: 0, y: 0, width: 100, height: 100, renderMode: 'fit' }), { uid: 123, x: 0, y: 0, width: 100, height: 100, renderMode: 'fit' });
+  await testApi(
+    'updateLocalVideoView',
+    () => client.updateLocalVideoView({
+      uid: 0,
+      subviewUid: 0,
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      renderMode: 'fit',
+      mirrorMode: 1,
+      setupMode: 1,
+      sourceType: 0,
+      mediaPlayerId: 7,
+      cropArea: { x: 1, y: 2, width: 3, height: 4 },
+      backgroundColor: 0x11223344,
+      enableAlphaMask: true,
+      position: 2,
+      textureWidth: 640,
+      textureHeight: 360,
+    }),
+    {
+      uid: 0,
+      subviewUid: 0,
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      renderMode: 'fit',
+      mirrorMode: 1,
+      setupMode: 1,
+      sourceType: 0,
+      mediaPlayerId: 7,
+      cropArea: { x: 1, y: 2, width: 3, height: 4 },
+      backgroundColor: 0x11223344,
+      enableAlphaMask: true,
+      position: 2,
+      textureWidth: 640,
+      textureHeight: 360,
+    },
+  );
+  await testApi(
+    'updateRemoteVideoView',
+    () => client.updateRemoteVideoView(123, {
+      uid: 999,
+      subviewUid: 5,
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      renderMode: 'fit',
+      mirrorMode: 2,
+      setupMode: 1,
+      sourceType: 0,
+      mediaPlayerId: 11,
+      cropArea: { x: 4, y: 3, width: 2, height: 1 },
+      backgroundColor: 0x55667788,
+      enableAlphaMask: false,
+      position: 4,
+      textureWidth: 1280,
+      textureHeight: 720,
+    }),
+    {
+      uid: 123,
+      subviewUid: 5,
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      renderMode: 'fit',
+      mirrorMode: 2,
+      setupMode: 1,
+      sourceType: 0,
+      mediaPlayerId: 11,
+      cropArea: { x: 4, y: 3, width: 2, height: 1 },
+      backgroundColor: 0x55667788,
+      enableAlphaMask: false,
+      position: 4,
+      textureWidth: 1280,
+      textureHeight: 720,
+    },
+  );
   await testApi('removeLocalVideoView', () => client.removeLocalVideoView(), {});
   await testApi('removeRemoteVideoView', () => client.removeRemoteVideoView(123), { uid: 123 });
   await testApi('setNativeVideoOverlaySuspended', () => client.setNativeVideoOverlaySuspended(true), { suspended: true });
