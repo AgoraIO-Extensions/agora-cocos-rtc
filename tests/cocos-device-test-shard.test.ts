@@ -247,6 +247,21 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /sleep "\$ANDROID_SCRIPT_TIMEOUT_SECONDS"/);
   assert.match(androidScript, /kill -TERM "\$target_pid"/);
   assert.match(androidScript, /trap cleanup_android_test EXIT/);
+  assert.match(
+    androidScript,
+    /ANDROID_LAUNCH_ARGS=\(/,
+    'android runner should build am start arguments explicitly',
+  );
+  assert.match(
+    androidScript,
+    /\[\[ -n "\$android_test_token" \]\][\s\S]*ANDROID_LAUNCH_ARGS\+=\(--es TEST_TOKEN "\$android_test_token"\)/,
+    'android runner should not pass an empty TEST_TOKEN through adb shell am start',
+  );
+  assert.match(
+    androidScript,
+    /"\$ADB_BIN" "\$\{ANDROID_LAUNCH_ARGS\[@\]\}"/,
+    'android runner should preserve launch argument boundaries with a bash array',
+  );
   assert.match(androidScript, /SECONDS=0[\s\S]*while \[\[ \$SECONDS -lt \$TEST_TIMEOUT_SECONDS \]\]/);
   assert.match(androidScript, /while .*SECONDS/);
   assert.match(androidScript, /TEST_DONE status=/);

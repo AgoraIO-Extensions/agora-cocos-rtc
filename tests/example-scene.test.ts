@@ -193,6 +193,25 @@ test('rtc session service passes configurable video join media options from Type
   assert.match(joinMethod, /if \(config\.publishCameraTrack\)/);
 });
 
+test('rtc session service leave clears remote rendering resources without destroying engine', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  const leaveMethodMatch = content.match(/async leaveRtcChannel\(\): Promise<void>[\s\S]*?async startLocalPreview/);
+  assert.ok(leaveMethodMatch);
+  const leaveMethod = leaveMethodMatch[0];
+
+  assert.match(leaveMethod, /const remoteUids = \[\.\.\.this\.remoteUserUids\]/);
+  assert.match(leaveMethod, /for \(const uid of remoteUids\)[\s\S]*client\.removeRemoteVideoView\(uid\)/);
+  assert.match(leaveMethod, /await client\.leaveChannel\(\)/);
+  assert.match(leaveMethod, /this\.remoteTextureSlotIds\.clear\(\)/);
+  assert.match(leaveMethod, /this\.remoteVideoSpriteFrames\.clear\(\)/);
+  assert.match(leaveMethod, /this\.clearTextureBindRetries\(\)/);
+  assert.doesNotMatch(leaveMethod, /client\.destroy\(\)/);
+});
+
 test('rtc session service tracks flutter-style video settings and stats', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
