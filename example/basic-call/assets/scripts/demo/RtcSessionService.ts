@@ -226,7 +226,14 @@ export class RtcSessionService {
 
   async leaveRtcChannel(): Promise<void> {
     const client = this.getClient();
+    const remoteUids = [...this.remoteUserUids];
     await client.leaveChannel();
+    for (const uid of remoteUids) {
+      await client.removeRemoteVideoView(uid);
+    }
+    this.remoteTextureSlotIds.clear();
+    this.remoteVideoSpriteFrames.clear();
+    this.clearTextureBindRetries();
     this.joined = false;
     this.remoteUserUids.clear();
     this.lastRemoteVideoStatsByUid.clear();
