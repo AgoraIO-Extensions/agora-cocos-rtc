@@ -13,6 +13,7 @@ const {
   ensureAgoraLocalMavenRepository,
   ensureAndroidRtcPermissions,
   ensureIosCMakeRtcBridgeSources,
+  ensureIosXcodeProjectNativeSources,
   ensureIosRtcUsageDescriptions,
   ensureIosXcodeProjectSwiftPackage,
   ensureIosAppDelegateBridgeAttachment,
@@ -24,6 +25,7 @@ const {
   patchAndroidAppActivityBridgeAttachment,
   patchIosAppDelegateBridgeAttachment,
   patchIosCMakeRtcBridgeSources,
+  patchIosXcodeProjectNativeSources,
   patchIosWorkspaceSettingsForSwiftPackage,
   patchIosXcodeProjectSwiftPackage,
   patchNativeCommonCMakeTextureBridge,
@@ -518,6 +520,26 @@ test('patchIosXcodeProjectBuildSettingsForSwiftPackage clears legacy build locat
   assert.equal(once, twice);
 });
 
+test('patchIosXcodeProjectNativeSources adds Agora native bridge files to app sources once', () => {
+  const original = createIosPbxprojFixture();
+  const once = patchIosXcodeProjectNativeSources(original);
+  const twice = patchIosXcodeProjectNativeSources(once);
+
+  for (const source of [
+    'AgoraRtcBridge.swift',
+    'AgoraRtcPlugin.mm',
+    'AgoraEngineTextureSlotBridge.mm',
+    'AgoraEngineTextureBridge.cpp',
+  ]) {
+    const escapedSource = source.replaceAll('.', '\\.');
+    assert.match(once, new RegExp(`${escapedSource} \\*/ = \\{isa = PBXFileReference;`));
+    assert.match(once, new RegExp(`${escapedSource} in Sources \\*/ = \\{isa = PBXBuildFile;`));
+    assert.match(once, new RegExp(`${escapedSource} in Sources \\*/,`));
+    assert.equal([...once.matchAll(new RegExp(`${escapedSource} in Sources`, 'g'))].length, 2);
+  }
+  assert.equal(once, twice);
+});
+
 test('patchIosWorkspaceSettingsForSwiftPackage forces unique build locations once', () => {
   const original = createIosWorkspaceSettingsFixture();
   const once = patchIosWorkspaceSettingsForSwiftPackage(original);
@@ -573,6 +595,25 @@ test('ensureIosXcodeProjectSwiftPackage patches generated Xcode project files', 
   assert.match(content, /@executable_path\/Frameworks/);
   assert.match(userWorkspaceSettings, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
   assert.match(sharedWorkspaceSettings, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
+});
+
+test('ensureIosXcodeProjectNativeSources patches generated Xcode project source phases', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-native-sources-'));
+  const pbxprojPath = path.join(
+    root,
+    'proj/agora-cocos-basic-call.xcodeproj/project.pbxproj',
+  );
+  await mkdir(path.dirname(pbxprojPath), { recursive: true });
+  await writeFile(pbxprojPath, createIosPbxprojFixture(), 'utf8');
+
+  const patchedPaths = await ensureIosXcodeProjectNativeSources(root);
+  const content = await readFile(pbxprojPath, 'utf8');
+
+  assert.deepEqual(patchedPaths, [pbxprojPath]);
+  assert.match(content, /AgoraRtcPlugin\.mm in Sources/);
+  assert.match(content, /AgoraEngineTextureSlotBridge\.mm in Sources/);
+  assert.match(content, /AgoraEngineTextureBridge\.cpp in Sources/);
+  assert.match(content, /AgoraRtcBridge\.swift in Sources/);
 });
 
 test('onBeforeMake patches generated iOS Xcode project before native compilation', async () => {
