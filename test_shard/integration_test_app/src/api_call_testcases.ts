@@ -21,7 +21,7 @@ export type ApiCallCase = {
 
 const remoteUid = 2002;
 const userAccount = 'cocos-user-0';
-const rect = {
+const canvas = {
   x: 24,
   y: 32,
   width: 240,
@@ -30,6 +30,7 @@ const rect = {
   mirrorMode: 2,
   setupMode: 0,
   sourceType: 0,
+  position: 1,
   textureWidth: 240,
   textureHeight: 180,
 };
@@ -130,9 +131,19 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'channel.leave-user-account',
     method: 'leaveChannel',
-    expectedParams: {},
+    expectedParams: {
+      stopAudioMixing: false,
+      stopAllEffect: false,
+      unloadAllEffect: false,
+      stopMicrophoneRecording: false,
+    },
     requiredEvidence: ['response', 'event', 'error'],
-    run: (client) => client.leaveChannel(),
+    run: (client) => client.leaveChannel({
+      stopAudioMixing: false,
+      stopAllEffect: false,
+      unloadAllEffect: false,
+      stopMicrophoneRecording: false,
+    }),
   },
   {
     id: 'channel.join',
@@ -148,6 +159,8 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
         publishMicrophoneTrack: false,
         autoSubscribeAudio: true,
         autoSubscribeVideo: true,
+        startPreview: true,
+        sourceType: 0,
       },
     },
     requiredEvidence: ['response', 'event'],
@@ -158,6 +171,8 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
       publishMicrophoneTrack: false,
       autoSubscribeAudio: true,
       autoSubscribeVideo: true,
+      startPreview: true,
+      sourceType: 0,
     }),
   },
   {
@@ -309,30 +324,30 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'render.setup-local-view',
     method: 'setupLocalVideoView',
-    expectedParams: rect,
+    expectedParams: canvas,
     requiredEvidence: ['response'],
-    run: (client) => client.setupLocalVideoView(rect),
+    run: (client) => client.setupLocalVideoView(canvas),
   },
   {
     id: 'render.setup-remote-view',
     method: 'setupRemoteVideoView',
-    expectedParams: { uid: remoteUid, ...rect },
+    expectedParams: { uid: remoteUid, ...canvas },
     requiredEvidence: ['response'],
-    run: (client) => client.setupRemoteVideoView(remoteUid, rect),
+    run: (client) => client.setupRemoteVideoView(remoteUid, canvas),
   },
   {
     id: 'render.update-local-view',
     method: 'updateLocalVideoView',
-    expectedParams: { ...rect, x: 36 },
+    expectedParams: { ...canvas, x: 36 },
     requiredEvidence: ['response'],
-    run: (client) => client.updateLocalVideoView({ ...rect, x: 36 }),
+    run: (client) => client.updateLocalVideoView({ ...canvas, x: 36 }),
   },
   {
     id: 'render.update-remote-view',
     method: 'updateRemoteVideoView',
-    expectedParams: { uid: remoteUid, ...rect, x: 48 },
+    expectedParams: { uid: remoteUid, ...canvas, x: 48 },
     requiredEvidence: ['response'],
-    run: (client) => client.updateRemoteVideoView(remoteUid, { ...rect, x: 48 }),
+    run: (client) => client.updateRemoteVideoView(remoteUid, { ...canvas, x: 48 }),
   },
   {
     id: 'render.suspend-overlay',
@@ -344,9 +359,9 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.start-preview',
     method: 'startPreview',
-    expectedParams: {},
+    expectedParams: { sourceType: 0 },
     requiredEvidence: ['response', 'event'],
-    run: (client) => client.startPreview(),
+    run: (client) => client.startPreview(0),
   },
   {
     id: 'video.switch-camera',
@@ -367,6 +382,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
         rednessLevel: 0.3,
         sharpnessLevel: 0.2,
       },
+      sourceType: 2,
     },
     requiredEvidence: ['response', 'error'],
     run: (client) => client.setBeautyEffectOptions(true, {
@@ -375,7 +391,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
       smoothnessLevel: 0.4,
       rednessLevel: 0.3,
       sharpnessLevel: 0.2,
-    }),
+    }, 2),
   },
   {
     id: 'video.content-inspect',
@@ -434,9 +450,9 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'effect.preload',
     method: 'preloadEffect',
-    expectedParams: { soundId: 1, path: '<AUDIO_ASSET>' },
+    expectedParams: { soundId: 1, path: '<AUDIO_ASSET>', startPos: 250 },
     requiredEvidence: ['response'],
-    run: (client, context) => client.preloadEffect(1, context.audioAssetPath),
+    run: (client, context) => client.preloadEffect(1, context.audioAssetPath, 250),
   },
   {
     id: 'effect.play',
@@ -515,9 +531,9 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.stop-preview',
     method: 'stopPreview',
-    expectedParams: {},
+    expectedParams: { sourceType: 0 },
     requiredEvidence: ['response'],
-    run: (client) => client.stopPreview(),
+    run: (client) => client.stopPreview(0),
   },
   {
     id: 'render.remove-remote-view',
@@ -536,9 +552,19 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'channel.leave',
     method: 'leaveChannel',
-    expectedParams: {},
+    expectedParams: {
+      stopAudioMixing: true,
+      stopAllEffect: true,
+      unloadAllEffect: true,
+      stopMicrophoneRecording: true,
+    },
     requiredEvidence: ['response', 'event'],
-    run: (client) => client.leaveChannel(),
+    run: (client) => client.leaveChannel({
+      stopAudioMixing: true,
+      stopAllEffect: true,
+      unloadAllEffect: true,
+      stopMicrophoneRecording: true,
+    }),
   },
   {
     id: 'engine.destroy',

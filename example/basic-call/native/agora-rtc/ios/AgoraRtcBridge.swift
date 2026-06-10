@@ -10,13 +10,15 @@ final class TextureSlotState: NSObject {
     let width: Int
     let height: Int
     let mirror: Bool
+    let observerPosition: AgoraVideoFramePosition
     var readyDispatched = false
 
-    init(slotId: Int, width: Int, height: Int, mirror: Bool) {
+    init(slotId: Int, width: Int, height: Int, mirror: Bool, observerPosition: AgoraVideoFramePosition) {
         self.slotId = slotId
         self.width = width
         self.height = height
         self.mirror = mirror
+        self.observerPosition = observerPosition
     }
 }
 
@@ -35,6 +37,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     private var localTextureSlot: TextureSlotState?
     private var remoteTextureUids = Set<UInt>()
     private var remoteTextureSlots: [UInt: TextureSlotState] = [:]
+    private var observedFramePosition: AgoraVideoFramePosition = [.postCapture, .preRenderer]
 
     private func sharedInstance(named className: String) -> NSObject? {
         guard let type = NSClassFromString(className) as? NSObject.Type else {
@@ -268,7 +271,12 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             handleGetUserInfoByUserAccount(requestId: requestId, params: params)
         case "leaveChannel":
             requireEngine(requestId: requestId) { engine in
-                let result = engine.leaveChannel(nil)
+                let result: Int32
+                if hasLeaveChannelOptions(params) {
+                    result = engine.leaveChannel(buildLeaveChannelOptions(params), leaveChannelBlock: nil)
+                } else {
+                    result = engine.leaveChannel(nil)
+                }
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "renewToken":
@@ -430,6 +438,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 let enabled = params["enabled"] as? Bool ?? false
                 let optionsObject = params["options"] as? [String: Any] ?? [:]
                 let options = AgoraBeautyOptions()
+                let sourceType = mediaSourceType(from: params)
                 if let contrastRaw = optionsObject["lighteningContrastLevel"] as? Int,
                    let contrast = AgoraLighteningContrastLevel(rawValue: UInt(contrastRaw)) {
                     options.lighteningContrastLevel = contrast
@@ -438,7 +447,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 options.smoothnessLevel = Float(optionsObject["smoothnessLevel"] as? Double ?? 0.0)
                 options.rednessLevel = Float(optionsObject["rednessLevel"] as? Double ?? 0.0)
                 options.sharpnessLevel = Float(optionsObject["sharpnessLevel"] as? Double ?? 0.0)
-                let result = engine.setBeautyEffectOptions(enabled, options: options)
+                let result = engine.setBeautyEffectOptions(enabled, options: options, sourceType: sourceType)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "setLogFilter":
@@ -553,7 +562,8 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             requireEngine(requestId: requestId) { engine in
                 let soundId = Int32(params["soundId"] as? Int ?? 0)
                 let path = params["path"] as? String ?? ""
-                let result = engine.preloadEffect(soundId, filePath: path)
+                let startPos = Int32(params["startPos"] as? Int ?? 0)
+                let result = engine.preloadEffect(soundId, filePath: path, startPos: startPos)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "playEffect":
@@ -605,6 +615,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "startPreview":
             requireEngine(requestId: requestId) { engine in
+                let sourceType = videoSourceType(from: params)
                 ensureRtcPermissions(
                     requestId: requestId,
                     requiresCamera: true,
@@ -614,13 +625,14 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                         self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                         return
                     }
-                    let result = engine.startPreview()
+                    let result = engine.startPreview(sourceType)
                     self.dispatchResult(requestId: requestId, method: method, result: result)
                 }
             }
         case "stopPreview":
             requireEngine(requestId: requestId) { engine in
-                let result = engine.stopPreview()
+                let sourceType = videoSourceType(from: params)
+                let result = engine.stopPreview(sourceType)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "switchCamera":
@@ -763,7 +775,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     return
                 }
                 if mediaOptionBool(mediaOptionParams, key: "startPreview", defaultValue: false) {
-                    let previewResult = engine.startPreview()
+                    let previewResult = engine.startPreview(self.videoSourceType(from: mediaOptionParams))
                     guard previewResult >= 0 else {
                         self.dispatchResult(requestId: requestId, method: "startPreview", result: previewResult)
                         return
@@ -919,6 +931,30 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return value
     }
 
+    private func hasLeaveChannelOptions(_ params: [String: Any]) -> Bool {
+        return params["stopAudioMixing"] != nil
+            || params["stopAllEffect"] != nil
+            || params["unloadAllEffect"] != nil
+            || params["stopMicrophoneRecording"] != nil
+    }
+
+    private func buildLeaveChannelOptions(_ params: [String: Any]) -> AgoraLeaveChannelOptions {
+        let options = AgoraLeaveChannelOptions()
+        if let value = params["stopAudioMixing"] as? Bool {
+            options.stopAudioMixing = value
+        }
+        if let value = params["stopAllEffect"] as? Bool {
+            options.stopAllEffect = value
+        }
+        if let value = params["unloadAllEffect"] as? Bool {
+            options.unloadAllEffect = value
+        }
+        if let value = params["stopMicrophoneRecording"] as? Bool {
+            options.stopMicrophoneRecording = value
+        }
+        return options
+    }
+
     private func requiresCameraPermission(_ mediaOptions: [String: Any]?) -> Bool {
         return mediaOptionBool(mediaOptions, key: "publishCameraTrack", defaultValue: true)
             || mediaOptionBool(mediaOptions, key: "startPreview", defaultValue: false)
@@ -1070,6 +1106,13 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 guard let engine = self.rtcEngine else {
                     self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                     return
+                }
+                if self.mediaOptionBool(mediaOptionParams, key: "startPreview", defaultValue: false) {
+                    let previewResult = engine.startPreview(self.videoSourceType(from: mediaOptionParams))
+                    guard previewResult >= 0 else {
+                        self.dispatchResult(requestId: requestId, method: "startPreview", result: previewResult)
+                        return
+                    }
                 }
                 let result = engine.joinChannel(
                     byToken: token,
@@ -1431,28 +1474,62 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         let width = resolveTextureWidth(params, local: true)
         let height = resolveTextureHeight(params, local: true)
         let mirror = self.resolveTextureMirror(params)
-        if let localTextureSlot, localTextureSlot.width == width, localTextureSlot.height == height, localTextureSlot.mirror == mirror {
+        let observerPosition = resolveFrameObserverPosition(
+            params,
+            supportedPositions: [.postCapture, .preEncoder],
+            fallbackPosition: .postCapture
+        )
+        if let localTextureSlot,
+           localTextureSlot.width == width,
+           localTextureSlot.height == height,
+           localTextureSlot.mirror == mirror,
+           localTextureSlot.observerPosition == observerPosition {
+            refreshObservedFramePosition()
             return
         }
         releaseLocalTextureSlot()
         guard let slotId = createTextureSlot(width: width, height: height) else {
             return
         }
-        localTextureSlot = TextureSlotState(slotId: slotId, width: width, height: height, mirror: mirror)
+        localTextureSlot = TextureSlotState(
+            slotId: slotId,
+            width: width,
+            height: height,
+            mirror: mirror,
+            observerPosition: observerPosition
+        )
+        refreshObservedFramePosition()
     }
 
     private func ensureRemoteTextureSlot(_ uid: UInt, params: [String: Any]) {
         let width = resolveTextureWidth(params, local: false)
         let height = resolveTextureHeight(params, local: false)
         let mirror = self.resolveTextureMirror(params)
-        if let slot = remoteTextureSlots[uid], slot.width == width, slot.height == height, slot.mirror == mirror {
+        let observerPosition = resolveFrameObserverPosition(
+            params,
+            supportedPositions: .preRenderer,
+            fallbackPosition: .preRenderer
+        )
+        if let slot = remoteTextureSlots[uid],
+           slot.width == width,
+           slot.height == height,
+           slot.mirror == mirror,
+           slot.observerPosition == observerPosition {
+            refreshObservedFramePosition()
             return
         }
         releaseRemoteTextureSlot(uid)
         guard let slotId = createTextureSlot(width: width, height: height) else {
             return
         }
-        remoteTextureSlots[uid] = TextureSlotState(slotId: slotId, width: width, height: height, mirror: mirror)
+        remoteTextureSlots[uid] = TextureSlotState(
+            slotId: slotId,
+            width: width,
+            height: height,
+            mirror: mirror,
+            observerPosition: observerPosition
+        )
+        refreshObservedFramePosition()
     }
 
     private func releaseLocalTextureSlot() {
@@ -1461,6 +1538,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         }
         localTextureSlot = nil
         releaseTextureSlot(slotId: slot.slotId)
+        refreshObservedFramePosition()
         dispatchEvent(name: "localVideoTextureReleased", payload: [
             "slotId": slot.slotId,
         ])
@@ -1471,6 +1549,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             return
         }
         releaseTextureSlot(slotId: slot.slotId)
+        refreshObservedFramePosition()
         dispatchEvent(name: "remoteVideoTextureReleased", payload: [
             "uid": uid,
             "slotId": slot.slotId,
@@ -1576,6 +1655,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return AgoraVideoSourceType(rawValue: value) ?? .camera
     }
 
+    private func mediaSourceType(from params: [String: Any]) -> AgoraMediaSourceType {
+        let value = intValue(params["sourceType"] ?? AgoraMediaSourceType.primaryCamera.rawValue)
+        return AgoraMediaSourceType(rawValue: value) ?? .primaryCamera
+    }
+
     private func videoModulePosition(from params: [String: Any]) -> AgoraVideoModulePosition {
         let value = intValue(params["position"] ?? AgoraVideoModulePosition.postCapture.rawValue)
         return AgoraVideoModulePosition(rawValue: value) ?? .postCapture
@@ -1605,6 +1689,64 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
 
     private func resolveTextureMirror(_ params: [String: Any]) -> Bool {
         intValue(params["mirrorMode"] ?? 0) == Int(AgoraVideoMirrorMode.enabled.rawValue)
+    }
+
+    private func resolveFrameObserverPosition(
+        _ params: [String: Any],
+        supportedPositions: AgoraVideoFramePosition,
+        fallbackPosition: AgoraVideoFramePosition
+    ) -> AgoraVideoFramePosition {
+        let rawPosition = intValue(params["position"] ?? frameObserverRawValue(fallbackPosition))
+        var position: AgoraVideoFramePosition = []
+        if rawPosition & Int(AgoraVideoModulePosition.postCapture.rawValue) != 0 {
+            position.insert(.postCapture)
+        }
+        if rawPosition & Int(AgoraVideoModulePosition.preRenderer.rawValue) != 0 {
+            position.insert(.preRenderer)
+        }
+        if rawPosition & Int(AgoraVideoModulePosition.preEncoder.rawValue) != 0 {
+            position.insert(.preEncoder)
+        }
+        position.formIntersection(supportedPositions)
+        return position.isEmpty ? fallbackPosition : position
+    }
+
+    private func frameObserverRawValue(_ position: AgoraVideoFramePosition) -> Int {
+        var value = 0
+        if position.contains(.postCapture) {
+            value |= Int(AgoraVideoModulePosition.postCapture.rawValue)
+        }
+        if position.contains(.preRenderer) {
+            value |= Int(AgoraVideoModulePosition.preRenderer.rawValue)
+        }
+        if position.contains(.preEncoder) {
+            value |= Int(AgoraVideoModulePosition.preEncoder.rawValue)
+        }
+        return value
+    }
+
+    private func refreshObservedFramePosition() {
+        var nextPosition: AgoraVideoFramePosition = []
+        if localTextureRequested, let localTextureSlot {
+            nextPosition.formUnion(localTextureSlot.observerPosition)
+        }
+        for (uid, slot) in remoteTextureSlots where remoteTextureUids.contains(uid) {
+            nextPosition.formUnion(slot.observerPosition)
+        }
+        if nextPosition.isEmpty {
+            nextPosition = [.postCapture, .preRenderer]
+        }
+        if observedFramePosition == nextPosition {
+            return
+        }
+        observedFramePosition = nextPosition
+        _ = rtcEngine?.setVideoFrameDelegate(self)
+        dispatchEvent(name: "renderBackendState", payload: [
+            "backend": "engine-texture",
+            "phase": "observerPosition",
+            "result": 0,
+            "uid": 0,
+        ])
     }
 
     private func uintValue(_ rawValue: Any) -> UInt {
@@ -1916,7 +2058,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     func getObservedFramePosition() -> AgoraVideoFramePosition {
-        return [.postCapture, .preRenderer]
+        return observedFramePosition
     }
 
     func getRotationApplied() -> Bool {
@@ -1931,7 +2073,22 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         guard renderBackend == "engine-texture" else {
             return true
         }
-        guard localTextureRequested, let slot = localTextureSlot else {
+        guard localTextureRequested,
+              let slot = localTextureSlot,
+              slot.observerPosition.contains(.postCapture) else {
+            return true
+        }
+        updateTextureSlot(slot, videoFrame: videoFrame)
+        return true
+    }
+
+    func onPreEncode(_ videoFrame: AgoraOutputVideoFrame, sourceType: AgoraVideoSourceType) -> Bool {
+        guard renderBackend == "engine-texture" else {
+            return true
+        }
+        guard localTextureRequested,
+              let slot = localTextureSlot,
+              slot.observerPosition.contains(.preEncoder) else {
             return true
         }
         updateTextureSlot(slot, videoFrame: videoFrame)
@@ -1944,7 +2101,9 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         }
         let isTracked = remoteTextureUids.contains(uid)
         let slot = remoteTextureSlots[uid]
-        guard isTracked, let slot else {
+        guard isTracked,
+              let slot,
+              slot.observerPosition.contains(.preRenderer) else {
             return true
         }
         updateRemoteTextureSlot(slot, uid: uid, videoFrame: videoFrame)

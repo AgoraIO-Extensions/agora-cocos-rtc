@@ -27,9 +27,9 @@ public interface AgoraRenderBackend {
 
     void setNativeVideoOverlaySuspended(boolean suspended, AgoraRenderResultCallback callback);
 
-    void startPreview(AgoraRenderResultCallback callback);
+    void startPreview(JSONObject params, AgoraRenderResultCallback callback);
 
-    void stopPreview(AgoraRenderResultCallback callback);
+    void stopPreview(JSONObject params, AgoraRenderResultCallback callback);
 
     void switchCamera(AgoraRenderResultCallback callback);
 }

@@ -26,6 +26,7 @@ import io.agora.rtc2.ClientRoleOptions;
 import io.agora.rtc2.Constants;
 import io.agora.rtc2.IAudioEffectManager;
 import io.agora.rtc2.IRtcEngineEventHandler;
+import io.agora.rtc2.LeaveChannelOptions;
 import io.agora.rtc2.RtcEngine;
 import io.agora.rtc2.RtcEngineConfig;
 import io.agora.rtc2.UserInfo;
@@ -175,7 +176,7 @@ public final class AgoraRtcPlugin {
                 handleGetUserInfoByUserAccount(requestId, params);
                 break;
             case "leaveChannel":
-                handleLeaveChannel(requestId);
+                handleLeaveChannel(requestId, params);
                 break;
             case "renewToken":
                 handleRenewToken(requestId, params);
@@ -262,10 +263,10 @@ public final class AgoraRtcPlugin {
                 handleSetNativeVideoOverlaySuspended(requestId, params);
                 break;
             case "startPreview":
-                handleStartPreview(requestId);
+                handleStartPreview(requestId, params);
                 break;
             case "stopPreview":
-                handleStopPreview(requestId);
+                handleStopPreview(requestId, params);
                 break;
             case "switchCamera":
                 handleSwitchCamera(requestId);
@@ -1002,37 +1003,73 @@ public final class AgoraRtcPlugin {
         renderBackend.setNativeVideoOverlaySuspended(suspended, requestCallback(requestId));
     }
 
-    private void handleStartPreview(String requestId) {
+    private void handleStartPreview(String requestId, JSONObject params) {
         if (rtcEngine == null) {
             dispatchError(requestId, "RtcEngine is not initialized.");
             return;
         }
 
-        ensureRtcPermissions(requestId, true, false, () -> continueStartPreview(requestId));
+        ensureRtcPermissions(requestId, true, false, () -> continueStartPreview(requestId, params));
     }
 
-    private void continueStartPreview(String requestId) {
+    private void continueStartPreview(String requestId, JSONObject params) {
         if (rtcEngine == null) {
             dispatchError(requestId, "RtcEngine is not initialized.");
             return;
         }
 
-        renderBackend.startPreview(requestCallback(requestId));
+        renderBackend.startPreview(params, requestCallback(requestId));
     }
 
-    private void handleStopPreview(String requestId) {
-        renderBackend.stopPreview(requestCallback(requestId));
+    private void handleStopPreview(String requestId, JSONObject params) {
+        renderBackend.stopPreview(params, requestCallback(requestId));
     }
 
     private void handleSwitchCamera(String requestId) {
         renderBackend.switchCamera(requestCallback(requestId));
     }
 
-    private void handleLeaveChannel(String requestId) {
+    private void handleLeaveChannel(String requestId, JSONObject params) {
         if (rtcEngine != null) {
-            rtcEngine.leaveChannel();
+            if (hasLeaveChannelOptions(params)) {
+                int result = rtcEngine.leaveChannel(buildLeaveChannelOptions(params));
+                if (result < 0) {
+                    dispatchAgoraError(requestId, "leaveChannel", result);
+                    return;
+                }
+            } else {
+                rtcEngine.leaveChannel();
+            }
         }
         dispatchOk(requestId);
+    }
+
+    private boolean hasLeaveChannelOptions(JSONObject params) {
+        return params != null
+                && (params.has("stopAudioMixing")
+                || params.has("stopAllEffect")
+                || params.has("unloadAllEffect")
+                || params.has("stopMicrophoneRecording"));
+    }
+
+    private LeaveChannelOptions buildLeaveChannelOptions(JSONObject params) {
+        LeaveChannelOptions options = new LeaveChannelOptions();
+        if (params == null) {
+            return options;
+        }
+        if (params.has("stopAudioMixing") && !params.isNull("stopAudioMixing")) {
+            options.stopAudioMixing = params.optBoolean("stopAudioMixing");
+        }
+        if (params.has("stopAllEffect") && !params.isNull("stopAllEffect")) {
+            options.stopAllEffect = params.optBoolean("stopAllEffect");
+        }
+        if (params.has("unloadAllEffect") && !params.isNull("unloadAllEffect")) {
+            options.unloadAllEffect = params.optBoolean("unloadAllEffect");
+        }
+        if (params.has("stopMicrophoneRecording") && !params.isNull("stopMicrophoneRecording")) {
+            options.stopMicrophoneRecording = params.optBoolean("stopMicrophoneRecording");
+        }
+        return options;
     }
 
     private void handleRenewToken(String requestId, JSONObject params) {
@@ -1359,7 +1396,8 @@ public final class AgoraRtcPlugin {
             beautyOptions.rednessLevel = (float) options.optDouble("rednessLevel", 0.0);
             beautyOptions.sharpnessLevel = (float) options.optDouble("sharpnessLevel", 0.0);
         }
-        int result = rtcEngine.setBeautyEffectOptions(enabled, beautyOptions);
+        Constants.MediaSourceType sourceType = mapMediaSourceType(params != null ? params.optInt("sourceType", 2) : 2);
+        int result = rtcEngine.setBeautyEffectOptions(enabled, beautyOptions, sourceType);
         if (result < 0) {
             dispatchAgoraError(requestId, "setBeautyEffectOptions", result);
             return;
@@ -1567,7 +1605,8 @@ public final class AgoraRtcPlugin {
         }
         int soundId = params != null ? params.optInt("soundId", 0) : 0;
         String path = params != null ? params.optString("path", "") : "";
-        int result = effectManager.preloadEffect(soundId, path);
+        int startPos = params != null ? params.optInt("startPos", 0) : 0;
+        int result = effectManager.preloadEffect(soundId, path, startPos);
         if (result < 0) {
             dispatchAgoraError(requestId, "preloadEffect", result);
             return;
@@ -2027,6 +2066,15 @@ public final class AgoraRtcPlugin {
             default:
                 return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_PRE_RENDERER;
         }
+    }
+
+    private Constants.MediaSourceType mapMediaSourceType(int value) {
+        for (Constants.MediaSourceType sourceType : Constants.MediaSourceType.values()) {
+            if (Constants.MediaSourceType.getValue(sourceType) == value) {
+                return sourceType;
+            }
+        }
+        return Constants.MediaSourceType.PRIMARY_CAMERA_SOURCE;
     }
 
     private void dispatchEvent(String eventName, JSONObject payload) {
