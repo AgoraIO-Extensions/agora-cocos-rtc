@@ -29,12 +29,37 @@ export function createRequestId(): string {
   return `${randomPart}-${requestCounter}`;
 }
 
+/**
+ * Determine whether the SDK is running inside a Cocos native runtime.
+ *
+ * IMPORTANT: this is intentionally written with explicit early returns instead
+ * of `runtime?.sys?.isNative ?? (typeof globalJsb !== 'undefined')`.
+ * The Cocos build minifier mis-optimizes the `!(a ?? b)` pattern that the
+ * latter produces into `a ?? !b`, which inverts the guard on real devices
+ * (where `sys.isNative === true`) and makes the native bridge resolve to
+ * `null` — surfacing as `AgoraErrorCode.BridgeUnavailable` on initialize/join.
+ * Keeping the boolean logic inside a plain function with `=== true/false`
+ * checks prevents that mis-optimization.
+ */
+export function isNativeBridgeRuntime(
+  runtime: CocosBridgeRuntime | undefined,
+  globalJsb: unknown,
+): boolean {
+  const explicit = runtime?.sys?.isNative;
+  if (explicit === true) {
+    return true;
+  }
+  if (explicit === false) {
+    return false;
+  }
+  return typeof globalJsb !== 'undefined';
+}
+
 export function resolveBridgeTransport(
   runtime?: CocosBridgeRuntime,
 ): CocosJsbBridgeTransport | null {
   const globalJsb = (globalThis as any).jsb;
-  const isNativeRuntime = runtime?.sys?.isNative ?? typeof globalJsb !== 'undefined';
-  if (!isNativeRuntime) {
+  if (!isNativeBridgeRuntime(runtime, globalJsb)) {
     return null;
   }
 
@@ -49,8 +74,7 @@ export function resolveEngineTextureBridge(
   runtime?: CocosBridgeRuntime,
 ): CocosEngineTextureBridge | null {
   const globalJsb = (globalThis as any).jsb;
-  const isNativeRuntime = runtime?.sys?.isNative ?? typeof globalJsb !== 'undefined';
-  if (!isNativeRuntime) {
+  if (!isNativeBridgeRuntime(runtime, globalJsb)) {
     return null;
   }
 
