@@ -39,6 +39,12 @@ jobs:
     env:
       TEST_APP_ID: ${{ secrets.APP_ID }}
       ANDROID_TEST_ABI: x86_64
+      # Reuse compiled Cocos engine objects across runs (cache restored/saved by
+      # actions/cache below) to cut the ~17 min cold native build to ~1-2 min warm.
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 2G
+      CCACHE_SLOPPINESS: time_macros
+      CCACHE_INIT_SCRIPT: ${{ github.workspace }}/scripts/ci/ccache-init.gradle
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -93,6 +99,15 @@ jobs:
           version: ${{ env.COCOS_CREATOR_VERSION }}
           download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
       - run: npm ci
+      - name: Install ccache
+        run: brew install ccache
+      - name: Cache ccache objects
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-android-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            ccache-android-${{ runner.os }}-
       - name: Run Android Cocos API tests
         timeout-minutes: 45
         uses: reactivecircus/android-emulator-runner@v2

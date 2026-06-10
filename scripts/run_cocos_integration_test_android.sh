@@ -246,10 +246,21 @@ fi
 
 log_step "Build Android debug APK"
 cd "$ANDROID_PROJECT_DIR"
+# Route the NDK C/C++ build through ccache when available so the Cocos engine
+# objects are reused across CI runs (cache restored via actions/cache). The init
+# script is appended after the task name so the gradle invocation stays valid.
+GRADLE_CCACHE_ARGS=()
+if [[ -n "${CCACHE_INIT_SCRIPT:-}" && -f "${CCACHE_INIT_SCRIPT}" ]] && command -v ccache >/dev/null 2>&1; then
+  GRADLE_CCACHE_ARGS=(--init-script "$CCACHE_INIT_SCRIPT")
+  ccache --zero-stats >/dev/null 2>&1 || true
+fi
 if [[ "$ANDROID_GRADLE_OFFLINE" == "true" ]]; then
-  ./gradlew --offline :agora-cocos-basic-call:assembleDebug
+  ./gradlew --offline :agora-cocos-basic-call:assembleDebug ${GRADLE_CCACHE_ARGS[@]+"${GRADLE_CCACHE_ARGS[@]}"}
 else
-  ./gradlew :agora-cocos-basic-call:assembleDebug
+  ./gradlew :agora-cocos-basic-call:assembleDebug ${GRADLE_CCACHE_ARGS[@]+"${GRADLE_CCACHE_ARGS[@]}"}
+fi
+if [[ ${#GRADLE_CCACHE_ARGS[@]} -gt 0 ]]; then
+  ccache --show-stats 2>/dev/null || true
 fi
 write_android_apk_contents_report
 
