@@ -58,6 +58,37 @@ set(CMAKE_XCODE_ATTRIBUTE_SWIFT_VERSION "${sdkConfig.ios.swiftVersion}")`;
 const IOS_SPM_PACKAGE_REF_ID = 'A90A00000000000000000101';
 const IOS_SPM_PRODUCT_ID = 'A90A00000000000000000102';
 const IOS_SPM_BUILD_FILE_ID = 'A90A00000000000000000103';
+const IOS_NATIVE_SOURCES_BUILD_PHASE_ID = 'A90A00000000000000000200';
+const IOS_NATIVE_SOURCE_FILES = [
+  {
+    name: 'AgoraRtcBridge.swift',
+    path: 'agora-rtc/AgoraRtcBridge.swift',
+    fileRefId: 'A90A00000000000000000201',
+    buildFileId: 'A90A00000000000000000202',
+    explicitFileType: 'sourcecode.swift',
+  },
+  {
+    name: 'AgoraRtcPlugin.mm',
+    path: 'agora-rtc/AgoraRtcPlugin.mm',
+    fileRefId: 'A90A00000000000000000203',
+    buildFileId: 'A90A00000000000000000204',
+    explicitFileType: 'sourcecode.cpp.objcpp',
+  },
+  {
+    name: 'AgoraEngineTextureSlotBridge.mm',
+    path: 'agora-rtc/AgoraEngineTextureSlotBridge.mm',
+    fileRefId: 'A90A00000000000000000205',
+    buildFileId: 'A90A00000000000000000206',
+    explicitFileType: 'sourcecode.cpp.objcpp',
+  },
+  {
+    name: 'AgoraEngineTextureBridge.cpp',
+    path: '../../../native/engine/common/Classes/agora/AgoraEngineTextureBridge.cpp',
+    fileRefId: 'A90A00000000000000000207',
+    buildFileId: 'A90A00000000000000000208',
+    explicitFileType: 'sourcecode.cpp.cpp',
+  },
+];
 const IOS_WORKSPACE_SETTINGS_TEMPLATE = `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -282,6 +313,193 @@ function patchIosXcodeProjectBuildSettingsForSwiftPackage(content) {
     if (patchedObject !== buildConfiguration.text) {
       next = replacePbxObject(next, buildConfiguration, patchedObject);
     }
+  }
+
+  return next;
+}
+
+function createPbxFileReferenceEntry(source) {
+  return `\t\t${source.fileRefId} /* ${source.name} */ = {isa = PBXFileReference; explicitFileType = ${source.explicitFileType}; fileEncoding = 4; name = ${source.name}; path = "${source.path}"; sourceTree = SOURCE_ROOT; };`;
+}
+
+function createPbxSourceBuildFileEntry(source) {
+  return `\t\t${source.buildFileId} /* ${source.name} in Sources */ = {isa = PBXBuildFile; fileRef = ${source.fileRefId} /* ${source.name} */; };`;
+}
+
+function getAppNativeTarget(content) {
+  return findPbxObject(
+    content,
+    'PBXNativeTarget',
+    (object) =>
+      object.text.includes('isa = PBXNativeTarget;') &&
+      object.text.includes('productType = "com.apple.product-type.application";'),
+  );
+}
+
+function getNativeTargetSourcesPhaseId(targetText) {
+  const buildPhasesMatch = targetText.match(/buildPhases = \(\n([\s\S]*?)^\s*\);/m);
+  if (!buildPhasesMatch) {
+    return null;
+  }
+
+  const sourcesMatch = buildPhasesMatch[1].match(/^\s*([A-Za-z0-9]{24}) \/\* Sources \*\/,\s*$/m);
+  return sourcesMatch?.[1] || null;
+}
+
+function createPbxSourcesBuildPhaseEntry(phaseId) {
+  return `\t\t${phaseId} /* Sources */ = {
+\t\t\tisa = PBXSourcesBuildPhase;
+\t\t\tbuildActionMask = 2147483647;
+\t\t\tfiles = (
+\t\t\t);
+\t\t\trunOnlyForDeploymentPostprocessing = 0;
+\t\t};`;
+}
+
+function ensureNativeTargetSourcesPhase(content, appTarget) {
+  const existingSourcesPhaseId = getNativeTargetSourcesPhaseId(appTarget.text);
+  if (existingSourcesPhaseId) {
+    return {
+      content,
+      sourcesPhaseId: existingSourcesPhaseId,
+    };
+  }
+
+  let next = ensurePbxSectionEntry(
+    content,
+    'PBXSourcesBuildPhase',
+    createPbxSourcesBuildPhaseEntry(IOS_NATIVE_SOURCES_BUILD_PHASE_ID),
+    IOS_NATIVE_SOURCES_BUILD_PHASE_ID,
+  );
+
+  const refreshedTarget = findPbxObject(
+    next,
+    'PBXNativeTarget',
+    (object) => object.id === appTarget.id,
+  );
+  if (!refreshedTarget) {
+    return {
+      content: next,
+      sourcesPhaseId: IOS_NATIVE_SOURCES_BUILD_PHASE_ID,
+    };
+  }
+
+  const patchedTargetText = ensurePbxListItem(
+    refreshedTarget.text,
+    'buildPhases',
+    `${IOS_NATIVE_SOURCES_BUILD_PHASE_ID} /* Sources */,`,
+  );
+  if (patchedTargetText !== refreshedTarget.text) {
+    next = replacePbxObject(next, refreshedTarget, patchedTargetText);
+  }
+
+  return {
+    content: next,
+    sourcesPhaseId: IOS_NATIVE_SOURCES_BUILD_PHASE_ID,
+  };
+}
+
+function ensurePbxSourceBuildFile(content, source) {
+  const existingBuildFile = findPbxObject(
+    content,
+    'PBXBuildFile',
+    (object) => object.comment === `${source.name} in Sources`,
+  );
+
+  if (existingBuildFile) {
+    return {
+      content,
+      buildFileId: existingBuildFile.id,
+    };
+  }
+
+  return {
+    content: ensurePbxSectionEntry(
+      content,
+      'PBXBuildFile',
+      createPbxSourceBuildFileEntry(source),
+      source.buildFileId,
+    ),
+    buildFileId: source.buildFileId,
+  };
+}
+
+function ensurePbxFileReference(content, source) {
+  const existingFileReference = findPbxObject(
+    content,
+    'PBXFileReference',
+    (object) =>
+      object.comment === source.name &&
+      (object.text.includes(`path = "${source.path}";`) ||
+        object.text.includes(`path = ${source.path};`)),
+  );
+
+  if (existingFileReference) {
+    return {
+      content,
+      fileRefId: existingFileReference.id,
+    };
+  }
+
+  return {
+    content: ensurePbxSectionEntry(
+      content,
+      'PBXFileReference',
+      createPbxFileReferenceEntry(source),
+      source.fileRefId,
+    ),
+    fileRefId: source.fileRefId,
+  };
+}
+
+function ensurePbxSourcesPhaseBuildFile(content, sourcesPhaseId, source, buildFileId) {
+  const sourcesPhase = findPbxObject(
+    content,
+    'PBXSourcesBuildPhase',
+    (object) => object.id === sourcesPhaseId,
+  );
+  if (!sourcesPhase) {
+    return content;
+  }
+
+  const patchedSourcesPhaseText = ensurePbxListItem(
+    sourcesPhase.text,
+    'files',
+    `${buildFileId} /* ${source.name} in Sources */,`,
+  );
+  if (patchedSourcesPhaseText === sourcesPhase.text) {
+    return content;
+  }
+
+  return replacePbxObject(content, sourcesPhase, patchedSourcesPhaseText);
+}
+
+function patchIosXcodeProjectNativeSources(content) {
+  const appTarget = getAppNativeTarget(content);
+  if (!appTarget) {
+    return content;
+  }
+
+  let next = content;
+  const sourcesPhaseResult = ensureNativeTargetSourcesPhase(next, appTarget);
+  next = sourcesPhaseResult.content;
+
+  for (const source of IOS_NATIVE_SOURCE_FILES) {
+    const fileReferenceResult = ensurePbxFileReference(next, source);
+    next = fileReferenceResult.content;
+
+    const buildFileResult = ensurePbxSourceBuildFile(next, {
+      ...source,
+      fileRefId: fileReferenceResult.fileRefId,
+    });
+    next = buildFileResult.content;
+
+    next = ensurePbxSourcesPhaseBuildFile(
+      next,
+      sourcesPhaseResult.sourcesPhaseId,
+      source,
+      buildFileResult.buildFileId,
+    );
   }
 
   return next;
@@ -873,6 +1091,31 @@ async function ensureIosXcodeProjectSwiftPackage(rootDir) {
   return patchedPaths;
 }
 
+async function ensureIosXcodeProjectNativeSources(rootDir) {
+  const pbxprojPaths = await findIosXcodeProjectFiles(rootDir);
+  const patchedPaths = [];
+
+  for (const pbxprojPath of pbxprojPaths) {
+    let original;
+    try {
+      original = await readFile(pbxprojPath, 'utf8');
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        continue;
+      }
+      throw error;
+    }
+
+    const patched = patchIosXcodeProjectNativeSources(original);
+    if (patched !== original) {
+      await writeFile(pbxprojPath, patched, 'utf8');
+      patchedPaths.push(pbxprojPath);
+    }
+  }
+
+  return patchedPaths;
+}
+
 function patchAndroidAppActivityBridgeAttachment(content) {
   let next = content;
 
@@ -1117,6 +1360,7 @@ async function integrateIosExport(rootDir) {
     await ensureIosRtcUsageDescriptions(nativeSourceDir);
   }
 
+  await ensureIosXcodeProjectNativeSources(rootDir);
   await ensureIosXcodeProjectSwiftPackage(rootDir);
 }
 
@@ -1154,6 +1398,7 @@ async function onBeforeMake(rootDir, options = {}) {
   ).toLowerCase();
 
   if (platform === 'ios' || rootDir.includes('/ios')) {
+    await ensureIosXcodeProjectNativeSources(rootDir);
     await ensureIosXcodeProjectSwiftPackage(rootDir);
   }
 }
@@ -1170,6 +1415,7 @@ module.exports = {
   ensureAndroidRtcPermissions,
   ensureIosRtcUsageDescriptions,
   ensureIosXcodeProjectSwiftPackage,
+  ensureIosXcodeProjectNativeSources,
   ensureIosCMakeRtcBridgeSources,
   ensureNativeEngineTextureBridge,
   ensureIosAppDelegateBridgeAttachment,
@@ -1179,6 +1425,7 @@ module.exports = {
   patchAndroidRtcPermissions,
   patchIosRtcUsageDescriptions,
   patchIosXcodeProjectBuildSettingsForSwiftPackage,
+  patchIosXcodeProjectNativeSources,
   patchIosWorkspaceSettingsForSwiftPackage,
   patchIosCMakeRtcBridgeSources,
   patchIosXcodeProjectSwiftPackage,

@@ -251,6 +251,34 @@ test('ios swift bridge template passes a syntax-only compile', async () => {
   await execFileAsync('/usr/bin/swiftc', ['-parse', swiftFile]);
 });
 
+test('ios swift bridge template uses Swift-compatible Foundation and AVFoundation APIs', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  assert.match(
+    bridgeContent,
+    /let request = \(try\? JSONSerialization\.jsonObject\(with: data\)\) as\? \[String: Any\]/,
+  );
+  assert.doesNotMatch(
+    bridgeContent,
+    /try\? JSONSerialization\.jsonObject\(with: data\) as\? \[String: Any\]/,
+  );
+  assert.match(
+    bridgeContent,
+    /switch AVAudioSession\.sharedInstance\(\)\.recordPermission \{/,
+  );
+  assert.doesNotMatch(
+    bridgeContent,
+    /AVAudioSession\.sharedInstance\(\)\.recordPermission\(\)/,
+  );
+  assert.doesNotMatch(bridgeContent, /NSStringFromCGRect|NSStringFromCGSize/);
+  assert.match(bridgeContent, /NSCoder\.string\(for: view\.frame\)/);
+  assert.match(bridgeContent, /NSCoder\.string\(for: rootView\.bounds\)/);
+  assert.match(bridgeContent, /NSCoder\.string\(for: size\)/);
+});
+
 test('engine-texture backend keeps template/runtime slot upload dimensions in sync', async () => {
   const templateLimits = await readEngineTextureLimits(engineTextureBackendTemplate);
   const runtimeLimits = await readEngineTextureLimits(engineTextureBackendRuntime);
