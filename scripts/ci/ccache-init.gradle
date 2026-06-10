@@ -1,0 +1,31 @@
+// CI-only Gradle init script: route NDK C/C++ compilation through ccache.
+//
+// The Cocos Creator engine is compiled from source on every CI run (~700 C++
+// objects, ~17 min cold). GitHub-hosted runners are ephemeral, but actions/cache
+// restores the ccache directory from GitHub's cache service before the build and
+// saves it back afterwards, so the compiled objects are reused across runs and a
+// warm build drops to ~1-2 min.
+//
+// We inject CMAKE_<LANG>_COMPILER_LAUNCHER instead of editing the Cocos-generated
+// Gradle/CMake files. The engine's externalNativeBuild lives inside the Cocos
+// installation, so an init script applied to every project is the only clean hook.
+// Applied via: ./gradlew ... --init-script scripts/ci/ccache-init.gradle
+//
+// The compiler launcher binary is taken from CCACHE_BIN (defaults to "ccache",
+// resolved on PATH). If ccache is unavailable the build still succeeds; CMake just
+// fails to find the launcher, so the workflow must ensure ccache is installed.
+
+def ccacheBin = System.getenv('CCACHE_BIN') ?: 'ccache'
+
+gradle.projectsLoaded {
+    rootProject.allprojects {
+        afterEvaluate { project ->
+            if (project.hasProperty('android')) {
+                project.android.defaultConfig.externalNativeBuild.cmake.arguments(
+                    "-DCMAKE_C_COMPILER_LAUNCHER=${ccacheBin}".toString(),
+                    "-DCMAKE_CXX_COMPILER_LAUNCHER=${ccacheBin}".toString()
+                )
+            }
+        }
+    }
+}
