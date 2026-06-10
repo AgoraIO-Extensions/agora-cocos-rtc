@@ -603,6 +603,23 @@ test('android bridge template keeps blocking rtc calls off the Cocos game thread
   assert.match(handleGetAudioMixingCurrentPositionMatch[0], /dispatchNativeExceptionError\(requestId, "getAudioMixingCurrentPosition", error\)/);
 });
 
+test('ios bridge resolves destroy before running sdk teardown', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  const destroyMatch = bridgeContent.match(/case "destroy":[\s\S]*?case "setupLocalVideoView":/);
+  assert.ok(destroyMatch);
+  assertPatternBefore(
+    destroyMatch[0],
+    /dispatchResponse\(\[\s*"requestId": requestId,\s*"ok": true,\s*\]\)/,
+    /AgoraRtcEngineKit\.destroy\(\)/,
+    'iOS destroy must resolve the JS request before running the potentially blocking sdk teardown',
+  );
+  assert.match(destroyMatch[0], /DispatchQueue\.global\(qos: \.utility\)\.async/);
+});
+
 test('android bridge template returns errors for bad native requests instead of timing out', async () => {
   const bridgeContent = await readFile(
     path.join(

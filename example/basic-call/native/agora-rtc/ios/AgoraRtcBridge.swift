@@ -627,8 +627,8 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "destroy":
+            let shouldDestroyEngine = rtcEngine != nil
             _ = rtcEngine?.setVideoFrameDelegate(nil)
-            AgoraRtcEngineKit.destroy()
             rtcEngine = nil
             clearAllVideoViews()
             releaseAllTextureSlots()
@@ -636,6 +636,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 "requestId": requestId,
                 "ok": true,
             ])
+            if shouldDestroyEngine {
+                DispatchQueue.global(qos: .utility).async {
+                    AgoraRtcEngineKit.destroy()
+                }
+            }
         case "setupLocalVideoView":
             handleSetupLocalVideoView(requestId: requestId, params: params)
         case "setupRemoteVideoView":
