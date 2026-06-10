@@ -173,7 +173,11 @@ terminate_android_process_tree() {
 
 cleanup_android_test() {
   if [[ -n "$ANDROID_TIMEOUT_WATCHDOG_PID" ]]; then
-    kill "$ANDROID_TIMEOUT_WATCHDOG_PID" 2>/dev/null || true
+    # Kill the whole watchdog tree, not just the subshell: `kill <subshell>`
+    # leaves the `sleep` child orphaned and still running, and that orphan keeps
+    # the step's stdout/stderr pipe open, so the GitHub Actions step hangs (~the
+    # remaining sleep time) after the test and emulator teardown have finished.
+    terminate_android_process_tree "$ANDROID_TIMEOUT_WATCHDOG_PID"
     wait "$ANDROID_TIMEOUT_WATCHDOG_PID" 2>/dev/null || true
     ANDROID_TIMEOUT_WATCHDOG_PID=""
   fi
@@ -246,10 +250,21 @@ fi
 
 log_step "Build Android debug APK"
 cd "$ANDROID_PROJECT_DIR"
+# Route the NDK C/C++ build through ccache when available so the Cocos engine
+# objects are reused across CI runs (cache restored via actions/cache). The init
+# script is appended after the task name so the gradle invocation stays valid.
+GRADLE_CCACHE_ARGS=()
+if [[ -n "${CCACHE_INIT_SCRIPT:-}" && -f "${CCACHE_INIT_SCRIPT}" ]] && command -v ccache >/dev/null 2>&1; then
+  GRADLE_CCACHE_ARGS=(--init-script "$CCACHE_INIT_SCRIPT")
+  ccache --zero-stats >/dev/null 2>&1 || true
+fi
 if [[ "$ANDROID_GRADLE_OFFLINE" == "true" ]]; then
-  ./gradlew --offline :agora-cocos-basic-call:assembleDebug
+  ./gradlew --offline :agora-cocos-basic-call:assembleDebug ${GRADLE_CCACHE_ARGS[@]+"${GRADLE_CCACHE_ARGS[@]}"}
 else
-  ./gradlew :agora-cocos-basic-call:assembleDebug
+  ./gradlew :agora-cocos-basic-call:assembleDebug ${GRADLE_CCACHE_ARGS[@]+"${GRADLE_CCACHE_ARGS[@]}"}
+fi
+if [[ ${#GRADLE_CCACHE_ARGS[@]} -gt 0 ]]; then
+  ccache --show-stats 2>/dev/null || true
 fi
 write_android_apk_contents_report
 
