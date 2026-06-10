@@ -299,6 +299,18 @@ test('content inspect config exposes module position in the top-level shorthand'
   assert.match(contentInspectFields, /^\s{2}position\?: number;/m);
 });
 
+test('leave channel options expose native rtc fields', () => {
+  const leaveChannelFields = extractInterfaceContent('AgoraLeaveChannelOptions');
+  assert.match(leaveChannelFields, /^\s{2}stopAudioMixing\?: boolean;/m);
+  assert.match(leaveChannelFields, /^\s{2}stopAllEffect\?: boolean;/m);
+  assert.match(leaveChannelFields, /^\s{2}unloadAllEffect\?: boolean;/m);
+  assert.match(leaveChannelFields, /^\s{2}stopMicrophoneRecording\?: boolean;/m);
+});
+
+test('public video canvas types keep the old rect alias as a compatibility layer', () => {
+  assert.match(sdkTypesSource, /export type AgoraVideoViewRect = AgoraRtcVideoCanvas;/);
+});
+
 test('client surfaces error and volume indication events to subscribed listeners', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -490,6 +502,7 @@ test('joinChannel dispatches optional channel media options from TypeScript', as
     defaultVideoStreamType: 0,
     audioDelayMs: 50,
     mediaPlayerAudioDelayMs: 60,
+    sourceType: 1,
     enableBuiltInMediaEncryption: true,
     publishRhythmPlayerTrack: true,
     isInteractiveAudience: true,
@@ -537,6 +550,7 @@ test('joinChannel dispatches optional channel media options from TypeScript', as
       defaultVideoStreamType: 0,
       audioDelayMs: 50,
       mediaPlayerAudioDelayMs: 60,
+      sourceType: 1,
       enableBuiltInMediaEncryption: true,
       publishRhythmPlayerTrack: true,
       isInteractiveAudience: true,
@@ -917,6 +931,31 @@ test('leaveChannel dispatches the expected native request', async () => {
   );
 
   await pending;
+
+  const optionsPending = client.leaveChannel({
+    stopAudioMixing: false,
+    stopAllEffect: false,
+    unloadAllEffect: true,
+    stopMicrophoneRecording: false,
+  });
+  const optionsRequest = JSON.parse(transport.sent[1].payload);
+  assert.equal(optionsRequest.method, 'leaveChannel');
+  assert.deepEqual(optionsRequest.params, {
+    stopAudioMixing: false,
+    stopAllEffect: false,
+    unloadAllEffect: true,
+    stopMicrophoneRecording: false,
+  });
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: optionsRequest.requestId,
+      ok: true,
+    }),
+  );
+
+  await optionsPending;
 });
 
 test('getSdkVersion dispatches the expected native request', async () => {
@@ -1334,8 +1373,21 @@ test('startPreview and switchCamera dispatch the expected native requests', asyn
   );
   await previewPending;
 
+  const secondaryPreviewPending = client.startPreview(1);
+  const secondaryPreviewRequest = JSON.parse(transport.sent[1].payload);
+  assert.equal(secondaryPreviewRequest.method, 'startPreview');
+  assert.deepEqual(secondaryPreviewRequest.params, { sourceType: 1 });
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: secondaryPreviewRequest.requestId,
+      ok: true,
+    }),
+  );
+  await secondaryPreviewPending;
+
   const switchPending = client.switchCamera();
-  const switchRequest = JSON.parse(transport.sent[1].payload);
+  const switchRequest = JSON.parse(transport.sent[2].payload);
   assert.equal(switchRequest.method, 'switchCamera');
   assert.deepEqual(switchRequest.params, {});
   transport.emit(
@@ -1563,7 +1615,7 @@ test('client dispatches expected native requests for all expanded public APIs', 
     rednessLevel: 0.5,
     sharpnessLevel: 0.5,
   };
-  await testApi('setBeautyEffectOptions', () => client.setBeautyEffectOptions(true, fullBeautyOptions), { enabled: true, options: fullBeautyOptions });
+  await testApi('setBeautyEffectOptions', () => client.setBeautyEffectOptions(true, fullBeautyOptions, 2), { enabled: true, options: fullBeautyOptions, sourceType: 2 });
   assertFixtureCoversInterfaceFields('AgoraBeautyOptions', fullBeautyOptions);
 
   const fullContentInspectConfig = {
@@ -1597,7 +1649,7 @@ test('client dispatches expected native requests for all expanded public APIs', 
 
   await testApi('setAudioMixingPosition', () => client.setAudioMixingPosition(1000), { positionMs: 1000 });
   await testApi('adjustAudioMixingVolume', () => client.adjustAudioMixingVolume(50), { volume: 50 });
-  await testApi('preloadEffect', () => client.preloadEffect(1, '/path'), { soundId: 1, path: '/path' });
+  await testApi('preloadEffect', () => client.preloadEffect(1, '/path', 250), { soundId: 1, path: '/path', startPos: 250 });
   const fullPlayEffectConfig = { soundId: 1, path: '/path', loopCount: 1, pitch: 1, pan: 0, gain: 100, publish: false, startPos: 0 };
   await testApi('playEffect', () => client.playEffect(fullPlayEffectConfig), fullPlayEffectConfig);
   assertFixtureCoversInterfaceFields('AgoraPlayEffectConfig', fullPlayEffectConfig);
@@ -1687,6 +1739,6 @@ test('client dispatches expected native requests for all expanded public APIs', 
   await testApi('removeLocalVideoView', () => client.removeLocalVideoView(), {});
   await testApi('removeRemoteVideoView', () => client.removeRemoteVideoView(123), { uid: 123 });
   await testApi('setNativeVideoOverlaySuspended', () => client.setNativeVideoOverlaySuspended(true), { suspended: true });
-  await testApi('stopPreview', () => client.stopPreview(), {});
+  await testApi('stopPreview', () => client.stopPreview(1), { sourceType: 1 });
   await testApi('renewToken', () => client.renewToken('token123'), { token: 'token123' });
 });

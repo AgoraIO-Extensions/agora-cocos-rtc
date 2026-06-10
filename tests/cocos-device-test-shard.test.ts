@@ -53,7 +53,7 @@ test('cocos api test matrix covers every native Agora method and records paramet
   assert.match(testcasesContent, /loopback/);
   assert.match(
     testcasesContent,
-    /id:\s*'channel\.join'[\s\S]*?expectedParams:[\s\S]*options:[\s\S]*clientRoleType:\s*'broadcaster'[\s\S]*publishCameraTrack:\s*true[\s\S]*publishMicrophoneTrack:\s*false[\s\S]*autoSubscribeAudio:\s*true[\s\S]*autoSubscribeVideo:\s*true/,
+    /id:\s*'channel\.join'[\s\S]*?expectedParams:[\s\S]*options:[\s\S]*clientRoleType:\s*'broadcaster'[\s\S]*publishCameraTrack:\s*true[\s\S]*publishMicrophoneTrack:\s*false[\s\S]*autoSubscribeAudio:\s*true[\s\S]*autoSubscribeVideo:\s*true[\s\S]*startPreview:\s*true[\s\S]*sourceType:\s*0/,
     'device join testcase should record TS-provided ChannelMediaOptions',
   );
   assert.match(
@@ -73,6 +73,28 @@ test('cocos api test matrix covers every native Agora method and records paramet
     'device startAudioMixing testcase must not pass unsupported replace, even when false',
   );
   assert.match(testcasesContent, /renderMode/);
+  assert.match(testcasesContent, /const canvas = \{/);
+  assert.doesNotMatch(testcasesContent, /const rect = \{/);
+  assert.match(
+    testcasesContent,
+    /id:\s*'video\.start-preview'[\s\S]*?expectedParams:\s*\{\s*sourceType:\s*0\s*\}[\s\S]*?client\.startPreview\(0\)/,
+    'device startPreview testcase should exercise JS-provided sourceType',
+  );
+  assert.match(
+    testcasesContent,
+    /id:\s*'video\.beauty'[\s\S]*?sourceType:\s*2[\s\S]*?client\.setBeautyEffectOptions\([\s\S]*,\s*2\)/,
+    'device beauty testcase should exercise JS-provided sourceType',
+  );
+  assert.match(
+    testcasesContent,
+    /id:\s*'effect\.preload'[\s\S]*?startPos:\s*250[\s\S]*?client\.preloadEffect\(1,\s*context\.audioAssetPath,\s*250\)/,
+    'device preloadEffect testcase should exercise JS-provided startPos',
+  );
+  assert.match(
+    testcasesContent,
+    /id:\s*'channel\.leave'[\s\S]*?stopAudioMixing:\s*true[\s\S]*?stopAllEffect:\s*true[\s\S]*?unloadAllEffect:\s*true[\s\S]*?stopMicrophoneRecording:\s*true[\s\S]*?client\.leaveChannel\(\{/,
+    'device leaveChannel testcase should exercise JS-provided leave options',
+  );
 });
 
 test('cocos api test mode isolates the demo runtime from the device runner', async () => {
