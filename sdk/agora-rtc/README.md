@@ -93,8 +93,8 @@ await client.joinChannel(token, channelId, uid);
 - Android uses `io.agora.rtc:full-sdk:4.5.3` and `io.agora.rtc:full-screen-sharing:4.5.3`.
 - iOS uses `AgoraRtcEngine_iOS 4.5.3`.
 - Android supports `setDefaultAudioRouteToSpeakerphone`; Android still returns an explicit `unsupported` response for `setAudioSessionOperationRestriction`.
-- Android `ChannelMediaOptions` supports multipath fields. The iOS 4.5.3 `AgoraRtcChannelMediaOptions` headers do not expose multipath fields.
-- Android content inspect modules support `position`. The iOS 4.5.3 `AgoraContentInspectModule` header exposes `type` and `interval`.
+- Android and iOS 4.5.3 `ChannelMediaOptions` both expose multipath fields; macOS-only screen/camera track fields are not part of the iOS Cocos bridge.
+- Android and iOS 4.5.3 content inspect modules both expose `position`.
 - `engine-texture` is the main Cocos texture rendering path for video frames.
 - `AudioEffectMixing` effect pause/resume and effect volume map to native audio effect APIs; audio mixing publish/playout volume maps to native audio mixing APIs.
 

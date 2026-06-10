@@ -29,11 +29,13 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       final int slotId;
       final int width;
       final int height;
+      final boolean mirror;
 
-      TextureSlotState(int slotId, int width, int height) {
+      TextureSlotState(int slotId, int width, int height, boolean mirror) {
         this.slotId = slotId;
         this.width = width;
         this.height = height;
+        this.mirror = mirror;
       }
     }
 
@@ -94,7 +96,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
     public void setupLocalVideoView(Activity activity, JSONObject params, AgoraRenderResultCallback callback) {
       CocosHelper.runOnGameThread(() -> {
         localTextureRequested = true;
-        ensureLocalTextureSlot();
+        ensureLocalTextureSlot(params);
         callback.onSuccess();
       });
     }
@@ -104,7 +106,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       CocosHelper.runOnGameThread(() -> {
         int uid = params != null ? params.optInt("uid") : 0;
         remoteTextureUids.add(uid);
-        ensureRemoteTextureSlot(uid);
+        ensureRemoteTextureSlot(uid, params);
         callback.onSuccess();
       });
     }
@@ -257,7 +259,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       VideoFrame.I420Buffer i420Buffer = null;
       try {
         final int rotation = normalizeRotation(videoFrame.getRotation());
-        final boolean mirror = false;
+        final boolean mirror = slot.mirror;
         i420Buffer = videoFrame.getBuffer().toI420();
         if (i420Buffer == null) {
           return;
@@ -333,38 +335,74 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       return 0;
     }
 
-    private void ensureLocalTextureSlot() {
-      if (localTextureSlot != null) {
+    private void ensureLocalTextureSlot(JSONObject params) {
+      int width = resolveTextureWidth(params, true);
+      int height = resolveTextureHeight(params, true);
+      boolean mirror = resolveMirror(params);
+      if (
+          localTextureSlot != null
+              && localTextureSlot.width == width
+              && localTextureSlot.height == height
+              && localTextureSlot.mirror == mirror
+      ) {
         return;
       }
-      localTextureSlot = createTextureSlotState(LOCAL_TARGET_WIDTH, LOCAL_TARGET_HEIGHT);
+      releaseLocalTextureSlot();
+      localTextureSlot = createTextureSlotState(width, height, mirror);
       dispatchTextureReadyEvent(
           "localVideoTextureReady",
           0,
           localTextureSlot.slotId,
-          LOCAL_TARGET_WIDTH,
-          LOCAL_TARGET_HEIGHT
+          width,
+          height
       );
     }
 
-    private void ensureRemoteTextureSlot(int uid) {
-      if (uid == 0 || remoteTextureSlots.containsKey(uid)) {
+    private void ensureRemoteTextureSlot(int uid, JSONObject params) {
+      if (uid == 0) {
         return;
       }
-      TextureSlotState slot = createTextureSlotState(REMOTE_TARGET_WIDTH, REMOTE_TARGET_HEIGHT);
+      int width = resolveTextureWidth(params, false);
+      int height = resolveTextureHeight(params, false);
+      boolean mirror = resolveMirror(params);
+      TextureSlotState existing = remoteTextureSlots.get(uid);
+      if (existing != null && existing.width == width && existing.height == height && existing.mirror == mirror) {
+        return;
+      }
+      releaseRemoteTextureSlot(uid);
+      TextureSlotState slot = createTextureSlotState(width, height, mirror);
       remoteTextureSlots.put(uid, slot);
       dispatchTextureReadyEvent(
           "remoteVideoTextureReady",
           uid,
           slot.slotId,
-          REMOTE_TARGET_WIDTH,
-          REMOTE_TARGET_HEIGHT
+          width,
+          height
       );
     }
 
-    private TextureSlotState createTextureSlotState(int width, int height) {
+    private int resolveTextureWidth(JSONObject params, boolean local) {
+      int fallback = local ? LOCAL_TARGET_WIDTH : REMOTE_TARGET_WIDTH;
+      return resolvePositiveInt(params, "textureWidth", params != null ? params.optInt("width", fallback) : fallback);
+    }
+
+    private int resolveTextureHeight(JSONObject params, boolean local) {
+      int fallback = local ? LOCAL_TARGET_HEIGHT : REMOTE_TARGET_HEIGHT;
+      return resolvePositiveInt(params, "textureHeight", params != null ? params.optInt("height", fallback) : fallback);
+    }
+
+    private boolean resolveMirror(JSONObject params) {
+      return params != null && params.optInt("mirrorMode", 0) == 1;
+    }
+
+    private int resolvePositiveInt(JSONObject params, String key, int fallback) {
+      int value = params != null ? params.optInt(key, fallback) : fallback;
+      return Math.max(1, value);
+    }
+
+    private TextureSlotState createTextureSlotState(int width, int height, boolean mirror) {
       int slotId = AgoraEngineTextureSlotBridge.nativeCreateSlot(width, height);
-      return new TextureSlotState(slotId, width, height);
+      return new TextureSlotState(slotId, width, height, mirror);
     }
 
     private void releaseLocalTextureSlot() {
