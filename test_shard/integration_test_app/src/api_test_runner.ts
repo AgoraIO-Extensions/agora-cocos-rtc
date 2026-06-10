@@ -1,7 +1,7 @@
 import { native, sys } from 'cc';
 
-import { createAgoraRtcClient, type AgoraRtcClient } from '../../agora-rtc-sdk/agora.ts';
-import { resolveBridgeTransport } from '../../agora-rtc-sdk/internal/bridge.ts';
+import { createAgoraRtcClient, type AgoraRtcClient } from '../../../extensions/agora-rtc/js/agora.ts';
+import { resolveBridgeTransport } from '../../../extensions/agora-rtc/js/internal/bridge.ts';
 import { API_CALL_TESTCASES, type ApiCallCase, type ApiTestContext } from './api_call_testcases.ts';
 import { getWritablePath, writeJsonReport, type ApiCaseReport, type ApiTestReport } from './api_test_report.ts';
 
