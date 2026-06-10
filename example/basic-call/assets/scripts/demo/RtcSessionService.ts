@@ -8,7 +8,7 @@ import {
 } from 'cc';
 
 import { createAgoraRtcClient, type AgoraRtcClient } from '../../../extensions/agora-rtc/js/agora.ts';
-import type { AgoraVideoViewRect } from '../../../extensions/agora-rtc/js/types.ts';
+import type { AgoraRtcVideoCanvas } from '../../../extensions/agora-rtc/js/types.ts';
 import type {
   ChannelProfile,
   ClientRole,
@@ -794,13 +794,25 @@ export class RtcSessionService {
 
   private async setupLocalVideoView(): Promise<void> {
     const node = this.options.getLocalVideoNode();
-    await this.getClient().setupLocalVideoView(this.resolveNodeRect(node, 'hidden'));
+    await this.getClient().setupLocalVideoView({
+      ...this.resolveNodeRect(node, 'hidden'),
+      uid: 0,
+      mirrorMode: 0,
+      setupMode: 0,
+      sourceType: 0,
+    });
     this.localViewAttached = true;
   }
 
   private async setupRemoteVideoView(uid: number): Promise<void> {
     const node = this.options.getRemoteVideoNode(uid);
-    await this.getClient().setupRemoteVideoView(uid, this.resolveNodeRect(node, 'fit'));
+    await this.getClient().setupRemoteVideoView(uid, {
+      ...this.resolveNodeRect(node, 'fit'),
+      uid,
+      mirrorMode: 2,
+      setupMode: 0,
+      sourceType: 0,
+    });
   }
 
   private bindNativeTextureSprite(
@@ -893,14 +905,18 @@ export class RtcSessionService {
     return spriteFrame;
   }
 
-  private resolveNodeRect(node: Node | null, renderMode: 'hidden' | 'fit'): AgoraVideoViewRect {
+  private resolveNodeRect(node: Node | null, renderMode: 'hidden' | 'fit' | 'adaptive'): AgoraRtcVideoCanvas {
     const size = node?.getComponent(UITransform)?.contentSize;
+    const width = Math.max(1, Math.round(size?.width ?? 320));
+    const height = Math.max(1, Math.round(size?.height ?? 180));
     return {
       x: 0,
       y: 0,
-      width: Math.max(1, Math.round(size?.width ?? 320)),
-      height: Math.max(1, Math.round(size?.height ?? 180)),
+      width,
+      height,
       renderMode,
+      textureWidth: width,
+      textureHeight: height,
     };
   }
 

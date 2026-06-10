@@ -1,7 +1,7 @@
 package io.agora.cocos.rtc.render;
 
 import android.app.Activity;
-import android.view.View;
+import android.graphics.Rect;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -54,16 +54,13 @@ public abstract class AbstractNativeViewRenderBackend implements AgoraRenderBack
         if (localVideoView == null) {
           localVideoView = createRendererView(activity, true);
           videoContainer.addView(localVideoView);
-          rtcEngine.setupLocalVideo(new VideoCanvas(
-              localVideoView,
-              resolveRenderMode(params),
-              0
-          ));
         } else if (localVideoView.getParent() == null) {
           videoContainer.addView(localVideoView);
         }
 
         applyLayout(localVideoView, params);
+        rtcEngine.setupLocalVideo(buildVideoCanvas(localVideoView, params, 0));
+        rtcEngine.setLocalRenderMode(resolveRenderMode(params), resolveMirrorMode(params));
         callback.onSuccess();
       });
     }
@@ -75,7 +72,7 @@ public abstract class AbstractNativeViewRenderBackend implements AgoraRenderBack
         return;
       }
 
-      final int uid = params != null ? params.optInt("uid") : 0;
+      final int uid = resolveUid(params, 0);
       activity.runOnUiThread(() -> {
         ensureVideoContainer(activity);
         View remoteView = remoteVideoViews.get(uid);
@@ -83,16 +80,13 @@ public abstract class AbstractNativeViewRenderBackend implements AgoraRenderBack
           remoteView = createRendererView(activity, false);
           remoteVideoViews.put(uid, remoteView);
           videoContainer.addView(remoteView);
-          rtcEngine.setupRemoteVideo(new VideoCanvas(
-              remoteView,
-              resolveRenderMode(params),
-              uid
-          ));
         } else if (remoteView.getParent() == null) {
           videoContainer.addView(remoteView);
         }
 
         applyLayout(remoteView, params);
+        rtcEngine.setupRemoteVideo(buildVideoCanvas(remoteView, params, uid));
+        rtcEngine.setRemoteRenderMode(uid, resolveRenderMode(params), resolveMirrorMode(params));
         callback.onSuccess();
       });
     }
@@ -104,18 +98,26 @@ public abstract class AbstractNativeViewRenderBackend implements AgoraRenderBack
         return;
       }
       applyLayout(localVideoView, params);
+      if (rtcEngine != null) {
+        rtcEngine.setupLocalVideo(buildVideoCanvas(localVideoView, params, 0));
+        rtcEngine.setLocalRenderMode(resolveRenderMode(params), resolveMirrorMode(params));
+      }
       callback.onSuccess();
     }
 
     @Override
     public void updateRemoteVideoView(JSONObject params, AgoraRenderResultCallback callback) {
-      int uid = params != null ? params.optInt("uid") : 0;
+      int uid = resolveUid(params, 0);
       View remoteView = remoteVideoViews.get(uid);
       if (remoteView == null) {
         callback.onError("Remote video view is not attached.");
         return;
       }
       applyLayout(remoteView, params);
+      if (rtcEngine != null) {
+        rtcEngine.setupRemoteVideo(buildVideoCanvas(remoteView, params, uid));
+        rtcEngine.setRemoteRenderMode(uid, resolveRenderMode(params), resolveMirrorMode(params));
+      }
       callback.onSuccess();
     }
 
@@ -130,7 +132,7 @@ public abstract class AbstractNativeViewRenderBackend implements AgoraRenderBack
 
     @Override
     public void removeRemoteVideoView(JSONObject params, AgoraRenderResultCallback callback) {
-      int uid = params != null ? params.optInt("uid") : 0;
+      int uid = resolveUid(params, 0);
       View remoteView = remoteVideoViews.remove(uid);
       if (remoteView != null && remoteView.getParent() instanceof ViewGroup) {
         ((ViewGroup) remoteView.getParent()).removeView(remoteView);
@@ -223,7 +225,83 @@ public abstract class AbstractNativeViewRenderBackend implements AgoraRenderBack
 
     protected int resolveRenderMode(JSONObject params) {
       String renderMode = params != null ? params.optString("renderMode", "hidden") : "hidden";
-      return "fit".equals(renderMode) ? Constants.RENDER_MODE_FIT : Constants.RENDER_MODE_HIDDEN;
+      return "adaptive".equals(renderMode) ? Constants.RENDER_MODE_ADAPTIVE
+          : "fit".equals(renderMode) ? Constants.RENDER_MODE_FIT
+          : Constants.RENDER_MODE_HIDDEN;
+    }
+
+    private VideoCanvas buildVideoCanvas(View view, JSONObject params, int fallbackUid) {
+      VideoCanvas canvas = new VideoCanvas(view, resolveRenderMode(params), resolveUid(params, fallbackUid));
+      canvas.uid = resolveUid(params, fallbackUid);
+      canvas.subviewUid = resolveSubviewUid(params);
+      canvas.renderMode = resolveRenderMode(params);
+      canvas.mirrorMode = resolveMirrorMode(params);
+      canvas.setupMode = resolveVideoViewSetupMode(params);
+      canvas.sourceType = resolveVideoSourceType(params);
+      canvas.mediaPlayerId = resolveMediaPlayerId(params);
+      if (params != null) {
+        Rect cropArea = resolveCropArea(params.optJSONObject("cropArea"));
+        if (cropArea != null) {
+          canvas.rect = cropArea;
+        }
+        canvas.enableAlphaMask = params.optBoolean("enableAlphaMask", canvas.enableAlphaMask);
+        canvas.backgroundColor = params.optInt("backgroundColor", canvas.backgroundColor);
+        canvas.position = resolveVideoModulePosition(params);
+      }
+      return canvas;
+    }
+
+    protected int resolveUid(JSONObject params, int fallbackUid) {
+      return params != null ? params.optInt("uid", fallbackUid) : fallbackUid;
+    }
+
+    protected int resolveSubviewUid(JSONObject params) {
+      return params != null ? params.optInt("subviewUid", 0) : 0;
+    }
+
+    protected int resolveMirrorMode(JSONObject params) {
+      return params != null ? params.optInt("mirrorMode", 0) : 0;
+    }
+
+    protected int resolveVideoViewSetupMode(JSONObject params) {
+      return params != null ? params.optInt("setupMode", 0) : 0;
+    }
+
+    protected int resolveVideoSourceType(JSONObject params) {
+      return params != null ? params.optInt("sourceType", 0) : 0;
+    }
+
+    protected int resolveMediaPlayerId(JSONObject params) {
+      return params != null ? params.optInt("mediaPlayerId", 0) : 0;
+    }
+
+    protected Rect resolveCropArea(JSONObject cropArea) {
+      if (cropArea == null) {
+        return null;
+      }
+      return new Rect(
+          cropArea.optInt("x", 0),
+          cropArea.optInt("y", 0),
+          cropArea.optInt("x", 0) + cropArea.optInt("width", 0),
+          cropArea.optInt("y", 0) + cropArea.optInt("height", 0)
+      );
+    }
+
+    protected Constants.VideoModulePosition resolveVideoModulePosition(JSONObject params) {
+      if (params == null || !params.has("position") || params.isNull("position")) {
+        return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_POST_CAPTURER;
+      }
+      switch (params.optInt("position", 1)) {
+        case 2:
+          return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_PRE_RENDERER;
+        case 4:
+          return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_PRE_ENCODER;
+        case 8:
+          return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_POST_CAPTURER_ORIGIN;
+        case 1:
+        default:
+          return Constants.VideoModulePosition.VIDEO_MODULE_POSITION_POST_CAPTURER;
+      }
     }
 
     protected void applyLayout(View targetView, JSONObject params) {
