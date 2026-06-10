@@ -33,14 +33,6 @@ ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_SDK_ROOT_DEFAULT}"
 ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
 ANDROID_GRADLE_OFFLINE="${ANDROID_GRADLE_OFFLINE:-false}"
 LOCAL_AGORA_MAVEN_DIR="$ROOT_DIR/example/basic-call/native/engine/android/local-maven"
-# Gradle flags that stop CI from stalling after `assembleRelease` reports success.
-# A lingering Gradle daemon and its file-system-watch thread are the usual cause
-# of "compile finished but the step hangs for a long time": --no-daemon runs the
-# build in a single-use JVM that exits as soon as the build is done,
-# -Dorg.gradle.vfs.watch=false drops the background watcher thread, and
-# --console=plain avoids interactive progress threads. The flags are appended
-# after the task name so they stay valid and keep the task invocation readable.
-ANDROID_GRADLE_CI_ARGS=("--no-daemon" "--console=plain" "-Dorg.gradle.vfs.watch=false")
 
 IOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/ios-release.json"
 IOS_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-ios/ios/proj"
@@ -289,9 +281,9 @@ if should_build_platform "android"; then
   (
     cd "$ANDROID_PROJECT_DIR"
     if [[ "$ANDROID_GRADLE_OFFLINE" == "true" ]]; then
-      ./gradlew --offline :agora-cocos-basic-call:assembleRelease "${ANDROID_GRADLE_CI_ARGS[@]}"
+      ./gradlew --offline :agora-cocos-basic-call:assembleRelease
     else
-      ./gradlew :agora-cocos-basic-call:assembleRelease "${ANDROID_GRADLE_CI_ARGS[@]}"
+      ./gradlew :agora-cocos-basic-call:assembleRelease
     fi
   )
 

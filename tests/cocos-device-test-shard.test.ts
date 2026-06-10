@@ -282,6 +282,12 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /ANDROID_GRADLE_OFFLINE=/);
   assert.match(androidScript, /\.\/gradlew :agora-cocos-basic-call:assembleDebug/);
   assert.match(androidScript, /\.\/gradlew --offline :agora-cocos-basic-call:assembleDebug/);
+  // ccache: route the NDK build through a launcher when available so engine
+  // objects are reused across CI runs. Flags appended after the task name.
+  assert.match(androidScript, /CCACHE_INIT_SCRIPT/);
+  assert.match(androidScript, /command -v ccache/);
+  assert.match(androidScript, /GRADLE_CCACHE_ARGS=\(--init-script "\$CCACHE_INIT_SCRIPT"\)/);
+  assert.match(androidScript, /assembleDebug \$\{GRADLE_CCACHE_ARGS\[@\]\+"\$\{GRADLE_CCACHE_ARGS\[@\]\}"\}/);
   assert.doesNotMatch(androidScript, /\$\{\(@f\)/);
 
   assert.match(iosScript, /^#!\/usr\/bin\/env bash/);
@@ -514,10 +520,27 @@ test('cocos run_test workflow exposes unit and device integration jobs', async (
   assert.match(workflow, /ANDROID_NDK_HOME=/);
   assert.match(workflow, /reactivecircus\/android-emulator-runner@v2/);
   assert.match(workflow, /Run Android Cocos API tests[\s\S]*timeout-minutes: 45/);
+  // ccache wiring for the Android native build (cross-run object reuse).
+  assert.match(workflow, /CCACHE_DIR: \$\{\{ github\.workspace \}\}\/\.ccache/);
+  assert.match(workflow, /CCACHE_INIT_SCRIPT: \$\{\{ github\.workspace \}\}\/scripts\/ci\/ccache-init\.gradle/);
+  assert.match(workflow, /brew install ccache/);
+  assert.match(workflow, /name: Cache ccache objects[\s\S]*uses: actions\/cache@v4[\s\S]*\.ccache/);
+  assert.match(workflow, /key: ccache-android-\$\{\{ runner\.os \}\}-\$\{\{ github\.sha \}\}/);
+  assert.match(workflow, /restore-keys:[\s\S]*ccache-android-\$\{\{ runner\.os \}\}-/);
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_android\.sh/);
   assert.match(workflow, /arch: x86_64/);
   assert.match(workflow, /integration_test_ios:/);
   assert.match(workflow, /futureware-tech\/simulator-action@v4/);
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_ios\.sh/);
   assert.match(workflow, /test_shard\/integration_test_app\/reports/);
+});
+
+test('ccache gradle init script injects compiler launchers into native builds', async () => {
+  const initScript = await readFile(`${repoRoot}/scripts/ci/ccache-init.gradle`, 'utf8');
+
+  assert.match(initScript, /System\.getenv\('CCACHE_BIN'\)/);
+  assert.match(initScript, /allprojects/);
+  assert.match(initScript, /hasProperty\('android'\)/);
+  assert.match(initScript, /-DCMAKE_C_COMPILER_LAUNCHER=/);
+  assert.match(initScript, /-DCMAKE_CXX_COMPILER_LAUNCHER=/);
 });
