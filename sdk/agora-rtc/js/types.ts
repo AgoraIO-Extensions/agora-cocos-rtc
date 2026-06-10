@@ -201,8 +201,10 @@ export interface AgoraChannelMediaOptions {
   defaultVideoStreamType?: number;
   audioDelayMs?: number;
   mediaPlayerAudioDelayMs?: number;
-  /** Android ChannelMediaOptions only. iOS exposes preview through startPreview(). */
+  /** Android ChannelMediaOptions field. On iOS the bridge uses this to call startPreview before join. */
   startPreview?: boolean;
+  /** iOS bridge helper for startPreview when startPreview is true. Android ChannelMediaOptions does not expose this field. */
+  sourceType?: number;
   enableBuiltInMediaEncryption?: boolean;
   publishRhythmPlayerTrack?: boolean;
   isInteractiveAudience?: boolean;
@@ -214,6 +216,13 @@ export interface AgoraChannelMediaOptions {
   preferMultipathType?: number;
   token?: string;
   parameters?: string;
+}
+
+export interface AgoraLeaveChannelOptions {
+  stopAudioMixing?: boolean;
+  stopAllEffect?: boolean;
+  unloadAllEffect?: boolean;
+  stopMicrophoneRecording?: boolean;
 }
 
 export interface AgoraAudioMixingConfig {

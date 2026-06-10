@@ -13,6 +13,7 @@ import {
   type AgoraPlayEffectConfig,
   type AgoraRtcEngineConfig,
   type AgoraRtcVideoCanvas,
+  type AgoraLeaveChannelOptions,
   type AgoraUserInfo,
   type AgoraVideoEncoderConfiguration,
   type AgoraBridgeEvent,
@@ -153,8 +154,8 @@ export class AgoraRtcClient {
     return this.#invoke('getUserInfoByUserAccount', { userAccount }) as Promise<AgoraUserInfo>;
   }
 
-  leaveChannel(): Promise<void> {
-    return this.#invoke('leaveChannel', {}) as Promise<void>;
+  leaveChannel(options?: AgoraLeaveChannelOptions): Promise<void> {
+    return this.#invoke('leaveChannel', options === undefined ? {} : { ...options }) as Promise<void>;
   }
 
   renewToken(token: string): Promise<void> {
@@ -265,20 +266,24 @@ export class AgoraRtcClient {
     return this.#invoke('setNativeVideoOverlaySuspended', { suspended }) as Promise<void>;
   }
 
-  startPreview(): Promise<void> {
-    return this.#invoke('startPreview', {}) as Promise<void>;
+  startPreview(sourceType?: number): Promise<void> {
+    return this.#invoke('startPreview', sourceType === undefined ? {} : { sourceType }) as Promise<void>;
   }
 
-  stopPreview(): Promise<void> {
-    return this.#invoke('stopPreview', {}) as Promise<void>;
+  stopPreview(sourceType?: number): Promise<void> {
+    return this.#invoke('stopPreview', sourceType === undefined ? {} : { sourceType }) as Promise<void>;
   }
 
   switchCamera(): Promise<void> {
     return this.#invoke('switchCamera', {}) as Promise<void>;
   }
 
-  setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions): Promise<void> {
-    return this.#invoke('setBeautyEffectOptions', { enabled, options }) as Promise<void>;
+  setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number): Promise<void> {
+    const params: Record<string, unknown> = { enabled, options };
+    if (sourceType !== undefined) {
+      params.sourceType = sourceType;
+    }
+    return this.#invoke('setBeautyEffectOptions', params) as Promise<void>;
   }
 
   enableContentInspect(enabled: boolean, config?: AgoraContentInspectConfig): Promise<void> {
@@ -325,8 +330,12 @@ export class AgoraRtcClient {
     return this.#invoke('adjustAudioMixingVolume', { volume }) as Promise<void>;
   }
 
-  preloadEffect(soundId: number, path: string): Promise<void> {
-    return this.#invoke('preloadEffect', { soundId, path }) as Promise<void>;
+  preloadEffect(soundId: number, path: string, startPos?: number): Promise<void> {
+    const params: { soundId: number; path: string; startPos?: number } = { soundId, path };
+    if (startPos !== undefined) {
+      params.startPos = startPos;
+    }
+    return this.#invoke('preloadEffect', params) as Promise<void>;
   }
 
   playEffect(config: AgoraPlayEffectConfig): Promise<void> {
