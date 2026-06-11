@@ -324,7 +324,7 @@ export class DemoActionPanel extends Component {
     ensureLabelNode(parent, 'ChannelLabel', 174, 20, 'Channel', 12).node.setPosition(-92, 34, 0);
     ensureLabelNode(parent, 'UidLabel', 78, 20, 'UID', 12).node.setPosition(95, 34, 0);
     this.channelInput = this.ensureEditBox(parent, 'ChannelInput', -92, 8, 174, this.config?.channelId ?? 'demo');
-    this.uidInput = this.ensureEditBox(parent, 'UidInput', 95, 8, 78, String(this.config?.uid ?? 1001));
+    this.uidInput = this.ensureEditBox(parent, 'UidInput', 95, 8, 78, String(this.config?.uid ?? 0));
     this.statusLabel = ensureLabelNode(parent, 'StatusLabel', 360, 22, '', 12, COLORS.textMuted);
     this.statusLabel.node.setPosition(0, -22, 0);
     const join = this.ensureActionButton(parent, 'JoinChannel', 0, -52, 210, 38, 'primary');
@@ -506,7 +506,7 @@ export class DemoActionPanel extends Component {
     node.setPosition(x, y, 0);
     ensureTransform(node, width, 30);
     const editBox = node.getComponent(EditBox) ?? node.addComponent(EditBox);
-    editBox.placeholder = name === 'UidInput' ? '1001' : 'demo';
+    editBox.placeholder = name === 'UidInput' ? '0' : 'demo';
     editBox.textLabel = this.ensureEditBoxLabel(node, 'TEXT_LABEL', width - 12, value, COLORS.textPrimary);
     editBox.placeholderLabel = this.ensureEditBoxLabel(node, 'PLACEHOLDER_LABEL', width - 12, editBox.placeholder, COLORS.textMuted);
     editBox.string = editBox.string || value;
@@ -643,7 +643,7 @@ export class DemoActionPanel extends Component {
     const parsedUid = Number(this.uidInput?.string ?? '');
     this.onApplyConfig?.({
       channelId: this.channelInput?.string.trim() || this.config?.channelId || 'demo',
-      uid: Number.isFinite(parsedUid) ? Math.max(0, Math.floor(parsedUid)) : this.config?.uid ?? 1001,
+      uid: Number.isFinite(parsedUid) ? Math.max(0, Math.floor(parsedUid)) : this.config?.uid ?? 0,
     });
   }
 

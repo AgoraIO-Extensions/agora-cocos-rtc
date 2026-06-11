@@ -537,7 +537,7 @@ test('example ships a runtime Agora config template', async () => {
   assert.match(content, /"appId": "<YOUR_AGORA_APP_ID>"/);
   assert.match(content, /"channelId": "<YOUR_CHANNEL_ID>"/);
   assert.doesNotMatch(content, /\bappId["']?\s*:\s*["'][0-9a-f]{32}["']/i);
-  assert.match(content, /"uid": 1001/);
+  assert.match(content, /"uid": 0/);
   assert.match(content, /"renderBackend": "engine-texture"/);
 });
 

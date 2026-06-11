@@ -255,7 +255,7 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /AGORA_COCOS_TEST_MODE=api/);
   assert.match(androidScript, /cocos-android-\$\{GITHUB_RUN_ID:-local\}-\$\{GITHUB_RUN_ATTEMPT:-1\}/);
   assert.match(androidScript, /TEST_CHANNEL_ID="\$\{TEST_CHANNEL_ID:-\$\{CHANNEL_ID:-\$DEFAULT_TEST_CHANNEL_ID\}\}"/);
-  assert.match(androidScript, /TEST_UID="\$\{TEST_UID:-1001\}"/);
+  assert.match(androidScript, /TEST_UID="\$\{TEST_UID:-0\}"/);
   assert.match(androidScript, /adb/);
   assert.match(androidScript, /logcat/);
   assert.match(androidScript, /TEST_TIMEOUT_SECONDS/);
@@ -324,7 +324,7 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /AGORA_COCOS_TEST_MODE=api/);
   assert.match(iosScript, /cocos-ios-\$\{GITHUB_RUN_ID:-local\}-\$\{GITHUB_RUN_ATTEMPT:-1\}/);
   assert.match(iosScript, /TEST_CHANNEL_ID="\$\{TEST_CHANNEL_ID:-\$\{CHANNEL_ID:-\$DEFAULT_TEST_CHANNEL_ID\}\}"/);
-  assert.match(iosScript, /TEST_UID="\$\{TEST_UID:-1002\}"/);
+  assert.match(iosScript, /TEST_UID="\$\{TEST_UID:-0\}"/);
   assert.match(iosScript, /xcrun simctl/);
   assert.match(iosScript, /TEST_TIMEOUT_SECONDS/);
   assert.match(iosScript, /SECONDS=0[\s\S]*while \[\[ \$SECONDS -lt \$TEST_TIMEOUT_SECONDS \]\]/);
