@@ -32,6 +32,12 @@ example/basic-call/build-ios-logs
 example/basic-call/local-maven/
 example/basic-call/native/engine/
 example/basic-call/native/engine/android/**/*/assets
+example/basic-call/assets/scripts/cocos-device-tests/
+example/basic-call/assets/scripts/cocos-device-tests.meta
+test_shard/integration_test_app/reports/*.json
+test_shard/integration_test_app/reports/*.md
+test_shard/integration_test_app/reports/*.log
+test_shard/integration_test_app/reports/*.txt
 
 # prepare-example.sh creates this local symlink to the SDK package.
 example/basic-call/extensions/agora-rtc
