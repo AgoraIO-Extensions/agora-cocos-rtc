@@ -19,7 +19,7 @@ export type ApiCallCase = {
   run: (client: AgoraRtcClient, context: ApiTestContext) => Promise<unknown>;
 };
 
-const remoteUid = 2002;
+const remoteUid = 42422;
 const userAccount = 'cocos-user-0';
 const canvas = {
   x: 24,

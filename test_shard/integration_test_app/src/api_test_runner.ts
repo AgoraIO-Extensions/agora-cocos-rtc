@@ -31,7 +31,7 @@ function createContext(): ApiTestContext {
     appId: readEnv('TEST_APP_ID', readEnv('APP_ID')),
     token: readEnv('TEST_TOKEN'),
     channelId: readEnv('TEST_CHANNEL_ID', 'testapi'),
-    uid: Number(readEnv('TEST_UID', '1001')),
+    uid: Number(readEnv('TEST_UID', '0')),
     logFilePath: `${writablePath}agora-cocos-api-test.log`,
     audioAssetPath: `${writablePath}Agora.io-Interactions.mp3`,
   };
