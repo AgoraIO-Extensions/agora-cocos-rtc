@@ -30,13 +30,15 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       final int slotId;
       final int width;
       final int height;
+      final int renderMode;
       final boolean mirror;
       final int observerPosition;
 
-      TextureSlotState(int slotId, int width, int height, boolean mirror, int observerPosition) {
+      TextureSlotState(int slotId, int width, int height, int renderMode, boolean mirror, int observerPosition) {
         this.slotId = slotId;
         this.width = width;
         this.height = height;
+        this.renderMode = renderMode;
         this.mirror = mirror;
         this.observerPosition = observerPosition;
       }
@@ -285,6 +287,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
             i420Buffer.getHeight(),
             slot.width,
             slot.height,
+            slot.renderMode,
             rotation,
             mirror
         );
@@ -347,7 +350,8 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
     private void ensureLocalTextureSlot(JSONObject params) {
       int width = resolveTextureWidth(params, true);
       int height = resolveTextureHeight(params, true);
-      boolean mirror = resolveMirror(params);
+      int renderMode = resolveRenderMode(params);
+      boolean mirror = resolveMirror(params, true);
       int observerPosition = resolveFrameObserverPosition(
           params,
           POSITION_POST_CAPTURER | POSITION_PRE_ENCODER,
@@ -357,6 +361,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
           localTextureSlot != null
               && localTextureSlot.width == width
               && localTextureSlot.height == height
+              && localTextureSlot.renderMode == renderMode
               && localTextureSlot.mirror == mirror
               && localTextureSlot.observerPosition == observerPosition
       ) {
@@ -364,7 +369,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
         return;
       }
       releaseLocalTextureSlot();
-      localTextureSlot = createTextureSlotState(width, height, mirror, observerPosition);
+      localTextureSlot = createTextureSlotState(width, height, renderMode, mirror, observerPosition);
       refreshObservedFramePosition();
       dispatchTextureReadyEvent(
           "localVideoTextureReady",
@@ -381,7 +386,8 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       }
       int width = resolveTextureWidth(params, false);
       int height = resolveTextureHeight(params, false);
-      boolean mirror = resolveMirror(params);
+      int renderMode = resolveRenderMode(params);
+      boolean mirror = resolveMirror(params, false);
       int observerPosition = resolveFrameObserverPosition(
           params,
           POSITION_PRE_RENDERER,
@@ -392,6 +398,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
           existing != null
               && existing.width == width
               && existing.height == height
+              && existing.renderMode == renderMode
               && existing.mirror == mirror
               && existing.observerPosition == observerPosition
       ) {
@@ -399,7 +406,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
         return;
       }
       releaseRemoteTextureSlot(uid);
-      TextureSlotState slot = createTextureSlotState(width, height, mirror, observerPosition);
+      TextureSlotState slot = createTextureSlotState(width, height, renderMode, mirror, observerPosition);
       remoteTextureSlots.put(uid, slot);
       refreshObservedFramePosition();
       dispatchTextureReadyEvent(
@@ -421,8 +428,24 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       return resolvePositiveInt(params, "textureHeight", params != null ? params.optInt("height", fallback) : fallback);
     }
 
-    private boolean resolveMirror(JSONObject params) {
+    private boolean resolveMirror(JSONObject params, boolean local) {
+      return local ? resolveLocalMirror(params) : resolveRemoteMirror(params);
+    }
+
+    private boolean resolveLocalMirror(JSONObject params) {
+      int mirrorMode = params != null ? params.optInt("mirrorMode", 0) : 0;
+      return mirrorMode != 2;
+    }
+
+    private boolean resolveRemoteMirror(JSONObject params) {
       return params != null && params.optInt("mirrorMode", 0) == 1;
+    }
+
+    private int resolveRenderMode(JSONObject params) {
+      String renderMode = params != null ? params.optString("renderMode", "hidden") : "hidden";
+      return "adaptive".equals(renderMode) ? Constants.RENDER_MODE_ADAPTIVE
+          : "fit".equals(renderMode) ? Constants.RENDER_MODE_FIT
+          : Constants.RENDER_MODE_HIDDEN;
     }
 
     protected Constants.VideoSourceType resolvePreviewVideoSourceType(JSONObject params) {
@@ -455,9 +478,9 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       return Math.max(1, value);
     }
 
-    private TextureSlotState createTextureSlotState(int width, int height, boolean mirror, int observerPosition) {
+    private TextureSlotState createTextureSlotState(int width, int height, int renderMode, boolean mirror, int observerPosition) {
       int slotId = AgoraEngineTextureSlotBridge.nativeCreateSlot(width, height);
-      return new TextureSlotState(slotId, width, height, mirror, observerPosition);
+      return new TextureSlotState(slotId, width, height, renderMode, mirror, observerPosition);
     }
 
     private void refreshObservedFramePosition() {
