@@ -1015,38 +1015,50 @@ export class RtcSessionService {
   }
 
   private async runAudioControlDemo(): Promise<void> {
+    const config = this.options.getConfig();
+    const audioProfile = config.audioProfile ?? { profile: 0, scenario: 0 };
+    const audioVolumeIndication = config.audioVolumeIndication ?? { interval: 300, smooth: 3, reportVad: false };
+    const playbackVolume = config.playbackVolume ?? 100;
+    const userPlaybackVolume = config.userPlaybackVolume ?? 100;
     await this.getClient().enableAudio(true);
     this.audioEnabled = true;
     await this.getClient().enableLocalAudio(true);
     this.localAudioEnabled = true;
     await this.getClient().muteLocalAudioStream(false);
     await this.getClient().muteAllRemoteAudioStreams(false);
-    await this.getClient().setAudioProfile(0, 0);
-    await this.getClient().enableAudioVolumeIndication(300, 3, false);
+    await this.getClient().setAudioProfile(audioProfile.profile, audioProfile.scenario);
+    await this.getClient().enableAudioVolumeIndication(
+      audioVolumeIndication.interval,
+      audioVolumeIndication.smooth,
+      audioVolumeIndication.reportVad,
+    );
     await this.getClient().setDefaultAudioRouteToSpeakerphone(true);
     await this.getClient().setEnableSpeakerphone(true);
     this.speakerphoneEnabled = true;
-    await this.getClient().adjustPlaybackSignalVolume(100);
-    await this.getClient().adjustUserPlaybackSignalVolume(this.activeRemoteUid ?? 0, 100);
+    await this.getClient().adjustPlaybackSignalVolume(playbackVolume);
+    await this.getClient().adjustUserPlaybackSignalVolume(this.activeRemoteUid ?? 0, userPlaybackVolume);
     await this.callAndLogFailure('setAudioSessionOperationRestriction', () =>
       this.getClient().setAudioSessionOperationRestriction(0),
     );
   }
 
   private async runVideoControlDemo(): Promise<void> {
+    const config = this.options.getConfig();
     await this.getClient().enableVideo(true);
     await this.getClient().enableLocalVideo(true);
     await this.getClient().muteLocalVideoStream(false);
     await this.getClient().muteAllRemoteVideoStreams(false);
     await this.callAndLogFailure('setVideoEncoderConfiguration', () =>
-      this.getClient().setVideoEncoderConfiguration(VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetName]),
+      this.getClient().setVideoEncoderConfiguration(
+        config.videoEncoderConfiguration ?? VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetName],
+      ),
     );
     await this.getClient().switchCamera();
     await this.callAndLogFailure('setBeautyEffectOptions', () =>
-      this.getClient().setBeautyEffectOptions(true, { smoothnessLevel: 0.5 }),
+      this.getClient().setBeautyEffectOptions(true, config.beautyDemoOptions ?? { smoothnessLevel: 0.5 }),
     );
     await this.callAndLogFailure('enableContentInspect', () =>
-      this.getClient().enableContentInspect(true, { module: 0, interval: 0 }),
+      this.getClient().enableContentInspect(true, config.contentInspectDemoConfig ?? { module: 0, interval: 0 }),
     );
   }
 

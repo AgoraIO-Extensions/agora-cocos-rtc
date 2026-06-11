@@ -5,6 +5,7 @@ import type {
 } from './demo/types.ts';
 import type {
   AgoraAudioMixingConfig,
+  AgoraVideoEncoderConfiguration,
   AgoraBeautyOptions,
   AgoraContentInspectConfig,
   AgoraPlayEffectConfig,
@@ -53,6 +54,11 @@ export type AgoraExampleRuntimeConfig = {
   logFilter?: number;
   logFilePath?: string;
   debugParameters?: Record<string, unknown>;
+  playbackVolume?: number;
+  userPlaybackVolume?: number;
+  videoEncoderConfiguration?: AgoraVideoEncoderConfiguration;
+  beautyDemoOptions?: AgoraBeautyOptions;
+  contentInspectDemoConfig?: AgoraContentInspectConfig;
 };
 
 export const keyAppId = 'TEST_APP_ID';
@@ -201,6 +207,19 @@ export function resolveAgoraExampleConfig(
       ? normalizeConfigValue(baseConfig.logFilePath) || baseConfig.logFilePath
       : undefined;
   const debugParameters = buildConfig?.debugParameters ?? baseConfig?.debugParameters;
+  const playbackVolume = typeof buildConfig?.playbackVolume === 'number'
+    ? buildConfig.playbackVolume
+    : typeof baseConfig?.playbackVolume === 'number'
+      ? baseConfig.playbackVolume
+      : undefined;
+  const userPlaybackVolume = typeof buildConfig?.userPlaybackVolume === 'number'
+    ? buildConfig.userPlaybackVolume
+    : typeof baseConfig?.userPlaybackVolume === 'number'
+      ? baseConfig.userPlaybackVolume
+      : undefined;
+  const videoEncoderConfiguration = buildConfig?.videoEncoderConfiguration ?? baseConfig?.videoEncoderConfiguration;
+  const beautyDemoOptions = buildConfig?.beautyDemoOptions ?? baseConfig?.beautyDemoOptions;
+  const contentInspectDemoConfig = buildConfig?.contentInspectDemoConfig ?? baseConfig?.contentInspectDemoConfig;
 
   return {
     appId,
@@ -233,5 +252,10 @@ export function resolveAgoraExampleConfig(
     logFilter,
     logFilePath,
     debugParameters,
+    playbackVolume,
+    userPlaybackVolume,
+    videoEncoderConfiguration,
+    beautyDemoOptions,
+    contentInspectDemoConfig,
   };
 }

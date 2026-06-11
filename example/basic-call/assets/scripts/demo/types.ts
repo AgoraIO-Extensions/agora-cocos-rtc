@@ -1,6 +1,7 @@
 import type { Node, Sprite, SpriteFrame, Texture2D } from 'cc';
 import type {
   AgoraAudioMixingConfig,
+  AgoraVideoEncoderConfiguration,
   AgoraBeautyOptions,
   AgoraContentInspectConfig,
   AgoraPlayEffectConfig,
@@ -72,6 +73,11 @@ export interface RuntimeConfigState {
   logFilter?: number;
   logFilePath?: string;
   debugParameters?: Record<string, unknown>;
+  playbackVolume?: number;
+  userPlaybackVolume?: number;
+  videoEncoderConfiguration?: AgoraVideoEncoderConfiguration;
+  beautyDemoOptions?: AgoraBeautyOptions;
+  contentInspectDemoConfig?: AgoraContentInspectConfig;
 }
 
 export interface BasicVideoConfigState extends RuntimeConfigState {
