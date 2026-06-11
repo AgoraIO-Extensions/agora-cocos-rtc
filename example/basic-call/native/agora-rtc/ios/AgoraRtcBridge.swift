@@ -183,7 +183,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         NSLog("[agora-rtc-native] handleScriptRequest payload=%@", payload)
         guard
             let data = payload.data(using: .utf8),
-            let request = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let request = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         else {
             NSLog("[agora-rtc-native] handleScriptRequest invalid payload")
             return
