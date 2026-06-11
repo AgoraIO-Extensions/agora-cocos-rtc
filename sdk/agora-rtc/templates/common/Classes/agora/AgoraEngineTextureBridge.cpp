@@ -83,6 +83,99 @@ void mapTransformedPixel(
     }
 }
 
+enum class TextureRenderMode {
+    Hidden = 1,
+    Fit = 2,
+    Adaptive = 3,
+};
+
+TextureRenderMode normalizeRenderMode(int renderMode) {
+    switch (renderMode) {
+        case 2:
+            return TextureRenderMode::Fit;
+        case 3:
+            return TextureRenderMode::Adaptive;
+        case 1:
+        default:
+            return TextureRenderMode::Hidden;
+    }
+}
+
+bool sampleRenderFramePixel(
+    int outputX,
+    int outputY,
+    int width,
+    int height,
+    int targetWidth,
+    int targetHeight,
+    int rotation,
+    bool mirror,
+    int renderMode,
+    int &sourceX,
+    int &sourceY) {
+    const int normalizedRotation = normalizeRotation(rotation);
+    const bool swapsDimensions = normalizedRotation == 90 || normalizedRotation == 270;
+    const int naturalWidth = swapsDimensions ? height : width;
+    const int naturalHeight = swapsDimensions ? width : height;
+    const int outputWidth = targetWidth > 0 ? targetWidth : naturalWidth;
+    const int outputHeight = targetHeight > 0 ? targetHeight : naturalHeight;
+
+    if (outputWidth <= 0 || outputHeight <= 0 || naturalWidth <= 0 || naturalHeight <= 0) {
+        return false;
+    }
+
+    const auto mode = normalizeRenderMode(renderMode);
+    if (mode == TextureRenderMode::Adaptive) {
+        mapTransformedPixel(outputX, outputY, width, height, outputWidth, outputHeight, rotation, mirror, sourceX, sourceY);
+        return true;
+    }
+
+    const float scaleX = static_cast<float>(outputWidth) / static_cast<float>(naturalWidth);
+    const float scaleY = static_cast<float>(outputHeight) / static_cast<float>(naturalHeight);
+    const float scale = mode == TextureRenderMode::Fit
+        ? std::min(scaleX, scaleY)
+        : std::max(scaleX, scaleY);
+
+    const float scaledWidth = static_cast<float>(naturalWidth) * scale;
+    const float scaledHeight = static_cast<float>(naturalHeight) * scale;
+    const float offsetX = (static_cast<float>(outputWidth) - scaledWidth) * 0.5f;
+    const float offsetY = (static_cast<float>(outputHeight) - scaledHeight) * 0.5f;
+
+    const float sampleX = (static_cast<float>(outputX) + 0.5f - offsetX) / scale;
+    const float sampleY = (static_cast<float>(outputY) + 0.5f - offsetY) / scale;
+
+    if (mode == TextureRenderMode::Fit) {
+      if (sampleX < 0.0f || sampleX >= static_cast<float>(naturalWidth)
+          || sampleY < 0.0f || sampleY >= static_cast<float>(naturalHeight)) {
+        return false;
+      }
+    }
+
+    const int clampedNaturalX = std::min(naturalWidth - 1, std::max(0, static_cast<int>(sampleX)));
+    const int clampedNaturalY = std::min(naturalHeight - 1, std::max(0, static_cast<int>(sampleY)));
+    const int mappedNaturalX = mirror ? naturalWidth - 1 - clampedNaturalX : clampedNaturalX;
+
+    switch (normalizedRotation) {
+        case 90:
+            sourceX = clampedNaturalY;
+            sourceY = height - 1 - mappedNaturalX;
+            break;
+        case 180:
+            sourceX = width - 1 - mappedNaturalX;
+            sourceY = height - 1 - clampedNaturalY;
+            break;
+        case 270:
+            sourceX = width - 1 - clampedNaturalY;
+            sourceY = mappedNaturalX;
+            break;
+        default:
+            sourceX = mappedNaturalX;
+            sourceY = clampedNaturalY;
+            break;
+    }
+    return true;
+}
+
 void convertI420ToRgba(
     const uint8_t *dataY,
     int strideY,
@@ -94,6 +187,7 @@ void convertI420ToRgba(
     int height,
     int targetWidth,
     int targetHeight,
+    int renderMode,
     int rotation,
     bool mirror,
     uint8_t *rgba) {
@@ -106,7 +200,25 @@ void convertI420ToRgba(
         for (int x = 0; x < outputWidth; x++) {
             int sourceX = 0;
             int sourceY = 0;
-            mapTransformedPixel(x, y, width, height, outputWidth, outputHeight, rotation, mirror, sourceX, sourceY);
+            if (!sampleRenderFramePixel(
+                    x,
+                    y,
+                    width,
+                    height,
+                    outputWidth,
+                    outputHeight,
+                    rotation,
+                    mirror,
+                    renderMode,
+                    sourceX,
+                    sourceY)) {
+                const int offset = (y * outputWidth + x) * 4;
+                rgba[offset] = 0;
+                rgba[offset + 1] = 0;
+                rgba[offset + 2] = 0;
+                rgba[offset + 3] = 0xFF;
+                continue;
+            }
             const int yValue = dataY[sourceY * strideY + sourceX] & 0xFF;
             const int uValue = dataU[(sourceY / 2) * strideU + (sourceX / 2)] & 0xFF;
             const int vValue = dataV[(sourceY / 2) * strideV + (sourceX / 2)] & 0xFF;
@@ -135,17 +247,40 @@ void convertNV12ToRgba(
     int strideUV,
     int width,
     int height,
+    int targetWidth,
+    int targetHeight,
+    int renderMode,
     int rotation,
     bool mirror,
     uint8_t *rgba) {
     const bool swapsDimensions = normalizeRotation(rotation) == 90 || normalizeRotation(rotation) == 270;
-    const int outputWidth = swapsDimensions ? height : width;
-    const int outputHeight = swapsDimensions ? width : height;
+    const int naturalOutputWidth = swapsDimensions ? height : width;
+    const int naturalOutputHeight = swapsDimensions ? width : height;
+    const int outputWidth = targetWidth > 0 ? targetWidth : naturalOutputWidth;
+    const int outputHeight = targetHeight > 0 ? targetHeight : naturalOutputHeight;
     for (int y = 0; y < outputHeight; y++) {
         for (int x = 0; x < outputWidth; x++) {
             int sourceX = 0;
             int sourceY = 0;
-            mapTransformedPixel(x, y, width, height, outputWidth, outputHeight, rotation, mirror, sourceX, sourceY);
+            if (!sampleRenderFramePixel(
+                    x,
+                    y,
+                    width,
+                    height,
+                    outputWidth,
+                    outputHeight,
+                    rotation,
+                    mirror,
+                    renderMode,
+                    sourceX,
+                    sourceY)) {
+                const int offset = (y * outputWidth + x) * 4;
+                rgba[offset] = 0;
+                rgba[offset + 1] = 0;
+                rgba[offset + 2] = 0;
+                rgba[offset + 3] = 0xFF;
+                continue;
+            }
             const int yValue = dataY[sourceY * strideY + sourceX] & 0xFF;
             const int uvOffset = (sourceY / 2) * strideUV + (sourceX / 2) * 2;
             const int uValue = dataUV[uvOffset] & 0xFF;
@@ -262,6 +397,7 @@ public:
         int height,
         int targetWidth,
         int targetHeight,
+        int renderMode,
         int rotation,
         bool mirror) {
         const bool swapsDimensions = normalizeRotation(rotation) == 90 || normalizeRotation(rotation) == 270;
@@ -298,6 +434,7 @@ public:
                 height,
                 outputWidth,
                 outputHeight,
+                renderMode,
                 rotation,
                 mirror,
                 slot->stagingRgba.data()
@@ -320,11 +457,16 @@ public:
         int strideUV,
         int width,
         int height,
+        int targetWidth,
+        int targetHeight,
+        int renderMode,
         int rotation,
         bool mirror) {
         const bool swapsDimensions = normalizeRotation(rotation) == 90 || normalizeRotation(rotation) == 270;
-        const int outputWidth = swapsDimensions ? height : width;
-        const int outputHeight = swapsDimensions ? width : height;
+        const int naturalOutputWidth = swapsDimensions ? height : width;
+        const int naturalOutputHeight = swapsDimensions ? width : height;
+        const int outputWidth = targetWidth > 0 ? targetWidth : naturalOutputWidth;
+        const int outputHeight = targetHeight > 0 ? targetHeight : naturalOutputHeight;
         std::shared_ptr<EngineTextureSlot> slot;
         {
             std::lock_guard<std::mutex> lock(_mutex);
@@ -350,6 +492,9 @@ public:
                 strideUV,
                 width,
                 height,
+                outputWidth,
+                outputHeight,
+                renderMode,
                 rotation,
                 mirror,
                 slot->stagingRgba.data()
@@ -622,6 +767,7 @@ void update_agora_engine_texture_i420_slot(
     int height,
     int targetWidth,
     int targetHeight,
+    int renderMode,
     int rotation,
     bool mirror) {
     EngineTextureRegistry::getInstance().updateI420Slot(
@@ -636,6 +782,7 @@ void update_agora_engine_texture_i420_slot(
         height,
         targetWidth,
         targetHeight,
+        renderMode,
         rotation,
         mirror
     );
@@ -649,6 +796,9 @@ void update_agora_engine_texture_nv12_slot(
     int strideUV,
     int width,
     int height,
+    int targetWidth,
+    int targetHeight,
+    int renderMode,
     int rotation,
     bool mirror) {
     EngineTextureRegistry::getInstance().updateNV12Slot(
@@ -659,6 +809,9 @@ void update_agora_engine_texture_nv12_slot(
         strideUV,
         width,
         height,
+        targetWidth,
+        targetHeight,
+        renderMode,
         rotation,
         mirror
     );
@@ -722,6 +875,7 @@ JNIEXPORT void JNICALL Java_io_agora_cocos_rtc_render_AgoraEngineTextureSlotBrid
     jint height,
     jint targetWidth,
     jint targetHeight,
+    jint renderMode,
     jint rotation,
     jboolean mirror) {
     if (env == nullptr || dataY == nullptr || dataU == nullptr || dataV == nullptr) {
@@ -747,6 +901,48 @@ JNIEXPORT void JNICALL Java_io_agora_cocos_rtc_render_AgoraEngineTextureSlotBrid
         height,
         targetWidth,
         targetHeight,
+        renderMode,
+        rotation,
+        mirror == JNI_TRUE
+    );
+}
+
+JNIEXPORT void JNICALL Java_io_agora_cocos_rtc_render_AgoraEngineTextureSlotBridge_nativeUpdateNV12Slot(
+    JNIEnv *env,
+    jclass /*clazz*/,
+    jint slotId,
+    jobject dataY,
+    jint strideY,
+    jobject dataUV,
+    jint strideUV,
+    jint width,
+    jint height,
+    jint targetWidth,
+    jint targetHeight,
+    jint renderMode,
+    jint rotation,
+    jboolean mirror) {
+    if (env == nullptr || dataY == nullptr || dataUV == nullptr) {
+        return;
+    }
+
+    auto *yPtr = reinterpret_cast<uint8_t *>(env->GetDirectBufferAddress(dataY));
+    auto *uvPtr = reinterpret_cast<uint8_t *>(env->GetDirectBufferAddress(dataUV));
+    if (yPtr == nullptr || uvPtr == nullptr) {
+        return;
+    }
+
+    agora::cocos::update_agora_engine_texture_nv12_slot(
+        slotId,
+        yPtr,
+        strideY,
+        uvPtr,
+        strideUV,
+        width,
+        height,
+        targetWidth,
+        targetHeight,
+        renderMode,
         rotation,
         mirror == JNI_TRUE
     );
