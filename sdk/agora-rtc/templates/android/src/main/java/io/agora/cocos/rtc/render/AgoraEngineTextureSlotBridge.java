@@ -21,6 +21,22 @@ final class AgoraEngineTextureSlotBridge {
         int height,
         int targetWidth,
         int targetHeight,
+        int renderMode,
+        int rotation,
+        boolean mirror
+    );
+
+    static native void nativeUpdateNV12Slot(
+        int slotId,
+        ByteBuffer dataY,
+        int strideY,
+        ByteBuffer dataUV,
+        int strideUV,
+        int width,
+        int height,
+        int targetWidth,
+        int targetHeight,
+        int renderMode,
         int rotation,
         boolean mirror
     );

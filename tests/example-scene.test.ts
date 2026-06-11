@@ -191,6 +191,7 @@ test('rtc session service passes configurable video join media options from Type
   assert.match(joinMethod, /autoSubscribeAudio:\s*config\.autoSubscribeAudio/);
   assert.match(joinMethod, /autoSubscribeVideo:\s*config\.autoSubscribeVideo/);
   assert.match(joinMethod, /if \(config\.publishCameraTrack\)/);
+  assert.match(content, /setupLocalVideoView\(\{[\s\S]*mirrorMode:\s*0,/);
 });
 
 test('rtc session service leave clears local and remote rendering resources without destroying engine', async () => {
