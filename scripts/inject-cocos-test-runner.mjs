@@ -13,7 +13,7 @@ const runtimeGlobals = {
   TEST_APP_ID: process.env.TEST_APP_ID || process.env.APP_ID || '',
   TEST_TOKEN: process.env.TEST_TOKEN || process.env.TOKEN || '',
   TEST_CHANNEL_ID: process.env.TEST_CHANNEL_ID || process.env.CHANNEL_ID || 'testapi',
-  TEST_UID: process.env.TEST_UID || '1001',
+  TEST_UID: process.env.TEST_UID || '0',
 };
 
 await mkdir(targetDir, { recursive: true });

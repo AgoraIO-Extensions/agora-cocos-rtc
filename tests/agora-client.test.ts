@@ -343,7 +343,7 @@ test('client surfaces error and volume indication events to subscribed listeners
     JSON.stringify({
       eventName: 'volumeIndication',
       payload: {
-        speakers: [{ uid: 1001, volume: 90, vad: 1, voicePitch: 233.0 }],
+        speakers: [{ uid: 42421, volume: 90, vad: 1, voicePitch: 233.0 }],
         totalVolume: 90,
       },
     }),
@@ -370,7 +370,7 @@ test('client surfaces remote audio state change events', async () => {
     JSON.stringify({
       eventName: 'remoteAudioStateChanged',
       payload: {
-        uid: 2002,
+        uid: 42422,
         state: 2,
         reason: 5,
         elapsed: 123,
@@ -378,7 +378,7 @@ test('client surfaces remote audio state change events', async () => {
     }),
   );
 
-  assert.deepEqual(events, ['2002:2:5:123']);
+  assert.deepEqual(events, ['42422:2:5:123']);
 });
 
 test('engine texture bridge resolves from global jsb namespace', () => {
@@ -474,7 +474,7 @@ test('joinChannel dispatches optional channel media options from TypeScript', as
     timeoutMs: 50,
   });
 
-  const pending = client.joinChannel('demo-token', 'demo-channel', 1001, {
+  const pending = client.joinChannel('demo-token', 'demo-channel', 42421, {
     clientRoleType: 'broadcaster',
     channelProfile: 'liveBroadcasting',
     publishCameraTrack: true,
@@ -521,7 +521,7 @@ test('joinChannel dispatches optional channel media options from TypeScript', as
   assert.deepEqual(request.params, {
     token: 'demo-token',
     channelId: 'demo-channel',
-    uid: 1001,
+    uid: 42421,
     options: {
       clientRoleType: 'broadcaster',
       channelProfile: 'liveBroadcasting',
@@ -676,13 +676,13 @@ test('client dispatches string uid account APIs through the native bridge', asyn
       requestId: infoRequest.requestId,
       ok: true,
       result: {
-        uid: 1001,
+        uid: 42421,
         userAccount: 'cocos-user-0',
       },
     }),
   );
   assert.deepEqual(await infoPending, {
-    uid: 1001,
+    uid: 42421,
     userAccount: 'cocos-user-0',
   });
 });
@@ -1455,7 +1455,7 @@ test('api smoke flow resolves initialize -> join -> local toggles -> leave -> de
   );
   await initializePending;
 
-  const joinPending = client.joinChannel('', 'demo', 1001);
+  const joinPending = client.joinChannel('', 'demo', 42421);
   request = JSON.parse(transport.sent.at(-1).payload);
   transport.emit(
     'agora:event',
@@ -1463,7 +1463,7 @@ test('api smoke flow resolves initialize -> join -> local toggles -> leave -> de
       eventName: 'joinChannelSuccess',
       payload: {
         channelId: 'demo',
-        uid: 1001,
+        uid: 42421,
       },
     }),
   );
@@ -1503,7 +1503,7 @@ test('api smoke flow resolves initialize -> join -> local toggles -> leave -> de
     JSON.stringify({
       eventName: 'userJoined',
       payload: {
-        uid: 2002,
+        uid: 42422,
       },
     }),
   );
@@ -1512,7 +1512,7 @@ test('api smoke flow resolves initialize -> join -> local toggles -> leave -> de
     JSON.stringify({
       eventName: 'userOffline',
       payload: {
-        uid: 2002,
+        uid: 42422,
       },
     }),
   );
@@ -1540,9 +1540,9 @@ test('api smoke flow resolves initialize -> join -> local toggles -> leave -> de
   await destroyPending;
 
   assert.deepEqual(observedEvents, [
-    ['joinChannelSuccess', 'demo', 1001],
-    ['userJoined', 2002],
-    ['userOffline', 2002],
+    ['joinChannelSuccess', 'demo', 42421],
+    ['userJoined', 42422],
+    ['userOffline', 42422],
   ]);
 });
 test('client dispatches expected native requests for all expanded public APIs', async () => {
