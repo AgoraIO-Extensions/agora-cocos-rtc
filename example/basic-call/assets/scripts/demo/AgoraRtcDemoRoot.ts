@@ -45,7 +45,7 @@ export class AgoraRtcDemoRoot extends Component {
   channelId = 'demo';
 
   @property
-  uid = 1001;
+  uid = 0;
 
   @property
   renderBackend: RuntimeConfigState['renderBackend'] = 'engine-texture';

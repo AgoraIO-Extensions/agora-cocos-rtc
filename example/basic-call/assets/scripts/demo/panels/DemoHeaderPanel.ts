@@ -67,7 +67,7 @@ export class DemoHeaderPanel extends Component {
   applyConfigFromInputs(): void {
     const channelId = this.channelInput?.string.trim() || 'demo';
     const parsedUid = Number(this.uidInput?.string ?? '');
-    const uid = Number.isFinite(parsedUid) && parsedUid > 0 ? Math.floor(parsedUid) : 1001;
+    const uid = Number.isFinite(parsedUid) && parsedUid >= 0 ? Math.floor(parsedUid) : 0;
     this.onApplyConfig?.(channelId, uid);
   }
 
