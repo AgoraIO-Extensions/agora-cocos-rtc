@@ -32,7 +32,7 @@ const runtimeConfig = JSON.parse(
 const runtimeAppId = JSON.stringify(runtimeConfig.appId ?? '');
 const runtimeToken = JSON.stringify(runtimeConfig.token ?? '');
 const runtimeChannelId = JSON.stringify(runtimeConfig.channelId ?? 'demo');
-const runtimeUid = Number.isFinite(runtimeConfig.uid) ? Number(runtimeConfig.uid) : 1001;
+const runtimeUid = Number.isFinite(runtimeConfig.uid) ? Number(runtimeConfig.uid) : 0;
 
 const targets = [
   path.join(repoRoot, 'example/basic-call/build-android/android/data/assets/main/index.js'),
@@ -83,7 +83,7 @@ const controllerModule = `System.register("chunks:///_virtual/AgoraRtcExampleCon
           this.appId = '';
           this.token = '';
           this.channelId = 'demo';
-          this.uid = 1001;
+          this.uid = 0;
           this.client = null;
           this.listenersBound = false;
         }
