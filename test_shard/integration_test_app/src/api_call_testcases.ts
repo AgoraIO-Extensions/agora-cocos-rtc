@@ -21,6 +21,7 @@ export type ApiCallCase = {
 
 const remoteUid = 42422;
 const userAccount = 'cocos-user-0';
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const canvas = {
   x: 24,
   y: 32,
@@ -368,7 +369,12 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     method: 'switchCamera',
     expectedParams: {},
     requiredEvidence: ['response'],
-    run: (client) => client.switchCamera(),
+    run: async (client) => {
+      await client.switchCamera();
+      // Camera2 may still be finalizing the reopen path immediately after the
+      // switch call resolves; give preview teardown a short settle window.
+      await wait(500);
+    },
   },
   {
     id: 'video.beauty',

@@ -21,6 +21,7 @@ void update_agora_engine_texture_i420_slot(
     int height,
     int targetWidth,
     int targetHeight,
+    int renderMode,
     int rotation,
     bool mirror);
 void update_agora_engine_texture_nv12_slot(
@@ -31,6 +32,9 @@ void update_agora_engine_texture_nv12_slot(
     int strideUV,
     int width,
     int height,
+    int targetWidth,
+    int targetHeight,
+    int renderMode,
     int rotation,
     bool mirror);
 void release_agora_engine_texture_slot(int slotId);

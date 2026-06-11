@@ -5,6 +5,16 @@
 
 @implementation AgoraEngineTextureSlotBridge
 
+static NSMutableDictionary<NSNumber *, NSDictionary *> *gSlotOptions;
+static dispatch_queue_t gSlotOptionsQueue;
+
++ (void)initialize {
+    if (self == [AgoraEngineTextureSlotBridge class]) {
+        gSlotOptions = [[NSMutableDictionary alloc] init];
+        gSlotOptionsQueue = dispatch_queue_create("io.agora.cocos.engine-texture-slot-options", DISPATCH_QUEUE_SERIAL);
+    }
+}
+
 + (NSNumber *)createSlotWithWidth:(NSNumber *)width height:(NSNumber *)height {
     int slotId = agora::cocos::create_agora_engine_texture_slot(width.intValue, height.intValue);
     return @(slotId);
@@ -12,6 +22,15 @@
 
 + (NSNumber *)isSlotReady:(NSNumber *)slotId {
     return @(agora::cocos::is_agora_engine_texture_slot_ready(slotId.intValue));
+}
+
++ (void)configureSlot:(NSNumber *)slotId options:(NSDictionary *)options {
+    if (slotId == nil || options == nil) {
+        return;
+    }
+    dispatch_sync(gSlotOptionsQueue, ^{
+        gSlotOptions[slotId] = options;
+    });
 }
 
 + (void)updateSlot:(NSNumber *)slotId rgbaData:(NSData *)rgbaData width:(NSNumber *)width height:(NSNumber *)height {
@@ -55,6 +74,14 @@
     if (videoFrame == nil) {
         return;
     }
+    __block NSDictionary *options = nil;
+    dispatch_sync(gSlotOptionsQueue, ^{
+        options = gSlotOptions[slotId];
+    });
+    options = options ?: @{};
+    const int targetWidth = [options[@"width"] intValue];
+    const int targetHeight = [options[@"height"] intValue];
+    const int renderMode = options[@"renderMode"] != nil ? [options[@"renderMode"] intValue] : 3;
 
     switch (videoFrame.type) {
         case 12:
@@ -78,6 +105,9 @@
                         static_cast<int>(uvStride),
                         static_cast<int>(width),
                         static_cast<int>(height),
+                        targetWidth,
+                        targetHeight,
+                        renderMode,
                         static_cast<int>(videoFrame.rotation),
                         mirror
                     );
@@ -110,8 +140,9 @@
                         static_cast<int>(vStride),
                         static_cast<int>(width),
                         static_cast<int>(height),
-                        0,
-                        0,
+                        targetWidth,
+                        targetHeight,
+                        renderMode,
                         static_cast<int>(videoFrame.rotation),
                         mirror
                     );
@@ -136,8 +167,9 @@
                 static_cast<int>(videoFrame.vStride),
                 static_cast<int>(videoFrame.width),
                 static_cast<int>(videoFrame.height),
-                0,
-                0,
+                targetWidth,
+                targetHeight,
+                renderMode,
                 static_cast<int>(videoFrame.rotation),
                 mirror
             );
@@ -148,6 +180,11 @@
 }
 
 + (void)releaseSlot:(NSNumber *)slotId {
+    if (slotId != nil) {
+        dispatch_sync(gSlotOptionsQueue, ^{
+            [gSlotOptions removeObjectForKey:slotId];
+        });
+    }
     agora::cocos::release_agora_engine_texture_slot(slotId.intValue);
 }
 
