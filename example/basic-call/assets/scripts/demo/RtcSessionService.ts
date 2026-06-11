@@ -258,8 +258,9 @@ export class RtcSessionService {
       this.log('Preview already started');
       return;
     }
+    const config = this.options.getConfig();
     await this.setupLocalVideoView();
-    await this.getClient().startPreview();
+    await this.getClient().startPreview(config.previewSourceType);
     this.previewStarted = true;
     this.log('Preview started');
     this.emitState();
@@ -318,6 +319,15 @@ export class RtcSessionService {
     this.selectedClientRole = CLIENT_ROLE_PRESETS[(index + 1) % CLIENT_ROLE_PRESETS.length];
     await this.getClient().setClientRole(this.selectedClientRole);
     this.log(`Client role: ${this.selectedClientRole}`);
+    this.emitState();
+  }
+
+  async applyClientRole(role: ClientRole): Promise<void> {
+    this.selectedClientRole = role;
+    if (this.initialized) {
+      await this.getClient().setClientRole(role);
+    }
+    this.log(`Client role: ${role}`);
     this.emitState();
   }
 
@@ -387,7 +397,13 @@ export class RtcSessionService {
 
   async toggleAudioVolumeIndication(): Promise<void> {
     const next = !this.audioVolumeIndicationEnabled;
-    await this.getClient().enableAudioVolumeIndication(next ? 200 : 0, 3, true);
+    const config = this.options.getConfig();
+    const audioVolumeIndication = config.audioVolumeIndication ?? { interval: 200, smooth: 3, reportVad: true };
+    await this.getClient().enableAudioVolumeIndication(
+      next ? audioVolumeIndication.interval : 0,
+      audioVolumeIndication.smooth,
+      audioVolumeIndication.reportVad,
+    );
     this.audioVolumeIndicationEnabled = next;
     this.log(`Audio volume indication ${next ? 'enabled' : 'disabled'}`);
   }
@@ -408,7 +424,9 @@ export class RtcSessionService {
 
   async toggleAudioProfile(): Promise<void> {
     const next = this.currentAudioProfile === 0 ? 1 : 0;
-    await this.getClient().setAudioProfile(next);
+    const config = this.options.getConfig();
+    const audioProfile = config.audioProfile ?? { profile: next };
+    await this.getClient().setAudioProfile(audioProfile.profile, audioProfile.scenario);
     this.currentAudioProfile = next;
     this.log(`Audio profile: ${next}`);
   }
@@ -464,19 +482,28 @@ export class RtcSessionService {
 
   async toggleBeautyEffect(): Promise<void> {
     const next = !this.beautyEffectEnabled;
-    await this.getClient().setBeautyEffectOptions(next, {
-      lighteningContrastLevel: next ? 1 : 0,
-      lighteningLevel: next ? 0.7 : 0,
-      smoothnessLevel: next ? 0.5 : 0,
-      rednessLevel: next ? 0.1 : 0,
-    });
+    const config = this.options.getConfig();
+    await this.getClient().setBeautyEffectOptions(
+      next,
+      config.beautyOptions ?? {
+        lighteningContrastLevel: next ? 1 : 0,
+        lighteningLevel: next ? 0.7 : 0,
+        smoothnessLevel: next ? 0.5 : 0,
+        rednessLevel: next ? 0.1 : 0,
+      },
+      config.beautyEffectSourceType,
+    );
     this.beautyEffectEnabled = next;
     this.log(`Beauty effect ${next ? 'enabled' : 'disabled'}`);
   }
 
   async toggleContentInspect(): Promise<void> {
     const next = !this.contentInspectEnabled;
-    await this.getClient().enableContentInspect(next, next ? { module: 0, interval: 2 } : undefined);
+    const config = this.options.getConfig();
+    await this.getClient().enableContentInspect(
+      next,
+      next ? (config.contentInspectConfig ?? { module: 0, interval: 2 }) : undefined,
+    );
     this.contentInspectEnabled = next;
     this.log(`Content inspect ${next ? 'enabled' : 'disabled'}`);
   }
@@ -514,27 +541,36 @@ export class RtcSessionService {
 
   async runMixingDemo(): Promise<void> {
     const client = this.getClient();
-    await this.callAndLogFailure('startAudioMixing', () => client.startAudioMixing({
+    const config = this.options.getConfig();
+    const audioMixing = config.audioMixing ?? {
       path: 'audio/demo-mix.mp3',
       loopback: false,
       cycle: 1,
       startPos: 0,
-    }));
+    };
+    await this.callAndLogFailure('startAudioMixing', () => client.startAudioMixing(audioMixing));
     await this.callAndLogFailure('pauseAudioMixing', () => client.pauseAudioMixing());
     await this.callAndLogFailure('resumeAudioMixing', () => client.resumeAudioMixing());
     await this.callAndLogFailure('getAudioMixingCurrentPosition', async () => {
       const position = await client.getAudioMixingCurrentPosition();
       this.log(`Mixing position: ${position}`);
     });
-    await this.callAndLogFailure('setAudioMixingPosition', () => client.setAudioMixingPosition(0));
-    await this.callAndLogFailure('adjustAudioMixingVolume', () => client.adjustAudioMixingVolume(60));
+    await this.callAndLogFailure(
+      'setAudioMixingPosition',
+      () => client.setAudioMixingPosition(config.audioMixingSeekPositionMs ?? 0),
+    );
+    await this.callAndLogFailure(
+      'adjustAudioMixingVolume',
+      () => client.adjustAudioMixingVolume(config.audioMixingVolume ?? 60),
+    );
     await this.callAndLogFailure('stopAudioMixing', () => client.stopAudioMixing());
   }
 
   async runEffectDemo(): Promise<void> {
     const client = this.getClient();
-    await this.callAndLogFailure('preloadEffect', () => client.preloadEffect(1, 'audio/effect.mp3'));
-    await this.callAndLogFailure('playEffect', () => client.playEffect({
+    const config = this.options.getConfig();
+    const preloadEffect = config.preloadEffect ?? { soundId: 1, path: 'audio/effect.mp3' };
+    const playEffect = config.playEffect ?? {
       soundId: 1,
       path: 'audio/effect.mp3',
       loopCount: 1,
@@ -543,7 +579,12 @@ export class RtcSessionService {
       gain: 100,
       publish: false,
       startPos: 0,
-    }));
+    };
+    await this.callAndLogFailure(
+      'preloadEffect',
+      () => client.preloadEffect(preloadEffect.soundId, preloadEffect.path, preloadEffect.startPos),
+    );
+    await this.callAndLogFailure('playEffect', () => client.playEffect(playEffect));
     await this.callAndLogFailure('stopEffect', () => client.stopEffect(1));
   }
 
@@ -647,15 +688,16 @@ export class RtcSessionService {
 
   async runDiagnosticsDemo(): Promise<void> {
     const client = this.getClient();
+    const config = this.options.getConfig();
     const errorDescription = await client.getErrorDescription(0);
     this.log(`getErrorDescription(0): ${errorDescription}`);
-    await client.setLogFilter(0);
-    await client.setLogFile('/tmp/agora-cocos.log');
+    await client.setLogFilter(config.logFilter ?? 0);
+    await client.setLogFile(config.logFilePath ?? '/tmp/agora-cocos.log');
     await this.callAndLogFailure('isSpeakerphoneEnabled', async () => {
       this.speakerphoneEnabled = await client.isSpeakerphoneEnabled();
       this.log(`Speakerphone enabled: ${this.speakerphoneEnabled}`);
     });
-    await client.setParameters('{"rtc.debug":true}');
+    await client.setParameters(config.debugParameters ?? { 'rtc.debug': true });
   }
 
   async applyParameterPreset(parameters: Record<string, unknown>): Promise<void> {
@@ -808,8 +850,10 @@ export class RtcSessionService {
 
   private async setupLocalVideoView(): Promise<void> {
     const node = this.options.getLocalVideoNode();
+    const config = this.options.getConfig();
     await this.getClient().setupLocalVideoView({
       ...this.resolveNodeRect(node, 'hidden'),
+      ...config.localVideoCanvas,
       uid: 0,
       mirrorMode: 0,
       setupMode: 0,
@@ -820,8 +864,10 @@ export class RtcSessionService {
 
   private async setupRemoteVideoView(uid: number): Promise<void> {
     const node = this.options.getRemoteVideoNode(uid);
+    const config = this.options.getConfig();
     await this.getClient().setupRemoteVideoView(uid, {
       ...this.resolveNodeRect(node, 'fit'),
+      ...config.remoteVideoCanvas,
       uid,
       mirrorMode: 2,
       setupMode: 0,
@@ -969,38 +1015,50 @@ export class RtcSessionService {
   }
 
   private async runAudioControlDemo(): Promise<void> {
+    const config = this.options.getConfig();
+    const audioProfile = config.audioProfile ?? { profile: 0, scenario: 0 };
+    const audioVolumeIndication = config.audioVolumeIndication ?? { interval: 300, smooth: 3, reportVad: false };
+    const playbackVolume = config.playbackVolume ?? 100;
+    const userPlaybackVolume = config.userPlaybackVolume ?? 100;
     await this.getClient().enableAudio(true);
     this.audioEnabled = true;
     await this.getClient().enableLocalAudio(true);
     this.localAudioEnabled = true;
     await this.getClient().muteLocalAudioStream(false);
     await this.getClient().muteAllRemoteAudioStreams(false);
-    await this.getClient().setAudioProfile(0, 0);
-    await this.getClient().enableAudioVolumeIndication(300, 3, false);
+    await this.getClient().setAudioProfile(audioProfile.profile, audioProfile.scenario);
+    await this.getClient().enableAudioVolumeIndication(
+      audioVolumeIndication.interval,
+      audioVolumeIndication.smooth,
+      audioVolumeIndication.reportVad,
+    );
     await this.getClient().setDefaultAudioRouteToSpeakerphone(true);
     await this.getClient().setEnableSpeakerphone(true);
     this.speakerphoneEnabled = true;
-    await this.getClient().adjustPlaybackSignalVolume(100);
-    await this.getClient().adjustUserPlaybackSignalVolume(this.activeRemoteUid ?? 0, 100);
+    await this.getClient().adjustPlaybackSignalVolume(playbackVolume);
+    await this.getClient().adjustUserPlaybackSignalVolume(this.activeRemoteUid ?? 0, userPlaybackVolume);
     await this.callAndLogFailure('setAudioSessionOperationRestriction', () =>
       this.getClient().setAudioSessionOperationRestriction(0),
     );
   }
 
   private async runVideoControlDemo(): Promise<void> {
+    const config = this.options.getConfig();
     await this.getClient().enableVideo(true);
     await this.getClient().enableLocalVideo(true);
     await this.getClient().muteLocalVideoStream(false);
     await this.getClient().muteAllRemoteVideoStreams(false);
     await this.callAndLogFailure('setVideoEncoderConfiguration', () =>
-      this.getClient().setVideoEncoderConfiguration(VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetName]),
+      this.getClient().setVideoEncoderConfiguration(
+        config.videoEncoderConfiguration ?? VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetName],
+      ),
     );
     await this.getClient().switchCamera();
     await this.callAndLogFailure('setBeautyEffectOptions', () =>
-      this.getClient().setBeautyEffectOptions(true, { smoothnessLevel: 0.5 }),
+      this.getClient().setBeautyEffectOptions(true, config.beautyDemoOptions ?? { smoothnessLevel: 0.5 }),
     );
     await this.callAndLogFailure('enableContentInspect', () =>
-      this.getClient().enableContentInspect(true, { module: 0, interval: 0 }),
+      this.getClient().enableContentInspect(true, config.contentInspectDemoConfig ?? { module: 0, interval: 0 }),
     );
   }
 

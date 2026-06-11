@@ -1,4 +1,12 @@
 import type { Node, Sprite, SpriteFrame, Texture2D } from 'cc';
+import type {
+  AgoraAudioMixingConfig,
+  AgoraVideoEncoderConfiguration,
+  AgoraBeautyOptions,
+  AgoraContentInspectConfig,
+  AgoraPlayEffectConfig,
+  AgoraRtcVideoCanvas,
+} from '../../../extensions/agora-rtc/js/types.ts';
 
 export type RenderBackend = 'engine-texture';
 export type ActionResult = 'ok' | 'fail' | 'idle';
@@ -38,6 +46,38 @@ export interface RuntimeConfigState {
   publishMicrophoneTrack: boolean;
   autoSubscribeAudio: boolean;
   autoSubscribeVideo: boolean;
+  previewSourceType?: number;
+  localVideoCanvas?: Partial<AgoraRtcVideoCanvas>;
+  remoteVideoCanvas?: Partial<AgoraRtcVideoCanvas>;
+  beautyEffectSourceType?: number;
+  beautyOptions?: AgoraBeautyOptions;
+  contentInspectConfig?: AgoraContentInspectConfig;
+  audioVolumeIndication?: {
+    interval: number;
+    smooth?: number;
+    reportVad?: boolean;
+  };
+  audioProfile?: {
+    profile: number;
+    scenario?: number;
+  };
+  audioMixing?: AgoraAudioMixingConfig;
+  audioMixingSeekPositionMs?: number;
+  audioMixingVolume?: number;
+  preloadEffect?: {
+    soundId: number;
+    path: string;
+    startPos?: number;
+  };
+  playEffect?: AgoraPlayEffectConfig;
+  logFilter?: number;
+  logFilePath?: string;
+  debugParameters?: Record<string, unknown>;
+  playbackVolume?: number;
+  userPlaybackVolume?: number;
+  videoEncoderConfiguration?: AgoraVideoEncoderConfiguration;
+  beautyDemoOptions?: AgoraBeautyOptions;
+  contentInspectDemoConfig?: AgoraContentInspectConfig;
 }
 
 export interface BasicVideoConfigState extends RuntimeConfigState {

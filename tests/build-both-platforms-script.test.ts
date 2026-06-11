@@ -156,6 +156,9 @@ test('example build config writer accepts smoke media options', async () => {
         PUBLISH_MICROPHONE_TRACK: 'false',
         AUTO_SUBSCRIBE_AUDIO: 'true',
         AUTO_SUBSCRIBE_VIDEO: 'true',
+        CHANNEL_PROFILE: 'liveBroadcasting',
+        CLIENT_ROLE: 'audience',
+        VIDEO_ENCODER_PRESET_NAME: '720p',
         AGORA_BUILD_CONFIG_PATH: buildConfigPath,
       },
     });
@@ -168,6 +171,9 @@ test('example build config writer accepts smoke media options', async () => {
     assert.equal(buildConfig.publishMicrophoneTrack, false);
     assert.equal(buildConfig.autoSubscribeAudio, true);
     assert.equal(buildConfig.autoSubscribeVideo, true);
+    assert.equal(buildConfig.channelProfile, 'liveBroadcasting');
+    assert.equal(buildConfig.clientRole, 'audience');
+    assert.equal(buildConfig.videoEncoderPresetName, '720p');
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
@@ -202,6 +208,9 @@ test('example build config writer can apply smoke flags to an edited base config
         TEST_TOKEN: '',
         AUTO_JOIN: 'true',
         PUBLISH_CAMERA_TRACK: 'false',
+        CHANNEL_PROFILE: 'communication',
+        CLIENT_ROLE: 'broadcaster',
+        VIDEO_ENCODER_PRESET_NAME: '540p',
         AGORA_CONFIG_PATH: baseConfigPath,
         AGORA_BUILD_CONFIG_PATH: buildConfigPath,
       },
@@ -213,6 +222,9 @@ test('example build config writer can apply smoke flags to an edited base config
     assert.equal(buildConfig.token, 'base-token');
     assert.equal(buildConfig.autoJoin, true);
     assert.equal(buildConfig.publishCameraTrack, false);
+    assert.equal(buildConfig.channelProfile, 'communication');
+    assert.equal(buildConfig.clientRole, 'broadcaster');
+    assert.equal(buildConfig.videoEncoderPresetName, '540p');
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
