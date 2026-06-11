@@ -131,6 +131,26 @@ export class VideoStagePanel extends Component {
     }
   }
 
+  clearLocalVideoFrame(): void {
+    this.ensureBaseNodes();
+    if (this.localVideoSprite) {
+      this.localVideoSprite.spriteFrame = null;
+    }
+    this.setLocalHint('Preview stopped');
+  }
+
+  clearRemoteVideoFrame(uid: number): void {
+    this.ensureBaseNodes();
+    const sprite = this.remoteVideoSprites.get(uid);
+    if (sprite) {
+      sprite.spriteFrame = null;
+    }
+    const hint = this.remoteHintLabels.get(uid);
+    if (hint) {
+      hint.string = `Remote ${uid}`;
+    }
+  }
+
   private ensureBaseNodes(): void {
     const stageWidth = this.stageWidth;
     const stageHeight = this.stageHeight;
