@@ -266,6 +266,21 @@ test('rtc session service uses runtime-configurable audio, mixing, effect, and d
   assert.match(diagnosticsMatch[0], /client\.setLogFilter\(config\.logFilter \?\? 0\)/);
   assert.match(diagnosticsMatch[0], /client\.setLogFile\(config\.logFilePath \?\? '\/tmp\/agora-cocos\.log'\)/);
   assert.match(diagnosticsMatch[0], /client\.setParameters\(config\.debugParameters \?\? \{ 'rtc\.debug': true \}\)/);
+
+  const audioControlDemoMatch = content.match(/private async runAudioControlDemo\(\): Promise<void>[\s\S]*?private async runVideoControlDemo/);
+  assert.ok(audioControlDemoMatch);
+  assert.match(audioControlDemoMatch[0], /const config = this\.options\.getConfig\(\);/);
+  assert.match(audioControlDemoMatch[0], /const audioProfile = config\.audioProfile \?\? \{ profile: 0, scenario: 0 \}/);
+  assert.match(audioControlDemoMatch[0], /const audioVolumeIndication = config\.audioVolumeIndication \?\? \{ interval: 300, smooth: 3, reportVad: false \}/);
+  assert.match(audioControlDemoMatch[0], /const playbackVolume = config\.playbackVolume \?\? 100/);
+  assert.match(audioControlDemoMatch[0], /const userPlaybackVolume = config\.userPlaybackVolume \?\? 100/);
+
+  const videoControlDemoMatch = content.match(/private async runVideoControlDemo\(\): Promise<void>[\s\S]*?private clampVolume/);
+  assert.ok(videoControlDemoMatch);
+  assert.match(videoControlDemoMatch[0], /const config = this\.options\.getConfig\(\);/);
+  assert.match(videoControlDemoMatch[0], /config\.videoEncoderConfiguration \?\? VIDEO_ENCODER_PRESETS\[this\.selectedVideoEncoderPresetName\]/);
+  assert.match(videoControlDemoMatch[0], /config\.beautyDemoOptions \?\? \{ smoothnessLevel: 0\.5 \}/);
+  assert.match(videoControlDemoMatch[0], /config\.contentInspectDemoConfig \?\? \{ module: 0, interval: 0 \}/);
 });
 
 test('demo root and runtime config surface client role and encoder-related settings from config state', async () => {
