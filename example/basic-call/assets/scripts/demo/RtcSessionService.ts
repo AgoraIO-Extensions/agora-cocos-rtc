@@ -43,6 +43,8 @@ export interface RtcSessionServiceOptions {
   onRemoteUsersChanged(uids: number[], activeUid: number | null): void;
   onLocalTextureReady(texture: Texture2D, spriteFrame: SpriteFrame): void;
   onRemoteTextureReady(uid: number, texture: Texture2D, spriteFrame: SpriteFrame): void;
+  onLocalVideoCleared(): void;
+  onRemoteVideoCleared(uid: number): void;
 }
 
 export class RtcSessionService {
@@ -227,13 +229,18 @@ export class RtcSessionService {
   async leaveRtcChannel(): Promise<void> {
     const client = this.getClient();
     const remoteUids = [...this.remoteUserUids];
+    if (this.previewStarted) {
+      await client.stopPreview();
+    }
     await client.leaveChannel();
+    if (this.localViewAttached) {
+      await client.removeLocalVideoView();
+    }
     for (const uid of remoteUids) {
       await client.removeRemoteVideoView(uid);
     }
-    this.remoteTextureSlotIds.clear();
-    this.remoteVideoSpriteFrames.clear();
-    this.clearTextureBindRetries();
+    this.clearLocalVideoRenderState();
+    this.clearRemoteVideoRenderState(remoteUids);
     this.joined = false;
     this.remoteUserUids.clear();
     this.lastRemoteVideoStatsByUid.clear();
@@ -264,7 +271,7 @@ export class RtcSessionService {
       return;
     }
     await this.getClient().stopPreview();
-    this.previewStarted = false;
+    this.clearLocalVideoRenderState();
     this.log('Preview stopped');
     this.emitState();
   }
@@ -681,6 +688,7 @@ export class RtcSessionService {
       }
       await this.teardownRtcStep('destroy', () => client.destroy());
     } finally {
+      const remoteUids = [...this.remoteUserUids];
       this.client = null;
       this.listenersBound = false;
       this.initialized = false;
@@ -693,9 +701,8 @@ export class RtcSessionService {
       this.remoteUserUids.clear();
       this.localViewAttached = false;
       this.localTextureSlotId = null;
-      this.remoteTextureSlotIds.clear();
-      this.remoteVideoSpriteFrames.clear();
-      this.clearTextureBindRetries();
+      this.clearLocalVideoRenderState();
+      this.clearRemoteVideoRenderState(remoteUids);
       this.lastRemoteVideoStatsByUid.clear();
       this.options.onRemoteUsersChanged([], null);
       this.emitState();
@@ -899,6 +906,16 @@ export class RtcSessionService {
     this.textureBindRetryTimers.clear();
   }
 
+  private clearTextureBindRetriesByKind(kind: 'local' | 'remote'): void {
+    for (const [key, timer] of this.textureBindRetryTimers.entries()) {
+      if (!key.startsWith(`${kind}:`)) {
+        continue;
+      }
+      clearTimeout(timer);
+      this.textureBindRetryTimers.delete(key);
+    }
+  }
+
   private textureBindRetryKey(kind: 'local' | 'remote', slotId: number, uid?: number): string {
     return `${kind}:${slotId}:${uid ?? 'local'}`;
   }
@@ -925,6 +942,30 @@ export class RtcSessionService {
       textureWidth: width,
       textureHeight: height,
     };
+  }
+
+  private clearLocalVideoRenderState(): void {
+    this.previewStarted = false;
+    this.localViewAttached = false;
+    this.localTextureSlotId = null;
+    if (this.localVideoSpriteFrame) {
+      this.localVideoSpriteFrame.texture = null;
+    }
+    this.clearTextureBindRetriesByKind('local');
+    this.options.onLocalVideoCleared();
+  }
+
+  private clearRemoteVideoRenderState(uids: number[] = [...this.remoteUserUids]): void {
+    for (const uid of uids) {
+      const spriteFrame = this.remoteVideoSpriteFrames.get(uid);
+      if (spriteFrame) {
+        spriteFrame.texture = null;
+      }
+      this.options.onRemoteVideoCleared(uid);
+    }
+    this.remoteTextureSlotIds.clear();
+    this.remoteVideoSpriteFrames.clear();
+    this.clearTextureBindRetriesByKind('remote');
   }
 
   private async runAudioControlDemo(): Promise<void> {
