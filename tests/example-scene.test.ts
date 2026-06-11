@@ -228,6 +228,46 @@ test('rtc session service uses runtime-configurable canvas, preview, beauty, and
   assert.match(remoteCanvasMatch[0], /\.\.\.config\.remoteVideoCanvas/);
 });
 
+test('rtc session service uses runtime-configurable audio, mixing, effect, and diagnostics parameters', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  const audioToggleMatch = content.match(/async toggleAudioVolumeIndication\(\): Promise<void>[\s\S]*?async toggleDefaultAudioRoute/);
+  assert.ok(audioToggleMatch);
+  assert.match(audioToggleMatch[0], /const config = this\.options\.getConfig\(\);/);
+  assert.match(audioToggleMatch[0], /const audioVolumeIndication = config\.audioVolumeIndication \?\? \{ interval: 200, smooth: 3, reportVad: true \}/);
+
+  const audioProfileMatch = content.match(/async toggleAudioProfile\(\): Promise<void>[\s\S]*?async toggleEnableVideo/);
+  assert.ok(audioProfileMatch);
+  assert.match(audioProfileMatch[0], /const config = this\.options\.getConfig\(\);/);
+  assert.match(audioProfileMatch[0], /const audioProfile = config\.audioProfile \?\? \{ profile: next \}/);
+
+  const mixingDemoMatch = content.match(/async runMixingDemo\(\): Promise<void>[\s\S]*?async runEffectDemo/);
+  assert.ok(mixingDemoMatch);
+  assert.match(mixingDemoMatch[0], /const config = this\.options\.getConfig\(\);/);
+  assert.match(mixingDemoMatch[0], /const audioMixing = config\.audioMixing \?\? \{/);
+  assert.match(mixingDemoMatch[0], /client\.startAudioMixing\(audioMixing\)/);
+  assert.match(mixingDemoMatch[0], /client\.setAudioMixingPosition\(config\.audioMixingSeekPositionMs \?\? 0\)/);
+  assert.match(mixingDemoMatch[0], /client\.adjustAudioMixingVolume\(config\.audioMixingVolume \?\? 60\)/);
+
+  const effectDemoMatch = content.match(/async runEffectDemo\(\): Promise<void>[\s\S]*?async preloadAudioEffect/);
+  assert.ok(effectDemoMatch);
+  assert.match(effectDemoMatch[0], /const config = this\.options\.getConfig\(\);/);
+  assert.match(effectDemoMatch[0], /const preloadEffect = config\.preloadEffect \?\? \{ soundId: 1, path: 'audio\/effect\.mp3' \}/);
+  assert.match(effectDemoMatch[0], /const playEffect = config\.playEffect \?\? \{/);
+  assert.match(effectDemoMatch[0], /client\.preloadEffect\(preloadEffect\.soundId, preloadEffect\.path, preloadEffect\.startPos\)/);
+  assert.match(effectDemoMatch[0], /client\.playEffect\(playEffect\)/);
+
+  const diagnosticsMatch = content.match(/async runDiagnosticsDemo\(\): Promise<void>[\s\S]*?async applyParameterPreset/);
+  assert.ok(diagnosticsMatch);
+  assert.match(diagnosticsMatch[0], /const config = this\.options\.getConfig\(\);/);
+  assert.match(diagnosticsMatch[0], /client\.setLogFilter\(config\.logFilter \?\? 0\)/);
+  assert.match(diagnosticsMatch[0], /client\.setLogFile\(config\.logFilePath \?\? '\/tmp\/agora-cocos\.log'\)/);
+  assert.match(diagnosticsMatch[0], /client\.setParameters\(config\.debugParameters \?\? \{ 'rtc\.debug': true \}\)/);
+});
+
 test('demo root and runtime config surface client role and encoder-related settings from config state', async () => {
   const root = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,

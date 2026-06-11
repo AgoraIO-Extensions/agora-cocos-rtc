@@ -4,8 +4,10 @@ import type {
   VideoEncoderPresetName,
 } from './demo/types.ts';
 import type {
+  AgoraAudioMixingConfig,
   AgoraBeautyOptions,
   AgoraContentInspectConfig,
+  AgoraPlayEffectConfig,
   AgoraRtcVideoCanvas,
 } from '../../extensions/agora-rtc/js/types.ts';
 
@@ -30,6 +32,27 @@ export type AgoraExampleRuntimeConfig = {
   beautyEffectSourceType?: number;
   beautyOptions?: AgoraBeautyOptions;
   contentInspectConfig?: AgoraContentInspectConfig;
+  audioVolumeIndication?: {
+    interval: number;
+    smooth?: number;
+    reportVad?: boolean;
+  };
+  audioProfile?: {
+    profile: number;
+    scenario?: number;
+  };
+  audioMixing?: AgoraAudioMixingConfig;
+  audioMixingSeekPositionMs?: number;
+  audioMixingVolume?: number;
+  preloadEffect?: {
+    soundId: number;
+    path: string;
+    startPos?: number;
+  };
+  playEffect?: AgoraPlayEffectConfig;
+  logFilter?: number;
+  logFilePath?: string;
+  debugParameters?: Record<string, unknown>;
 };
 
 export const keyAppId = 'TEST_APP_ID';
@@ -152,6 +175,32 @@ export function resolveAgoraExampleConfig(
       : undefined;
   const beautyOptions = buildConfig?.beautyOptions ?? baseConfig?.beautyOptions;
   const contentInspectConfig = buildConfig?.contentInspectConfig ?? baseConfig?.contentInspectConfig;
+  const audioVolumeIndication = buildConfig?.audioVolumeIndication ?? baseConfig?.audioVolumeIndication;
+  const audioProfile = buildConfig?.audioProfile ?? baseConfig?.audioProfile;
+  const audioMixing = buildConfig?.audioMixing ?? baseConfig?.audioMixing;
+  const audioMixingSeekPositionMs = typeof buildConfig?.audioMixingSeekPositionMs === 'number'
+    ? buildConfig.audioMixingSeekPositionMs
+    : typeof baseConfig?.audioMixingSeekPositionMs === 'number'
+      ? baseConfig.audioMixingSeekPositionMs
+      : undefined;
+  const audioMixingVolume = typeof buildConfig?.audioMixingVolume === 'number'
+    ? buildConfig.audioMixingVolume
+    : typeof baseConfig?.audioMixingVolume === 'number'
+      ? baseConfig.audioMixingVolume
+      : undefined;
+  const preloadEffect = buildConfig?.preloadEffect ?? baseConfig?.preloadEffect;
+  const playEffect = buildConfig?.playEffect ?? baseConfig?.playEffect;
+  const logFilter = typeof buildConfig?.logFilter === 'number'
+    ? buildConfig.logFilter
+    : typeof baseConfig?.logFilter === 'number'
+      ? baseConfig.logFilter
+      : undefined;
+  const logFilePath = typeof buildConfig?.logFilePath === 'string'
+    ? normalizeConfigValue(buildConfig.logFilePath) || buildConfig.logFilePath
+    : typeof baseConfig?.logFilePath === 'string'
+      ? normalizeConfigValue(baseConfig.logFilePath) || baseConfig.logFilePath
+      : undefined;
+  const debugParameters = buildConfig?.debugParameters ?? baseConfig?.debugParameters;
 
   return {
     appId,
@@ -174,5 +223,15 @@ export function resolveAgoraExampleConfig(
     beautyEffectSourceType,
     beautyOptions,
     contentInspectConfig,
+    audioVolumeIndication,
+    audioProfile,
+    audioMixing,
+    audioMixingSeekPositionMs,
+    audioMixingVolume,
+    preloadEffect,
+    playEffect,
+    logFilter,
+    logFilePath,
+    debugParameters,
   };
 }
