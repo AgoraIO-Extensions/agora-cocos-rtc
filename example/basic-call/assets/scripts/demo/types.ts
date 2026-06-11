@@ -1,7 +1,9 @@
 import type { Node, Sprite, SpriteFrame, Texture2D } from 'cc';
 import type {
+  AgoraAudioMixingConfig,
   AgoraBeautyOptions,
   AgoraContentInspectConfig,
+  AgoraPlayEffectConfig,
   AgoraRtcVideoCanvas,
 } from '../../../extensions/agora-rtc/js/types.ts';
 
@@ -49,6 +51,27 @@ export interface RuntimeConfigState {
   beautyEffectSourceType?: number;
   beautyOptions?: AgoraBeautyOptions;
   contentInspectConfig?: AgoraContentInspectConfig;
+  audioVolumeIndication?: {
+    interval: number;
+    smooth?: number;
+    reportVad?: boolean;
+  };
+  audioProfile?: {
+    profile: number;
+    scenario?: number;
+  };
+  audioMixing?: AgoraAudioMixingConfig;
+  audioMixingSeekPositionMs?: number;
+  audioMixingVolume?: number;
+  preloadEffect?: {
+    soundId: number;
+    path: string;
+    startPos?: number;
+  };
+  playEffect?: AgoraPlayEffectConfig;
+  logFilter?: number;
+  logFilePath?: string;
+  debugParameters?: Record<string, unknown>;
 }
 
 export interface BasicVideoConfigState extends RuntimeConfigState {

@@ -397,7 +397,13 @@ export class RtcSessionService {
 
   async toggleAudioVolumeIndication(): Promise<void> {
     const next = !this.audioVolumeIndicationEnabled;
-    await this.getClient().enableAudioVolumeIndication(next ? 200 : 0, 3, true);
+    const config = this.options.getConfig();
+    const audioVolumeIndication = config.audioVolumeIndication ?? { interval: 200, smooth: 3, reportVad: true };
+    await this.getClient().enableAudioVolumeIndication(
+      next ? audioVolumeIndication.interval : 0,
+      audioVolumeIndication.smooth,
+      audioVolumeIndication.reportVad,
+    );
     this.audioVolumeIndicationEnabled = next;
     this.log(`Audio volume indication ${next ? 'enabled' : 'disabled'}`);
   }
@@ -418,7 +424,9 @@ export class RtcSessionService {
 
   async toggleAudioProfile(): Promise<void> {
     const next = this.currentAudioProfile === 0 ? 1 : 0;
-    await this.getClient().setAudioProfile(next);
+    const config = this.options.getConfig();
+    const audioProfile = config.audioProfile ?? { profile: next };
+    await this.getClient().setAudioProfile(audioProfile.profile, audioProfile.scenario);
     this.currentAudioProfile = next;
     this.log(`Audio profile: ${next}`);
   }
@@ -533,27 +541,36 @@ export class RtcSessionService {
 
   async runMixingDemo(): Promise<void> {
     const client = this.getClient();
-    await this.callAndLogFailure('startAudioMixing', () => client.startAudioMixing({
+    const config = this.options.getConfig();
+    const audioMixing = config.audioMixing ?? {
       path: 'audio/demo-mix.mp3',
       loopback: false,
       cycle: 1,
       startPos: 0,
-    }));
+    };
+    await this.callAndLogFailure('startAudioMixing', () => client.startAudioMixing(audioMixing));
     await this.callAndLogFailure('pauseAudioMixing', () => client.pauseAudioMixing());
     await this.callAndLogFailure('resumeAudioMixing', () => client.resumeAudioMixing());
     await this.callAndLogFailure('getAudioMixingCurrentPosition', async () => {
       const position = await client.getAudioMixingCurrentPosition();
       this.log(`Mixing position: ${position}`);
     });
-    await this.callAndLogFailure('setAudioMixingPosition', () => client.setAudioMixingPosition(0));
-    await this.callAndLogFailure('adjustAudioMixingVolume', () => client.adjustAudioMixingVolume(60));
+    await this.callAndLogFailure(
+      'setAudioMixingPosition',
+      () => client.setAudioMixingPosition(config.audioMixingSeekPositionMs ?? 0),
+    );
+    await this.callAndLogFailure(
+      'adjustAudioMixingVolume',
+      () => client.adjustAudioMixingVolume(config.audioMixingVolume ?? 60),
+    );
     await this.callAndLogFailure('stopAudioMixing', () => client.stopAudioMixing());
   }
 
   async runEffectDemo(): Promise<void> {
     const client = this.getClient();
-    await this.callAndLogFailure('preloadEffect', () => client.preloadEffect(1, 'audio/effect.mp3'));
-    await this.callAndLogFailure('playEffect', () => client.playEffect({
+    const config = this.options.getConfig();
+    const preloadEffect = config.preloadEffect ?? { soundId: 1, path: 'audio/effect.mp3' };
+    const playEffect = config.playEffect ?? {
       soundId: 1,
       path: 'audio/effect.mp3',
       loopCount: 1,
@@ -562,7 +579,12 @@ export class RtcSessionService {
       gain: 100,
       publish: false,
       startPos: 0,
-    }));
+    };
+    await this.callAndLogFailure(
+      'preloadEffect',
+      () => client.preloadEffect(preloadEffect.soundId, preloadEffect.path, preloadEffect.startPos),
+    );
+    await this.callAndLogFailure('playEffect', () => client.playEffect(playEffect));
     await this.callAndLogFailure('stopEffect', () => client.stopEffect(1));
   }
 
@@ -666,15 +688,16 @@ export class RtcSessionService {
 
   async runDiagnosticsDemo(): Promise<void> {
     const client = this.getClient();
+    const config = this.options.getConfig();
     const errorDescription = await client.getErrorDescription(0);
     this.log(`getErrorDescription(0): ${errorDescription}`);
-    await client.setLogFilter(0);
-    await client.setLogFile('/tmp/agora-cocos.log');
+    await client.setLogFilter(config.logFilter ?? 0);
+    await client.setLogFile(config.logFilePath ?? '/tmp/agora-cocos.log');
     await this.callAndLogFailure('isSpeakerphoneEnabled', async () => {
       this.speakerphoneEnabled = await client.isSpeakerphoneEnabled();
       this.log(`Speakerphone enabled: ${this.speakerphoneEnabled}`);
     });
-    await client.setParameters('{"rtc.debug":true}');
+    await client.setParameters(config.debugParameters ?? { 'rtc.debug': true });
   }
 
   async applyParameterPreset(parameters: Record<string, unknown>): Promise<void> {
