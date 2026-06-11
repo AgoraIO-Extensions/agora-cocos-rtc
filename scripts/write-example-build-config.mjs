@@ -45,6 +45,19 @@ function setIfDefined(target, name, value) {
   }
 }
 
+function parseOptionalEnum(name, allowedValues) {
+  const value = process.env[name];
+  if (value === undefined || value.trim() === '') {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (!allowedValues.includes(trimmed)) {
+    console.error(`${name} must be one of: ${allowedValues.join(', ')}.`);
+    process.exit(1);
+  }
+  return trimmed;
+}
+
 function firstNonEmptyEnv(...names) {
   for (const name of names) {
     const value = process.env[name];
@@ -86,6 +99,21 @@ setIfDefined(buildConfig, 'publishCameraTrack', parseOptionalBoolean('PUBLISH_CA
 setIfDefined(buildConfig, 'publishMicrophoneTrack', parseOptionalBoolean('PUBLISH_MICROPHONE_TRACK'));
 setIfDefined(buildConfig, 'autoSubscribeAudio', parseOptionalBoolean('AUTO_SUBSCRIBE_AUDIO'));
 setIfDefined(buildConfig, 'autoSubscribeVideo', parseOptionalBoolean('AUTO_SUBSCRIBE_VIDEO'));
+setIfDefined(
+  buildConfig,
+  'channelProfile',
+  parseOptionalEnum('CHANNEL_PROFILE', ['communication', 'liveBroadcasting']),
+);
+setIfDefined(
+  buildConfig,
+  'clientRole',
+  parseOptionalEnum('CLIENT_ROLE', ['broadcaster', 'audience']),
+);
+setIfDefined(
+  buildConfig,
+  'videoEncoderPresetName',
+  parseOptionalEnum('VIDEO_ENCODER_PRESET_NAME', ['360p', '540p', '720p']),
+);
 const buildConfigMeta = {
   ver: '2.0.1',
   importer: 'json',

@@ -193,6 +193,97 @@ test('rtc session service passes configurable video join media options from Type
   assert.match(joinMethod, /if \(config\.publishCameraTrack\)/);
 });
 
+test('rtc session service uses runtime-configurable canvas, preview, beauty, and content inspect parameters', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  const previewMethodMatch = content.match(/async startLocalPreview\(\): Promise<void>[\s\S]*?async stopLocalPreview/);
+  assert.ok(previewMethodMatch);
+  assert.match(previewMethodMatch[0], /const config = this\.options\.getConfig\(\);/);
+  assert.match(previewMethodMatch[0], /this\.getClient\(\)\.startPreview\(config\.previewSourceType\)/);
+
+  const beautyMethodMatch = content.match(/async toggleBeautyEffect\(\): Promise<void>[\s\S]*?async toggleContentInspect/);
+  assert.ok(beautyMethodMatch);
+  assert.match(beautyMethodMatch[0], /const config = this\.options\.getConfig\(\);/);
+  assert.match(beautyMethodMatch[0], /config\.beautyOptions \?\? \{/);
+  assert.match(beautyMethodMatch[0], /config\.beautyEffectSourceType/);
+
+  const inspectMethodMatch = content.match(/async toggleContentInspect\(\): Promise<void>[\s\S]*?async togglePlaybackUserVolume/);
+  assert.ok(inspectMethodMatch);
+  assert.match(inspectMethodMatch[0], /const config = this\.options\.getConfig\(\);/);
+  assert.match(inspectMethodMatch[0], /config\.contentInspectConfig \?\? \{ module: 0, interval: 2 \}/);
+
+  const localCanvasMatch = content.match(/private async setupLocalVideoView\(\): Promise<void>[\s\S]*?private async setupRemoteVideoView/);
+  assert.ok(localCanvasMatch);
+  assert.match(localCanvasMatch[0], /const config = this\.options\.getConfig\(\);/);
+  assert.match(localCanvasMatch[0], /resolveNodeRect\(node, 'hidden'\)/);
+  assert.match(localCanvasMatch[0], /\.\.\.config\.localVideoCanvas/);
+
+  const remoteCanvasMatch = content.match(/private async setupRemoteVideoView\(uid: number\): Promise<void>[\s\S]*?private bindNativeTextureSprite/);
+  assert.ok(remoteCanvasMatch);
+  assert.match(remoteCanvasMatch[0], /const config = this\.options\.getConfig\(\);/);
+  assert.match(remoteCanvasMatch[0], /resolveNodeRect\(node, 'fit'\)/);
+  assert.match(remoteCanvasMatch[0], /\.\.\.config\.remoteVideoCanvas/);
+});
+
+test('demo root and runtime config surface client role and encoder-related settings from config state', async () => {
+  const root = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+  const configOverride = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/agoraRtcConfigOverride.ts`,
+    'utf8',
+  );
+  const types = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/types.ts`,
+    'utf8',
+  );
+
+  assert.match(configOverride, /channelProfile\?: ChannelProfile;/);
+  assert.match(configOverride, /clientRole\?: ClientRole;/);
+  assert.match(configOverride, /videoEncoderPresetName\?: VideoEncoderPresetName;/);
+  assert.match(configOverride, /const channelProfile = resolveEnumConfig/);
+  assert.match(configOverride, /const clientRole = resolveEnumConfig/);
+  assert.match(configOverride, /const videoEncoderPresetName = resolveEnumConfig/);
+  assert.match(root, /this\.channelProfile = config\.channelProfile \?\? this\.channelProfile;/);
+  assert.match(root, /this\.clientRole = config\.clientRole \?\? this\.clientRole;/);
+  assert.match(root, /this\.videoEncoderPresetName = config\.videoEncoderPresetName \?\? this\.videoEncoderPresetName;/);
+  assert.match(root, /clientRole: this\.clientRole,/);
+  assert.doesNotMatch(root, /clientRole: 'broadcaster'/);
+  assert.match(types, /clientRole: ClientRole;/);
+  assert.match(types, /videoEncoderPresetName: VideoEncoderPresetName;/);
+});
+
+test('example ui and config flow treat uid 0 as the default random uid instead of hardcoded 1001', async () => {
+  const root = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+  const actionPanel = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+  const headerPanel = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoHeaderPanel.ts`,
+    'utf8',
+  );
+  const patchBundle = await readFile(
+    `${repoRoot}/scripts/patch-exported-main-bundle.mjs`,
+    'utf8',
+  );
+
+  assert.match(root, /uid = 0/);
+  assert.match(actionPanel, /String\(this\.config\?\.uid \?\? 0\)/);
+  assert.match(actionPanel, /editBox\.placeholder = name === 'UidInput' \? '0' : 'demo'/);
+  assert.match(actionPanel, /this\.config\?\.uid \?\? 0/);
+  assert.match(headerPanel, /const uid = Number\.isFinite\(parsedUid\) && parsedUid >= 0 \? Math\.floor\(parsedUid\) : 0/);
+  assert.match(patchBundle, /const runtimeUid = Number\.isFinite\(runtimeConfig\.uid\) \? Number\(runtimeConfig\.uid\) : 0/);
+  assert.match(patchBundle, /this\.uid = 0;/);
+});
+
 test('rtc session service leave clears local and remote rendering resources without destroying engine', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
@@ -528,6 +619,9 @@ test('example config override supports build-time values without committing cred
   assert.match(content, /publishMicrophoneTrack/);
   assert.match(content, /autoSubscribeAudio/);
   assert.match(content, /autoSubscribeVideo/);
+  assert.match(content, /channelProfile/);
+  assert.match(content, /clientRole/);
+  assert.match(content, /videoEncoderPresetName/);
   assert.doesNotMatch(content, /\bappId\s*[:=]\s*['"][0-9a-f]{32}['"]/i);
 });
 

@@ -1,3 +1,14 @@
+import type {
+  ChannelProfile,
+  ClientRole,
+  VideoEncoderPresetName,
+} from './demo/types.ts';
+import type {
+  AgoraBeautyOptions,
+  AgoraContentInspectConfig,
+  AgoraRtcVideoCanvas,
+} from '../../extensions/agora-rtc/js/types.ts';
+
 export type AgoraExampleRuntimeConfig = {
   appId?: string;
   token?: string;
@@ -10,6 +21,15 @@ export type AgoraExampleRuntimeConfig = {
   publishMicrophoneTrack?: boolean;
   autoSubscribeAudio?: boolean;
   autoSubscribeVideo?: boolean;
+  channelProfile?: ChannelProfile;
+  clientRole?: ClientRole;
+  videoEncoderPresetName?: VideoEncoderPresetName;
+  previewSourceType?: number;
+  localVideoCanvas?: Partial<AgoraRtcVideoCanvas>;
+  remoteVideoCanvas?: Partial<AgoraRtcVideoCanvas>;
+  beautyEffectSourceType?: number;
+  beautyOptions?: AgoraBeautyOptions;
+  contentInspectConfig?: AgoraContentInspectConfig;
 };
 
 export const keyAppId = 'TEST_APP_ID';
@@ -65,6 +85,20 @@ function resolveBooleanConfig(
   return defaultValue;
 }
 
+function resolveEnumConfig<T extends string>(
+  buildValue: unknown,
+  baseValue: unknown,
+  allowedValues: readonly T[],
+) {
+  if (typeof buildValue === 'string' && allowedValues.includes(buildValue as T)) {
+    return buildValue as T;
+  }
+  if (typeof baseValue === 'string' && allowedValues.includes(baseValue as T)) {
+    return baseValue as T;
+  }
+  return undefined;
+}
+
 export function resolveAgoraExampleConfig(
   baseConfig: AgoraExampleRuntimeConfig | null | undefined,
   buildConfig?: AgoraExampleRuntimeConfig | null,
@@ -89,6 +123,35 @@ export function resolveAgoraExampleConfig(
   );
   const autoSubscribeAudio = resolveBooleanConfig(buildConfig?.autoSubscribeAudio, baseConfig?.autoSubscribeAudio, true);
   const autoSubscribeVideo = resolveBooleanConfig(buildConfig?.autoSubscribeVideo, baseConfig?.autoSubscribeVideo, true);
+  const channelProfile = resolveEnumConfig(
+    buildConfig?.channelProfile,
+    baseConfig?.channelProfile,
+    ['communication', 'liveBroadcasting'] as const,
+  );
+  const clientRole = resolveEnumConfig(
+    buildConfig?.clientRole,
+    baseConfig?.clientRole,
+    ['broadcaster', 'audience'] as const,
+  );
+  const videoEncoderPresetName = resolveEnumConfig(
+    buildConfig?.videoEncoderPresetName,
+    baseConfig?.videoEncoderPresetName,
+    ['360p', '540p', '720p'] as const,
+  );
+  const previewSourceType = typeof buildConfig?.previewSourceType === 'number'
+    ? buildConfig.previewSourceType
+    : typeof baseConfig?.previewSourceType === 'number'
+      ? baseConfig.previewSourceType
+      : undefined;
+  const localVideoCanvas = buildConfig?.localVideoCanvas ?? baseConfig?.localVideoCanvas;
+  const remoteVideoCanvas = buildConfig?.remoteVideoCanvas ?? baseConfig?.remoteVideoCanvas;
+  const beautyEffectSourceType = typeof buildConfig?.beautyEffectSourceType === 'number'
+    ? buildConfig.beautyEffectSourceType
+    : typeof baseConfig?.beautyEffectSourceType === 'number'
+      ? baseConfig.beautyEffectSourceType
+      : undefined;
+  const beautyOptions = buildConfig?.beautyOptions ?? baseConfig?.beautyOptions;
+  const contentInspectConfig = buildConfig?.contentInspectConfig ?? baseConfig?.contentInspectConfig;
 
   return {
     appId,
@@ -102,5 +165,14 @@ export function resolveAgoraExampleConfig(
     publishMicrophoneTrack,
     autoSubscribeAudio,
     autoSubscribeVideo,
+    channelProfile,
+    clientRole,
+    videoEncoderPresetName,
+    previewSourceType,
+    localVideoCanvas,
+    remoteVideoCanvas,
+    beautyEffectSourceType,
+    beautyOptions,
+    contentInspectConfig,
   };
 }
