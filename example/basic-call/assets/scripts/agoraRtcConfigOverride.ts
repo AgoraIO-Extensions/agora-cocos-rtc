@@ -1,3 +1,17 @@
+import type {
+  ChannelProfile,
+  ClientRole,
+  VideoEncoderPresetName,
+} from './demo/types.ts';
+import type {
+  AgoraAudioMixingConfig,
+  AgoraVideoEncoderConfiguration,
+  AgoraBeautyOptions,
+  AgoraContentInspectConfig,
+  AgoraPlayEffectConfig,
+  AgoraRtcVideoCanvas,
+} from '../../extensions/agora-rtc/js/types.ts';
+
 export type AgoraExampleRuntimeConfig = {
   appId?: string;
   token?: string;
@@ -10,6 +24,41 @@ export type AgoraExampleRuntimeConfig = {
   publishMicrophoneTrack?: boolean;
   autoSubscribeAudio?: boolean;
   autoSubscribeVideo?: boolean;
+  channelProfile?: ChannelProfile;
+  clientRole?: ClientRole;
+  videoEncoderPresetName?: VideoEncoderPresetName;
+  previewSourceType?: number;
+  localVideoCanvas?: Partial<AgoraRtcVideoCanvas>;
+  remoteVideoCanvas?: Partial<AgoraRtcVideoCanvas>;
+  beautyEffectSourceType?: number;
+  beautyOptions?: AgoraBeautyOptions;
+  contentInspectConfig?: AgoraContentInspectConfig;
+  audioVolumeIndication?: {
+    interval: number;
+    smooth?: number;
+    reportVad?: boolean;
+  };
+  audioProfile?: {
+    profile: number;
+    scenario?: number;
+  };
+  audioMixing?: AgoraAudioMixingConfig;
+  audioMixingSeekPositionMs?: number;
+  audioMixingVolume?: number;
+  preloadEffect?: {
+    soundId: number;
+    path: string;
+    startPos?: number;
+  };
+  playEffect?: AgoraPlayEffectConfig;
+  logFilter?: number;
+  logFilePath?: string;
+  debugParameters?: Record<string, unknown>;
+  playbackVolume?: number;
+  userPlaybackVolume?: number;
+  videoEncoderConfiguration?: AgoraVideoEncoderConfiguration;
+  beautyDemoOptions?: AgoraBeautyOptions;
+  contentInspectDemoConfig?: AgoraContentInspectConfig;
 };
 
 export const keyAppId = 'TEST_APP_ID';
@@ -65,6 +114,20 @@ function resolveBooleanConfig(
   return defaultValue;
 }
 
+function resolveEnumConfig<T extends string>(
+  buildValue: unknown,
+  baseValue: unknown,
+  allowedValues: readonly T[],
+) {
+  if (typeof buildValue === 'string' && allowedValues.includes(buildValue as T)) {
+    return buildValue as T;
+  }
+  if (typeof baseValue === 'string' && allowedValues.includes(baseValue as T)) {
+    return baseValue as T;
+  }
+  return undefined;
+}
+
 export function resolveAgoraExampleConfig(
   baseConfig: AgoraExampleRuntimeConfig | null | undefined,
   buildConfig?: AgoraExampleRuntimeConfig | null,
@@ -89,6 +152,74 @@ export function resolveAgoraExampleConfig(
   );
   const autoSubscribeAudio = resolveBooleanConfig(buildConfig?.autoSubscribeAudio, baseConfig?.autoSubscribeAudio, true);
   const autoSubscribeVideo = resolveBooleanConfig(buildConfig?.autoSubscribeVideo, baseConfig?.autoSubscribeVideo, true);
+  const channelProfile = resolveEnumConfig(
+    buildConfig?.channelProfile,
+    baseConfig?.channelProfile,
+    ['communication', 'liveBroadcasting'] as const,
+  );
+  const clientRole = resolveEnumConfig(
+    buildConfig?.clientRole,
+    baseConfig?.clientRole,
+    ['broadcaster', 'audience'] as const,
+  );
+  const videoEncoderPresetName = resolveEnumConfig(
+    buildConfig?.videoEncoderPresetName,
+    baseConfig?.videoEncoderPresetName,
+    ['360p', '540p', '720p'] as const,
+  );
+  const previewSourceType = typeof buildConfig?.previewSourceType === 'number'
+    ? buildConfig.previewSourceType
+    : typeof baseConfig?.previewSourceType === 'number'
+      ? baseConfig.previewSourceType
+      : undefined;
+  const localVideoCanvas = buildConfig?.localVideoCanvas ?? baseConfig?.localVideoCanvas;
+  const remoteVideoCanvas = buildConfig?.remoteVideoCanvas ?? baseConfig?.remoteVideoCanvas;
+  const beautyEffectSourceType = typeof buildConfig?.beautyEffectSourceType === 'number'
+    ? buildConfig.beautyEffectSourceType
+    : typeof baseConfig?.beautyEffectSourceType === 'number'
+      ? baseConfig.beautyEffectSourceType
+      : undefined;
+  const beautyOptions = buildConfig?.beautyOptions ?? baseConfig?.beautyOptions;
+  const contentInspectConfig = buildConfig?.contentInspectConfig ?? baseConfig?.contentInspectConfig;
+  const audioVolumeIndication = buildConfig?.audioVolumeIndication ?? baseConfig?.audioVolumeIndication;
+  const audioProfile = buildConfig?.audioProfile ?? baseConfig?.audioProfile;
+  const audioMixing = buildConfig?.audioMixing ?? baseConfig?.audioMixing;
+  const audioMixingSeekPositionMs = typeof buildConfig?.audioMixingSeekPositionMs === 'number'
+    ? buildConfig.audioMixingSeekPositionMs
+    : typeof baseConfig?.audioMixingSeekPositionMs === 'number'
+      ? baseConfig.audioMixingSeekPositionMs
+      : undefined;
+  const audioMixingVolume = typeof buildConfig?.audioMixingVolume === 'number'
+    ? buildConfig.audioMixingVolume
+    : typeof baseConfig?.audioMixingVolume === 'number'
+      ? baseConfig.audioMixingVolume
+      : undefined;
+  const preloadEffect = buildConfig?.preloadEffect ?? baseConfig?.preloadEffect;
+  const playEffect = buildConfig?.playEffect ?? baseConfig?.playEffect;
+  const logFilter = typeof buildConfig?.logFilter === 'number'
+    ? buildConfig.logFilter
+    : typeof baseConfig?.logFilter === 'number'
+      ? baseConfig.logFilter
+      : undefined;
+  const logFilePath = typeof buildConfig?.logFilePath === 'string'
+    ? normalizeConfigValue(buildConfig.logFilePath) || buildConfig.logFilePath
+    : typeof baseConfig?.logFilePath === 'string'
+      ? normalizeConfigValue(baseConfig.logFilePath) || baseConfig.logFilePath
+      : undefined;
+  const debugParameters = buildConfig?.debugParameters ?? baseConfig?.debugParameters;
+  const playbackVolume = typeof buildConfig?.playbackVolume === 'number'
+    ? buildConfig.playbackVolume
+    : typeof baseConfig?.playbackVolume === 'number'
+      ? baseConfig.playbackVolume
+      : undefined;
+  const userPlaybackVolume = typeof buildConfig?.userPlaybackVolume === 'number'
+    ? buildConfig.userPlaybackVolume
+    : typeof baseConfig?.userPlaybackVolume === 'number'
+      ? baseConfig.userPlaybackVolume
+      : undefined;
+  const videoEncoderConfiguration = buildConfig?.videoEncoderConfiguration ?? baseConfig?.videoEncoderConfiguration;
+  const beautyDemoOptions = buildConfig?.beautyDemoOptions ?? baseConfig?.beautyDemoOptions;
+  const contentInspectDemoConfig = buildConfig?.contentInspectDemoConfig ?? baseConfig?.contentInspectDemoConfig;
 
   return {
     appId,
@@ -102,5 +233,29 @@ export function resolveAgoraExampleConfig(
     publishMicrophoneTrack,
     autoSubscribeAudio,
     autoSubscribeVideo,
+    channelProfile,
+    clientRole,
+    videoEncoderPresetName,
+    previewSourceType,
+    localVideoCanvas,
+    remoteVideoCanvas,
+    beautyEffectSourceType,
+    beautyOptions,
+    contentInspectConfig,
+    audioVolumeIndication,
+    audioProfile,
+    audioMixing,
+    audioMixingSeekPositionMs,
+    audioMixingVolume,
+    preloadEffect,
+    playEffect,
+    logFilter,
+    logFilePath,
+    debugParameters,
+    playbackVolume,
+    userPlaybackVolume,
+    videoEncoderConfiguration,
+    beautyDemoOptions,
+    contentInspectDemoConfig,
   };
 }

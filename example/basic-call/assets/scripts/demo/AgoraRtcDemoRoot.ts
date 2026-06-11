@@ -1,4 +1,9 @@
 import { _decorator, Component, JsonAsset, Node, resources, UITransform, view } from 'cc';
+import type {
+  AgoraBeautyOptions,
+  AgoraContentInspectConfig,
+  AgoraRtcVideoCanvas,
+} from '../../../extensions/agora-rtc/js/types.ts';
 import {
   resolveAgoraExampleConfig,
   type AgoraExampleRuntimeConfig,
@@ -11,6 +16,7 @@ import type {
   ActionResult,
   BasicVideoConfigState,
   ChannelProfile,
+  ClientRole,
   DemoSessionState,
   RuntimeConfigState,
   VideoEncoderPresetName,
@@ -68,8 +74,18 @@ export class AgoraRtcDemoRoot extends Component {
   @property
   autoSubscribeVideo = true;
 
+  private previewSourceType: number | undefined;
+  private localVideoCanvas: Partial<AgoraRtcVideoCanvas> | undefined;
+  private remoteVideoCanvas: Partial<AgoraRtcVideoCanvas> | undefined;
+  private beautyEffectSourceType: number | undefined;
+  private beautyOptions: AgoraBeautyOptions | undefined;
+  private contentInspectConfig: AgoraContentInspectConfig | undefined;
+
   @property
   channelProfile: ChannelProfile = 'communication';
+
+  @property
+  clientRole: ClientRole = 'broadcaster';
 
   @property
   videoEncoderPresetName: VideoEncoderPresetName = '360p';
@@ -485,6 +501,15 @@ export class AgoraRtcDemoRoot extends Component {
     this.publishMicrophoneTrack = config.publishMicrophoneTrack ?? this.publishMicrophoneTrack;
     this.autoSubscribeAudio = config.autoSubscribeAudio ?? this.autoSubscribeAudio;
     this.autoSubscribeVideo = config.autoSubscribeVideo ?? this.autoSubscribeVideo;
+    this.channelProfile = config.channelProfile ?? this.channelProfile;
+    this.clientRole = config.clientRole ?? this.clientRole;
+    this.videoEncoderPresetName = config.videoEncoderPresetName ?? this.videoEncoderPresetName;
+    this.previewSourceType = config.previewSourceType;
+    this.localVideoCanvas = config.localVideoCanvas;
+    this.remoteVideoCanvas = config.remoteVideoCanvas;
+    this.beautyEffectSourceType = config.beautyEffectSourceType;
+    this.beautyOptions = config.beautyOptions;
+    this.contentInspectConfig = config.contentInspectConfig;
     if (this.appId || this.channelId) {
       this.pushStatus(`Loaded config for channel: ${this.channelId}`);
     }
@@ -581,8 +606,13 @@ export class AgoraRtcDemoRoot extends Component {
       this.channelProfile = config.channelProfile;
       void this.session?.applyChannelProfile(config.channelProfile);
     }
+    if (config.clientRole) {
+      this.clientRole = config.clientRole;
+      void this.session?.applyClientRole(config.clientRole);
+    }
     if (config.videoEncoderPresetName) {
       this.videoEncoderPresetName = config.videoEncoderPresetName;
+      void this.session?.applyVideoEncoderPreset(config.videoEncoderPresetName);
     }
     this.refreshPanels();
     this.pushStatus(`Config updated: channel ${this.channelId}, uid ${this.uid}`);
@@ -664,6 +694,12 @@ export class AgoraRtcDemoRoot extends Component {
       publishMicrophoneTrack: this.publishMicrophoneTrack,
       autoSubscribeAudio: this.autoSubscribeAudio,
       autoSubscribeVideo: this.autoSubscribeVideo,
+      previewSourceType: this.previewSourceType,
+      localVideoCanvas: this.localVideoCanvas,
+      remoteVideoCanvas: this.remoteVideoCanvas,
+      beautyEffectSourceType: this.beautyEffectSourceType,
+      beautyOptions: this.beautyOptions,
+      contentInspectConfig: this.contentInspectConfig,
     };
   }
 
@@ -671,7 +707,7 @@ export class AgoraRtcDemoRoot extends Component {
     return {
       ...this.getRuntimeConfigState(),
       channelProfile: this.channelProfile,
-      clientRole: 'broadcaster',
+      clientRole: this.clientRole,
       videoEncoderPresetName: this.videoEncoderPresetName,
     };
   }
@@ -684,7 +720,7 @@ export class AgoraRtcDemoRoot extends Component {
       activeRemoteUid: null,
       remoteUserUids: [],
       channelProfile: this.channelProfile,
-      clientRole: 'broadcaster',
+      clientRole: this.clientRole,
       renderBackend: this.renderBackend,
       videoEncoderPresetName: this.videoEncoderPresetName,
       audioEnabled: true,
