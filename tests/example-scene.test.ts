@@ -193,7 +193,7 @@ test('rtc session service passes configurable video join media options from Type
   assert.match(joinMethod, /if \(config\.publishCameraTrack\)/);
 });
 
-test('rtc session service leave clears remote rendering resources without destroying engine', async () => {
+test('rtc session service leave clears local and remote rendering resources without destroying engine', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
     'utf8',
@@ -204,11 +204,12 @@ test('rtc session service leave clears remote rendering resources without destro
   const leaveMethod = leaveMethodMatch[0];
 
   assert.match(leaveMethod, /const remoteUids = \[\.\.\.this\.remoteUserUids\]/);
+  assert.match(leaveMethod, /if \(this\.previewStarted\)[\s\S]*client\.stopPreview\(\)/);
+  assert.match(leaveMethod, /if \(this\.localViewAttached\)[\s\S]*client\.removeLocalVideoView\(\)/);
   assert.match(leaveMethod, /for \(const uid of remoteUids\)[\s\S]*client\.removeRemoteVideoView\(uid\)/);
   assert.match(leaveMethod, /await client\.leaveChannel\(\)/);
-  assert.match(leaveMethod, /this\.remoteTextureSlotIds\.clear\(\)/);
-  assert.match(leaveMethod, /this\.remoteVideoSpriteFrames\.clear\(\)/);
-  assert.match(leaveMethod, /this\.clearTextureBindRetries\(\)/);
+  assert.match(leaveMethod, /this\.clearLocalVideoRenderState\(\)/);
+  assert.match(leaveMethod, /this\.clearRemoteVideoRenderState\(remoteUids\)/);
   assert.doesNotMatch(leaveMethod, /client\.destroy\(\)/);
 });
 
@@ -257,6 +258,8 @@ test('video stage panel owns local stage, remote thumbnails, and stats overlays'
   assert.match(content, /setStats/);
   assert.match(content, /setLocalStageState/);
   assert.match(content, /setRemoteUsers/);
+  assert.match(content, /clearLocalVideoFrame/);
+  assert.match(content, /clearRemoteVideoFrame/);
 });
 
 test('demo root loads runtime smoke config and can auto join when requested', async () => {
@@ -690,6 +693,8 @@ test('returning to the case list tears down rtc and leaves channel first', async
   assert.match(root, /private async backToCaseList\(\): Promise<void> \{[\s\S]*this\.closeStatusLogPage\(\)[\s\S]*await this\.session\?\.teardownRtc\(\)[\s\S]*this\.session = null[\s\S]*this\.showCaseList\(\)/);
   assert.match(service, /const client = this\.client;/);
   assert.match(service, /await this\.teardownRtcStep\('leaveChannel', \(\) => client\.leaveChannel\(\)\)/);
+  assert.match(service, /await this\.teardownRtcStep\('removeLocalVideoView', \(\) => client\.removeLocalVideoView\(\)\)/);
+  assert.match(service, /this\.clearLocalVideoRenderState\(\)/);
   assert.match(service, /await this\.teardownRtcStep\('destroy', \(\) => client\.destroy\(\)\)/);
   assert.ok(
     service.indexOf("await this.teardownRtcStep('leaveChannel'") <
