@@ -6,10 +6,12 @@
 @implementation AgoraEngineTextureSlotBridge
 
 static NSMutableDictionary<NSNumber *, NSDictionary *> *gSlotOptions;
+static dispatch_queue_t gSlotOptionsQueue;
 
 + (void)initialize {
     if (self == [AgoraEngineTextureSlotBridge class]) {
-        gSlotOptions = [NSMutableDictionary dictionary];
+        gSlotOptions = [[NSMutableDictionary alloc] init];
+        gSlotOptionsQueue = dispatch_queue_create("io.agora.cocos.engine-texture-slot-options", DISPATCH_QUEUE_SERIAL);
     }
 }
 
@@ -26,7 +28,9 @@ static NSMutableDictionary<NSNumber *, NSDictionary *> *gSlotOptions;
     if (slotId == nil || options == nil) {
         return;
     }
-    gSlotOptions[slotId] = options;
+    dispatch_sync(gSlotOptionsQueue, ^{
+        gSlotOptions[slotId] = options;
+    });
 }
 
 + (void)updateSlot:(NSNumber *)slotId rgbaData:(NSData *)rgbaData width:(NSNumber *)width height:(NSNumber *)height {
@@ -70,7 +74,11 @@ static NSMutableDictionary<NSNumber *, NSDictionary *> *gSlotOptions;
     if (videoFrame == nil) {
         return;
     }
-    NSDictionary *options = gSlotOptions[slotId] ?: @{};
+    __block NSDictionary *options = nil;
+    dispatch_sync(gSlotOptionsQueue, ^{
+        options = gSlotOptions[slotId];
+    });
+    options = options ?: @{};
     const int targetWidth = [options[@"width"] intValue];
     const int targetHeight = [options[@"height"] intValue];
     const int renderMode = options[@"renderMode"] != nil ? [options[@"renderMode"] intValue] : 3;
@@ -172,7 +180,11 @@ static NSMutableDictionary<NSNumber *, NSDictionary *> *gSlotOptions;
 }
 
 + (void)releaseSlot:(NSNumber *)slotId {
-    [gSlotOptions removeObjectForKey:slotId];
+    if (slotId != nil) {
+        dispatch_sync(gSlotOptionsQueue, ^{
+            [gSlotOptions removeObjectForKey:slotId];
+        });
+    }
     agora::cocos::release_agora_engine_texture_slot(slotId.intValue);
 }
 
