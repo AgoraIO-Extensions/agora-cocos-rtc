@@ -537,8 +537,44 @@ test('example ships a runtime Agora config template', async () => {
   assert.match(content, /"appId": "<YOUR_AGORA_APP_ID>"/);
   assert.match(content, /"channelId": "<YOUR_CHANNEL_ID>"/);
   assert.doesNotMatch(content, /\bappId["']?\s*:\s*["'][0-9a-f]{32}["']/i);
-  assert.match(content, /"uid": 1001/);
+  assert.match(content, /"uid": 0/);
   assert.match(content, /"renderBackend": "engine-texture"/);
+});
+
+test('example runtime defaults keep Agora auto-assigned uid semantics', async () => {
+  const rootContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+  const actionPanelContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+  const headerPanelContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoHeaderPanel.ts`,
+    'utf8',
+  );
+  const bundlePatchContent = await readFile(
+    `${repoRoot}/scripts/patch-exported-main-bundle.mjs`,
+    'utf8',
+  );
+
+  assert.match(rootContent, /uid = 0;/);
+  assert.match(actionPanelContent, /String\(this\.config\?\.uid \?\? 0\)/);
+  assert.match(actionPanelContent, /editBox\.placeholder = name === 'UidInput' \? '0' : 'demo'/);
+  assert.match(
+    actionPanelContent,
+    /uid: Number\.isFinite\(parsedUid\) \? Math\.max\(0, Math\.floor\(parsedUid\)\) : this\.config\?\.uid \?\? 0,/,
+  );
+  assert.match(
+    headerPanelContent,
+    /const uid = Number\.isFinite\(parsedUid\) && parsedUid >= 0 \? Math\.floor\(parsedUid\) : 0;/,
+  );
+  assert.match(
+    bundlePatchContent,
+    /const runtimeUid = Number\.isFinite\(runtimeConfig\.uid\) \? Number\(runtimeConfig\.uid\) : 0;/,
+  );
+  assert.match(bundlePatchContent, /this\.uid = 0;/);
 });
 
 test('rebased demo case registry keeps main architecture and adds string uid and parameter cases', async () => {
