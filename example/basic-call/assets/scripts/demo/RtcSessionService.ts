@@ -258,8 +258,9 @@ export class RtcSessionService {
       this.log('Preview already started');
       return;
     }
+    const config = this.options.getConfig();
     await this.setupLocalVideoView();
-    await this.getClient().startPreview();
+    await this.getClient().startPreview(config.previewSourceType);
     this.previewStarted = true;
     this.log('Preview started');
     this.emitState();
@@ -318,6 +319,15 @@ export class RtcSessionService {
     this.selectedClientRole = CLIENT_ROLE_PRESETS[(index + 1) % CLIENT_ROLE_PRESETS.length];
     await this.getClient().setClientRole(this.selectedClientRole);
     this.log(`Client role: ${this.selectedClientRole}`);
+    this.emitState();
+  }
+
+  async applyClientRole(role: ClientRole): Promise<void> {
+    this.selectedClientRole = role;
+    if (this.initialized) {
+      await this.getClient().setClientRole(role);
+    }
+    this.log(`Client role: ${role}`);
     this.emitState();
   }
 
@@ -464,19 +474,28 @@ export class RtcSessionService {
 
   async toggleBeautyEffect(): Promise<void> {
     const next = !this.beautyEffectEnabled;
-    await this.getClient().setBeautyEffectOptions(next, {
-      lighteningContrastLevel: next ? 1 : 0,
-      lighteningLevel: next ? 0.7 : 0,
-      smoothnessLevel: next ? 0.5 : 0,
-      rednessLevel: next ? 0.1 : 0,
-    });
+    const config = this.options.getConfig();
+    await this.getClient().setBeautyEffectOptions(
+      next,
+      config.beautyOptions ?? {
+        lighteningContrastLevel: next ? 1 : 0,
+        lighteningLevel: next ? 0.7 : 0,
+        smoothnessLevel: next ? 0.5 : 0,
+        rednessLevel: next ? 0.1 : 0,
+      },
+      config.beautyEffectSourceType,
+    );
     this.beautyEffectEnabled = next;
     this.log(`Beauty effect ${next ? 'enabled' : 'disabled'}`);
   }
 
   async toggleContentInspect(): Promise<void> {
     const next = !this.contentInspectEnabled;
-    await this.getClient().enableContentInspect(next, next ? { module: 0, interval: 2 } : undefined);
+    const config = this.options.getConfig();
+    await this.getClient().enableContentInspect(
+      next,
+      next ? (config.contentInspectConfig ?? { module: 0, interval: 2 }) : undefined,
+    );
     this.contentInspectEnabled = next;
     this.log(`Content inspect ${next ? 'enabled' : 'disabled'}`);
   }
@@ -808,8 +827,10 @@ export class RtcSessionService {
 
   private async setupLocalVideoView(): Promise<void> {
     const node = this.options.getLocalVideoNode();
+    const config = this.options.getConfig();
     await this.getClient().setupLocalVideoView({
       ...this.resolveNodeRect(node, 'hidden'),
+      ...config.localVideoCanvas,
       uid: 0,
       mirrorMode: 0,
       setupMode: 0,
@@ -820,8 +841,10 @@ export class RtcSessionService {
 
   private async setupRemoteVideoView(uid: number): Promise<void> {
     const node = this.options.getRemoteVideoNode(uid);
+    const config = this.options.getConfig();
     await this.getClient().setupRemoteVideoView(uid, {
       ...this.resolveNodeRect(node, 'fit'),
+      ...config.remoteVideoCanvas,
       uid,
       mirrorMode: 2,
       setupMode: 0,

@@ -1,4 +1,9 @@
 import type { Node, Sprite, SpriteFrame, Texture2D } from 'cc';
+import type {
+  AgoraBeautyOptions,
+  AgoraContentInspectConfig,
+  AgoraRtcVideoCanvas,
+} from '../../../extensions/agora-rtc/js/types.ts';
 
 export type RenderBackend = 'engine-texture';
 export type ActionResult = 'ok' | 'fail' | 'idle';
@@ -38,6 +43,12 @@ export interface RuntimeConfigState {
   publishMicrophoneTrack: boolean;
   autoSubscribeAudio: boolean;
   autoSubscribeVideo: boolean;
+  previewSourceType?: number;
+  localVideoCanvas?: Partial<AgoraRtcVideoCanvas>;
+  remoteVideoCanvas?: Partial<AgoraRtcVideoCanvas>;
+  beautyEffectSourceType?: number;
+  beautyOptions?: AgoraBeautyOptions;
+  contentInspectConfig?: AgoraContentInspectConfig;
 }
 
 export interface BasicVideoConfigState extends RuntimeConfigState {
