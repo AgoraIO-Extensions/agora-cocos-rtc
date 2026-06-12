@@ -1802,6 +1802,42 @@ test('ios bridge template explicitly requests rtc permissions before camera and 
     /engine\.joinChannel/,
     'joinChannel must request required iOS permissions before invoking native sdk',
   );
+
+  assert.match(
+    handleJoinChannelMatch[0],
+    /else\s*\{[\s\S]*?ensureRtcPermissions\(\s*requestId: requestId,\s*requiresCamera: false,\s*requiresMicrophone: false/,
+  );
+
+  const handleJoinChannelWithUserAccountMatch = bridgeContent.match(
+    /private func handleJoinChannelWithUserAccount[\s\S]*?private func handleGetUserInfoByUserAccount/,
+  );
+  assert.ok(handleJoinChannelWithUserAccountMatch);
+  assert.match(
+    handleJoinChannelWithUserAccountMatch[0],
+    /else\s*\{[\s\S]*?ensureRtcPermissions\(\s*requestId: requestId,\s*requiresCamera: false,\s*requiresMicrophone: false/,
+  );
+});
+
+test('ios bridge template routes bridged uid parsing through uintValue helper for native uint calls', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /let uid = uintValue\(params\["uid"\] \?\? 0\)/);
+  assert.match(
+    bridgeContent,
+    /case "muteRemoteAudioStream":[\s\S]*?let uid = uintValue\(params\["uid"\] \?\? 0\)/,
+  );
+  assert.match(
+    bridgeContent,
+    /case "muteRemoteVideoStream":[\s\S]*?let uid = uintValue\(params\["uid"\] \?\? 0\)/,
+  );
+  assert.match(
+    bridgeContent,
+    /case "adjustUserPlaybackSignalVolume":[\s\S]*?let uid = uintValue\(params\["uid"\] \?\? 0\)/,
+  );
+  assert.doesNotMatch(bridgeContent, /UInt\(params\["uid"\] as\? Int \?\? 0\)/);
 });
 
 test('ios bridge template only dispatches callbacks exposed by the installed rtc delegate header', async (t) => {
