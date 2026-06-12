@@ -209,6 +209,17 @@ test('github workflows mirror update deps, build example, and release responsibi
   assert.match(release, /gh release create/);
 });
 
+test('run_test workflow checks customer-delivery template drift before unit tests', async () => {
+  const workflow = await readFile(
+    path.join(repoRoot, '.github/workflows/run_test.yml'),
+    'utf8',
+  );
+
+  assert.match(workflow, /node \.\/scripts\/sync-customer-delivery-templates\.mjs/);
+  assert.match(workflow, /git diff --exit-code/);
+  assert.match(workflow, /customer-delivery template drift/);
+});
+
 test('github release workflow defaults to dry-run and gates real publishing', async () => {
   const release = await readFile(path.join(repoRoot, '.github/workflows/release.yml'), 'utf8');
 
