@@ -1,12 +1,31 @@
 # Agora Cocos RTC SDK API Guide
 
-更新日期：`2026-06-11`
+Updated: `2026-06-12`
 
-本文档面向接入方研发、技术支持和交付团队，整理当前仓库可交付的 SDK 包、公开 API、事件回调、平台差异和推荐集成流程，便于客户在自己的 Cocos Creator 项目中快速接入 Agora RTC 能力。
+## Purpose
 
-## 1. 交付内容
+This document is the formal customer-facing API and integration guide for the `Agora Cocos RTC SDK`.
+It explains what the SDK delivers, how to import it into a customer Cocos Creator project, how to initialize and join channels, what APIs are available, what parameters each core object exposes, which events can be consumed by business code, and which platform differences need to be considered during integration.
 
-建议给客户提供以下内容：
+## Contents
+
+1. Deliverables
+2. Supported Scope
+3. Integration Prerequisites
+4. SDK Import
+5. Quick Integration Workflow
+6. API Reference
+7. Parameter Reference
+8. Event Reference
+9. Rendering Modes
+10. Platform Notes
+11. Error Handling
+12. Verification Boundary
+13. Additional References
+
+## 1. Deliverables
+
+The following items are part of the standard SDK delivery set:
 
 1. `dist/agora-rtc-cocos-plugin.zip`
 2. `example/basic-call`
@@ -28,15 +47,15 @@
 ./scripts/package-customer-delivery.sh ./dist/customer-delivery
 ```
 
-## 2. 适用范围
+## 2. Supported Scope
 
-当前交付适用于：
+This SDK delivery supports:
 
 - `Cocos Creator 3.8.8`
 - Android / iOS 原生导出工程
 - Agora Native SDK `4.5.3`
 
-当前插件提供：
+The SDK provides:
 
 - 统一 JavaScript / TypeScript API
 - Android / iOS 原生桥接
@@ -45,9 +64,19 @@
 - `surface-view` / `texture-view` / `engine-texture` 三种渲染后端
 - 音频混音、音效、日志和诊断接口
 
-## 3. 目录说明
+## 3. Integration Prerequisites
 
-客户最需要关注的目录如下：
+Integration requires:
+
+- `Cocos Creator 3.8.8`
+- A valid Agora `App ID`
+- A business-generated `Token`
+- A business-defined `channelId`
+- A business-defined `uid` or `userAccount`
+- Android Studio / Android SDK / JDK 17
+- Xcode 15+ / CocoaPods
+
+The following SDK paths are the primary integration reference points:
 
 - `sdk/agora-rtc`
   交付给客户的 Cocos 扩展包主体。
@@ -62,11 +91,11 @@
 - `example/basic-call`
   示例工程，包含完整的初始化、入会、渲染、事件监听和能力验证流程。
 
-## 4. 客户接入方式
+## 4. SDK Import
 
 ### 4.1 插件导入
 
-客户项目有两种常见接入方式：
+Two standard integration methods are supported:
 
 1. 开发态接入
    将 `sdk/agora-rtc` 直接链接或复制到目标项目 `extensions/agora-rtc` 目录。
@@ -79,20 +108,9 @@
 extensions/agora-rtc
 ```
 
-### 4.2 基本依赖
+## 5. Quick Integration Workflow
 
-客户侧需要自行准备：
-
-- 有效的 Agora `App ID`
-- 对应业务生成的 `Token`
-- 业务侧 `channelId`
-- 业务侧 `uid` 或 `userAccount`
-- Android Studio / Android SDK / JDK 17
-- Xcode 15+ / CocoaPods
-
-## 5. 推荐集成流程
-
-推荐客户按下面顺序接入：
+Use the following workflow for a standard integration:
 
 1. 导入插件
 2. 在业务脚本中创建 `AgoraRtcClient`
@@ -160,7 +178,7 @@ await client.joinChannel('YOUR_TOKEN', 'test-channel', 1001, {
 
 ### 5.2 使用字符串账号入会
 
-如果客户业务系统使用字符串账号而不是整型 `uid`，可以使用：
+If the business account system uses a string account instead of an integer `uid`, use:
 
 ```ts
 await client.joinChannelWithUserAccount(
@@ -174,15 +192,15 @@ await client.joinChannelWithUserAccount(
 );
 ```
 
-如需查询映射后的用户信息，可调用：
+To query the mapped user information, call:
 
 ```ts
 const userInfo = await client.getUserInfoByUserAccount('user-001');
 ```
 
-## 6. API 接口清单与说明
+## 6. API Reference
 
-以下为当前 SDK 对外公开的主要接口。所有接口均通过 `AgoraRtcClient` 调用。
+The following APIs are publicly exposed by the SDK. All APIs are called through `AgoraRtcClient`.
 
 ### 6.1 客户端创建与销毁
 
@@ -191,9 +209,9 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `createAgoraRtcClient(options?)` | 创建 RTC 客户端 |
 | `destroy()` | 销毁引擎、移除桥接监听 |
 
-说明：
+Integration note:
 
-- 推荐一个业务会话对应一个 `AgoraRtcClient` 实例。
+- One `AgoraRtcClient` instance should be used for one business session.
 - 页面退出或场景销毁前必须调用 `destroy()`。
 
 ### 6.2 初始化与基础信息
@@ -208,10 +226,10 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `setLogFile(path)` | `path: string` | 设置日志输出路径 |
 | `setParameters(parameters)` | `string` 或对象 | 透传原生参数 |
 
-建议：
+Platform note:
 
-- 客户通常使用 `initialize(appId)` 即可。
-- 如需更细的初始化控制，可传入 `AgoraRtcEngineConfig`。
+- `initialize(appId)` is sufficient for most integrations.
+- `AgoraRtcEngineConfig` can be passed when finer initialization control is required.
 - `setRenderBackend` 应在 `initialize` 前调用。
 
 ### 6.3 频道与角色
@@ -226,11 +244,11 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `leaveChannel(options?)` | `AgoraLeaveChannelOptions` | 离开频道 |
 | `renewToken(token)` | `token: string` | 更新 token |
 
-建议：
+Integration note:
 
 - 普通通话场景使用 `communication`。
 - 直播场景使用 `liveBroadcasting`，并结合 `setClientRole` 设置主播/观众。
-- 客户自己的 `App ID`、`Token`、`channelId`、`uid` 应从业务系统注入，不建议写死在插件中。
+- `App ID`、`Token`、`channelId`、`uid` should be injected by the business system rather than hard-coded in the plugin.
 
 ### 6.4 音频控制
 
@@ -250,11 +268,11 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `adjustUserPlaybackSignalVolume(uid, volume)` | 调整指定远端用户播放音量 |
 | `setAudioSessionOperationRestriction(restriction)` | 设置音频会话限制 |
 
-建议：
+Integration note:
 
 - 如果客户需要说话人音量条，使用 `enableAudioVolumeIndication(...)`。
 - `adjustUserPlaybackSignalVolume` 依赖有效远端 `uid`。
-- Android 上 `setAudioSessionOperationRestriction` 当前返回 `unsupported`，不建议作为 Android 业务主路径依赖。
+- On Android, `setAudioSessionOperationRestriction` currently returns `unsupported` and should not be treated as a primary integration path.
 
 ### 6.5 视频控制
 
@@ -272,11 +290,11 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `setBeautyEffectOptions(enabled, options, sourceType?)` | 设置美颜 |
 | `enableContentInspect(enabled, config?)` | 开启内容审核 |
 
-建议：
+Integration note:
 
 - 视频通话前通常先 `enableVideo(true)`。
 - 有本地预览需求时，可在入会前先 `setupLocalVideoView()` + `startPreview()`。
-- 编码参数推荐由业务按清晰度档位封装，例如 `360p/540p/720p`。
+- Video encoder parameters are typically wrapped by the business layer into presets such as `360p/540p/720p`.
 
 ### 6.6 视频视图与渲染
 
@@ -291,27 +309,6 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `setNativeVideoOverlaySuspended(suspended)` | 暂停/恢复原生视频覆盖层 |
 | `getEngineTexture(slotId)` | 读取 `engine-texture` 槽位纹理 |
 | `isEngineTextureReady(slotId)` | 判断纹理槽位是否就绪 |
-
-#### `AgoraRtcVideoCanvas` 主要参数
-
-| 字段 | 说明 |
-| --- | --- |
-| `x`, `y`, `width`, `height` | 视频区域矩形 |
-| `renderMode` | `'hidden'` / `'fit'` / `'adaptive'` |
-| `uid` | 用户 ID，本地视图通常为 `0` |
-| `mirrorMode` | 镜像模式 |
-| `setupMode` | 视图绑定模式 |
-| `sourceType` | 视频源类型 |
-| `textureWidth`, `textureHeight` | `engine-texture` 模式下建议同步设置 |
-| `cropArea` | 裁剪区域 |
-| `backgroundColor` | 背景色 |
-| `position` | 内容审核等能力会使用 |
-
-建议：
-
-- `surface-view` / `texture-view` 适合快速接通和原生视图覆盖。
-- `engine-texture` 适合将视频作为 Cocos `Texture2D` 接入场景渲染。
-- 若客户希望视频完全纳入 Cocos 场景编排，推荐 `engine-texture`。
 
 ### 6.7 音频混音与音效
 
@@ -333,14 +330,101 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `setEffectsVolume(volume)` | 设置音效总音量 |
 | `stopEffect(soundId)` | 停止音效 |
 
-注意：
+Platform note:
 
 - `startAudioMixing(config)` 当前不支持 `replace` 字段；若传入会直接在 JS 层返回 `ProtocolError`。
-- `volume` 推荐取值范围 `0-100`。
+- `volume` 取值范围应保持在 `0-100`。
 
-## 7. 事件回调清单
+## 7. Parameter Reference
 
-SDK 当前对外暴露的事件如下：
+### 7.1 `AgoraRtcVideoCanvas`
+
+| 字段 | 说明 |
+| --- | --- |
+| `x`, `y`, `width`, `height` | 视频区域矩形 |
+| `renderMode` | `'hidden'` / `'fit'` / `'adaptive'` |
+| `uid` | 用户 ID，本地视图通常为 `0` |
+| `mirrorMode` | 镜像模式 |
+| `setupMode` | 视图绑定模式 |
+| `sourceType` | 视频源类型 |
+| `textureWidth`, `textureHeight` | `engine-texture` 模式下应同步设置 |
+| `cropArea` | 裁剪区域 |
+| `backgroundColor` | 背景色 |
+| `position` | 内容审核等能力会使用 |
+
+### 7.2 `AgoraRtcEngineConfig`
+
+Advanced initialization parameters. Common fields include:
+
+- `appId`
+- `areaCode`
+- `audioScenario`
+- `logConfig`
+- `extensions`
+
+For most integrations:
+
+```ts
+await client.initialize({
+  appId: 'YOUR_APP_ID',
+});
+```
+
+### 7.3 `AgoraChannelMediaOptions`
+
+Channel join parameters. Common fields include:
+
+- `clientRoleType`
+- `channelProfile`
+- `publishCameraTrack`
+- `publishMicrophoneTrack`
+- `autoSubscribeAudio`
+- `autoSubscribeVideo`
+- `startPreview`
+- `sourceType`
+- `token`
+
+Typical video call configuration:
+
+```ts
+{
+  clientRoleType: 'broadcaster',
+  channelProfile: 'communication',
+  publishCameraTrack: true,
+  publishMicrophoneTrack: true,
+  autoSubscribeAudio: true,
+  autoSubscribeVideo: true,
+}
+```
+
+### 7.4 `AgoraLeaveChannelOptions`
+
+Optional leave-channel parameters:
+
+- `stopAudioMixing`
+- `stopAllEffect`
+- `unloadAllEffect`
+- `stopMicrophoneRecording`
+
+If the business flow requires explicit cleanup of effects and mixing on leave, pass these fields explicitly.
+
+### 7.5 `AgoraVideoEncoderConfiguration`
+
+Common fields:
+
+- `width`
+- `height`
+- `frameRate`
+- `bitrate`
+- `orientationMode`
+- `mirrorMode`
+- `degradationPreference`
+
+These parameters are typically wrapped into business-level presets.
+
+## 8. Event Reference
+
+The following events are publicly exposed by the SDK:
 
 | 事件名 | 说明 |
 | --- | --- |
@@ -367,9 +451,9 @@ SDK 当前对外暴露的事件如下：
 | `renderBackendState` | 渲染后端状态变化 |
 | `error` | SDK/桥接错误 |
 
-### 7.1 推荐客户重点监听的事件
+### 8.1 Core events for business integration
 
-建议客户至少监听以下事件：
+The following events should be consumed in most integrations:
 
 - `joinChannelSuccess`
 - `userJoined`
@@ -380,92 +464,37 @@ SDK 当前对外暴露的事件如下：
 - `rtcStats`
 - `error`
 
-### 7.2 `engine-texture` 模式补充说明
+### 8.2 `engine-texture` event note
 
-如果使用 `engine-texture`，建议同时监听：
+If `engine-texture` is used, also consume:
 
 - `localVideoTextureReady`
 - `remoteVideoTextureReady`
 
-收到事件后，可通过 `getEngineTexture(slotId)` 获取纹理并绑定到 Cocos `SpriteFrame`。
+After the texture-ready event is received, `getEngineTexture(slotId)` can be used to fetch the texture and bind it to a Cocos `SpriteFrame`.
 
-## 8. 关键类型说明
+## 9. Rendering Modes
 
-### 8.1 `AgoraRtcEngineConfig`
+### 9.1 Backend selection
 
-初始化高级参数，常用字段包括：
+- `surface-view` / `texture-view` 适合快速接通和原生视图覆盖。
+- `engine-texture` 适合将视频作为 Cocos `Texture2D` 接入场景渲染。
+- If video must be fully composed inside the Cocos scene graph, `engine-texture` is the preferred mode.
 
-- `appId`
-- `areaCode`
-- `audioScenario`
-- `logConfig`
-- `extensions`
+### 9.2 Preferred video integration paths
 
-大多数客户场景只需要：
+For typical real-time audio and video scenarios, choose a rendering mode with the following priority:
 
-```ts
-await client.initialize({
-  appId: 'YOUR_APP_ID',
-});
-```
+1. 需要快速接入、接受原生覆盖层：
+   `surface-view`
+2. 需要视频纳入 Cocos 场景渲染：
+   `engine-texture`
 
-### 8.2 `AgoraChannelMediaOptions`
+## 10. Platform Notes
 
-入会参数，常用字段包括：
+The following platform notes should be treated as part of the integration boundary.
 
-- `clientRoleType`
-- `channelProfile`
-- `publishCameraTrack`
-- `publishMicrophoneTrack`
-- `autoSubscribeAudio`
-- `autoSubscribeVideo`
-- `startPreview`
-- `sourceType`
-- `token`
-
-推荐视频通话场景：
-
-```ts
-{
-  clientRoleType: 'broadcaster',
-  channelProfile: 'communication',
-  publishCameraTrack: true,
-  publishMicrophoneTrack: true,
-  autoSubscribeAudio: true,
-  autoSubscribeVideo: true,
-}
-```
-
-### 8.3 `AgoraLeaveChannelOptions`
-
-离会可选参数：
-
-- `stopAudioMixing`
-- `stopAllEffect`
-- `unloadAllEffect`
-- `stopMicrophoneRecording`
-
-如客户业务希望离会时主动清理音效与混音，可显式传入。
-
-### 8.4 `AgoraVideoEncoderConfiguration`
-
-常用字段：
-
-- `width`
-- `height`
-- `frameRate`
-- `bitrate`
-- `orientationMode`
-- `mirrorMode`
-- `degradationPreference`
-
-推荐按业务场景封装成预设档位。
-
-## 9. 平台差异与限制
-
-以下内容建议在客户沟通中明确说明。
-
-### 9.1 Android
+### 10.1 Android
 
 - 原生依赖：
   - `io.agora.rtc:full-sdk:4.5.3`
@@ -474,7 +503,7 @@ await client.initialize({
 - `setDefaultAudioRouteToSpeakerphone` 当前已接入，不属于已知不支持项。
 - `engine-texture` 为当前主交付路径之一。
 
-### 9.2 iOS
+### 10.2 iOS
 
 - 原生依赖：
   - `AgoraRtcEngine_iOS 4.5.3`
@@ -484,67 +513,21 @@ await client.initialize({
 - `setDefaultAudioRouteToSpeakerphone` 已有桥接实现。
 - `engine-texture` 为当前主交付路径之一。
 
-### 9.3 共享限制
+### 10.3 Shared platform notes
 
-- `warning` 不在当前对外事件清单中，不建议客户按该事件做业务依赖。
+The following notes apply across platforms:
+
+- `warning` 不在当前对外事件清单中，不应按该事件建立业务依赖。
 - `EnableVideoObserver` 属于内部实现，不是客户公开 API。
 - `PreloadEngine / UnloadEngine` 语义已由 `initialize / destroy` 覆盖。
 - `setNativeVideoOverlaySuspended` 仅对原生视图覆盖型渲染后端有实际意义；`engine-texture` 模式下没有可见原生覆盖层。
-- `joinChannel`、远端媒体、首帧渲染等真实效果验证，仍依赖客户自己的有效 `App ID`、`Token`、`channelId`。
+- `joinChannel`、远端媒体、首帧渲染等真实效果验证，仍依赖业务侧有效 `App ID`、`Token`、`channelId`。
 
-## 10. 常见集成建议
+## 11. Error Handling
 
-### 10.1 推荐业务封装
+### 11.1 `error` 事件
 
-建议客户在业务层再包一层服务，统一处理：
-
-- 账号和 token 注入
-- 初始化时机
-- 断线重连
-- 远端用户列表管理
-- 视频视图位置更新
-- 页面销毁清理
-
-### 10.2 推荐视频主路径
-
-如果客户是典型实时音视频场景，可按下面优先级选择：
-
-1. 需要快速接入、接受原生覆盖层：
-   `surface-view`
-2. 需要视频纳入 Cocos 场景渲染：
-   `engine-texture`
-
-### 10.3 推荐离场清理顺序
-
-推荐顺序：
-
-1. `stopPreview()`
-2. `leaveChannel()`
-3. `removeLocalVideoView()`
-4. `removeRemoteVideoView(uid)`
-5. `destroy()`
-
-## 11. 验证边界
-
-仓库当前可提供的验证包括：
-
-- `npm test`
-  覆盖 JS 请求结构、模板桥接、示例调用链和文档一致性检查。
-- Android 导出、构建、安装、启动验证。
-- iOS 导出、构建、签名、安装、启动验证。
-
-仍需客户自行完成的验证：
-
-- 使用真实 `App ID` / `Token` 进行入会联调
-- 真实网络环境下的音视频质量验证
-- 业务 UI 与场景集成验证
-- 多端互通验证
-
-## 12. 错误处理与排障建议
-
-### 12.1 `error` 事件
-
-SDK 统一通过 `error` 事件向上抛出错误，事件载荷格式为：
+The SDK reports runtime and bridge errors through the `error` event. The event payload format is:
 
 ```ts
 {
@@ -553,7 +536,7 @@ SDK 统一通过 `error` 事件向上抛出错误，事件载荷格式为：
 }
 ```
 
-建议客户统一记录：
+The following fields should be captured in error logs:
 
 - 当前调用的 API 名称
 - 当前频道号 / 用户号
@@ -561,9 +544,9 @@ SDK 统一通过 `error` 事件向上抛出错误，事件载荷格式为：
 - `error.message`
 - 当前平台和渲染后端
 
-### 12.2 JS 层统一错误码
+### 11.2 JS 层统一错误码
 
-当前 JS SDK 暴露以下统一错误码：
+The JS SDK exposes the following unified error codes:
 
 | 错误码 | 说明 | 常见原因 |
 | --- | --- | --- |
@@ -572,9 +555,9 @@ SDK 统一通过 `error` 事件向上抛出错误，事件载荷格式为：
 | `native_failure` | 原生调用失败 | 原生 SDK 返回负值错误码 |
 | `protocol_error` | JS 入参不符合桥接约束 | 传入不支持的字段，例如 `startAudioMixing.replace` |
 
-### 12.3 推荐排查顺序
+### 11.3 Recommended troubleshooting sequence
 
-建议客户出现问题时按下面顺序排查：
+Use the following troubleshooting order when integration issues occur:
 
 1. 确认运行环境是否为原生环境，而不是 Web 预览环境
 2. 确认 `extensions/agora-rtc` 已正确导入
@@ -584,7 +567,33 @@ SDK 统一通过 `error` 事件向上抛出错误，事件载荷格式为：
 6. 确认监听了 `error`、`joinChannelSuccess`、`userJoined`、`renderBackendState`
 7. 确认平台特有接口是否在当前平台受支持
 
-## 13. 参考文档
+## 12. Verification Boundary
+
+The current repository validation scope includes:
+
+- `npm test`
+  覆盖 JS 请求结构、模板桥接、示例调用链和文档一致性检查。
+- Android 导出、构建、安装、启动验证。
+- iOS 导出、构建、签名、安装、启动验证。
+
+The following verification remains outside the repository boundary:
+
+- 使用真实 `App ID` / `Token` 进行入会联调
+- 真实网络环境下的音视频质量验证
+- 业务 UI 与场景集成验证
+- 多端互通验证
+
+### 12.1 Recommended teardown sequence
+
+Recommended order:
+
+1. `stopPreview()`
+2. `leaveChannel()`
+3. `removeLocalVideoView()`
+4. `removeRemoteVideoView(uid)`
+5. `destroy()`
+
+## 13. Additional References
 
 - [根目录 README](../README.md)
 - [SDK README](../sdk/agora-rtc/README.md)
