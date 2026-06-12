@@ -320,7 +320,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "muteRemoteAudioStream":
             requireEngine(requestId: requestId) { engine in
-                let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+                let uid = uintValue(params["uid"] ?? 0)
                 let muted = params["muted"] as? Bool ?? false
                 let result = engine.muteRemoteAudioStream(uid, mute: muted)
                 dispatchResult(requestId: requestId, method: method, result: result)
@@ -351,7 +351,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "muteRemoteVideoStream":
             requireEngine(requestId: requestId) { engine in
-                let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+                let uid = uintValue(params["uid"] ?? 0)
                 let muted = params["muted"] as? Bool ?? false
                 let result = engine.muteRemoteVideoStream(uid, mute: muted)
                 dispatchResult(requestId: requestId, method: method, result: result)
@@ -393,7 +393,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "adjustUserPlaybackSignalVolume":
             requireEngine(requestId: requestId) { engine in
-                let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+                let uid = uintValue(params["uid"] ?? 0)
                 let volume = params["volume"] as? Int ?? 100
                 let result = engine.adjustUserPlaybackSignalVolume(uid, volume: Int32(volume))
                 dispatchResult(requestId: requestId, method: method, result: result)
@@ -801,7 +801,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         ) else {
             return
         }
-        let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+        let uid = uintValue(params["uid"] ?? 0)
 
         if let mediaOptionParams = params["options"] as? [String: Any] {
             let mediaOptions = buildChannelMediaOptions(mediaOptionParams)
@@ -836,7 +836,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 self.dispatchResult(requestId: requestId, method: "joinChannel", result: result)
             }
         } else {
-            ensureRtcPermissions(requestId: requestId) {
+            ensureRtcPermissions(
+                requestId: requestId,
+                requiresCamera: false,
+                requiresMicrophone: false
+            ) {
                 guard let engine = self.rtcEngine else {
                     self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                     return
@@ -1169,7 +1173,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 self.dispatchResult(requestId: requestId, method: "joinChannelWithUserAccount", result: result)
             }
         } else {
-            ensureRtcPermissions(requestId: requestId) {
+            ensureRtcPermissions(
+                requestId: requestId,
+                requiresCamera: false,
+                requiresMicrophone: false
+            ) {
                 guard let engine = self.rtcEngine else {
                     self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                     return
