@@ -1775,6 +1775,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         ])
     }
 
+    private func dispatchAgoraError(requestId: String, method: String, result: Int32) {
+        dispatchResult(requestId: requestId, method: method, result: result)
+    }
+
     private func dispatchUnsupported(requestId: String, method: String) {
         dispatchResponse([
             "requestId": requestId,
