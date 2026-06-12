@@ -1,9 +1,9 @@
 # Agora Cocos RTC PoC — 工程交接文档
 
-> **文档类型**：架构 + UI + API + 测试 + 日志子系统全量交接  
-> **主工程路径**：`/Users/zhugaopeng/Work/agora-cocos-rtc`  
-> **核心示例代码**：`example/basic-call/assets/scripts/AgoraRtcExampleController.ts`（约 4200 行）  
-> **更新依据**：仓库当前代码与 2026-05 多轮真机/模拟器联调结论  
+> **文档类型**：架构 + UI + API + 测试 + 日志子系统全量交接
+> **主工程路径**：`/Users/zhugaopeng/Work/agora-cocos-rtc`
+> **核心示例代码**：`example/basic-call/assets/scripts/AgoraRtcExampleController.ts`（约 4200 行）
+> **更新依据**：仓库当前代码与 2026-05 多轮真机/模拟器联调结论
 
 ---
 
