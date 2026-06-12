@@ -28,6 +28,7 @@ final class TextureSlotState: NSObject {
 final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDelegate {
     private let responseEventName = "agora:response"
     private let callbackEventName = "agora:event"
+    private let protectedAppTypeParameters = "{\"rtc.set_app_type\":10}"
 
     private var rtcEngine: AgoraRtcEngineKit?
     private var renderBackend = "surface-view"
@@ -493,12 +494,8 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "setParameters":
             requireEngine(requestId: requestId) { engine in
-                guard let parameters = requiredString(
-                    params,
-                    key: "parameters",
-                    requestId: requestId,
-                    message: "Parameters are required."
-                ) else {
+                guard let parameters = mergeProtectedParameters(params["parameters"]), !parameters.isEmpty else {
+                    self.dispatchError(requestId: requestId, message: "Parameters are required.")
                     return
                 }
                 let result = engine.setParameters(parameters)
@@ -756,11 +753,59 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         }
 
         rtcEngine = AgoraRtcEngineKit.sharedEngine(with: config, delegate: self)
-        _ = rtcEngine?.setVideoFrameDelegate(self)
+        guard let engine = rtcEngine else {
+            dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+            return
+        }
+        guard applyProtectedParameters(engine: engine, requestId: requestId, method: "initialize") else {
+            rtcEngine = nil
+            return
+        }
+        _ = engine.setVideoFrameDelegate(self)
         dispatchResponse([
             "requestId": requestId,
             "ok": true,
         ])
+    }
+
+    private func applyProtectedParameters(engine: AgoraRtcEngineKit, requestId: String, method: String) -> Bool {
+        let result = engine.setParameters(protectedAppTypeParameters)
+        if result < 0 {
+            dispatchAgoraError(requestId: requestId, method: method, result: result)
+            return false
+        }
+        return true
+    }
+
+    private func mergeProtectedParameters(_ parameterValue: Any?) -> String? {
+        if let stringValue = parameterValue as? String {
+            let trimmed = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                return protectedAppTypeParameters
+            }
+            guard let data = trimmed.data(using: .utf8),
+                  var clientParams = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+                return protectedAppTypeParameters
+            }
+            clientParams["rtc.set_app_type"] = 10
+            guard let parametersData = try? JSONSerialization.data(withJSONObject: clientParams),
+                  let serialized = String(data: parametersData, encoding: .utf8) else {
+                return protectedAppTypeParameters
+            }
+            return serialized
+        }
+
+        if JSONSerialization.isValidJSONObject(parameterValue as Any),
+           var clientParams = parameterValue as? [String: Any] {
+            clientParams["rtc.set_app_type"] = 10
+            guard let parametersData = try? JSONSerialization.data(withJSONObject: clientParams),
+                  let serialized = String(data: parametersData, encoding: .utf8) else {
+                return protectedAppTypeParameters
+            }
+            return serialized
+        }
+
+        return protectedAppTypeParameters
     }
 
     private func handleJoinChannel(requestId: String, params: [String: Any]) {
