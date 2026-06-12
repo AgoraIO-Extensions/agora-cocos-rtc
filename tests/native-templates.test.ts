@@ -1660,10 +1660,11 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(playEffectMatch[0], /let loopCount = params\["loopCount"\] as\? Int \?\? 1/);
   assert.match(playEffectMatch[0], /let pitch = params\["pitch"\] as\? Double \?\? 1\.0/);
   assert.match(playEffectMatch[0], /let pan = params\["pan"\] as\? Double \?\? 0\.0/);
-  assert.match(playEffectMatch[0], /let gain = params\["gain"\] as\? Double \?\? 100\.0/);
+  assert.match(playEffectMatch[0], /let gain = params\["gain"\] as\? Int \?\? 100/);
   assert.match(playEffectMatch[0], /let publish = params\["publish"\] as\? Bool \?\? false/);
   assert.match(playEffectMatch[0], /let startPos = params\["startPos"\] as\? Int \?\? 0/);
-  assert.match(playEffectMatch[0], /engine\.playEffect\(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: Int\(gain\), publish: publish, startPos: Int32\(startPos\)\)/);
+  assert.doesNotMatch(playEffectMatch[0], /let gain = params\["gain"\] as\? Double \?\? 100\.0/);
+  assert.match(playEffectMatch[0], /engine\.playEffect\(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: gain, publish: publish, startPos: Int32\(startPos\)\)/);
 
   const startMixingMatch = bridgeContent.match(
     /case "startAudioMixing":[\s\S]*?case "pauseAudioMixing":/,

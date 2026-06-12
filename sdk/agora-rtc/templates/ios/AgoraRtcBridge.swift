@@ -578,10 +578,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 let loopCount = params["loopCount"] as? Int ?? 1
                 let pitch = params["pitch"] as? Double ?? 1.0
                 let pan = params["pan"] as? Double ?? 0.0
-                let gain = params["gain"] as? Double ?? 100.0
+                let gain = params["gain"] as? Int ?? 100
                 let publish = params["publish"] as? Bool ?? false
                 let startPos = params["startPos"] as? Int ?? 0
-                let result = engine.playEffect(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: Int(gain), publish: publish, startPos: Int32(startPos))
+                let result = engine.playEffect(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: gain, publish: publish, startPos: Int32(startPos))
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "pauseEffect":
