@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
-const sourceDir = path.join(repoRoot, 'test_shard/integration_test_app/src');
+const integrationSourceDir = path.join(repoRoot, 'test_shard/integration_test_app/src');
+const renderingSourceDir = path.join(repoRoot, 'test_shard/rendering_test/src');
 const targetDir = path.join(repoRoot, 'example/basic-call/assets/scripts/cocos-device-tests');
 const bootstrapPath = path.join(repoRoot, 'example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts');
 const mode = process.env.AGORA_COCOS_TEST_MODE || 'api';
@@ -17,15 +18,32 @@ const runtimeGlobals = {
 };
 
 await mkdir(targetDir, { recursive: true });
-await cp(sourceDir, targetDir, { recursive: true });
+await cp(integrationSourceDir, targetDir, { recursive: true });
+await cp(renderingSourceDir, targetDir, { recursive: true });
+const copiedRenderingRunnerPath = path.join(targetDir, 'rendering_test_runner.ts');
+const copiedRenderingRunner = await readFile(copiedRenderingRunnerPath, 'utf8');
+await writeFile(
+  copiedRenderingRunnerPath,
+  copiedRenderingRunner.replace(
+    "../../../example/basic-call/assets/scripts/AgoraRtcExampleController.ts",
+    '../AgoraRtcExampleController.ts',
+  ),
+  'utf8',
+);
 await writeFile(
   path.join(targetDir, 'test-mode.ts'),
   [
     `import { maybeRunAgoraCocosApiTests } from './api_test_runner.ts';`,
+    `import { maybeRunAgoraCocosRenderingSmokeTests } from './rendering_test_runner.ts';`,
     `Object.assign(globalThis as any, ${JSON.stringify(runtimeGlobals, null, 2)});`,
     `console.log('[agora-cocos-test] TEST_MODE_LOADED mode=' + (globalThis as any).AGORA_COCOS_TEST_MODE);`,
     `const runApiTests = maybeRunAgoraCocosApiTests;`,
+    `const runRenderingTests = maybeRunAgoraCocosRenderingSmokeTests;`,
     `export function runAgoraCocosDeviceTestsWhenReady(): void {`,
+    `  if ((globalThis as any).AGORA_COCOS_TEST_MODE === 'rendering') {`,
+    `    runRenderingTests();`,
+    `    return;`,
+    `  }`,
     `  runApiTests();`,
     `}`,
     '',

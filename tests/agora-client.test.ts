@@ -232,6 +232,57 @@ test('engine texture bridge resolves from global jsb namespace', () => {
   }
 });
 
+test('client resolves engine textures and ready state from the provided runtime bridge', () => {
+  const engineTexture = {
+    getTexture(slotId) {
+      return { slotId, source: 'runtime-bridge' };
+    },
+    isSlotReady(slotId) {
+      return slotId === 7;
+    },
+  };
+  const client = createAgoraRtcClient({
+    bridgeRuntime: {
+      native: {
+        agoraEngineTexture: engineTexture,
+      },
+      sys: {
+        isNative: true,
+      },
+    },
+  });
+
+  assert.deepEqual(client.getEngineTexture(7), { slotId: 7, source: 'runtime-bridge' });
+  assert.equal(client.isEngineTextureReady(7), true);
+  assert.equal(client.isEngineTextureReady(8), false);
+});
+
+test('client unsubscribe function detaches the listener from subsequent native events', () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+  const joinedUsers: number[] = [];
+
+  const unsubscribe = client.on('userJoined', (payload) => {
+    joinedUsers.push(payload.uid);
+  });
+
+  unsubscribe();
+  transport.emit(
+    'agora:event',
+    JSON.stringify({
+      eventName: 'userJoined',
+      payload: {
+        uid: 88,
+      },
+    }),
+  );
+
+  assert.deepEqual(joinedUsers, []);
+});
+
 test('client rejects native failures with an sdk error', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -656,7 +707,6 @@ test('startAudioMixing dispatches the expected native request', async () => {
   const pending = client.startAudioMixing({
     path: 'assets/bgm.mp3',
     loopback: false,
-    replace: false,
     cycle: 1,
     startPos: 0,
   });
@@ -666,7 +716,6 @@ test('startAudioMixing dispatches the expected native request', async () => {
   assert.deepEqual(request.params, {
     path: 'assets/bgm.mp3',
     loopback: false,
-    replace: false,
     cycle: 1,
     startPos: 0,
   });
@@ -680,6 +729,29 @@ test('startAudioMixing dispatches the expected native request', async () => {
   );
 
   await pending;
+});
+
+test('startAudioMixing rejects unsupported replace parameter before dispatching to native', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  await assert.rejects(
+    client.startAudioMixing({
+      path: 'assets/bgm.mp3',
+      loopback: false,
+      replace: false,
+      cycle: 1,
+      startPos: 0,
+    }),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'startAudioMixing' &&
+      error.details.argument === 'replace',
+  );
+  assert.equal(transport.sent.length, 0);
 });
 
 test('enableLocalAudio dispatches the expected native request', async () => {
@@ -706,6 +778,30 @@ test('enableLocalAudio dispatches the expected native request', async () => {
   await pending;
 });
 
+test('enableLocalAudio dispatches the enabled=true branch', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.enableLocalAudio(true);
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'enableLocalAudio');
+  assert.deepEqual(request.params, { enabled: true });
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+});
+
 test('enableLocalVideo dispatches the expected native request', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -718,6 +814,30 @@ test('enableLocalVideo dispatches the expected native request', async () => {
 
   assert.equal(request.method, 'enableLocalVideo');
   assert.deepEqual(request.params, { enabled: true });
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+});
+
+test('enableLocalVideo dispatches the enabled=false branch', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.enableLocalVideo(false);
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'enableLocalVideo');
+  assert.deepEqual(request.params, { enabled: false });
 
   transport.emit(
     'agora:response',
@@ -791,6 +911,42 @@ test('setupLocalVideoView dispatches the expected native request', async () => {
   await pending;
 });
 
+test('setupLocalVideoView dispatches the fit renderMode branch', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.setupLocalVideoView({
+    x: 12,
+    y: 18,
+    width: 280,
+    height: 360,
+    renderMode: 'fit',
+  });
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'setupLocalVideoView');
+  assert.deepEqual(request.params, {
+    x: 12,
+    y: 18,
+    width: 280,
+    height: 360,
+    renderMode: 'fit',
+  });
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+});
+
 test('setupRemoteVideoView dispatches the expected native request', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -815,6 +971,43 @@ test('setupRemoteVideoView dispatches the expected native request', async () => 
     width: 500,
     height: 600,
     renderMode: 'fit',
+  });
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+});
+
+test('setupRemoteVideoView dispatches the hidden renderMode branch', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.setupRemoteVideoView(42, {
+    x: 30,
+    y: 40,
+    width: 500,
+    height: 600,
+    renderMode: 'hidden',
+  });
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'setupRemoteVideoView');
+  assert.deepEqual(request.params, {
+    uid: 42,
+    x: 30,
+    y: 40,
+    width: 500,
+    height: 600,
+    renderMode: 'hidden',
   });
 
   transport.emit(
@@ -875,6 +1068,37 @@ test('setRenderBackend dispatches the expected native request', async () => {
   assert.equal(request.method, 'setRenderBackend');
   assert.deepEqual(request.params, {
     backend: 'texture-view',
+  });
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+});
+
+test('setParameters serializes object payloads before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.setParameters({
+    'rtc.debug': true,
+    nested: {
+      bitrate: 1200,
+    },
+  });
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'setParameters');
+  assert.deepEqual(request.params, {
+    parameters: '{"rtc.debug":true,"nested":{"bitrate":1200}}',
   });
 
   transport.emit(
@@ -1023,25 +1247,49 @@ test('client dispatches expected native requests for all expanded public APIs', 
   await testApi('setLogFilter', () => client.setLogFilter(15), { level: 15 });
   await testApi('setLogFile', () => client.setLogFile('/path/to/log'), { path: '/path/to/log' });
   await testApi('setVideoEncoderConfiguration', () => client.setVideoEncoderConfiguration({ width: 640, height: 360, frameRate: 15, bitrate: 0 }), { width: 640, height: 360, frameRate: 15, bitrate: 0 });
+  await testApi('setVideoEncoderConfiguration', () => client.setVideoEncoderConfiguration({ width: 720, height: 1280, orientationMode: 1 }), { width: 720, height: 1280, orientationMode: 1 });
+  await testApi('setVideoEncoderConfiguration', () => client.setVideoEncoderConfiguration({ width: 540, height: 960, orientationMode: 2 }), { width: 540, height: 960, orientationMode: 2 });
   await testApi('setParameters', () => client.setParameters('{"key":"value"}'), { parameters: '{"key":"value"}' });
+  await testApi(
+    'setParameters',
+    () => client.setParameters({ key: 'value', nested: { enabled: true } }),
+    { parameters: '{"key":"value","nested":{"enabled":true}}' },
+  );
   await testApi('enableVideo', () => client.enableVideo(true), { enabled: true });
+  await testApi('enableVideo', () => client.enableVideo(false), { enabled: false });
   await testApi('muteLocalVideoStream', () => client.muteLocalVideoStream(true), { muted: true });
+  await testApi('muteLocalVideoStream', () => client.muteLocalVideoStream(false), { muted: false });
   await testApi('muteRemoteVideoStream', () => client.muteRemoteVideoStream(123, true), { uid: 123, muted: true });
+  await testApi('muteRemoteVideoStream', () => client.muteRemoteVideoStream(123, false), { uid: 123, muted: false });
   await testApi('muteAllRemoteVideoStreams', () => client.muteAllRemoteVideoStreams(true), { muted: true });
+  await testApi('muteAllRemoteVideoStreams', () => client.muteAllRemoteVideoStreams(false), { muted: false });
   await testApi('enableAudio', () => client.enableAudio(true), { enabled: true });
+  await testApi('enableAudio', () => client.enableAudio(false), { enabled: false });
   await testApi('muteLocalAudioStream', () => client.muteLocalAudioStream(true), { muted: true });
+  await testApi('muteLocalAudioStream', () => client.muteLocalAudioStream(false), { muted: false });
   await testApi('muteRemoteAudioStream', () => client.muteRemoteAudioStream(123, true), { uid: 123, muted: true });
+  await testApi('muteRemoteAudioStream', () => client.muteRemoteAudioStream(123, false), { uid: 123, muted: false });
   await testApi('muteAllRemoteAudioStreams', () => client.muteAllRemoteAudioStreams(true), { muted: true });
+  await testApi('muteAllRemoteAudioStreams', () => client.muteAllRemoteAudioStreams(false), { muted: false });
   await testApi('enableAudioVolumeIndication', () => client.enableAudioVolumeIndication(200, 3, true), { interval: 200, smooth: 3, reportVad: true });
+  await testApi('enableAudioVolumeIndication', () => client.enableAudioVolumeIndication(300), { interval: 300 });
   await testApi('setAudioProfile', () => client.setAudioProfile(0, 1), { profile: 0, scenario: 1 });
+  await testApi('setAudioProfile', () => client.setAudioProfile(1), { profile: 1 });
   await testApi('setDefaultAudioRouteToSpeakerphone', () => client.setDefaultAudioRouteToSpeakerphone(true), { enabled: true });
+  await testApi('setDefaultAudioRouteToSpeakerphone', () => client.setDefaultAudioRouteToSpeakerphone(false), { enabled: false });
   await testApi('setEnableSpeakerphone', () => client.setEnableSpeakerphone(true), { enabled: true });
+  await testApi('setEnableSpeakerphone', () => client.setEnableSpeakerphone(false), { enabled: false });
   await testApi('adjustPlaybackSignalVolume', () => client.adjustPlaybackSignalVolume(50), { volume: 50 });
   await testApi('adjustUserPlaybackSignalVolume', () => client.adjustUserPlaybackSignalVolume(123, 50), { uid: 123, volume: 50 });
   await testApi('setAudioSessionOperationRestriction', () => client.setAudioSessionOperationRestriction(1), { restriction: 1 });
+  await testApi('setChannelProfile', () => client.setChannelProfile('communication'), { profile: 'communication' });
   await testApi('setClientRole', () => client.setClientRole('audience'), { role: 'audience' });
+  await testApi('setClientRole', () => client.setClientRole('broadcaster'), { role: 'broadcaster' });
   await testApi('setBeautyEffectOptions', () => client.setBeautyEffectOptions(true, { lighteningLevel: 0.5, smoothnessLevel: 0.5, rednessLevel: 0.5, sharpnessLevel: 0.5 }), { enabled: true, options: { lighteningLevel: 0.5, smoothnessLevel: 0.5, rednessLevel: 0.5, sharpnessLevel: 0.5 } });
+  await testApi('setBeautyEffectOptions', () => client.setBeautyEffectOptions(false, {}), { enabled: false, options: {} });
   await testApi('enableContentInspect', () => client.enableContentInspect(true, {}), { enabled: true, config: {} });
+  await testApi('enableContentInspect', () => client.enableContentInspect(true), { enabled: true });
+  await testApi('enableContentInspect', () => client.enableContentInspect(false), { enabled: false });
   await testApi('pauseAudioMixing', () => client.pauseAudioMixing(), {});
   await testApi('resumeAudioMixing', () => client.resumeAudioMixing(), {});
   await testApi('stopAudioMixing', () => client.stopAudioMixing(), {});
@@ -1053,11 +1301,17 @@ test('client dispatches expected native requests for all expanded public APIs', 
   await testApi('adjustAudioMixingVolume', () => client.adjustAudioMixingVolume(50), { volume: 50 });
   await testApi('preloadEffect', () => client.preloadEffect(1, '/path'), { soundId: 1, path: '/path' });
   await testApi('playEffect', () => client.playEffect({ soundId: 1, path: '/path', loopCount: 1, pitch: 1, pan: 0, gain: 100, publish: false, startPos: 0 }), { soundId: 1, path: '/path', loopCount: 1, pitch: 1, pan: 0, gain: 100, publish: false, startPos: 0 });
+  await testApi('playEffect', () => client.playEffect({ soundId: 2, path: '/path', publish: true }), { soundId: 2, path: '/path', publish: true });
   await testApi('stopEffect', () => client.stopEffect(1), { soundId: 1 });
+  await testApi('setRenderBackend', () => client.setRenderBackend('engine-texture'), { backend: 'engine-texture' });
+  await testApi('setRenderBackend', () => client.setRenderBackend('texture-view'), { backend: 'texture-view' });
   await testApi('updateLocalVideoView', () => client.updateLocalVideoView({ x: 0, y: 0, width: 100, height: 100, renderMode: 'fit' }), { x: 0, y: 0, width: 100, height: 100, renderMode: 'fit' });
+  await testApi('updateLocalVideoView', () => client.updateLocalVideoView({ x: 0, y: 0, width: 100, height: 100, renderMode: 'hidden' }), { x: 0, y: 0, width: 100, height: 100, renderMode: 'hidden' });
   await testApi('updateRemoteVideoView', () => client.updateRemoteVideoView(123, { x: 0, y: 0, width: 100, height: 100, renderMode: 'fit' }), { uid: 123, x: 0, y: 0, width: 100, height: 100, renderMode: 'fit' });
+  await testApi('updateRemoteVideoView', () => client.updateRemoteVideoView(123, { x: 0, y: 0, width: 100, height: 100, renderMode: 'hidden' }), { uid: 123, x: 0, y: 0, width: 100, height: 100, renderMode: 'hidden' });
   await testApi('removeLocalVideoView', () => client.removeLocalVideoView(), {});
   await testApi('removeRemoteVideoView', () => client.removeRemoteVideoView(123), { uid: 123 });
+  await testApi('setNativeVideoOverlaySuspended', () => client.setNativeVideoOverlaySuspended(false), { suspended: false });
   await testApi('setNativeVideoOverlaySuspended', () => client.setNativeVideoOverlaySuspended(true), { suspended: true });
   await testApi('stopPreview', () => client.stopPreview(), {});
   await testApi('renewToken', () => client.renewToken('token123'), { token: 'token123' });

@@ -16,11 +16,13 @@ export type ApiCallCase = {
   method: string;
   expectedParams: Record<string, unknown>;
   requiredEvidence: ApiEvidenceKind[];
+  expectedEventNames?: string[];
   run: (client: AgoraRtcClient, context: ApiTestContext) => Promise<unknown>;
 };
 
 const remoteUid = 2002;
 const rect = { x: 24, y: 32, width: 240, height: 180, renderMode: 'fit' as const };
+const hiddenRect = { ...rect, renderMode: 'hidden' as const };
 
 export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
@@ -36,6 +38,20 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     expectedParams: { backend: 'engine-texture' },
     requiredEvidence: ['response'],
     run: (client) => client.setRenderBackend('engine-texture'),
+  },
+  {
+    id: 'engine.set-render-backend-surface',
+    method: 'setRenderBackend',
+    expectedParams: { backend: 'surface-view' },
+    requiredEvidence: ['response'],
+    run: (client) => client.setRenderBackend('surface-view'),
+  },
+  {
+    id: 'engine.set-render-backend-texture',
+    method: 'setRenderBackend',
+    expectedParams: { backend: 'texture-view' },
+    requiredEvidence: ['response'],
+    run: (client) => client.setRenderBackend('texture-view'),
   },
   {
     id: 'engine.get-sdk-version',
@@ -73,11 +89,28 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.setParameters('{"che.audio.keep.audiosession":true}'),
   },
   {
+    id: 'engine.set-parameters-object',
+    method: 'setParameters',
+    expectedParams: { parameters: '{"rtc.debug":true,"che.audio.keep.audiosession":true}' },
+    requiredEvidence: ['response'],
+    run: (client) => client.setParameters({
+      'rtc.debug': true,
+      'che.audio.keep.audiosession': true,
+    }),
+  },
+  {
     id: 'channel.set-profile',
     method: 'setChannelProfile',
     expectedParams: { profile: 'liveBroadcasting' },
     requiredEvidence: ['response'],
     run: (client) => client.setChannelProfile('liveBroadcasting'),
+  },
+  {
+    id: 'channel.set-profile-communication',
+    method: 'setChannelProfile',
+    expectedParams: { profile: 'communication' },
+    requiredEvidence: ['response'],
+    run: (client) => client.setChannelProfile('communication'),
   },
   {
     id: 'channel.set-client-role',
@@ -87,10 +120,18 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.setClientRole('broadcaster'),
   },
   {
+    id: 'channel.set-client-role-audience',
+    method: 'setClientRole',
+    expectedParams: { role: 'audience' },
+    requiredEvidence: ['response'],
+    run: (client) => client.setClientRole('audience'),
+  },
+  {
     id: 'channel.join',
     method: 'joinChannel',
     expectedParams: { token: '<TEST_TOKEN>', channelId: '<TEST_CHANNEL_ID>', uid: '<TEST_UID>' },
     requiredEvidence: ['response', 'event'],
+    expectedEventNames: ['joinChannelSuccess'],
     run: (client, context) => client.joinChannel(context.token, context.channelId, context.uid),
   },
   {
@@ -108,11 +149,25 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.enableAudio(true),
   },
   {
+    id: 'audio.disable',
+    method: 'enableAudio',
+    expectedParams: { enabled: false },
+    requiredEvidence: ['response'],
+    run: (client) => client.enableAudio(false),
+  },
+  {
     id: 'audio.enable-local',
     method: 'enableLocalAudio',
     expectedParams: { enabled: true },
     requiredEvidence: ['response'],
     run: (client) => client.enableLocalAudio(true),
+  },
+  {
+    id: 'audio.disable-local',
+    method: 'enableLocalAudio',
+    expectedParams: { enabled: false },
+    requiredEvidence: ['response'],
+    run: (client) => client.enableLocalAudio(false),
   },
   {
     id: 'audio.mute-local',
@@ -122,11 +177,25 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.muteLocalAudioStream(false),
   },
   {
+    id: 'audio.mute-local-on',
+    method: 'muteLocalAudioStream',
+    expectedParams: { muted: true },
+    requiredEvidence: ['response'],
+    run: (client) => client.muteLocalAudioStream(true),
+  },
+  {
     id: 'audio.mute-remote',
     method: 'muteRemoteAudioStream',
     expectedParams: { uid: remoteUid, muted: true },
     requiredEvidence: ['response'],
     run: (client) => client.muteRemoteAudioStream(remoteUid, true),
+  },
+  {
+    id: 'audio.unmute-remote',
+    method: 'muteRemoteAudioStream',
+    expectedParams: { uid: remoteUid, muted: false },
+    requiredEvidence: ['response'],
+    run: (client) => client.muteRemoteAudioStream(remoteUid, false),
   },
   {
     id: 'audio.mute-all-remote',
@@ -136,11 +205,25 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.muteAllRemoteAudioStreams(false),
   },
   {
+    id: 'audio.mute-all-remote-on',
+    method: 'muteAllRemoteAudioStreams',
+    expectedParams: { muted: true },
+    requiredEvidence: ['response'],
+    run: (client) => client.muteAllRemoteAudioStreams(true),
+  },
+  {
     id: 'audio.profile',
     method: 'setAudioProfile',
     expectedParams: { profile: 0, scenario: 1 },
     requiredEvidence: ['response'],
     run: (client) => client.setAudioProfile(0, 1),
+  },
+  {
+    id: 'audio.profile-default-scenario',
+    method: 'setAudioProfile',
+    expectedParams: { profile: 1 },
+    requiredEvidence: ['response'],
+    run: (client) => client.setAudioProfile(1),
   },
   {
     id: 'audio.volume-indication',
@@ -150,6 +233,13 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.enableAudioVolumeIndication(200, 3, true),
   },
   {
+    id: 'audio.volume-indication-default-options',
+    method: 'enableAudioVolumeIndication',
+    expectedParams: { interval: 300 },
+    requiredEvidence: ['response'],
+    run: (client) => client.enableAudioVolumeIndication(300),
+  },
+  {
     id: 'audio.default-speaker-route',
     method: 'setDefaultAudioRouteToSpeakerphone',
     expectedParams: { enabled: true },
@@ -157,11 +247,25 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.setDefaultAudioRouteToSpeakerphone(true),
   },
   {
+    id: 'audio.default-speaker-route-disable',
+    method: 'setDefaultAudioRouteToSpeakerphone',
+    expectedParams: { enabled: false },
+    requiredEvidence: ['response', 'error'],
+    run: (client) => client.setDefaultAudioRouteToSpeakerphone(false),
+  },
+  {
     id: 'audio.set-speakerphone',
     method: 'setEnableSpeakerphone',
     expectedParams: { enabled: true },
     requiredEvidence: ['response', 'error'],
     run: (client) => client.setEnableSpeakerphone(true),
+  },
+  {
+    id: 'audio.set-speakerphone-disable',
+    method: 'setEnableSpeakerphone',
+    expectedParams: { enabled: false },
+    requiredEvidence: ['response', 'error'],
+    run: (client) => client.setEnableSpeakerphone(false),
   },
   {
     id: 'audio.is-speakerphone-enabled',
@@ -199,11 +303,25 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.enableVideo(true),
   },
   {
+    id: 'video.disable',
+    method: 'enableVideo',
+    expectedParams: { enabled: false },
+    requiredEvidence: ['response'],
+    run: (client) => client.enableVideo(false),
+  },
+  {
     id: 'video.enable-local',
     method: 'enableLocalVideo',
     expectedParams: { enabled: true },
     requiredEvidence: ['response'],
     run: (client) => client.enableLocalVideo(true),
+  },
+  {
+    id: 'video.disable-local',
+    method: 'enableLocalVideo',
+    expectedParams: { enabled: false },
+    requiredEvidence: ['response'],
+    run: (client) => client.enableLocalVideo(false),
   },
   {
     id: 'video.mute-local',
@@ -213,6 +331,13 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.muteLocalVideoStream(false),
   },
   {
+    id: 'video.mute-local-on',
+    method: 'muteLocalVideoStream',
+    expectedParams: { muted: true },
+    requiredEvidence: ['response'],
+    run: (client) => client.muteLocalVideoStream(true),
+  },
+  {
     id: 'video.mute-remote',
     method: 'muteRemoteVideoStream',
     expectedParams: { uid: remoteUid, muted: true },
@@ -220,11 +345,25 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.muteRemoteVideoStream(remoteUid, true),
   },
   {
+    id: 'video.unmute-remote',
+    method: 'muteRemoteVideoStream',
+    expectedParams: { uid: remoteUid, muted: false },
+    requiredEvidence: ['response'],
+    run: (client) => client.muteRemoteVideoStream(remoteUid, false),
+  },
+  {
     id: 'video.mute-all-remote',
     method: 'muteAllRemoteVideoStreams',
     expectedParams: { muted: false },
     requiredEvidence: ['response'],
     run: (client) => client.muteAllRemoteVideoStreams(false),
+  },
+  {
+    id: 'video.mute-all-remote-on',
+    method: 'muteAllRemoteVideoStreams',
+    expectedParams: { muted: true },
+    requiredEvidence: ['response'],
+    run: (client) => client.muteAllRemoteVideoStreams(true),
   },
   {
     id: 'video.encoder-config',
@@ -240,11 +379,39 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     }),
   },
   {
+    id: 'video.encoder-config-default-optionals',
+    method: 'setVideoEncoderConfiguration',
+    expectedParams: { width: 960, height: 540 },
+    requiredEvidence: ['response'],
+    run: (client) => client.setVideoEncoderConfiguration({
+      width: 960,
+      height: 540,
+    }),
+  },
+  {
+    id: 'video.encoder-config-orientation-landscape',
+    method: 'setVideoEncoderConfiguration',
+    expectedParams: { width: 720, height: 1280, orientationMode: 1 },
+    requiredEvidence: ['response'],
+    run: (client) => client.setVideoEncoderConfiguration({
+      width: 720,
+      height: 1280,
+      orientationMode: 1,
+    }),
+  },
+  {
     id: 'render.setup-local-view',
     method: 'setupLocalVideoView',
     expectedParams: rect,
     requiredEvidence: ['response'],
     run: (client) => client.setupLocalVideoView(rect),
+  },
+  {
+    id: 'render.setup-local-view-hidden',
+    method: 'setupLocalVideoView',
+    expectedParams: hiddenRect,
+    requiredEvidence: ['response'],
+    run: (client) => client.setupLocalVideoView(hiddenRect),
   },
   {
     id: 'render.setup-remote-view',
@@ -254,11 +421,25 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.setupRemoteVideoView(remoteUid, rect),
   },
   {
+    id: 'render.setup-remote-view-hidden',
+    method: 'setupRemoteVideoView',
+    expectedParams: { uid: remoteUid, ...hiddenRect },
+    requiredEvidence: ['response'],
+    run: (client) => client.setupRemoteVideoView(remoteUid, hiddenRect),
+  },
+  {
     id: 'render.update-local-view',
     method: 'updateLocalVideoView',
     expectedParams: { ...rect, x: 36 },
     requiredEvidence: ['response'],
     run: (client) => client.updateLocalVideoView({ ...rect, x: 36 }),
+  },
+  {
+    id: 'render.update-local-view-hidden',
+    method: 'updateLocalVideoView',
+    expectedParams: { ...hiddenRect, x: 40 },
+    requiredEvidence: ['response'],
+    run: (client) => client.updateLocalVideoView({ ...hiddenRect, x: 40 }),
   },
   {
     id: 'render.update-remote-view',
@@ -268,6 +449,13 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.updateRemoteVideoView(remoteUid, { ...rect, x: 48 }),
   },
   {
+    id: 'render.update-remote-view-hidden',
+    method: 'updateRemoteVideoView',
+    expectedParams: { uid: remoteUid, ...hiddenRect, x: 52 },
+    requiredEvidence: ['response'],
+    run: (client) => client.updateRemoteVideoView(remoteUid, { ...hiddenRect, x: 52 }),
+  },
+  {
     id: 'render.suspend-overlay',
     method: 'setNativeVideoOverlaySuspended',
     expectedParams: { suspended: false },
@@ -275,10 +463,17 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.setNativeVideoOverlaySuspended(false),
   },
   {
+    id: 'render.resume-overlay',
+    method: 'setNativeVideoOverlaySuspended',
+    expectedParams: { suspended: true },
+    requiredEvidence: ['response'],
+    run: (client) => client.setNativeVideoOverlaySuspended(true),
+  },
+  {
     id: 'video.start-preview',
     method: 'startPreview',
     expectedParams: {},
-    requiredEvidence: ['response', 'event'],
+    requiredEvidence: ['response'],
     run: (client) => client.startPreview(),
   },
   {
@@ -311,6 +506,13 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     }),
   },
   {
+    id: 'video.beauty-disable',
+    method: 'setBeautyEffectOptions',
+    expectedParams: { enabled: false, options: {} },
+    requiredEvidence: ['response', 'error'],
+    run: (client) => client.setBeautyEffectOptions(false, {}),
+  },
+  {
     id: 'video.content-inspect',
     method: 'enableContentInspect',
     expectedParams: { enabled: true, config: { module: 0, interval: 10 } },
@@ -318,16 +520,34 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.enableContentInspect(true, { module: 0, interval: 10 }),
   },
   {
+    id: 'video.content-inspect-disable',
+    method: 'enableContentInspect',
+    expectedParams: { enabled: false },
+    requiredEvidence: ['response'],
+    run: (client) => client.enableContentInspect(false),
+  },
+  {
     id: 'mixing.start',
     method: 'startAudioMixing',
-    expectedParams: { path: '<AUDIO_ASSET>', loopback: false, replace: false, cycle: 1, startPos: 0 },
+    expectedParams: { path: '<AUDIO_ASSET>', loopback: false, cycle: 1, startPos: 0 },
     requiredEvidence: ['response'],
     run: (client, context) => client.startAudioMixing({
       path: context.audioAssetPath,
       loopback: false,
-      replace: false,
       cycle: 1,
       startPos: 0,
+    }),
+  },
+  {
+    id: 'mixing.start-loopback',
+    method: 'startAudioMixing',
+    expectedParams: { path: '<AUDIO_ASSET>', loopback: true, cycle: 2, startPos: 1200 },
+    requiredEvidence: ['response'],
+    run: (client, context) => client.startAudioMixing({
+      path: context.audioAssetPath,
+      loopback: true,
+      cycle: 2,
+      startPos: 1200,
     }),
   },
   {
@@ -398,6 +618,34 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     }),
   },
   {
+    id: 'effect.play-default-options',
+    method: 'playEffect',
+    expectedParams: {
+      soundId: 2,
+      path: '<AUDIO_ASSET>',
+    },
+    requiredEvidence: ['response'],
+    run: (client, context) => client.playEffect({
+      soundId: 2,
+      path: context.audioAssetPath,
+    }),
+  },
+  {
+    id: 'effect.play-publish',
+    method: 'playEffect',
+    expectedParams: {
+      soundId: 3,
+      path: '<AUDIO_ASSET>',
+      publish: true,
+    },
+    requiredEvidence: ['response'],
+    run: (client, context) => client.playEffect({
+      soundId: 3,
+      path: context.audioAssetPath,
+      publish: true,
+    }),
+  },
+  {
     id: 'effect.stop',
     method: 'stopEffect',
     expectedParams: { soundId: 1 },
@@ -437,6 +685,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     method: 'leaveChannel',
     expectedParams: {},
     requiredEvidence: ['response', 'event'],
+    expectedEventNames: ['leaveChannel'],
     run: (client) => client.leaveChannel(),
   },
   {

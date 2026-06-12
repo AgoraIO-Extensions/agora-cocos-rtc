@@ -251,6 +251,18 @@ export class AgoraRtcClient {
   }
 
   startAudioMixing(config: AgoraAudioMixingConfig): Promise<void> {
+    if (typeof config.replace !== 'undefined') {
+      return Promise.reject(
+        new AgoraSdkError(
+          AgoraErrorCode.ProtocolError,
+          'startAudioMixing.replace is not supported by the current bridge contract.',
+          {
+            method: 'startAudioMixing',
+            argument: 'replace',
+          },
+        ),
+      );
+    }
     return this.#invoke('startAudioMixing', { ...config }) as Promise<void>;
   }
 
@@ -291,8 +303,10 @@ export class AgoraRtcClient {
   }
 
   setParameters(parameters: string | Record<string, unknown>): Promise<void> {
+    const normalizedParameters =
+      typeof parameters === 'string' ? parameters : JSON.stringify(parameters);
     return this.#invoke('setParameters', {
-      parameters,
+      parameters: normalizedParameters,
     }) as Promise<void>;
   }
 

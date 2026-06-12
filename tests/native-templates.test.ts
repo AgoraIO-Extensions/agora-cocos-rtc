@@ -86,6 +86,44 @@ test('ios swift bridge template passes a syntax-only compile', async () => {
   await execFileAsync('/usr/bin/swiftc', ['-parse', swiftFile]);
 });
 
+test('ios bridge template accepts setParameters object payloads by serializing them before calling the rtc sdk', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  const setParametersMatch = bridgeContent.match(
+    /case "setParameters":[\s\S]*?case "enableContentInspect":/,
+  );
+  assert.ok(setParametersMatch);
+  assert.match(setParametersMatch[0], /JSONSerialization\.data\(withJSONObject:/);
+  assert.match(setParametersMatch[0], /String\(data: parametersData, encoding: \.utf8\)/);
+  assert.match(setParametersMatch[0], /engine\.setParameters\(parameters\)/);
+});
+
+test('native bridge templates do not consume unsupported startAudioMixing.replace directly', async () => {
+  const androidBridge = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java'),
+    'utf8',
+  );
+  const iosBridge = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  const androidStartAudioMixing = androidBridge.match(
+    /private void handleStartAudioMixing[\s\S]*?private void handlePauseAudioMixing/,
+  );
+  const iosStartAudioMixing = iosBridge.match(
+    /case "startAudioMixing":[\s\S]*?case "pauseAudioMixing":/,
+  );
+
+  assert.ok(androidStartAudioMixing);
+  assert.ok(iosStartAudioMixing);
+  assert.doesNotMatch(androidStartAudioMixing[0], /\breplace\b/);
+  assert.doesNotMatch(iosStartAudioMixing[0], /\breplace\b/);
+});
+
 test('engine-texture backend keeps template/runtime slot upload dimensions in sync', async () => {
   const templateLimits = await readEngineTextureLimits(engineTextureBackendTemplate);
   const runtimeLimits = await readEngineTextureLimits(engineTextureBackendRuntime);

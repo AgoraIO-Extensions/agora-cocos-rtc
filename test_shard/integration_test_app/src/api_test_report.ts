@@ -5,6 +5,11 @@ export type ApiCaseReport = {
   method: string;
   expectedParams: Record<string, unknown>;
   requiredEvidence: string[];
+  expectedEventNames?: string[];
+  observedParams?: Record<string, unknown>;
+  observedEvents?: string[];
+  expectedParamsMatch?: boolean;
+  requiredEvidenceSatisfied?: boolean;
   startedAt: string;
   endedAt: string;
   status: 'passed' | 'failed';

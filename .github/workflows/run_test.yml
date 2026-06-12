@@ -114,6 +114,90 @@ jobs:
           name: cocos-android-api-test-reports
           path: test_shard/integration_test_app/reports
 
+  integration_test_android_rendering:
+    name: Run Android Cocos Rendering Tests
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:skip') }}
+    runs-on: macos-15-intel
+    timeout-minutes: 120
+    env:
+      TEST_APP_ID: ${{ secrets.APP_ID }}
+      ANDROID_TEST_ABI: x86_64
+      AGORA_COCOS_TEST_MODE: rendering
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+      - name: Setup Android SDK for Cocos
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          android_sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Library/Android/sdk}}"
+          sdkmanager="$android_sdk_root/cmdline-tools/latest/bin/sdkmanager"
+
+          if [ ! -x "$sdkmanager" ]; then
+            echo "Android sdkmanager not found at $sdkmanager." >&2
+            exit 1
+          fi
+
+          set +e
+          yes | "$sdkmanager" --licenses >/dev/null
+          license_status="${PIPESTATUS[1]}"
+          set -e
+          if [ "$license_status" -ne 0 ]; then
+            echo "Failed to accept Android SDK licenses." >&2
+            exit "$license_status"
+          fi
+
+          "$sdkmanager" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
+            "cmake;3.22.1" \
+            "ndk;23.1.7779620"
+
+          echo "ANDROID_SDK_ROOT=$android_sdk_root" >> "$GITHUB_ENV"
+          echo "ANDROID_HOME=$android_sdk_root" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$android_sdk_root/ndk/23.1.7779620" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$android_sdk_root/ndk/23.1.7779620" >> "$GITHUB_ENV"
+      - name: Cache Cocos Creator installer
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-mac-010512.zip
+          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-010512
+      - uses: ./.github/actions/setup-cocos-creator
+        with:
+          version: ${{ env.COCOS_CREATOR_VERSION }}
+          download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
+      - run: npm ci
+      - name: Run Android Cocos Rendering Tests
+        timeout-minutes: 45
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 31
+          arch: x86_64
+          profile: pixel_5
+          ram-size: 2048M
+          heap-size: 2048M
+          disk-size: 6144M
+          emulator-boot-timeout: 600
+          disable-animations: true
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: bash scripts/run_cocos_integration_test_android.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cocos-android-rendering-test-reports
+          path: test_shard/integration_test_app/reports
+
   integration_test_ios:
     name: Run Cocos iOS Integration Tests
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:skip') }}
@@ -150,4 +234,44 @@ jobs:
         if: always()
         with:
           name: cocos-ios-api-test-reports
+          path: test_shard/integration_test_app/reports
+
+  integration_test_ios_rendering:
+    name: Run iOS Cocos Rendering Tests
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:skip') }}
+    runs-on: macos-latest
+    timeout-minutes: 120
+    env:
+      TEST_APP_ID: ${{ secrets.APP_ID }}
+      AGORA_COCOS_TEST_MODE: rendering
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Cache Cocos Creator installer
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-mac-010512.zip
+          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-010512
+      - uses: ./.github/actions/setup-cocos-creator
+        with:
+          version: ${{ env.COCOS_CREATOR_VERSION }}
+          download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
+      - run: npm ci
+      - uses: futureware-tech/simulator-action@v4
+        with:
+          model: 'iPhone 16 Pro'
+          os: iOS
+          os_version: '>=18.0'
+          erase_before_boot: true
+          wait_for_boot: true
+          shutdown_after_job: true
+      - name: Run iOS Cocos Rendering Tests
+        run: bash scripts/run_cocos_integration_test_ios.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cocos-ios-rendering-test-reports
           path: test_shard/integration_test_app/reports

@@ -37,13 +37,15 @@ if (sourceJson) {
   report = JSON.parse(await readFile(sourcePath, 'utf8'));
 }
 
-const jsonPath = path.join(reportDir, `${platform}-api-report.json`);
-const markdownPath = path.join(reportDir, `${platform}-api-report.md`);
+const mode = report.mode || process.env.AGORA_COCOS_TEST_MODE || 'api';
+const reportBaseName = mode === 'rendering' ? 'rendering-report' : 'api-report';
+const jsonPath = path.join(reportDir, `${platform}-${reportBaseName}.json`);
+const markdownPath = path.join(reportDir, `${platform}-${reportBaseName}.md`);
 await writeFile(jsonPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 await writeFile(
   markdownPath,
   [
-    `# Cocos ${platform} API Test Report`,
+    `# Cocos ${platform} ${mode === 'rendering' ? 'Rendering' : 'API'} Test Report`,
     '',
     `- Passed: ${report.totals.passed}`,
     `- Failed: ${report.totals.failed}`,

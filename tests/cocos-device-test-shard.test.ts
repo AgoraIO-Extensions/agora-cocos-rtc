@@ -16,13 +16,51 @@ test('cocos device test shard mirrors flutter-style integration and rendering la
     readFile(`${repoRoot}/test_shard/integration_test_app/src/api_test_runner.ts`, 'utf8'),
     readFile(`${repoRoot}/test_shard/integration_test_app/src/api_test_report.ts`, 'utf8'),
     readFile(`${repoRoot}/test_shard/rendering_test/src/rendering_smoke_testcases.ts`, 'utf8'),
+    readFile(`${repoRoot}/test_shard/rendering_test/src/rendering_test_runner.ts`, 'utf8'),
     readFile(`${repoRoot}/scripts/inject-cocos-test-runner.mjs`, 'utf8'),
     readFile(`${repoRoot}/scripts/collect-cocos-test-report.mjs`, 'utf8'),
     readFile(`${repoRoot}/scripts/run_cocos_integration_test_android.sh`, 'utf8'),
     readFile(`${repoRoot}/scripts/run_cocos_integration_test_ios.sh`, 'utf8'),
   ]);
 
-  assert.equal(files.length, 8);
+  assert.equal(files.length, 9);
+});
+
+test('cocos rendering smoke cases are wired into the executable device test flow', async () => {
+  const injectScript = await readFile(`${repoRoot}/scripts/inject-cocos-test-runner.mjs`, 'utf8');
+  const androidScript = await readFile(
+    `${repoRoot}/scripts/run_cocos_integration_test_android.sh`,
+    'utf8',
+  );
+  const iosScript = await readFile(
+    `${repoRoot}/scripts/run_cocos_integration_test_ios.sh`,
+    'utf8',
+  );
+
+  assert.match(injectScript, /rendering_test/);
+  assert.match(injectScript, /maybeRunAgoraCocosRenderingSmokeTests/);
+  assert.match(injectScript, /runRenderingTests/);
+  assert.match(androidScript, /AGORA_COCOS_TEST_MODE/);
+  assert.match(iosScript, /AGORA_COCOS_TEST_MODE/);
+});
+
+test('cocos rendering runner emits rendering mode reports through the shared test harness', async () => {
+  const renderingRunner = await readFile(
+    `${repoRoot}/test_shard/rendering_test/src/rendering_test_runner.ts`,
+    'utf8',
+  );
+
+  assert.match(renderingRunner, /runAgoraCocosRenderingSmokeTests/);
+  assert.match(renderingRunner, /mode: 'rendering'/);
+  assert.match(renderingRunner, /rendering-report\.json/);
+  assert.match(renderingRunner, /TEST_DONE status=/);
+  assert.match(renderingRunner, /RENDERING_SMOKE_TESTCASES/);
+  assert.match(renderingRunner, /AgoraRtcExampleController/);
+  assert.match(renderingRunner, /setSurfaceViewBackend|setEngineTextureBackend|setTextureViewBackend/);
+  assert.match(renderingRunner, /localVideoTextureReady|renderBackendState/);
+  assert.match(renderingRunner, /initializeRtc\(\)/);
+  assert.match(renderingRunner, /updateLocalVideoView\(testcase\.localRect\)/);
+  assert.match(renderingRunner, /native\.saveImageData/);
 });
 
 test('cocos api test matrix covers every native Agora method and records parameter evidence', async () => {
@@ -48,6 +86,31 @@ test('cocos api test matrix covers every native Agora method and records paramet
   assert.match(testcasesContent, /loopback/);
   assert.match(testcasesContent, /publish/);
   assert.match(testcasesContent, /renderMode/);
+  assert.match(testcasesContent, /backend: 'surface-view'/);
+  assert.match(testcasesContent, /backend: 'texture-view'/);
+  assert.match(testcasesContent, /profile: 'communication'/);
+  assert.match(testcasesContent, /role: 'audience'/);
+  assert.match(testcasesContent, /expectedParams: \{ profile: 1 \}/);
+  assert.match(testcasesContent, /expectedParams: \{ interval: 300 \}/);
+  assert.match(testcasesContent, /expectedParams: \{ width: 960, height: 540 \}/);
+  assert.match(testcasesContent, /orientationMode: 1/);
+  assert.match(testcasesContent, /expectedParams: \{ enabled: false \}/);
+  assert.match(testcasesContent, /uid: remoteUid, muted: false/);
+  assert.match(testcasesContent, /expectedParams: \{ muted: true \}/);
+  assert.match(testcasesContent, /suspended: true/);
+  assert.match(testcasesContent, /renderMode: 'hidden'/);
+  assert.match(testcasesContent, /expectedParams: \{ enabled: false, options: \{\} \}/);
+  assert.match(testcasesContent, /loopback: true/);
+  assert.match(testcasesContent, /startPos: 1200/);
+  assert.match(testcasesContent, /soundId: 2/);
+  assert.match(testcasesContent, /soundId: 3/);
+  assert.match(testcasesContent, /publish: true/);
+  assert.match(testcasesContent, /"rtc\.debug":true/);
+  assert.doesNotMatch(
+    testcasesContent,
+    /startAudioMixing[\s\S]*\breplace:/,
+    'device API testcases should not pass unsupported startAudioMixing.replace through to native coverage',
+  );
 });
 
 test('cocos api testcases accept native error evidence for platform-sensitive calls', async () => {
@@ -74,6 +137,26 @@ test('cocos api testcases accept native error evidence for platform-sensitive ca
   }
 });
 
+test('cocos api testcases pin event evidence to stable join and leave callbacks only', async () => {
+  const testcasesContent = await readFile(
+    `${repoRoot}/test_shard/integration_test_app/src/api_call_testcases.ts`,
+    'utf8',
+  );
+
+  assert.match(
+    testcasesContent,
+    /id:\s*'channel\.join'[\s\S]*?requiredEvidence:\s*\['response',\s*'event'\][\s\S]*?expectedEventNames:\s*\['joinChannelSuccess'\]/,
+  );
+  assert.match(
+    testcasesContent,
+    /id:\s*'channel\.leave'[\s\S]*?requiredEvidence:\s*\['response',\s*'event'\][\s\S]*?expectedEventNames:\s*\['leaveChannel'\]/,
+  );
+  assert.match(
+    testcasesContent,
+    /id:\s*'video\.start-preview'[\s\S]*?requiredEvidence:\s*\['response'\]/,
+  );
+});
+
 test('cocos device runner emits structured logs and writes a json report', async () => {
   const runnerContent = await readFile(
     `${repoRoot}/test_shard/integration_test_app/src/api_test_runner.ts`,
@@ -81,6 +164,10 @@ test('cocos device runner emits structured logs and writes a json report', async
   );
   const reportContent = await readFile(
     `${repoRoot}/test_shard/integration_test_app/src/api_test_report.ts`,
+    'utf8',
+  );
+  const collectReportScript = await readFile(
+    `${repoRoot}/scripts/collect-cocos-test-report.mjs`,
     'utf8',
   );
 
@@ -93,11 +180,21 @@ test('cocos device runner emits structured logs and writes a json report', async
   assert.match(runnerContent, /TEST_WAIT_BRIDGE/);
   assert.match(runnerContent, /TEST_BRIDGE_READY/);
   assert.match(runnerContent, /resolveBridgeTransport/);
+  assert.match(runnerContent, /expectedParamsMatch/);
+  assert.match(runnerContent, /observedParams/);
+  assert.match(runnerContent, /observedEvents/);
+  assert.match(runnerContent, /observedRequestValue/);
+  assert.match(runnerContent, /requiredEvidenceSatisfied/);
+  assert.match(runnerContent, /expectedEventNames/);
+  assert.match(runnerContent, /observedEvents\.includes/);
+  assert.match(runnerContent, /dispatchEventToNative/);
+  assert.match(runnerContent, /dispatchEventToScript/);
   assert.match(runnerContent, /isNativeErrorEvidence/);
   assert.match(runnerContent, /serializedError\.code === 'native_failure'/);
   assert.match(runnerContent, /serializedError\.details\?\.method === testcase\.method/);
   assert.match(reportContent, /writeJsonReport/);
   assert.match(reportContent, /api-report\.json/);
+  assert.match(collectReportScript, /reportBaseName = mode === 'rendering' \? 'rendering-report' : 'api-report'/);
 });
 
 test('cocos runner injection imports test mode from the example bootstrap', async () => {
@@ -216,4 +313,14 @@ test('cocos run_test workflow exposes unit and device integration jobs', async (
   assert.match(workflow, /futureware-tech\/simulator-action@v4/);
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_ios\.sh/);
   assert.match(workflow, /test_shard\/integration_test_app\/reports/);
+});
+
+test('cocos run_test workflow exposes dedicated rendering integration jobs', async () => {
+  const workflow = await readFile(`${repoRoot}/.github/workflows/run_test.yml`, 'utf8');
+
+  assert.match(workflow, /integration_test_android_rendering:/);
+  assert.match(workflow, /integration_test_ios_rendering:/);
+  assert.match(workflow, /AGORA_COCOS_TEST_MODE:\s*rendering/);
+  assert.match(workflow, /name:\s*Run Android Cocos Rendering Tests/);
+  assert.match(workflow, /name:\s*Run iOS Cocos Rendering Tests/);
 });
