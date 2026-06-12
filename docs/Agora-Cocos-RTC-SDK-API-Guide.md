@@ -127,7 +127,7 @@ SDK 提供：
 2. 调用 `setupLocalVideoView(canvas)` 绑定本地渲染区域。
 3. 如需在入会前先展示摄像头预览，可额外调用 `startPreview(sourceType?)`。
 4. 如果业务后续需要更新布局，可调用 `updateLocalVideoView(canvas)`。
-5. 如果选择 `engine-texture`，除绑定视图外，还需要监听 `localVideoTextureReady`，并在回调中通过 `getEngineTexture(slotId)` 取得纹理后绑定到 Cocos `Texture2D` / `SpriteFrame`。
+5. 如果选择 `engine-texture`，除绑定视图外，还需要监听 `localVideoTextureReady`，并在回调中通过 `getEngineTexture(slotId)` 尝试取得纹理后绑定到 Cocos `Texture2D` / `SpriteFrame`。需要注意，事件触发时纹理槽位可能仍在准备中，`getEngineTexture(slotId)` 可能暂时返回 `null`，业务侧应结合就绪检查或重试逻辑完成绑定。
 
 ### Channel Join
 
@@ -146,7 +146,7 @@ SDK 提供：
 2. 如需变更远端画面位置或尺寸，可调用 `updateRemoteVideoView(uid, canvas)`。
 3. 在 `userOffline` 事件中调用 `removeRemoteVideoView(uid)` 清理远端画面。
 4. 可结合 `remoteVideoStateChanged`、`remoteAudioStateChanged`、`rtcStats` 判断订阅状态和通话质量。
-5. 如果选择 `engine-texture`，还需要监听 `remoteVideoTextureReady`，并在回调中通过 `getEngineTexture(slotId)` 取得远端纹理，再绑定到对应的 Cocos 渲染资源。
+5. 如果选择 `engine-texture`，还需要监听 `remoteVideoTextureReady`，并在回调中通过 `getEngineTexture(slotId)` 尝试取得远端纹理，再绑定到对应的 Cocos 渲染资源。与本地纹理相同，远端纹理在事件触发后也可能暂时不可取到，建议配合项目侧重试机制处理。
 
 ### Leave and Destroy
 
@@ -232,23 +232,37 @@ export async function teardownRtcSession(): Promise<void> {
 }
 ```
 
-如果业务使用 `engine-texture`，请在上述最小流程之外补充纹理绑定逻辑。典型处理方式如下：
+如果业务使用 `engine-texture`，请在上述最小流程之外补充纹理绑定逻辑。请不要假设纹理就绪事件一触发就一定能立即取到 `Texture2D`；参考示例工程的处理方式，建议在 `getEngineTexture(slotId)` 返回 `null` 时继续重试绑定。典型处理方式如下：
 
 ```ts
-client.on('localVideoTextureReady', ({ slotId }) => {
+function bindLocalTextureWithRetry(slotId: number, retryCount = 0) {
   const texture = client.getEngineTexture(slotId);
   if (!texture) {
+    if (retryCount < 10) {
+      setTimeout(() => bindLocalTextureWithRetry(slotId, retryCount + 1), 16);
+    }
     return;
   }
   localSpriteFrame.texture = texture as Texture2D;
-});
+}
 
-client.on('remoteVideoTextureReady', ({ uid, slotId }) => {
+function bindRemoteTextureWithRetry(uid: number, slotId: number, retryCount = 0) {
   const texture = client.getEngineTexture(slotId);
   if (!texture) {
+    if (retryCount < 10) {
+      setTimeout(() => bindRemoteTextureWithRetry(uid, slotId, retryCount + 1), 16);
+    }
     return;
   }
   bindRemoteSpriteFrame(uid, texture as Texture2D);
+}
+
+client.on('localVideoTextureReady', ({ slotId }) => {
+  bindLocalTextureWithRetry(slotId);
+});
+
+client.on('remoteVideoTextureReady', ({ uid, slotId }) => {
+  bindRemoteTextureWithRetry(uid, slotId);
 });
 ```
 
@@ -547,7 +561,7 @@ await client.initialize({
 - `localVideoTextureReady`
 - `remoteVideoTextureReady`
 
-收到纹理就绪事件后，可通过 `getEngineTexture(slotId)` 获取纹理，并绑定到 Cocos `SpriteFrame`。
+收到纹理就绪事件后，可通过 `getEngineTexture(slotId)` 尝试获取纹理，并绑定到 Cocos `SpriteFrame`。需要注意，事件回调触发时 `getEngineTexture(slotId)` 仍可能暂时返回 `null`；建议结合项目侧重试逻辑、定时轮询或可用性检查后再完成绑定。
 
 ## 10. 渲染模式
 
