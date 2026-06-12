@@ -196,9 +196,9 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `createAgoraRtcClient(options?)` | 创建 RTC 客户端 |
 | `destroy()` | 销毁引擎、移除桥接监听 |
 
-Integration note:
+集成说明：
 
-- One `AgoraRtcClient` instance should be used for one business session.
+- 建议一个业务会话对应一个 `AgoraRtcClient` 实例。
 - 页面退出或场景销毁前必须调用 `destroy()`。
 
 ### 6.2 初始化与基础信息
@@ -213,10 +213,10 @@ Integration note:
 | `setLogFile(path)` | `path: string` | 设置日志输出路径 |
 | `setParameters(parameters)` | `string` 或对象 | 透传原生参数 |
 
-Platform note:
+平台说明：
 
-- `initialize(appId)` is sufficient for most integrations.
-- `AgoraRtcEngineConfig` can be passed when finer initialization control is required.
+- 大多数接入场景直接使用 `initialize(appId)` 即可。
+- 如需更细粒度的初始化控制，可传入 `AgoraRtcEngineConfig`。
 - `setRenderBackend` 应在 `initialize` 前调用。
 
 ### 6.3 频道与角色
@@ -231,11 +231,11 @@ Platform note:
 | `leaveChannel(options?)` | `AgoraLeaveChannelOptions` | 离开频道 |
 | `renewToken(token)` | `token: string` | 更新 token |
 
-Integration note:
+集成说明：
 
 - 普通通话场景使用 `communication`。
 - 直播场景使用 `liveBroadcasting`，并结合 `setClientRole` 设置主播/观众。
-- `App ID`、`Token`、`channelId`、`uid` should be injected by the business system rather than hard-coded in the plugin.
+- `App ID`、`Token`、`channelId`、`uid` 应由业务系统注入，不应写死在插件中。
 
 ### 6.4 音频控制
 
@@ -255,11 +255,11 @@ Integration note:
 | `adjustUserPlaybackSignalVolume(uid, volume)` | 调整指定远端用户播放音量 |
 | `setAudioSessionOperationRestriction(restriction)` | 设置音频会话限制 |
 
-Integration note:
+集成说明：
 
 - 如果客户需要说话人音量条，使用 `enableAudioVolumeIndication(...)`。
 - `adjustUserPlaybackSignalVolume` 依赖有效远端 `uid`。
-- On Android, `setAudioSessionOperationRestriction` currently returns `unsupported` and should not be treated as a primary integration path.
+- 在 Android 上，`setAudioSessionOperationRestriction` 当前返回 `unsupported`，不应作为主业务路径依赖。
 
 ### 6.5 视频控制
 
@@ -277,11 +277,11 @@ Integration note:
 | `setBeautyEffectOptions(enabled, options, sourceType?)` | 设置美颜 |
 | `enableContentInspect(enabled, config?)` | 开启内容审核 |
 
-Integration note:
+集成说明：
 
 - 视频通话前通常先 `enableVideo(true)`。
 - 有本地预览需求时，可在入会前先 `setupLocalVideoView()` + `startPreview()`。
-- Video encoder parameters are typically wrapped by the business layer into presets such as `360p/540p/720p`.
+- 编码参数通常由业务层封装为 `360p/540p/720p` 等预设档位。
 
 ### 6.6 视频视图与渲染
 
@@ -317,12 +317,12 @@ Integration note:
 | `setEffectsVolume(volume)` | 设置音效总音量 |
 | `stopEffect(soundId)` | 停止音效 |
 
-Platform note:
+平台说明：
 
 - `startAudioMixing(config)` 当前不支持 `replace` 字段；若传入会直接在 JS 层返回 `ProtocolError`。
 - `volume` 取值范围应保持在 `0-100`。
 
-## 7. Parameter Reference
+## 7. 参数参考
 
 ### 7.1 `AgoraRtcVideoCanvas`
 
@@ -341,7 +341,7 @@ Platform note:
 
 ### 7.2 `AgoraRtcEngineConfig`
 
-Advanced initialization parameters. Common fields include:
+初始化高级参数，常用字段包括：
 
 - `appId`
 - `areaCode`
@@ -349,7 +349,7 @@ Advanced initialization parameters. Common fields include:
 - `logConfig`
 - `extensions`
 
-For most integrations:
+大多数接入场景可使用：
 
 ```ts
 await client.initialize({
@@ -359,7 +359,7 @@ await client.initialize({
 
 ### 7.3 `AgoraChannelMediaOptions`
 
-Channel join parameters. Common fields include:
+入会参数，常用字段包括：
 
 - `clientRoleType`
 - `channelProfile`
@@ -371,7 +371,7 @@ Channel join parameters. Common fields include:
 - `sourceType`
 - `token`
 
-Typical video call configuration:
+典型视频通话配置：
 
 ```ts
 {
@@ -386,18 +386,18 @@ Typical video call configuration:
 
 ### 7.4 `AgoraLeaveChannelOptions`
 
-Optional leave-channel parameters:
+离会可选参数：
 
 - `stopAudioMixing`
 - `stopAllEffect`
 - `unloadAllEffect`
 - `stopMicrophoneRecording`
 
-If the business flow requires explicit cleanup of effects and mixing on leave, pass these fields explicitly.
+如果业务流程需要在离会时主动清理音效与混音，可显式传入这些字段。
 
 ### 7.5 `AgoraVideoEncoderConfiguration`
 
-Common fields:
+常用字段：
 
 - `width`
 - `height`
@@ -407,11 +407,11 @@ Common fields:
 - `mirrorMode`
 - `degradationPreference`
 
-These parameters are typically wrapped into business-level presets.
+这些参数通常由业务层封装为预设档位。
 
-## 8. Event Reference
+## 8. 事件参考
 
-The following events are publicly exposed by the SDK:
+以下为 SDK 对外公开的事件：
 
 | 事件名 | 说明 |
 | --- | --- |
@@ -438,9 +438,9 @@ The following events are publicly exposed by the SDK:
 | `renderBackendState` | 渲染后端状态变化 |
 | `error` | SDK/桥接错误 |
 
-### 8.1 Core events for business integration
+### 8.1 业务侧重点监听事件
 
-The following events should be consumed in most integrations:
+大多数接入场景应至少监听以下事件：
 
 - `joinChannelSuccess`
 - `userJoined`
@@ -451,14 +451,14 @@ The following events should be consumed in most integrations:
 - `rtcStats`
 - `error`
 
-### 8.2 `engine-texture` event note
+### 8.2 `engine-texture` 事件说明
 
-If `engine-texture` is used, also consume:
+如果使用 `engine-texture`，还应监听：
 
 - `localVideoTextureReady`
 - `remoteVideoTextureReady`
 
-After the texture-ready event is received, `getEngineTexture(slotId)` can be used to fetch the texture and bind it to a Cocos `SpriteFrame`.
+收到纹理就绪事件后，可通过 `getEngineTexture(slotId)` 获取纹理，并绑定到 Cocos `SpriteFrame`。
 
 ## 9. 渲染模式
 
@@ -514,7 +514,7 @@ After the texture-ready event is received, `getEngineTexture(slotId)` can be use
 
 ### 11.1 `error` 事件
 
-The SDK reports runtime and bridge errors through the `error` event. The event payload format is:
+SDK 通过 `error` 事件向上报告运行时错误和桥接错误，事件载荷格式如下：
 
 ```ts
 {
@@ -523,7 +523,7 @@ The SDK reports runtime and bridge errors through the `error` event. The event p
 }
 ```
 
-The following fields should be captured in error logs:
+建议在错误日志中统一记录以下字段：
 
 - 当前调用的 API 名称
 - 当前频道号 / 用户号
@@ -533,7 +533,7 @@ The following fields should be captured in error logs:
 
 ### 11.2 JS 层统一错误码
 
-The JS SDK exposes the following unified error codes:
+JS SDK 对外暴露以下统一错误码：
 
 | 错误码 | 说明 | 常见原因 |
 | --- | --- | --- |
@@ -572,7 +572,6 @@ The JS SDK exposes the following unified error codes:
 
 ## 13. 参考资料
 
-- [Agora-Cocos-RTC-SDK-API-Guide.md](Agora-Cocos-RTC-SDK-API-Guide.md)
 - [customer-delivery-note.md](customer-delivery-note.md)
 - [customer-architecture-note.md](customer-architecture-note.md)
 - [Basic Call README](../example/basic-call/README.md)
