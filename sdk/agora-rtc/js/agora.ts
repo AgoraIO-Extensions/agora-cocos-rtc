@@ -367,8 +367,10 @@ export class AgoraRtcClient {
   }
 
   setParameters(parameters: string | Record<string, unknown>): Promise<void> {
+    const normalizedParameters =
+      typeof parameters === 'string' ? parameters : JSON.stringify(parameters);
     return this.#invoke('setParameters', {
-      parameters: typeof parameters === 'string' ? parameters : JSON.stringify(parameters),
+      parameters: normalizedParameters,
     }) as Promise<void>;
   }
 
