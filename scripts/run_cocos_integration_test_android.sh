@@ -287,15 +287,17 @@ fi
 mkdir -p "$(dirname "$LOG_PATH")"
 : > "$LOG_PATH"
 log_step "Wait for Android API test report"
+REPORT_RAW_PATH="$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json"
 SECONDS=0
 while [[ $SECONDS -lt $TEST_TIMEOUT_SECONDS ]]; do
   "$ADB_BIN" logcat -d > "$LOG_PATH"
-  if ! "$ADB_BIN" exec-out run-as "$PACKAGE_NAME" cat "$REPORT_REMOTE_PATH" > "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json" 2>/dev/null; then
-    "$ADB_BIN" shell cat "$REPORT_REMOTE_PATH" > "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json" 2>/dev/null || true
+  : > "$REPORT_RAW_PATH"
+  if ! "$ADB_BIN" exec-out run-as "$PACKAGE_NAME" cat "$REPORT_REMOTE_PATH" > "$REPORT_RAW_PATH" 2>/dev/null; then
+    "$ADB_BIN" shell cat "$REPORT_REMOTE_PATH" > "$REPORT_RAW_PATH" 2>/dev/null || true
   fi
-  if [[ -s "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json" ]]; then
+  if [[ -s "$REPORT_RAW_PATH" ]] && head -c 1 "$REPORT_RAW_PATH" | grep -q '[{\[]'; then
     cat "$LOG_PATH"
-    node "$ROOT_DIR/scripts/collect-cocos-test-report.mjs" android "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json"
+    node "$ROOT_DIR/scripts/collect-cocos-test-report.mjs" android "$REPORT_RAW_PATH"
     exit 0
   fi
   if grep -q "TEST_DONE status=" "$LOG_PATH"; then
@@ -305,11 +307,12 @@ while [[ $SECONDS -lt $TEST_TIMEOUT_SECONDS ]]; do
     fi
     REPORT_REMOTE_PATH="$(sed -n 's/.*TEST_DONE status=pass.* report=\([^ ]*\).*/\1/p' "$LOG_PATH" | tail -n 1)"
     if [[ -n "$REPORT_REMOTE_PATH" ]]; then
-      if ! "$ADB_BIN" exec-out run-as "$PACKAGE_NAME" cat "$REPORT_REMOTE_PATH" > "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json"; then
-        "$ADB_BIN" shell cat "$REPORT_REMOTE_PATH" > "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json" || true
+      : > "$REPORT_RAW_PATH"
+      if ! "$ADB_BIN" exec-out run-as "$PACKAGE_NAME" cat "$REPORT_REMOTE_PATH" > "$REPORT_RAW_PATH"; then
+        "$ADB_BIN" shell cat "$REPORT_REMOTE_PATH" > "$REPORT_RAW_PATH" || true
       fi
-      if [[ -s "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json" ]]; then
-        node "$ROOT_DIR/scripts/collect-cocos-test-report.mjs" android "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json"
+      if [[ -s "$REPORT_RAW_PATH" ]] && head -c 1 "$REPORT_RAW_PATH" | grep -q '[{\[]'; then
+        node "$ROOT_DIR/scripts/collect-cocos-test-report.mjs" android "$REPORT_RAW_PATH"
       fi
     fi
     exit 0
