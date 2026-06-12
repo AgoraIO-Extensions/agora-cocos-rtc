@@ -30,11 +30,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     private let callbackEventName = "agora:event"
 
     private var rtcEngine: AgoraRtcEngineKit?
-    private var renderBackend = "surface-view"
-    private var localCanvasView: UIView?
-    private var localCanvas: AgoraRtcVideoCanvas?
-    private var remoteCanvasViews: [UInt: UIView] = [:]
-    private var remoteCanvases: [UInt: AgoraRtcVideoCanvas] = [:]
+    private var renderBackend = "engine-texture"
     private var localTextureRequested = false
     private var localTextureSlot: TextureSlotState?
     private var remoteTextureUids = Set<UInt>()
@@ -251,19 +247,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 )
                 return
             }
-            if requestedBackend == "texture-view" {
-                renderBackend = "surface-view"
-                dispatchEvent(name: "renderBackendState", payload: [
-                    "backend": requestedBackend,
-                    "phase": "fallback",
-                    "result": 0,
-                    "uid": 0,
-                    "fallbackBackend": renderBackend,
-                    "platform": "ios",
-                ])
-            } else {
-                renderBackend = requestedBackend
-            }
+            renderBackend = requestedBackend
             dispatchResponse([
                 "requestId": requestId,
                 "ok": true,
@@ -673,7 +657,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             let shouldDestroyEngine = rtcEngine != nil
             _ = rtcEngine?.setVideoFrameDelegate(nil)
             rtcEngine = nil
-            clearAllVideoViews()
             releaseAllTextureSlots()
             dispatchResponse([
                 "requestId": requestId,
@@ -697,17 +680,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         case "removeRemoteVideoView":
             handleRemoveRemoteVideoView(requestId: requestId, params: params)
         case "setNativeVideoOverlaySuspended":
-            let suspended = params["suspended"] as? Bool ?? true
-            DispatchQueue.main.async {
-                self.localCanvasView?.isHidden = suspended
-                for view in self.remoteCanvasViews.values {
-                    view.isHidden = suspended
-                }
-                self.dispatchResponse([
-                    "requestId": requestId,
-                    "ok": true,
-                ])
-            }
+            dispatchResponse([
+                "requestId": requestId,
+                "ok": true,
+            ])
         default:
             dispatchUnsupported(requestId: requestId, method: method)
         }
@@ -1286,217 +1262,67 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return value
     }
 
-    private func isSupportedRenderBackend(_ backend: String) -> Bool {
-        backend == "surface-view" || backend == "texture-view" || backend == "engine-texture"
-    }
+    private func isSupportedRenderBackend(_ backend: String) -> Bool { backend == "engine-texture" }
 
     private func handleSetupLocalVideoView(requestId: String, params: [String: Any]) {
-        requireEngine(requestId: requestId) { engine in
-            if self.renderBackend == "engine-texture" {
-                self.localTextureRequested = true
-                self.ensureLocalTextureSlot(params)
-                self.dispatchResponse([
-                    "requestId": requestId,
-                    "ok": true,
-                ])
-                return
-            }
-            DispatchQueue.main.async {
-                let view = self.localCanvasView ?? UIView(frame: self.rect(from: params))
-                self.attachToRootView(view)
-                view.frame = self.rect(from: params)
-                self.localCanvasView = view
-                if let rootView = UIApplication.shared.delegate?.window??.rootViewController?.view {
-                    NSLog("[agora-rtc-native] setupLocalVideoView frame=%@ rootBounds=%@", NSCoder.string(for: view.frame), NSCoder.string(for: rootView.bounds))
-                }
-
-                let canvas = self.localCanvas ?? AgoraRtcVideoCanvas()
-                canvas.view = view
-                self.applyVideoCanvasParams(canvas, params: params, fallbackUid: 0)
-                let result = engine.setupLocalVideo(canvas)
-                if result == 0 {
-                    self.localCanvas = canvas
-                    _ = engine.setLocalRenderMode(self.renderMode(from: params), mirror: self.mirrorMode(from: params))
-                    self.dispatchResponse([
-                        "requestId": requestId,
-                        "ok": true,
-                    ])
-                } else {
-                    self.dispatchResult(requestId: requestId, method: "setupLocalVideoView", result: result)
-                }
-            }
+        requireEngine(requestId: requestId) { _ in
+            self.localTextureRequested = true
+            self.ensureLocalTextureSlot(params)
+            self.dispatchResponse([
+                "requestId": requestId,
+                "ok": true,
+            ])
         }
     }
 
     private func handleSetupRemoteVideoView(requestId: String, params: [String: Any]) {
-        requireEngine(requestId: requestId) { engine in
+        requireEngine(requestId: requestId) { _ in
             let uid = uintValue(params["uid"] ?? 0)
-            if self.renderBackend == "engine-texture" {
-                self.remoteTextureUids.insert(uid)
-                self.ensureRemoteTextureSlot(uid, params: params)
-                self.dispatchResponse([
-                    "requestId": requestId,
-                    "ok": true,
-                ])
-                return
-            }
-            DispatchQueue.main.async {
-                let view = self.remoteCanvasViews[uid] ?? UIView(frame: self.rect(from: params))
-                self.attachToRootView(view)
-                view.frame = self.rect(from: params)
-                self.remoteCanvasViews[uid] = view
-                if let rootView = UIApplication.shared.delegate?.window??.rootViewController?.view {
-                    NSLog("[agora-rtc-native] setupRemoteVideoView uid=%u frame=%@ rootBounds=%@", uid, NSCoder.string(for: view.frame), NSCoder.string(for: rootView.bounds))
-                }
-
-                let canvas = self.remoteCanvases[uid] ?? AgoraRtcVideoCanvas()
-                canvas.view = view
-                self.applyVideoCanvasParams(canvas, params: params, fallbackUid: uid)
-                let result = engine.setupRemoteVideo(canvas)
-                if result == 0 {
-                    self.remoteCanvases[uid] = canvas
-                    _ = engine.setRemoteRenderMode(uid, mode: self.renderMode(from: params), mirror: self.mirrorMode(from: params))
-                    self.dispatchResponse([
-                        "requestId": requestId,
-                        "ok": true,
-                    ])
-                } else {
-                    self.dispatchResult(requestId: requestId, method: "setupRemoteVideoView", result: result)
-                }
-            }
+            self.remoteTextureUids.insert(uid)
+            self.ensureRemoteTextureSlot(uid, params: params)
+            self.dispatchResponse([
+                "requestId": requestId,
+                "ok": true,
+            ])
         }
     }
 
     private func handleUpdateLocalVideoView(requestId: String, params: [String: Any]) {
-        if renderBackend == "engine-texture" {
-            localTextureRequested = true
-            ensureLocalTextureSlot(params)
-            dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-            return
-        }
-        DispatchQueue.main.async {
-            guard let view = self.localCanvasView else {
-                self.dispatchError(requestId: requestId, message: "Local video view is not attached.")
-                return
-            }
-            view.frame = self.rect(from: params)
-            if let engine = self.rtcEngine {
-                let canvas = self.localCanvas ?? AgoraRtcVideoCanvas()
-                canvas.view = view
-                self.applyVideoCanvasParams(canvas, params: params, fallbackUid: 0)
-                self.localCanvas = canvas
-                _ = engine.setupLocalVideo(canvas)
-                _ = engine.setLocalRenderMode(self.renderMode(from: params), mirror: self.mirrorMode(from: params))
-            }
-            self.dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-        }
+        localTextureRequested = true
+        ensureLocalTextureSlot(params)
+        dispatchResponse([
+            "requestId": requestId,
+            "ok": true,
+        ])
     }
 
     private func handleUpdateRemoteVideoView(requestId: String, params: [String: Any]) {
         let uid = uintValue(params["uid"] ?? 0)
-        if renderBackend == "engine-texture" {
-            remoteTextureUids.insert(uid)
-            ensureRemoteTextureSlot(uid, params: params)
-            dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-            return
-        }
-        DispatchQueue.main.async {
-            guard let view = self.remoteCanvasViews[uid] else {
-                self.dispatchError(requestId: requestId, message: "Remote video view is not attached.")
-                return
-            }
-            view.frame = self.rect(from: params)
-            if let engine = self.rtcEngine {
-                let canvas = self.remoteCanvases[uid] ?? AgoraRtcVideoCanvas()
-                canvas.view = view
-                self.applyVideoCanvasParams(canvas, params: params, fallbackUid: uid)
-                self.remoteCanvases[uid] = canvas
-                _ = engine.setupRemoteVideo(canvas)
-                _ = engine.setRemoteRenderMode(uid, mode: self.renderMode(from: params), mirror: self.mirrorMode(from: params))
-            }
-            self.dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-        }
+        remoteTextureUids.insert(uid)
+        ensureRemoteTextureSlot(uid, params: params)
+        dispatchResponse([
+            "requestId": requestId,
+            "ok": true,
+        ])
     }
 
     private func handleRemoveLocalVideoView(requestId: String) {
-        if renderBackend == "engine-texture" {
-            localTextureRequested = false
-            releaseLocalTextureSlot()
-            dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-            return
-        }
-        DispatchQueue.main.async {
-            self.localCanvas?.view = nil
-            self.localCanvasView?.removeFromSuperview()
-            self.localCanvas = nil
-            self.localCanvasView = nil
-            self.dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-        }
+        localTextureRequested = false
+        releaseLocalTextureSlot()
+        dispatchResponse([
+            "requestId": requestId,
+            "ok": true,
+        ])
     }
 
     private func handleRemoveRemoteVideoView(requestId: String, params: [String: Any]) {
         let uid = uintValue(params["uid"] ?? 0)
-        if renderBackend == "engine-texture" {
-            remoteTextureUids.remove(uid)
-            releaseRemoteTextureSlot(uid)
-            dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-            return
-        }
-        DispatchQueue.main.async {
-            self.remoteCanvases[uid]?.view = nil
-            self.remoteCanvasViews[uid]?.removeFromSuperview()
-            self.remoteCanvases.removeValue(forKey: uid)
-            self.remoteCanvasViews.removeValue(forKey: uid)
-            self.dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-        }
-    }
-
-    private func attachToRootView(_ view: UIView) {
-        guard let rootView = UIApplication.shared.delegate?.window??.rootViewController?.view else {
-            return
-        }
-        if view.superview !== rootView {
-            rootView.addSubview(view)
-        }
-    }
-
-    private func clearAllVideoViews() {
-        localCanvas?.view = nil
-        localCanvasView?.removeFromSuperview()
-        localCanvas = nil
-        localCanvasView = nil
-        for (_, canvas) in remoteCanvases {
-            canvas.view = nil
-        }
-        for (_, view) in remoteCanvasViews {
-            view.removeFromSuperview()
-        }
-        remoteCanvases.removeAll()
-        remoteCanvasViews.removeAll()
+        remoteTextureUids.remove(uid)
+        releaseRemoteTextureSlot(uid)
+        dispatchResponse([
+            "requestId": requestId,
+            "ok": true,
+        ])
     }
 
     private func ensureLocalTextureSlot(_ params: [String: Any]) {
@@ -2049,6 +1875,8 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, didOfflineOfUid uid: UInt, reason: AgoraUserOfflineReason) {
+        remoteTextureUids.remove(uid)
+        releaseRemoteTextureSlot(uid)
         dispatchEvent(name: "userOffline", payload: [
             "uid": uid,
             "reason": reason.rawValue,

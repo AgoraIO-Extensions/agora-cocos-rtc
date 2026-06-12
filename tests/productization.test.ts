@@ -340,6 +340,7 @@ test('gitignore behavior matches the intended commit boundary', async () => {
   ];
   const committedPaths = [
     'sdk/agora-rtc/package.json',
+    'docs/customer-integration.md',
     'example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts',
     'example/basic-call/assets/scripts/demo/RtcSessionService.ts',
     'example/basic-call/assets/scripts/demo/actions.ts',

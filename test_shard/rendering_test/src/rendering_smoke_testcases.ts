@@ -1,6 +1,6 @@
 export type RenderingSmokeCase = {
   id: string;
-  backend: 'surface-view' | 'texture-view' | 'engine-texture';
+  backend: 'engine-texture';
   localRect: {
     uid?: number;
     x: number;
@@ -37,24 +37,5 @@ export const RENDERING_SMOKE_TESTCASES: RenderingSmokeCase[] = [
     },
     screenshotName: 'cocos.engine_texture.local.fit.png',
     requiredEvidence: ['backend-state', 'texture-ready', 'screenshot'],
-  },
-  {
-    id: 'rendering.surface-view.local-hidden',
-    backend: 'surface-view',
-    localRect: {
-      uid: 0,
-      x: 24,
-      y: 32,
-      width: 320,
-      height: 240,
-      renderMode: 'hidden',
-      mirrorMode: 0,
-      setupMode: 0,
-      sourceType: 0,
-      textureWidth: 320,
-      textureHeight: 240,
-    },
-    screenshotName: 'cocos.surface_view.local.hidden.png',
-    requiredEvidence: ['backend-state', 'screenshot'],
   },
 ];

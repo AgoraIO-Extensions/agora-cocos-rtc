@@ -249,9 +249,7 @@ export interface AgoraUserInfo {
 }
 
 export type AgoraRenderBackend =
-  | 'surface-view'
-  | 'texture-view'
-  | 'engine-texture';
+  'engine-texture';
 
 export interface AgoraBridgeRequest {
   requestId: string;
