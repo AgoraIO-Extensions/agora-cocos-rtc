@@ -29,7 +29,7 @@ LOG_PATH="$REPORT_DIR/android-runtime.log"
 ANDROID_DIAGNOSTIC_LOG_PATH="$REPORT_DIR/android-diagnostic.log"
 TEST_TIMEOUT_SECONDS="${TEST_TIMEOUT_SECONDS:-180}"
 ANDROID_SCRIPT_TIMEOUT_SECONDS="${ANDROID_SCRIPT_TIMEOUT_SECONDS:-2100}"
-REPORT_REMOTE_PATH=""
+REPORT_REMOTE_PATH="files/api-report.json"
 LOCAL_AGORA_MAVEN_DIR="$ROOT_DIR/example/basic-call/native/engine/android/local-maven"
 ANDROID_GRADLE_OFFLINE="${ANDROID_GRADLE_OFFLINE:-false}"
 ANDROID_TEST_ABI="${ANDROID_TEST_ABI:-x86_64}"
@@ -290,6 +290,14 @@ log_step "Wait for Android API test report"
 SECONDS=0
 while [[ $SECONDS -lt $TEST_TIMEOUT_SECONDS ]]; do
   "$ADB_BIN" logcat -d > "$LOG_PATH"
+  if ! "$ADB_BIN" exec-out run-as "$PACKAGE_NAME" cat "$REPORT_REMOTE_PATH" > "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json" 2>/dev/null; then
+    "$ADB_BIN" shell cat "$REPORT_REMOTE_PATH" > "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json" 2>/dev/null || true
+  fi
+  if [[ -s "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json" ]]; then
+    cat "$LOG_PATH"
+    node "$ROOT_DIR/scripts/collect-cocos-test-report.mjs" android "$ROOT_DIR/test_shard/integration_test_app/reports/android-api-report.raw.json"
+    exit 0
+  fi
   if grep -q "TEST_DONE status=" "$LOG_PATH"; then
     cat "$LOG_PATH"
     if grep -q "TEST_DONE status=fail" "$LOG_PATH"; then

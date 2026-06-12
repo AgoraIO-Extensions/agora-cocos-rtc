@@ -297,6 +297,10 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /TEST_DONE status=fail/);
   assert.match(androidScript, /collect-cocos-test-report\.mjs/);
   assert.match(androidScript, /run-as "\$PACKAGE_NAME" cat "\$REPORT_REMOTE_PATH"/);
+  assert.match(androidScript, /REPORT_REMOTE_PATH="files\/api-report\.json"/);
+  assert.match(androidScript, /android-api-report\.raw\.json/);
+  assert.match(androidScript, /if ! "\$ADB_BIN" exec-out run-as "\$PACKAGE_NAME" cat "\$REPORT_REMOTE_PATH"/);
+  assert.match(androidScript, /node "\$ROOT_DIR\/scripts\/collect-cocos-test-report\.mjs" android "\$ROOT_DIR\/test_shard\/integration_test_app\/reports\/android-api-report\.raw\.json"/);
   assert.match(androidScript, /ANDROID_COCOS_BUILD_CONFIG=/);
   assert.match(androidScript, /ANDROID_TEST_NDK_HOME=/);
   assert.match(androidScript, /ANDROID_TEST_ABI=/);
