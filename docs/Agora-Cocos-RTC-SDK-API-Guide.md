@@ -31,7 +31,6 @@
 1. `dist/agora-rtc-cocos-plugin.zip`
 2. `example/basic-call`
 3. 配套说明文档
-   - [Agora-Cocos-RTC-SDK-API-Guide.md](Agora-Cocos-RTC-SDK-API-Guide.md)
    - [customer-delivery-note.md](customer-delivery-note.md)
    - [customer-architecture-note.md](customer-architecture-note.md)
    - [api-verification-matrix.md](api-verification-matrix.md)
