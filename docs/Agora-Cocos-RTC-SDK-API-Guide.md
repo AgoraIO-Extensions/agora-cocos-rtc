@@ -73,47 +73,108 @@ SDK 提供：
 
 ## 4. SDK 导入
 
-### 4.1 插件导入
+### 4.1 Option A: Import the packaged plugin
 
-标准导入方式如下：
+适用于客户按标准交付包接入的场景。
 
-1. 通过 Cocos Extension Manager 导入 `dist/agora-rtc-cocos-plugin.zip`
+1. 通过 Cocos Extension Manager 导入 `dist/agora-rtc-cocos-plugin.zip`。
+2. 确认目标项目中已生成 `extensions/agora-rtc`。
+3. 将目标项目导出为 Android 或 iOS 原生工程。
 
-导入完成后，应确认目标项目中存在：
+### 4.2 Option B: Import the unpacked SDK during development
 
-```text
-extensions/agora-rtc
-```
+适用于联调、二次开发或直接查看 SDK 源码的场景。
+
+1. 将 `sdk/agora-rtc` 复制或软链接到目标项目的 `extensions/agora-rtc`。
+2. 重新打开 Cocos 项目，确保扩展已被加载。
+3. 按照下文的集成步骤继续接入。
 
 ## 5. 快速集成流程
 
-标准集成流程如下：
+### 5.1 Quick Integration Workflow
 
-1. 导入插件
-2. 在业务脚本中创建 `AgoraRtcClient`
-3. 设置渲染后端 `setRenderBackend`
-4. 调用 `initialize`
-5. 如需本地预览或视频通话，先绑定本地视频视图
-6. 调用 `joinChannel` 或 `joinChannelWithUserAccount`
-7. 监听 `userJoined`、`userOffline`、`joinChannelSuccess`、`error` 等事件
-8. 远端用户上麦/入会后，绑定远端视频视图
-9. 离会时调用 `leaveChannel`
-10. 页面销毁或业务退出时调用 `destroy`
+建议按以下清单完成接入：
 
-### 5.1 最小接入示例
+1. 将 SDK 导入目标项目。
+2. 准备有效的 Agora `App ID`、`Token`、`channelId`、`uid` 或 `userAccount`。
+3. 在业务代码中创建 `AgoraRtcClient` 实例。
+4. 调用 `setRenderBackend(...)` 设置渲染后端。
+5. 调用 `initialize(...)`。
+6. 如果需要视频能力，调用 `enableVideo(true)` 并绑定本地视图。
+7. 注册频道、用户、视频、音频、统计和错误事件。
+8. 加入频道。
+9. 远端用户加入后绑定远端视图。
+10. 在页面销毁或业务结束时离开频道并销毁客户端。
+
+### 5.2 Recommended Lifecycle
+
+以下流程以 `sdk/agora-rtc/js/agora.ts` 中已提供的接口为准，建议业务代码按照生命周期组织接入逻辑。
+
+#### Initialization
+
+初始化阶段建议按以下顺序执行：
+
+1. 调用 `createAgoraRtcClient()` 创建客户端实例。
+2. 调用 `setRenderBackend('surface-view' | 'texture-view' | 'engine-texture')` 选择渲染后端。
+3. 调用 `initialize(appId)` 或 `initialize({ appId, ...config })` 完成引擎初始化。
+4. 根据业务需要调用 `setChannelProfile(...)`、`setClientRole(...)`、`setVideoEncoderConfiguration(...)` 等可选配置接口。
+5. 在入会前完成事件注册，至少建议监听 `joinChannelSuccess`、`userJoined`、`userOffline`、`error`，并按需补充 `rtcStats`、`remoteVideoStateChanged`、`remoteAudioStateChanged`、`volumeIndication` 等事件。
+
+#### Local Preview
+
+如果业务包含视频通话或本地预览，建议在入会前完成本地视频准备：
+
+1. 调用 `enableVideo(true)` 开启视频模块。
+2. 调用 `setupLocalVideoView(canvas)` 绑定本地渲染区域。
+3. 如需在入会前先展示摄像头预览，可额外调用 `startPreview(sourceType?)`。
+4. 如果业务后续需要更新布局，可调用 `updateLocalVideoView(canvas)`。
+
+#### Channel Join
+
+入会阶段根据业务使用的身份类型选择一种接口：
+
+1. 数值身份场景调用 `joinChannel(token, channelId, uid, options?)`。
+2. 字符串账号场景调用 `joinChannelWithUserAccount(token, channelId, userAccount, options?)`。
+3. 如需查询字符串账号与数值 UID 的映射结果，可调用 `getUserInfoByUserAccount(userAccount)`。
+4. Token 即将过期或需要续期时，调用 `renewToken(token)`。
+
+#### Remote User Handling
+
+远端用户生命周期建议围绕事件回调组织：
+
+1. 在 `userJoined` 事件中调用 `setupRemoteVideoView(uid, canvas)` 绑定远端画面。
+2. 如需变更远端画面位置或尺寸，可调用 `updateRemoteVideoView(uid, canvas)`。
+3. 在 `userOffline` 事件中调用 `removeRemoteVideoView(uid)` 清理远端画面。
+4. 可结合 `remoteVideoStateChanged`、`remoteAudioStateChanged`、`rtcStats` 判断订阅状态和通话质量。
+
+#### Leave and Destroy
+
+退出阶段建议显式清理会话资源，避免原生资源残留：
+
+1. 如果此前开启了本地预览，调用 `stopPreview(sourceType?)`。
+2. 调用 `leaveChannel(options?)` 离开频道。
+3. 调用 `removeLocalVideoView()` 清理本地画面。
+4. 对仍保留的远端用户调用 `removeRemoteVideoView(uid)`。
+5. 最后调用 `destroy()` 销毁引擎与桥接监听。
+
+### 5.3 生命周期示例
+
+以下示例展示一个与上述生命周期一致的最小视频通话接入流程：
 
 ```ts
 import { createAgoraRtcClient } from '../../extensions/agora-rtc/js/agora.ts';
 
 const client = createAgoraRtcClient();
+const remoteUsers = new Set<number>();
 
-client.on('joinChannelSuccess', ({ channelId, uid }) => {
-  console.log('joined', channelId, uid);
+client.on('joinChannelSuccess', ({ channelId, uid, elapsed }) => {
+  console.log('joinChannelSuccess', channelId, uid, elapsed);
 });
 
 client.on('userJoined', async ({ uid }) => {
+  remoteUsers.add(uid);
   await client.setupRemoteVideoView(uid, {
-    x: 0,
+    x: 360,
     y: 0,
     width: 320,
     height: 180,
@@ -123,8 +184,14 @@ client.on('userJoined', async ({ uid }) => {
   });
 });
 
-client.on('error', ({ message }) => {
-  console.error('agora error', message);
+client.on('userOffline', async ({ uid, reason }) => {
+  remoteUsers.delete(uid);
+  await client.removeRemoteVideoView(uid);
+  console.log('userOffline', uid, reason);
+});
+
+client.on('error', ({ code, message }) => {
+  console.error('error', code, message);
 });
 
 await client.setRenderBackend('engine-texture');
@@ -151,9 +218,18 @@ await client.joinChannel('YOUR_TOKEN', 'test-channel', 1001, {
   autoSubscribeAudio: true,
   autoSubscribeVideo: true,
 });
+
+export async function teardownRtcSession(): Promise<void> {
+  await client.leaveChannel();
+  await client.removeLocalVideoView();
+  for (const uid of remoteUsers) {
+    await client.removeRemoteVideoView(uid);
+  }
+  await client.destroy();
+}
 ```
 
-### 5.2 使用字符串账号入会
+### 5.4 使用字符串账号入会
 
 如果业务系统使用字符串账号而不是整型 `uid`，可使用：
 
@@ -174,16 +250,6 @@ await client.joinChannelWithUserAccount(
 ```ts
 const userInfo = await client.getUserInfoByUserAccount('user-001');
 ```
-
-### 5.3 离场清理顺序
-
-建议按以下顺序执行清理：
-
-1. `stopPreview()`
-2. `leaveChannel()`
-3. `removeLocalVideoView()`
-4. `removeRemoteVideoView(uid)`
-5. `destroy()`
 
 ## 6. API 参考
 
