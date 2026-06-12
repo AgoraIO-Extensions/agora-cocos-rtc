@@ -1,31 +1,31 @@
 # Agora Cocos RTC SDK API Guide
 
-Updated: `2026-06-12`
+更新日期：`2026-06-12`
 
-## Purpose
+## 文档目的
 
-This document is the formal customer-facing API and integration guide for the `Agora Cocos RTC SDK`.
-It explains what the SDK delivers, how to import it into a customer Cocos Creator project, how to initialize and join channels, what APIs are available, what parameters each core object exposes, which events can be consumed by business code, and which platform differences need to be considered during integration.
+本文档是 `Agora Cocos RTC SDK` 的正式客户交付版 API 与集成指南。
+文档说明 SDK 交付内容、在客户 Cocos Creator 项目中的导入方式、初始化与加入频道流程、可用 API、核心对象参数、业务可消费事件，以及集成过程中需要关注的平台差异。
 
-## Contents
+## 目录
 
-1. Deliverables
-2. Supported Scope
-3. Integration Prerequisites
-4. SDK Import
-5. Quick Integration Workflow
-6. API Reference
-7. Parameter Reference
-8. Event Reference
-9. Rendering Modes
-10. Platform Notes
-11. Error Handling
-12. Verification Boundary
-13. Additional References
+1. 交付内容
+2. 适用范围
+3. 集成前提
+4. SDK 导入
+5. 快速集成流程
+6. API 参考
+7. 参数参考
+8. 事件参考
+9. 渲染模式
+10. 平台说明
+11. 错误处理
+12. 验证边界
+13. 参考资料
 
-## 1. Deliverables
+## 1. 交付内容
 
-The following items are part of the standard SDK delivery set:
+标准交付内容如下：
 
 1. `dist/agora-rtc-cocos-plugin.zip`
 2. `example/basic-call`
@@ -35,15 +35,15 @@ The following items are part of the standard SDK delivery set:
    - [customer-architecture-note.md](customer-architecture-note.md)
    - [api-verification-matrix.md](api-verification-matrix.md)
 
-## 2. Supported Scope
+## 2. 适用范围
 
-This SDK delivery supports:
+当前交付支持：
 
 - `Cocos Creator 3.8.8`
 - Android / iOS 原生导出工程
 - Agora Native SDK `4.5.3`
 
-The SDK provides:
+SDK 提供：
 
 - 统一 JavaScript / TypeScript API
 - Android / iOS 原生桥接
@@ -52,39 +52,32 @@ The SDK provides:
 - `surface-view` / `texture-view` / `engine-texture` 三种渲染后端
 - 音频混音、音效、日志和诊断接口
 
-## 3. Integration Prerequisites
+## 3. 集成前提
 
-Integration requires:
+接入前需要准备：
 
 - `Cocos Creator 3.8.8`
-- A valid Agora `App ID`
-- A business-generated `Token`
-- A business-defined `channelId`
-- A business-defined `uid` or `userAccount`
+- 有效的 Agora `App ID`
+- 业务侧生成的 `Token`
+- 业务侧定义的 `channelId`
+- 业务侧定义的 `uid` 或 `userAccount`
 - Android Studio / Android SDK / JDK 17
 - Xcode 15+ / CocoaPods
 
-The following customer integration entry points are the primary reference items:
+客户接入时主要参考以下交付物：
 
 - `dist/agora-rtc-cocos-plugin.zip`
-  Standard plugin package for import through Cocos Extension Manager.
-- `sdk/agora-rtc/js/agora.ts`
-  Public JavaScript / TypeScript API entry for SDK client creation and integration.
-- `sdk/agora-rtc/js/types.ts`
-  Public type definitions for parameters, events, and error codes.
+  用于通过 Cocos Extension Manager 导入的标准插件包。
 - `example/basic-call`
-  Reference project covering initialization, channel join, rendering, and event consumption.
+  用于参考初始化、入会、渲染和事件消费方式的示例工程。
 
-## 4. SDK Import
+## 4. SDK 导入
 
 ### 4.1 插件导入
 
-Two standard integration methods are supported:
+标准导入方式如下：
 
-1. 开发态接入
-   将 `sdk/agora-rtc` 直接链接或复制到目标项目 `extensions/agora-rtc` 目录。
-2. 交付态接入
-   将 `dist/agora-rtc-cocos-plugin.zip` 通过 Cocos Extension Manager 导入。
+1. 通过 Cocos Extension Manager 导入 `dist/agora-rtc-cocos-plugin.zip`
 
 导入完成后，应确认目标项目中存在：
 
@@ -92,9 +85,9 @@ Two standard integration methods are supported:
 extensions/agora-rtc
 ```
 
-## 5. Quick Integration Workflow
+## 5. 快速集成流程
 
-Use the following workflow for a standard integration:
+标准集成流程如下：
 
 1. 导入插件
 2. 在业务脚本中创建 `AgoraRtcClient`
@@ -162,7 +155,7 @@ await client.joinChannel('YOUR_TOKEN', 'test-channel', 1001, {
 
 ### 5.2 使用字符串账号入会
 
-If the business account system uses a string account instead of an integer `uid`, use:
+如果业务系统使用字符串账号而不是整型 `uid`，可使用：
 
 ```ts
 await client.joinChannelWithUserAccount(
@@ -176,15 +169,25 @@ await client.joinChannelWithUserAccount(
 );
 ```
 
-To query the mapped user information, call:
+如需查询映射后的用户信息，可调用：
 
 ```ts
 const userInfo = await client.getUserInfoByUserAccount('user-001');
 ```
 
-## 6. API Reference
+### 5.3 离场清理顺序
 
-The following APIs are publicly exposed by the SDK. All APIs are called through `AgoraRtcClient`.
+建议按以下顺序执行清理：
+
+1. `stopPreview()`
+2. `leaveChannel()`
+3. `removeLocalVideoView()`
+4. `removeRemoteVideoView(uid)`
+5. `destroy()`
+
+## 6. API 参考
+
+以下为 SDK 对外公开的主要 API，所有接口均通过 `AgoraRtcClient` 调用。
 
 ### 6.1 客户端创建与销毁
 
@@ -457,26 +460,26 @@ If `engine-texture` is used, also consume:
 
 After the texture-ready event is received, `getEngineTexture(slotId)` can be used to fetch the texture and bind it to a Cocos `SpriteFrame`.
 
-## 9. Rendering Modes
+## 9. 渲染模式
 
-### 9.1 Backend selection
+### 9.1 渲染后端选择
 
 - `surface-view` / `texture-view` 适合快速接通和原生视图覆盖。
 - `engine-texture` 适合将视频作为 Cocos `Texture2D` 接入场景渲染。
-- If video must be fully composed inside the Cocos scene graph, `engine-texture` is the preferred mode.
+- 如果视频需要完全纳入 Cocos 场景编排，优先使用 `engine-texture`。
 
-### 9.2 Preferred video integration paths
+### 9.2 推荐视频接入路径
 
-For typical real-time audio and video scenarios, choose a rendering mode with the following priority:
+典型实时音视频场景可按以下优先级选择渲染模式：
 
 1. 需要快速接入、接受原生覆盖层：
    `surface-view`
 2. 需要视频纳入 Cocos 场景渲染：
    `engine-texture`
 
-## 10. Platform Notes
+## 10. 平台说明
 
-The following platform notes should be treated as part of the integration boundary.
+以下平台说明属于集成边界的一部分。
 
 ### 10.1 Android
 
@@ -484,8 +487,8 @@ The following platform notes should be treated as part of the integration bounda
   - `io.agora.rtc:full-sdk:4.5.3`
   - `io.agora.rtc:full-screen-sharing:4.5.3`
 - `setAudioSessionOperationRestriction` 当前返回 `unsupported`。
-- `setDefaultAudioRouteToSpeakerphone` 当前已接入，不属于已知不支持项。
-- `engine-texture` 为当前主交付路径之一。
+- `setDefaultAudioRouteToSpeakerphone` 可在 Android 侧使用。
+- `engine-texture` 可作为标准渲染模式使用。
 
 ### 10.2 iOS
 
@@ -493,21 +496,21 @@ The following platform notes should be treated as part of the integration bounda
   - `AgoraRtcEngine_iOS 4.5.3`
 - 依赖集成方式：
   - `CocoaPods`
-- `setAudioSessionOperationRestriction` 已有桥接实现。
-- `setDefaultAudioRouteToSpeakerphone` 已有桥接实现。
-- `engine-texture` 为当前主交付路径之一。
+- `setAudioSessionOperationRestriction` 可在 iOS 侧使用。
+- `setDefaultAudioRouteToSpeakerphone` 可在 iOS 侧使用。
+- `engine-texture` 可作为标准渲染模式使用。
 
-### 10.3 Shared platform notes
+### 10.3 通用平台说明
 
-The following notes apply across platforms:
+以下说明适用于 Android 与 iOS：
 
 - `warning` 不在当前对外事件清单中，不应按该事件建立业务依赖。
 - `EnableVideoObserver` 属于内部实现，不是客户公开 API。
-- `PreloadEngine / UnloadEngine` 语义已由 `initialize / destroy` 覆盖。
+- `PreloadEngine / UnloadEngine` 不属于客户公开调用路径，生命周期控制应使用 `initialize / destroy`。
 - `setNativeVideoOverlaySuspended` 仅对原生视图覆盖型渲染后端有实际意义；`engine-texture` 模式下没有可见原生覆盖层。
 - `joinChannel`、远端媒体、首帧渲染等真实效果验证，仍依赖业务侧有效 `App ID`、`Token`、`channelId`。
 
-## 11. Error Handling
+## 11. 错误处理
 
 ### 11.1 `error` 事件
 
@@ -539,9 +542,9 @@ The JS SDK exposes the following unified error codes:
 | `native_failure` | 原生调用失败 | 原生 SDK 返回负值错误码 |
 | `protocol_error` | JS 入参不符合桥接约束 | 传入不支持的字段，例如 `startAudioMixing.replace` |
 
-### 11.3 Recommended troubleshooting sequence
+### 11.3 推荐排查顺序
 
-Use the following troubleshooting order when integration issues occur:
+出现集成问题时，建议按以下顺序排查：
 
 1. 确认运行环境是否为原生环境，而不是 Web 预览环境
 2. 确认 `extensions/agora-rtc` 已正确导入
@@ -551,36 +554,25 @@ Use the following troubleshooting order when integration issues occur:
 6. 确认监听了 `error`、`joinChannelSuccess`、`userJoined`、`renderBackendState`
 7. 确认平台特有接口是否在当前平台受支持
 
-## 12. Verification Boundary
+## 12. 验证边界
 
-The current repository validation scope includes:
+当前交付范围内可提供的验证包括：
 
 - `npm test`
   覆盖 JS 请求结构、模板桥接、示例调用链和文档一致性检查。
 - Android 导出、构建、安装、启动验证。
 - iOS 导出、构建、签名、安装、启动验证。
 
-The following verification remains outside the repository boundary:
+以下验证仍需由接入方自行完成：
 
 - 使用真实 `App ID` / `Token` 进行入会联调
 - 真实网络环境下的音视频质量验证
 - 业务 UI 与场景集成验证
 - 多端互通验证
 
-### 12.1 Recommended teardown sequence
+## 13. 参考资料
 
-Recommended order:
-
-1. `stopPreview()`
-2. `leaveChannel()`
-3. `removeLocalVideoView()`
-4. `removeRemoteVideoView(uid)`
-5. `destroy()`
-
-## 13. Additional References
-
-- [根目录 README](../README.md)
-- [SDK README](../sdk/agora-rtc/README.md)
-- [Basic Call README](../example/basic-call/README.md)
+- [Agora-Cocos-RTC-SDK-API-Guide.md](Agora-Cocos-RTC-SDK-API-Guide.md)
 - [customer-delivery-note.md](customer-delivery-note.md)
 - [customer-architecture-note.md](customer-architecture-note.md)
+- [Basic Call README](../example/basic-call/README.md)
