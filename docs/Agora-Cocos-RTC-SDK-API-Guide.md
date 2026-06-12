@@ -457,92 +457,187 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 - `startAudioMixing(...)` rejects a `replace` field at the JavaScript layer with `protocol_error`.
 - 混音与音效相关 `volume` 参数建议保持在 `0-100` 范围内，避免业务层自行扩展到不一致的区间。
 
-## 8. 参数参考
+## Parameter Reference
 
-### 8.1 `AgoraRtcVideoCanvas`
+### AgoraRtcEngineConfig
 
-| 字段 | 说明 |
-| --- | --- |
-| `x`, `y`, `width`, `height` | 视频区域矩形 |
-| `renderMode` | `'hidden'` / `'fit'` / `'adaptive'` |
-| `uid` | 用户 ID，本地视图通常为 `0` |
-| `mirrorMode` | 镜像模式 |
-| `setupMode` | 视图绑定模式 |
-| `sourceType` | 视频源类型 |
-| `textureWidth`, `textureHeight` | `engine-texture` 模式下应同步设置 |
-| `cropArea` | 裁剪区域 |
-| `backgroundColor` | 背景色 |
-| `position` | 内容审核等能力会使用 |
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `appId` | `string` | Yes | Agora 项目的 App ID，初始化 RTC 引擎时必填。 |
+| `areaCode` | `number` | No | 区域码，用于限制 SDK 连接的区域范围。 |
+| `channelProfile` | `number` | No | 频道场景配置，通常由业务层按通信或直播场景封装。 |
+| `license` | `string` | No | 可选的 License 字符串，按项目授权要求传入。 |
+| `audioScenario` | `number` | No | 音频场景参数，用于优化不同通话或播放场景的音频策略。 |
+| `autoRegisterAgoraExtensions` | `boolean` | No | 是否自动注册 Agora 扩展。 |
+| `domainLimit` | `boolean` | No | 是否启用域名限制相关能力。 |
+| `threadPriority` | `number` | No | 原生线程优先级设置。 |
+| `nativeLibPath` | `string` | No | 原生库路径，适用于需要自定义加载路径的场景。 |
+| `extensions` | `string[]` | No | 需要预加载或声明的扩展列表。 |
+| `logConfig` | `{ filePath?: string; fileSizeInKB?: number; level?: number; }` | No | 日志配置对象，可指定日志文件路径、大小和级别。 |
 
-### 8.2 `AgoraRtcEngineConfig`
+### AgoraChannelMediaOptions
 
-初始化高级参数，常用字段包括：
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `clientRoleType` | `AgoraClientRole \| number` | No | 用户角色，可传 `'broadcaster'`、`'audience'` 或对应原生枚举值。 |
+| `channelProfile` | `AgoraChannelProfile \| number` | No | 频道类型，可传 `'communication'`、`'liveBroadcasting'` 或原生枚举值。 |
+| `publishCameraTrack` | `boolean` | No | 是否发布主摄像头视频轨。 |
+| `publishSecondaryCameraTrack` | `boolean` | No | 是否发布第二路摄像头视频轨。 |
+| `publishThirdCameraTrack` | `boolean` | No | 是否发布第三路摄像头视频轨，仅 Android/C++ 原生侧暴露。 |
+| `publishFourthCameraTrack` | `boolean` | No | 是否发布第四路摄像头视频轨，仅 Android/C++ 原生侧暴露。 |
+| `publishMicrophoneTrack` | `boolean` | No | 是否发布麦克风音频轨。 |
+| `publishScreenCaptureVideo` | `boolean` | No | 是否发布屏幕采集视频轨。 |
+| `publishScreenCaptureAudio` | `boolean` | No | 是否发布屏幕采集音频轨。 |
+| `publishCustomAudioTrack` | `boolean` | No | 是否发布自定义音频轨。 |
+| `publishCustomAudioTrackId` | `number` | No | 自定义音频轨 ID，与 `publishCustomAudioTrack` 配套使用。 |
+| `publishCustomVideoTrack` | `boolean` | No | 是否发布自定义视频轨。 |
+| `publishEncodedVideoTrack` | `boolean` | No | 是否发布已编码的视频轨。 |
+| `publishMediaPlayerAudioTrack` | `boolean` | No | 是否发布媒体播放器音频轨。 |
+| `publishMediaPlayerVideoTrack` | `boolean` | No | 是否发布媒体播放器视频轨。 |
+| `publishTranscodedVideoTrack` | `boolean` | No | 是否发布转码后的视频轨。 |
+| `publishMixedAudioTrack` | `boolean` | No | 是否发布混音后的音频轨。 |
+| `publishLipSyncTrack` | `boolean` | No | 是否发布口型同步相关轨道。 |
+| `autoSubscribeAudio` | `boolean` | No | 入会后是否自动订阅远端音频。 |
+| `autoSubscribeVideo` | `boolean` | No | 入会后是否自动订阅远端视频。 |
+| `enableAudioRecordingOrPlayout` | `boolean` | No | 是否启用音频采集或播放链路。 |
+| `publishMediaPlayerId` | `number` | No | 要发布的媒体播放器实例 ID。 |
+| `audienceLatencyLevel` | `number` | No | 观众延迟等级，常用于直播低延迟场景。 |
+| `defaultVideoStreamType` | `number` | No | 默认订阅的视频流类型。 |
+| `audioDelayMs` | `number` | No | 音频发布延迟，单位毫秒。 |
+| `mediaPlayerAudioDelayMs` | `number` | No | 媒体播放器音频延迟，单位毫秒。 |
+| `startPreview` | `boolean` | No | 加入频道前是否先启动本地预览；iOS bridge 也会据此调用 `startPreview`。 |
+| `sourceType` | `number` | No | 预览或发布所使用的视频源类型；iOS bridge 用于预览辅助参数。 |
+| `enableBuiltInMediaEncryption` | `boolean` | No | 是否启用内置媒体加密。 |
+| `publishRhythmPlayerTrack` | `boolean` | No | 是否发布节奏播放器轨道。 |
+| `isInteractiveAudience` | `boolean` | No | 是否以连麦观众身份加入。 |
+| `customVideoTrackId` | `number` | No | 自定义视频轨 ID。 |
+| `isAudioFilterable` | `boolean` | No | 是否允许音频轨参与可过滤处理。 |
+| `enableMultipath` | `boolean` | No | 是否启用多路径网络能力。 |
+| `uplinkMultipathMode` | `number` | No | 上行多路径模式。 |
+| `downlinkMultipathMode` | `number` | No | 下行多路径模式。 |
+| `preferMultipathType` | `number` | No | 多路径网络优先策略。 |
+| `token` | `string` | No | 加入频道时附带的 token，便于某些业务侧统一封装入会参数。 |
+| `parameters` | `string` | No | 透传给底层原生 SDK 的附加参数字符串。 |
 
-- `appId`
-- `areaCode`
-- `audioScenario`
-- `logConfig`
-- `extensions`
-
-大多数接入场景可使用：
+推荐视频通话配置示例：
 
 ```ts
-await client.initialize({
-  appId: 'YOUR_APP_ID',
-});
-```
-
-### 8.3 `AgoraChannelMediaOptions`
-
-入会参数，常用字段包括：
-
-- `clientRoleType`
-- `channelProfile`
-- `publishCameraTrack`
-- `publishMicrophoneTrack`
-- `autoSubscribeAudio`
-- `autoSubscribeVideo`
-- `startPreview`
-- `sourceType`
-- `token`
-
-典型视频通话配置：
-
-```ts
-{
+const mediaOptions: AgoraChannelMediaOptions = {
   clientRoleType: 'broadcaster',
   channelProfile: 'communication',
   publishCameraTrack: true,
   publishMicrophoneTrack: true,
   autoSubscribeAudio: true,
   autoSubscribeVideo: true,
-}
+  startPreview: true,
+};
 ```
 
-### 8.4 `AgoraLeaveChannelOptions`
+### AgoraRtcVideoCanvas
 
-离会可选参数：
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `uid` | `number` | No | 目标用户 UID；本地视图通常不必显式传入，远端视图可用于标识绑定对象。 |
+| `subviewUid` | `number` | No | 子视图 UID，用于多路子画面场景。 |
+| `x` | `number` | Yes | 渲染区域左上角横坐标。 |
+| `y` | `number` | Yes | 渲染区域左上角纵坐标。 |
+| `width` | `number` | Yes | 渲染区域宽度。 |
+| `height` | `number` | Yes | 渲染区域高度。 |
+| `renderMode` | `'hidden' \| 'fit' \| 'adaptive'` | No | 画面缩放模式，控制裁剪、完整显示或自适应策略。 |
+| `mirrorMode` | `number` | No | 镜像模式。 |
+| `setupMode` | `number` | No | 视图绑定模式。 |
+| `sourceType` | `number` | No | 视频源类型，用于区分摄像头、屏幕共享等来源。 |
+| `mediaPlayerId` | `number` | No | 媒体播放器 ID，用于播放器视频渲染。 |
+| `cropArea` | `{ x: number; y: number; width: number; height: number; }` | No | 裁剪区域配置。 |
+| `backgroundColor` | `number` | No | 背景色，通常在留白区域生效。 |
+| `enableAlphaMask` | `boolean` | No | 是否启用 alpha mask。 |
+| `position` | `number` | No | 位置枚举，某些内容审核或特殊渲染场景会使用。 |
+| `textureWidth` | `number` | No | `engine-texture` 模式下上传纹理的宽度。 |
+| `textureHeight` | `number` | No | `engine-texture` 模式下上传纹理的高度。 |
 
-- `stopAudioMixing`
-- `stopAllEffect`
-- `unloadAllEffect`
-- `stopMicrophoneRecording`
+推荐说明：
 
-如果业务流程需要在离会时主动清理音效与混音，可显式传入这些字段。
+- `renderMode` 选择 `'hidden'` 时允许裁剪以铺满区域，`'fit'` 会完整显示画面但可能留边，`'adaptive'` 适合交给底层做自适应处理。
+- `uid` 在 `setupRemoteVideoView` / `updateRemoteVideoView` 这类远端渲染流程里应与目标远端用户保持一致，避免复用同一画布配置时错绑到其他用户。
+- 使用 `engine-texture` 时，`textureWidth` / `textureHeight` 建议与实际 Cocos 视图尺寸保持一致，这样可减少额外缩放带来的拉伸、模糊和纹理重建成本。
 
-### 8.5 `AgoraVideoEncoderConfiguration`
+### AgoraVideoEncoderConfiguration
 
-常用字段：
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `width` | `number` | Yes | 编码输出宽度。 |
+| `height` | `number` | Yes | 编码输出高度。 |
+| `frameRate` | `number` | No | 编码帧率。 |
+| `bitrate` | `number` | No | 编码码率。 |
+| `minFrameRate` | `number` | No | 最低帧率，仅 Android `VideoEncoderConfiguration` 暴露。 |
+| `minBitrate` | `number` | No | 最低码率。 |
+| `orientationMode` | `number` | No | 编码方向模式。 |
+| `mirrorMode` | `number` | No | 编码镜像模式。 |
+| `degradationPreference` | `number` | No | 弱网退化优先策略。 |
+| `codecType` | `number` | No | 编码器类型。 |
+| `advancedVideoOptions` | `{ encodingPreference?: number; compressionPreference?: number; encodeAlpha?: boolean; }` | No | 高级编码选项，可控制编码偏好、压缩偏好和 alpha 编码。 |
 
-- `width`
-- `height`
-- `frameRate`
-- `bitrate`
-- `orientationMode`
-- `mirrorMode`
-- `degradationPreference`
+推荐说明：
 
-这些参数通常由业务层封装为预设档位。
+- 建议业务层封装固定预设，例如 `360p`、`540p`、`720p`，统一管理 `width`、`height`、`frameRate`、`bitrate` 的组合，避免在页面逻辑里散落硬编码参数。
+
+### AgoraBeautyOptions
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `lighteningContrastLevel` | `number` | No | 美白对比度等级。 |
+| `lighteningLevel` | `number` | No | 美白强度。 |
+| `smoothnessLevel` | `number` | No | 磨皮强度。 |
+| `rednessLevel` | `number` | No | 红润强度。 |
+| `sharpnessLevel` | `number` | No | 锐化强度。 |
+
+### AgoraContentInspectConfig
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `module` | `number` | No | 内容审核模块类型。 |
+| `interval` | `number` | No | 审核采样间隔。 |
+| `position` | `number` | No | 审核位置参数。 |
+| `extraInfo` | `string` | No | 业务附加信息。 |
+| `serverConfig` | `string` | No | 服务端审核配置字符串。 |
+| `modules` | `Array<{ type?: number; interval?: number; position?: number; }>` | No | 多模块审核配置列表。 |
+
+### AgoraLeaveChannelOptions
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `stopAudioMixing` | `boolean` | No | 离会时是否停止背景音乐混音。 |
+| `stopAllEffect` | `boolean` | No | 离会时是否停止所有音效播放。 |
+| `unloadAllEffect` | `boolean` | No | 离会时是否卸载所有已预加载音效。 |
+| `stopMicrophoneRecording` | `boolean` | No | 离会时是否停止麦克风录制。 |
+
+### AgoraAudioMixingConfig
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `path` | `string` | Yes | 混音音频文件路径。 |
+| `loopback` | `boolean` | No | 是否只本地播放、不推送到远端。 |
+| `cycle` | `number` | No | 循环播放次数。 |
+| `startPos` | `number` | No | 开始播放位置，单位毫秒。 |
+
+### AgoraPlayEffectConfig
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `soundId` | `number` | Yes | 音效 ID，用于后续暂停、恢复或停止指定音效。 |
+| `path` | `string` | Yes | 音效文件路径。 |
+| `loopCount` | `number` | No | 循环播放次数。 |
+| `pitch` | `number` | No | 音调调节值。 |
+| `pan` | `number` | No | 声道平衡值。 |
+| `gain` | `number` | No | 增益值。 |
+| `publish` | `boolean` | No | 是否将音效发布到远端。 |
+| `startPos` | `number` | No | 开始播放位置，单位毫秒。 |
+
+### AgoraClientRoleOptions
+
+| Field | Type | Required | Description |
+| --- | --- | --- | --- |
+| `audienceLatencyLevel` | `number` | No | 观众延迟等级，直播场景下用于平衡延迟与稳定性。 |
 
 ## 9. 事件参考
 
