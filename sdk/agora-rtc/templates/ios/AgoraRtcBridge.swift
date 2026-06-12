@@ -1312,8 +1312,30 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
 
     private func isSupportedRenderBackend(_ backend: String) -> Bool { backend == "engine-texture" }
 
+    private func isSupportedLocalTextureSourceType(_ sourceType: AgoraVideoSourceType) -> Bool {
+        return sourceType == .camera
+    }
+
+    private func validateLocalTextureSourceType(requestId: String, params: [String: Any]) -> Bool {
+        let sourceType = videoSourceType(from: params)
+        guard isSupportedLocalTextureSourceType(sourceType) else {
+            dispatchInvalidArgumentError(
+                requestId: requestId,
+                message: "engine-texture local rendering supports only the primary camera source.",
+                method: "setupLocalVideoView",
+                argumentName: "sourceType",
+                argumentValue: "\(sourceType.rawValue)"
+            )
+            return false
+        }
+        return true
+    }
+
     private func handleSetupLocalVideoView(requestId: String, params: [String: Any]) {
         requireEngine(requestId: requestId) { _ in
+            guard self.validateLocalTextureSourceType(requestId: requestId, params: params) else {
+                return
+            }
             self.localTextureRequested = true
             self.ensureLocalTextureSlot(params)
             self.dispatchResponse([
@@ -1336,6 +1358,9 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     private func handleUpdateLocalVideoView(requestId: String, params: [String: Any]) {
+        guard validateLocalTextureSourceType(requestId: requestId, params: params) else {
+            return
+        }
         localTextureRequested = true
         ensureLocalTextureSlot(params)
         dispatchResponse([
@@ -1601,7 +1626,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     private func resolveTextureMirror(_ params: [String: Any], local: Bool) -> Bool {
         let value = intValue(params["mirrorMode"] ?? AgoraVideoMirrorMode.auto.rawValue)
         if local {
-            return value != Int(AgoraVideoMirrorMode.disabled.rawValue)
+            return value == Int(AgoraVideoMirrorMode.enabled.rawValue)
         }
         return value == Int(AgoraVideoMirrorMode.enabled.rawValue)
     }
