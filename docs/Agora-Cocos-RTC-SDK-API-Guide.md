@@ -127,7 +127,7 @@ SDK 提供：
 2. 调用 `setupLocalVideoView(canvas)` 绑定本地渲染区域。
 3. 如需在入会前先展示摄像头预览，可额外调用 `startPreview(sourceType?)`。
 4. 如果业务后续需要更新布局，可调用 `updateLocalVideoView(canvas)`。
-5. 如果选择 `engine-texture`，除绑定视图外，还需要监听 `localVideoTextureReady`，并在回调中通过 `getEngineTexture(slotId)` 尝试取得纹理后绑定到 Cocos `Texture2D` / `SpriteFrame`。需要注意，事件触发时纹理槽位可能仍在准备中，`getEngineTexture(slotId)` 可能暂时返回 `null`，业务侧应结合就绪检查或重试逻辑完成绑定。
+5. 如果选择 `engine-texture`，除绑定视图外，还需要监听 `localVideoTextureReady`，并在回调中通过 `getEngineTexture(slotId)` 尝试取得纹理后绑定到 Cocos `Texture2D` / `SpriteFrame`。需要注意，事件触发时纹理槽位可能仍在准备中，`getEngineTexture(slotId)` 可能暂时返回 `null`，业务侧应结合就绪检查或重试逻辑完成绑定；当本地视频状态恢复可用或槽位稍后真正可用时，也可能需要再次执行本地绑定。
 
 ### Channel Join
 
@@ -168,19 +168,27 @@ import type { Texture2D } from 'cc';
 
 const client = createAgoraRtcClient();
 const remoteUsers = new Set<number>();
+const MAX_TEXTURE_BIND_RETRIES = 600;
+const TEXTURE_BIND_RETRY_MS = 100;
 const remoteTextureRetryTimers = new Map<number, ReturnType<typeof setTimeout>>();
 let localTextureRetryTimer: ReturnType<typeof setTimeout> | null = null;
+let localTextureSlotId: number | null = null;
+const localSpriteFrame = /* your local SpriteFrame */ {} as { texture: Texture2D | null };
+
+function bindRemoteSpriteFrame(uid: number, texture: Texture2D) {
+  // Bind the texture to the SpriteFrame or render target used for this remote uid.
+}
 
 function bindLocalTextureWithRetry(slotId: number, retryCount = 0) {
   const texture = client.getEngineTexture(slotId) as Texture2D | null;
   if (!texture) {
-    if (retryCount >= 10) {
+    if (retryCount >= MAX_TEXTURE_BIND_RETRIES) {
       console.warn('local engine texture not ready', slotId);
       return;
     }
     localTextureRetryTimer = setTimeout(() => {
       bindLocalTextureWithRetry(slotId, retryCount + 1);
-    }, 16);
+    }, TEXTURE_BIND_RETRY_MS);
     return;
   }
   if (localTextureRetryTimer) {
@@ -193,13 +201,13 @@ function bindLocalTextureWithRetry(slotId: number, retryCount = 0) {
 function bindRemoteTextureWithRetry(uid: number, slotId: number, retryCount = 0) {
   const texture = client.getEngineTexture(slotId) as Texture2D | null;
   if (!texture) {
-    if (retryCount >= 10) {
+    if (retryCount >= MAX_TEXTURE_BIND_RETRIES) {
       console.warn('remote engine texture not ready', uid, slotId);
       return;
     }
     const timer = setTimeout(() => {
       bindRemoteTextureWithRetry(uid, slotId, retryCount + 1);
-    }, 16);
+    }, TEXTURE_BIND_RETRY_MS);
     remoteTextureRetryTimers.set(uid, timer);
     return;
   }
@@ -216,7 +224,15 @@ client.on('joinChannelSuccess', ({ channelId, uid, elapsed }) => {
 });
 
 client.on('localVideoTextureReady', ({ slotId }) => {
+  localTextureSlotId = slotId;
   bindLocalTextureWithRetry(slotId);
+});
+
+client.on('localVideoStateChanged', ({ state }) => {
+  if (state === 1 && localTextureSlotId !== null) {
+    // When local video becomes usable again, re-run your local binding if needed.
+    bindLocalTextureWithRetry(localTextureSlotId);
+  }
 });
 
 client.on('userJoined', async ({ uid }) => {
@@ -283,6 +299,7 @@ export async function teardownRtcSession(): Promise<void> {
     clearTimeout(localTextureRetryTimer);
     localTextureRetryTimer = null;
   }
+  localTextureSlotId = null;
   for (const timer of remoteTextureRetryTimers.values()) {
     clearTimeout(timer);
   }
@@ -295,6 +312,8 @@ export async function teardownRtcSession(): Promise<void> {
   await client.destroy();
 }
 ```
+
+上面的重试参数是示意性的生产级写法，重点是保留足够长的重试窗口，并在本地视频重新可用时触发一次重绑定；项目侧可参考示例工程使用更完整的槽位记录和重绑策略。
 
 ### 使用字符串账号入会
 
