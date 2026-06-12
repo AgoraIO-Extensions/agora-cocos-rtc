@@ -15,8 +15,14 @@ cp "$ROOT_DIR/dist/agora-rtc-cocos-plugin.zip" "$OUTPUT_DIR/agora-rtc-cocos-plug
 rm -rf "$EXAMPLE_DIR"
 mkdir -p "$EXAMPLE_DIR"
 
+cp -R "$ROOT_DIR/example/basic-call/.creator" "$EXAMPLE_DIR/"
+cp "$ROOT_DIR/example/basic-call/.gitignore" "$EXAMPLE_DIR/.gitignore"
+cp "$ROOT_DIR/example/basic-call/package.json" "$EXAMPLE_DIR/package.json"
+cp "$ROOT_DIR/example/basic-call/tsconfig.json" "$EXAMPLE_DIR/tsconfig.json"
 cp -R "$ROOT_DIR/example/basic-call/assets" "$EXAMPLE_DIR/"
 cp -R "$ROOT_DIR/example/basic-call/build-configs" "$EXAMPLE_DIR/"
+cp -R "$ROOT_DIR/example/basic-call/settings" "$EXAMPLE_DIR/"
+cp -R "$ROOT_DIR/example/basic-call/native" "$EXAMPLE_DIR/"
 cp "$ROOT_DIR/example/basic-call/README.md" "$EXAMPLE_DIR/README.md"
 cp "$ROOT_DIR/example/basic-call/AGORA_RTC_SPM_SETUP.md" "$EXAMPLE_DIR/AGORA_RTC_SPM_SETUP.md" 2>/dev/null || true
 
