@@ -9,6 +9,7 @@ import {
 
 import { createAgoraRtcClient, type AgoraRtcClient } from '../../../extensions/agora-rtc/js/agora.ts';
 import type { AgoraRtcVideoCanvas } from '../../../extensions/agora-rtc/js/types.ts';
+import { resolveAudioEffectAssetPath } from './cases/AudioEffectMixingCase.ts';
 import type {
   ChannelProfile,
   ClientRole,
@@ -97,7 +98,7 @@ export class RtcSessionService {
   private audioMixingPositionMs = 1000;
   private remoteAudioStateSummary = '-';
   private readonly audioEffectSoundId = 1;
-  private readonly audioEffectUrl = 'https://webdemo.agora.io/ding.mp3';
+  private readonly audioEffectPath = resolveAudioEffectAssetPath();
 
   constructor(private readonly options: RtcSessionServiceOptions) {}
 
@@ -272,6 +273,7 @@ export class RtcSessionService {
       return;
     }
     await this.getClient().stopPreview();
+    this.previewStarted = false;
     this.clearLocalVideoRenderState();
     this.log('Preview stopped');
     this.emitState();
@@ -589,9 +591,9 @@ export class RtcSessionService {
   }
 
   async preloadAudioEffect(): Promise<void> {
-    await this.getClient().preloadEffect(this.audioEffectSoundId, this.audioEffectUrl);
+    await this.getClient().preloadEffect(this.audioEffectSoundId, this.audioEffectPath);
     this.audioEffectPreloaded = true;
-    this.log(`Audio effect preloaded: ${this.audioEffectUrl}`);
+    this.log(`Audio effect preloaded: ${this.audioEffectPath}`);
     this.emitState();
   }
 
@@ -605,7 +607,7 @@ export class RtcSessionService {
     }
     await this.getClient().playEffect({
       soundId: this.audioEffectSoundId,
-      path: this.audioEffectUrl,
+      path: this.audioEffectPath,
       loopCount: -1,
       pitch: 1,
       pan: 0,

@@ -107,3 +107,20 @@ test('package-customer-delivery script assembles sdk zip and example assets with
     assert.doesNotMatch(content, /\btoken["']?\s*[:=]\s*["'](?!\s*["'])[A-Za-z0-9_=-]{40,}["']/);
   }
 });
+
+test('package-customer-delivery script bootstraps missing native engine files before packaging', async () => {
+  const script = await readFile(
+    path.join(repoRoot, 'scripts/package-customer-delivery.sh'),
+    'utf8',
+  );
+
+  assert.match(script, /engine_bootstrap_required=false/);
+  assert.match(script, /if \[\[ ! -f "\$ENGINE_ROOT\/android\/res\/values\/strings\.xml" \]\]; then/);
+  assert.match(script, /if \[\[ ! -f "\$ENGINE_ROOT\/common\/CMakeLists\.txt" \]\]; then/);
+  assert.match(script, /if \[\[ ! -f "\$ENGINE_ROOT\/ios\/Info\.plist" \]\]; then/);
+  assert.match(script, /if \[\[ "\$engine_bootstrap_required" == true \]\]; then/);
+  assert.match(script, /node "\$ROOT_DIR\/scripts\/sync-example-sdk-config\.mjs" >/);
+  assert.match(script, /cat > "\$ENGINE_ROOT\/android\/res\/values\/strings\.xml"/);
+  assert.match(script, /cat > "\$ENGINE_ROOT\/common\/CMakeLists\.txt"/);
+  assert.match(script, /cat > "\$ENGINE_ROOT\/ios\/Info\.plist"/);
+});
