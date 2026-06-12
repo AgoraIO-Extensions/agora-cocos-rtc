@@ -1426,6 +1426,37 @@ test('setRenderBackend dispatches the expected native request', async () => {
   await pending;
 });
 
+test('setParameters serializes object payloads before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.setParameters({
+    'rtc.debug': true,
+    nested: {
+      bitrate: 1200,
+    },
+  });
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'setParameters');
+  assert.deepEqual(request.params, {
+    parameters: '{"rtc.debug":true,"nested":{"bitrate":1200}}',
+  });
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+});
+
 test('api smoke flow resolves initialize -> join -> local toggles -> leave -> destroy in sequence', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
