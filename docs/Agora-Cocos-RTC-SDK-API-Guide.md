@@ -337,142 +337,125 @@ await client.joinChannelWithUserAccount(
 const userInfo = await client.getUserInfoByUserAccount('user-001');
 ```
 
-## 7. API 参考
+## API Reference
 
-以下为 SDK 对外公开的主要 API，所有接口均通过 `AgoraRtcClient` 调用。
+以下 API 以当前仓库中的 `AgoraRtcClient` 与配套导出函数为准，参数类型详情见后续“参数参考”章节。
 
-### 7.1 客户端创建与销毁
+### Client Creation and Teardown
 
-| 接口 | 说明 |
-| --- | --- |
-| `createAgoraRtcClient(options?)` | 创建 RTC 客户端 |
-| `destroy()` | 销毁引擎、移除桥接监听 |
+| Method | Signature | Description | When to Use |
+| --- | --- | --- | --- |
+| `createAgoraRtcClient` | `createAgoraRtcClient(options?: AgoraRtcClientOptions): AgoraRtcClient` | 创建 RTC 客户端实例并自动准备桥接监听。 | 应用启动通话流程、创建单次会话对应的客户端时使用。 |
+| `destroy` | `destroy(): Promise<void>` | 销毁原生引擎并清理 JS 侧待处理请求、事件监听与桥接状态。 | 离会后不再复用该实例，或场景销毁前释放资源时使用。 |
 
-集成说明：
+### Initialization and Diagnostics
 
-- 建议一个业务会话对应一个 `AgoraRtcClient` 实例。
-- 页面退出或场景销毁前必须调用 `destroy()`。
+| Method | Signature | Description | When to Use |
+| --- | --- | --- | --- |
+| `on` | `on<K extends keyof AgoraEventMap>(eventName: K, listener: (payload: AgoraEventMap[K]) => void): () => void` | 注册 SDK 事件监听，并返回一个可直接执行的取消订阅函数。 | 需要监听用户上下线、远端音视频状态、错误或纹理事件时使用。 |
+| `off` | `off<K extends keyof AgoraEventMap>(eventName: K, listener: (payload: AgoraEventMap[K]) => void): void` | 按事件名和原始回调移除监听。 | 组件卸载、场景切换或需要手动管理监听生命周期时使用。 |
+| `setRenderBackend` | `setRenderBackend(backend: AgoraRenderBackend): Promise<void>` | 设置视频渲染后端，如 `surface-view`、`texture-view` 或 `engine-texture`。 | 需要在初始化前明确渲染路径，匹配项目的视图或纹理接入方案时使用。 |
+| `initialize` | `initialize(config: string \| AgoraRtcEngineConfig): Promise<void>` | 初始化 RTC 引擎，支持仅传 `appId` 或传入完整引擎配置。 | 创建客户端后、首次调用入会或媒体能力前使用。 |
+| `getSdkVersion` | `getSdkVersion(): Promise<string>` | 获取当前原生 Agora RTC SDK 版本字符串。 | 诊断环境、记录版本信息或做兼容性排查时使用。 |
+| `getErrorDescription` | `getErrorDescription(code: number): Promise<string>` | 查询指定错误码在原生 SDK 中的文本描述。 | 需要将错误码转为可读说明，辅助日志或售后排查时使用。 |
+| `setLogFilter` | `setLogFilter(level: number): Promise<void>` | 设置原生日志输出级别。 | 调试桥接、音视频接入或线上问题复现时使用。 |
+| `setLogFile` | `setLogFile(path: string): Promise<void>` | 设置原生日志文件输出路径。 | 需要把 SDK 日志落盘，便于客户现场收集日志时使用。 |
+| `setParameters` | `setParameters(parameters: string \| Record<string, unknown>): Promise<void>` | 透传 JSON 字符串或对象到原生 `setParameters`。 | 官方常规 API 未覆盖、需开启专项参数或排障开关时使用。 |
 
-### 7.2 初始化与基础信息
+- `setRenderBackend(...)` 应在 `initialize(...)` 前调用，否则渲染行为可能与预期不一致。
 
-| 接口 | 参数 | 说明 |
-| --- | --- | --- |
-| `setRenderBackend(backend)` | `surface-view` / `texture-view` / `engine-texture` | 设置视频渲染后端 |
-| `initialize(config)` | `string` 或 `AgoraRtcEngineConfig` | 初始化引擎 |
-| `getSdkVersion()` | - | 获取原生 SDK 版本 |
-| `getErrorDescription(code)` | `code: number` | 获取错误码描述 |
-| `setLogFilter(level)` | `level: number` | 设置日志等级 |
-| `setLogFile(path)` | `path: string` | 设置日志输出路径 |
-| `setParameters(parameters)` | `string` 或对象 | 透传原生参数 |
+### Channel and Role Control
 
-平台说明：
+| Method | Signature | Description | When to Use |
+| --- | --- | --- | --- |
+| `setChannelProfile` | `setChannelProfile(profile: 'communication' \| 'liveBroadcasting'): Promise<void>` | 设置频道模式为通信或直播。 | 业务需要在通话和直播模式之间切换时使用。 |
+| `setClientRole` | `setClientRole(role: 'broadcaster' \| 'audience', options?: AgoraClientRoleOptions): Promise<void>` | 设置用户角色，并可附带观众延迟等级等角色参数。 | 直播场景中区分主播与观众，或切换上下麦状态时使用。 |
+| `joinChannel` | `joinChannel(token: string, channelId: string, uid: number, options?: AgoraChannelMediaOptions): Promise<void>` | 使用数值 `uid` 加入频道。 | 业务账号体系已经分配整数 UID，按标准 RTC 入会流程时使用。 |
+| `joinChannelWithUserAccount` | `joinChannelWithUserAccount(token: string, channelId: string, userAccount: string, options?: AgoraChannelMediaOptions): Promise<void>` | 使用字符串账号加入频道。 | 业务侧更适合使用字符串用户标识，而不是自行维护整数 UID 时使用。 |
+| `getUserInfoByUserAccount` | `getUserInfoByUserAccount(userAccount: string): Promise<AgoraUserInfo>` | 查询字符串账号与 Agora 用户信息映射结果。 | 使用字符串账号入会后，需要补取映射 UID 或核对身份信息时使用。 |
+| `leaveChannel` | `leaveChannel(options?: AgoraLeaveChannelOptions): Promise<void>` | 离开当前频道，并可携带停止混音、停止音效等离会选项。 | 用户主动挂断、房间切换或异常恢复前清理频道状态时使用。 |
+| `renewToken` | `renewToken(token: string): Promise<void>` | 在不离会的前提下更新频道 Token。 | Token 即将过期或服务端下发新票据时使用。 |
 
-- 大多数接入场景直接使用 `initialize(appId)` 即可。
-- 如需更细粒度的初始化控制，可传入 `AgoraRtcEngineConfig`。
-- `setRenderBackend` 应在 `initialize` 前调用。
+- 普通通话建议使用 `communication`，直播类场景建议使用 `liveBroadcasting` 并配合 `setClientRole(...)`。
+- `App ID`、`Token`、`channelId`、`uid` / `userAccount` 应由业务系统动态注入，不应写死在插件层。
 
-### 7.3 频道与角色
+### Audio Control
 
-| 接口 | 参数 | 说明 |
-| --- | --- | --- |
-| `setChannelProfile(profile)` | `'communication' \| 'liveBroadcasting'` | 设置频道场景 |
-| `setClientRole(role, options?)` | `'broadcaster' \| 'audience'` | 设置角色 |
-| `joinChannel(token, channelId, uid, options?)` | 标准整型 UID 入会 | 加入频道 |
-| `joinChannelWithUserAccount(token, channelId, userAccount, options?)` | 字符串账号入会 | 加入频道 |
-| `getUserInfoByUserAccount(userAccount)` | `userAccount: string` | 查询用户映射信息 |
-| `leaveChannel(options?)` | `AgoraLeaveChannelOptions` | 离开频道 |
-| `renewToken(token)` | `token: string` | 更新 token |
+| Method | Signature | Description | When to Use |
+| --- | --- | --- | --- |
+| `enableAudio` | `enableAudio(enabled: boolean): Promise<void>` | 整体启用或关闭音频模块。 | 需要统一开启或关闭音频能力时使用。 |
+| `enableLocalAudio` | `enableLocalAudio(enabled: boolean): Promise<void>` | 启用或关闭本地麦克风采集。 | 做静音前置控制，或根据权限与业务流程控制采集时使用。 |
+| `muteLocalAudioStream` | `muteLocalAudioStream(muted: boolean): Promise<void>` | 停发或恢复本地音频上行流。 | 已入会但需要临时静音自己时使用。 |
+| `muteRemoteAudioStream` | `muteRemoteAudioStream(uid: number, muted: boolean): Promise<void>` | 停收或恢复指定远端用户的音频流。 | 需要对个别远端用户做单独静音控制时使用。 |
+| `muteAllRemoteAudioStreams` | `muteAllRemoteAudioStreams(muted: boolean): Promise<void>` | 停收或恢复全部远端音频流。 | 批量静音远端、进入只看不听的场景时使用。 |
+| `setAudioProfile` | `setAudioProfile(profile: number, scenario?: number): Promise<void>` | 设置音频编码档位与场景参数。 | 需要在语聊、音乐、直播等不同音频策略间切换时使用。 |
+| `enableAudioVolumeIndication` | `enableAudioVolumeIndication(interval: number, smooth?: number, reportVad?: boolean): Promise<void>` | 开启说话人音量与 VAD 回调。 | 需要做音量条、活跃说话人标记或麦位状态展示时使用。 |
+| `setDefaultAudioRouteToSpeakerphone` | `setDefaultAudioRouteToSpeakerphone(enabled: boolean): Promise<void>` | 设置默认音频路由是否优先走扬声器。 | 首次入会时就希望控制默认外放/听筒策略时使用。 |
+| `setEnableSpeakerphone` | `setEnableSpeakerphone(enabled: boolean): Promise<void>` | 动态切换当前扬声器开关状态。 | 通话中切换外放与听筒时使用。 |
+| `isSpeakerphoneEnabled` | `isSpeakerphoneEnabled(): Promise<boolean>` | 查询当前是否处于扬声器外放状态。 | UI 需要回显当前路由状态，或切换前先读取状态时使用。 |
+| `adjustPlaybackSignalVolume` | `adjustPlaybackSignalVolume(volume: number): Promise<void>` | 调整本地整体播放音量。 | 需要统一拉高或压低远端播放音量时使用。 |
+| `adjustUserPlaybackSignalVolume` | `adjustUserPlaybackSignalVolume(uid: number, volume: number): Promise<void>` | 调整指定远端用户在本地的播放音量。 | 需要单独控制某个远端用户的收听音量时使用。 |
+| `setAudioSessionOperationRestriction` | `setAudioSessionOperationRestriction(restriction: number): Promise<void>` | 设置音频会话操作限制。 | iOS 侧需要限制 SDK 对音频会话的管理行为时使用。 |
 
-集成说明：
+- `setAudioSessionOperationRestriction(...)` is unsupported on Android in the current bridge.
+- `adjustUserPlaybackSignalVolume(...)` 依赖有效远端 `uid`；在用户未入会或已离会后调用没有业务意义。
 
-- 普通通话场景使用 `communication`。
-- 直播场景使用 `liveBroadcasting`，并结合 `setClientRole` 设置主播/观众。
-- `App ID`、`Token`、`channelId`、`uid` 应由业务系统注入，不应写死在插件中。
+### Video Control
 
-### 7.4 音频控制
+| Method | Signature | Description | When to Use |
+| --- | --- | --- | --- |
+| `enableVideo` | `enableVideo(enabled: boolean): Promise<void>` | 整体启用或关闭视频模块。 | 进入视频通话流程，或从纯语音切换到音视频时使用。 |
+| `enableLocalVideo` | `enableLocalVideo(enabled: boolean): Promise<void>` | 启用或关闭本地视频采集。 | 控制摄像头采集状态，但保留会话连接时使用。 |
+| `muteLocalVideoStream` | `muteLocalVideoStream(muted: boolean): Promise<void>` | 停发或恢复本地视频上行流。 | 已采集但需要临时关闭对外发送时使用。 |
+| `muteRemoteVideoStream` | `muteRemoteVideoStream(uid: number, muted: boolean): Promise<void>` | 停收或恢复指定远端视频流。 | 需要对某个远端视频单独做订阅控制时使用。 |
+| `muteAllRemoteVideoStreams` | `muteAllRemoteVideoStreams(muted: boolean): Promise<void>` | 停收或恢复全部远端视频流。 | 进入只发不看、节省性能或批量停看远端时使用。 |
+| `setVideoEncoderConfiguration` | `setVideoEncoderConfiguration(config: AgoraVideoEncoderConfiguration): Promise<void>` | 设置分辨率、帧率、码率等视频编码参数。 | 需要切换清晰度档位或为不同机型调整编码策略时使用。 |
+| `startPreview` | `startPreview(sourceType?: number): Promise<void>` | 启动本地视频预览。 | 入会前展示本地画面，或切换视频源后重新开始预览时使用。 |
+| `stopPreview` | `stopPreview(sourceType?: number): Promise<void>` | 停止本地视频预览。 | 退出预览页、停止摄像头预览或切换场景时使用。 |
+| `switchCamera` | `switchCamera(): Promise<void>` | 在前后摄像头之间切换。 | 移动端视频通话中切换拍摄方向时使用。 |
+| `setBeautyEffectOptions` | `setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number): Promise<void>` | 开启或调整美颜效果参数。 | 需要提供磨皮、美白、红润等视频美颜能力时使用。 |
+| `enableContentInspect` | `enableContentInspect(enabled: boolean, config?: AgoraContentInspectConfig): Promise<void>` | 启用或关闭视频内容审核能力。 | 需要做内容安全检查、审核运营场景时使用。 |
 
-| 接口 | 说明 |
-| --- | --- |
-| `enableAudio(enabled)` | 开启/关闭音频模块 |
-| `enableLocalAudio(enabled)` | 开启/关闭本地采集 |
-| `muteLocalAudioStream(muted)` | 静音本地音频流 |
-| `muteRemoteAudioStream(uid, muted)` | 静音指定远端用户音频 |
-| `muteAllRemoteAudioStreams(muted)` | 静音全部远端音频 |
-| `setAudioProfile(profile, scenario?)` | 设置音频档位 |
-| `enableAudioVolumeIndication(interval, smooth?, reportVad?)` | 开启音量回调 |
-| `setDefaultAudioRouteToSpeakerphone(enabled)` | 设置默认音频路由 |
-| `setEnableSpeakerphone(enabled)` | 开关扬声器 |
-| `isSpeakerphoneEnabled()` | 获取扬声器状态 |
-| `adjustPlaybackSignalVolume(volume)` | 调整播放音量 |
-| `adjustUserPlaybackSignalVolume(uid, volume)` | 调整指定远端用户播放音量 |
-| `setAudioSessionOperationRestriction(restriction)` | 设置音频会话限制 |
+- 本地预览通常与 `setupLocalVideoView(...)` 配套使用；如走 `engine-texture`，还需配合纹理槽位消费逻辑。
 
-集成说明：
+### Video View and Rendering
 
-- 如果客户需要说话人音量条，使用 `enableAudioVolumeIndication(...)`。
-- `adjustUserPlaybackSignalVolume` 依赖有效远端 `uid`。
-- 在 Android 上，`setAudioSessionOperationRestriction` 当前返回 `unsupported`，不应作为主业务路径依赖。
+| Method | Signature | Description | When to Use |
+| --- | --- | --- | --- |
+| `setupLocalVideoView` | `setupLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void>` | 绑定本地视频画面到指定视图区域或纹理槽位。 | 首次显示本地视频或为本地预览/上行画面分配渲染区域时使用。 |
+| `setupRemoteVideoView` | `setupRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise<void>` | 绑定指定远端用户视频到目标视图区域或纹理槽位。 | 远端用户上视频后，需要为其创建渲染目标时使用。 |
+| `updateLocalVideoView` | `updateLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void>` | 更新本地视频的渲染位置、尺寸或画布配置。 | UI 布局变化、本地窗口拖拽缩放时使用。 |
+| `updateRemoteVideoView` | `updateRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise<void>` | 更新指定远端视频的渲染配置。 | 远端视频宫格布局变化、主辅屏切换时使用。 |
+| `removeLocalVideoView` | `removeLocalVideoView(): Promise<void>` | 移除本地视频视图绑定。 | 不再显示本地视频，或在销毁前先解绑渲染目标时使用。 |
+| `removeRemoteVideoView` | `removeRemoteVideoView(uid: number): Promise<void>` | 移除指定远端用户的视频视图绑定。 | 远端离会、停止展示远端视频或回收渲染资源时使用。 |
+| `setNativeVideoOverlaySuspended` | `setNativeVideoOverlaySuspended(suspended: boolean): Promise<void>` | 暂停或恢复原生视频覆盖层显示。 | 使用原生视图覆盖渲染时，需要在 Cocos 场景切换、遮罩或截图前暂时隐藏原生层时使用。 |
+| `getEngineTexture` | `getEngineTexture(slotId: number): unknown \| null` | 读取 `engine-texture` 后端对应槽位的原生纹理对象。 | 自定义材质、脚本或渲染层需要直接消费 Agora 上传的 Cocos 纹理时使用。 |
+| `isEngineTextureReady` | `isEngineTextureReady(slotId: number): boolean` | 查询指定 `engine-texture` 槽位是否已经就绪。 | 在首次绑定纹理、轮询渲染资源或避免提前取纹理时报错时使用。 |
 
-### 7.5 视频控制
+- `setNativeVideoOverlaySuspended(...)` is only meaningful for native overlay rendering backends.
 
-| 接口 | 说明 |
-| --- | --- |
-| `enableVideo(enabled)` | 开启/关闭视频模块 |
-| `enableLocalVideo(enabled)` | 开启/关闭本地视频采集 |
-| `muteLocalVideoStream(muted)` | 停发本地视频流 |
-| `muteRemoteVideoStream(uid, muted)` | 停收指定远端视频 |
-| `muteAllRemoteVideoStreams(muted)` | 停收全部远端视频 |
-| `setVideoEncoderConfiguration(config)` | 设置编码参数 |
-| `startPreview(sourceType?)` | 开启本地预览 |
-| `stopPreview(sourceType?)` | 停止本地预览 |
-| `switchCamera()` | 前后摄切换 |
-| `setBeautyEffectOptions(enabled, options, sourceType?)` | 设置美颜 |
-| `enableContentInspect(enabled, config?)` | 开启内容审核 |
+### Audio Mixing and Effects
 
-集成说明：
+| Method | Signature | Description | When to Use |
+| --- | --- | --- | --- |
+| `startAudioMixing` | `startAudioMixing(config: AgoraAudioMixingConfig): Promise<void>` | 开始播放并混入背景音乐。 | 语聊房、K 歌、直播伴奏等需要长音频混音时使用。 |
+| `pauseAudioMixing` | `pauseAudioMixing(): Promise<void>` | 暂停当前背景音乐混音。 | 需要临时中断伴奏但保留播放进度时使用。 |
+| `resumeAudioMixing` | `resumeAudioMixing(): Promise<void>` | 恢复已暂停的背景音乐混音。 | 从暂停状态继续播放混音时使用。 |
+| `stopAudioMixing` | `stopAudioMixing(): Promise<void>` | 停止当前背景音乐混音。 | 结束伴奏、切歌前停止当前音频时使用。 |
+| `getAudioMixingCurrentPosition` | `getAudioMixingCurrentPosition(): Promise<number>` | 获取当前混音播放进度，单位为毫秒。 | 需要显示播放进度条或做断点续播时使用。 |
+| `setAudioMixingPosition` | `setAudioMixingPosition(positionMs: number): Promise<void>` | 跳转背景音乐混音播放进度。 | 需要拖动进度条或从指定时间点开始播放时使用。 |
+| `adjustAudioMixingVolume` | `adjustAudioMixingVolume(volume: number): Promise<void>` | 调整混音总音量。 | 需要统一调整伴奏相对人声的整体大小时使用。 |
+| `preloadEffect` | `preloadEffect(soundId: number, path: string, startPos?: number): Promise<void>` | 预加载短音效资源。 | 需要降低点击音、礼物音、提示音的首次播放延迟时使用。 |
+| `playEffect` | `playEffect(config: AgoraPlayEffectConfig): Promise<void>` | 播放指定音效。 | 播放按钮音、礼物音、场控音等短音频时使用。 |
+| `pauseEffect` | `pauseEffect(soundId: number): Promise<void>` | 暂停指定音效播放。 | 音效需要临时中断并保留继续播放能力时使用。 |
+| `resumeEffect` | `resumeEffect(soundId: number): Promise<void>` | 恢复指定音效播放。 | 已暂停音效需要继续播放时使用。 |
+| `setEffectsVolume` | `setEffectsVolume(volume: number): Promise<void>` | 设置全部音效的总音量。 | 需要统一调整短音效响度时使用。 |
+| `adjustAudioMixingPublishVolume` | `adjustAudioMixingPublishVolume(volume: number): Promise<void>` | 调整混音上行发布音量。 | 需要分别控制本地听到的伴奏和远端听到的伴奏大小时使用。 |
+| `adjustAudioMixingPlayoutVolume` | `adjustAudioMixingPlayoutVolume(volume: number): Promise<void>` | 调整混音本地播放音量。 | 希望只改变本地监听到的伴奏音量时使用。 |
+| `stopEffect` | `stopEffect(soundId: number): Promise<void>` | 停止指定音效播放。 | 音效结束条件提前满足，或需要强制停止某条短音频时使用。 |
 
-- 视频通话前通常先 `enableVideo(true)`。
-- 有本地预览需求时，可在入会前先 `setupLocalVideoView()` + `startPreview()`。
-- 编码参数通常由业务层封装为 `360p/540p/720p` 等预设档位。
-
-### 7.6 视频视图与渲染
-
-| 接口 | 说明 |
-| --- | --- |
-| `setupLocalVideoView(canvas)` | 绑定本地视频区域 |
-| `setupRemoteVideoView(uid, canvas)` | 绑定远端视频区域 |
-| `updateLocalVideoView(canvas)` | 更新本地视频区域 |
-| `updateRemoteVideoView(uid, canvas)` | 更新远端视频区域 |
-| `removeLocalVideoView()` | 移除本地视频区域 |
-| `removeRemoteVideoView(uid)` | 移除远端视频区域 |
-| `setNativeVideoOverlaySuspended(suspended)` | 暂停/恢复原生视频覆盖层 |
-| `getEngineTexture(slotId)` | 读取 `engine-texture` 槽位纹理 |
-| `isEngineTextureReady(slotId)` | 判断纹理槽位是否就绪 |
-
-### 7.7 音频混音与音效
-
-| 接口 | 说明 |
-| --- | --- |
-| `startAudioMixing(config)` | 开始音乐混音 |
-| `pauseAudioMixing()` | 暂停混音 |
-| `resumeAudioMixing()` | 恢复混音 |
-| `stopAudioMixing()` | 停止混音 |
-| `getAudioMixingCurrentPosition()` | 获取混音进度 |
-| `setAudioMixingPosition(positionMs)` | 设置混音进度 |
-| `adjustAudioMixingVolume(volume)` | 设置混音总音量 |
-| `adjustAudioMixingPublishVolume(volume)` | 设置上行混音音量 |
-| `adjustAudioMixingPlayoutVolume(volume)` | 设置本地播放混音音量 |
-| `preloadEffect(soundId, path, startPos?)` | 预加载音效 |
-| `playEffect(config)` | 播放音效 |
-| `pauseEffect(soundId)` | 暂停音效 |
-| `resumeEffect(soundId)` | 恢复音效 |
-| `setEffectsVolume(volume)` | 设置音效总音量 |
-| `stopEffect(soundId)` | 停止音效 |
-
-平台说明：
-
-- `startAudioMixing(config)` 当前不支持 `replace` 字段；若传入会直接在 JS 层返回 `ProtocolError`。
-- `volume` 取值范围应保持在 `0-100`。
+- `startAudioMixing(...)` rejects a `replace` field at the JavaScript layer with `protocol_error`.
+- 混音与音效相关 `volume` 参数建议保持在 `0-100` 范围内，避免业务层自行扩展到不一致的区间。
 
 ## 8. 参数参考
 
