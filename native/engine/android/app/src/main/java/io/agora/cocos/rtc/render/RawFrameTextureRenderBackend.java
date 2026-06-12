@@ -502,8 +502,13 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       }
       observedFramePosition = nextPosition;
       if (rtcEngine != null) {
-        int result = rtcEngine.registerVideoFrameObserver(this);
-        dispatchBackendState("observerPosition", result, -1);
+        try {
+          int result = rtcEngine.registerVideoFrameObserver(this);
+          dispatchBackendState("observerPosition", result, -1);
+        } catch (RuntimeException error) {
+          dispatchBackendState("observerPosition", -1, -1);
+          Log.w(LOG_TAG, "registerVideoFrameObserver refresh failed", error);
+        }
       }
     }
 
