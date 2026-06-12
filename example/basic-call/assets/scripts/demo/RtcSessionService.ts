@@ -250,6 +250,11 @@ export class RtcSessionService {
     this.emitState();
   }
 
+  private async removeRemoteVideoView(uid: number): Promise<void> {
+    await this.getClient().removeRemoteVideoView(uid);
+    this.remoteTextureSlotIds.delete(uid);
+  }
+
   async startLocalPreview(): Promise<void> {
     if (!this.initialized) {
       await this.initializeRtc();
@@ -790,7 +795,12 @@ export class RtcSessionService {
       if (this.activeRemoteUid === uid) {
         this.activeRemoteUid = this.remoteUserUids.values().next().value ?? null;
       }
+      this.lastRemoteVideoStatsByUid.delete(uid);
+      this.clearRemoteVideoRenderState([uid]);
       this.options.onRemoteUsersChanged([...this.remoteUserUids], this.activeRemoteUid);
+      void this.removeRemoteVideoView(uid).catch((error) => {
+        this.recordAsyncError(`Remote view cleanup failed for uid ${uid}`, error);
+      });
       this.log(`Remote user offline: ${uid} (${reason ?? 'unknown'})`);
       this.emitState();
     });
@@ -1007,11 +1017,26 @@ export class RtcSessionService {
       if (spriteFrame) {
         spriteFrame.texture = null;
       }
+      this.remoteTextureSlotIds.delete(uid);
+      this.remoteVideoSpriteFrames.delete(uid);
       this.options.onRemoteVideoCleared(uid);
     }
-    this.remoteTextureSlotIds.clear();
-    this.remoteVideoSpriteFrames.clear();
-    this.clearTextureBindRetriesByKind('remote');
+    if (uids.length === 0 || uids.length === this.remoteUserUids.size) {
+      this.clearTextureBindRetriesByKind('remote');
+      return;
+    }
+    for (const [key, timer] of this.textureBindRetryTimers.entries()) {
+      if (!key.startsWith('remote:')) {
+        continue;
+      }
+      const [, , uidToken] = key.split(':');
+      const retryUid = Number(uidToken);
+      if (!uids.includes(retryUid)) {
+        continue;
+      }
+      clearTimeout(timer);
+      this.textureBindRetryTimers.delete(key);
+    }
   }
 
   private async runAudioControlDemo(): Promise<void> {
