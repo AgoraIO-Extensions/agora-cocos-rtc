@@ -12,16 +12,17 @@
 1. 交付内容
 2. 适用范围
 3. 集成前提
-4. SDK 导入
-5. 快速集成流程
-6. API 参考
-7. 参数参考
-8. 事件参考
-9. 渲染模式
-10. 平台说明
-11. 错误处理
-12. 验证边界
-13. 参考资料
+4. SDK Import
+5. Quick Integration Workflow
+6. Recommended Lifecycle
+7. API 参考
+8. 参数参考
+9. 事件参考
+10. 渲染模式
+11. 平台说明
+12. 错误处理
+13. 验证边界
+14. 参考资料
 
 ## 1. 交付内容
 
@@ -71,9 +72,9 @@ SDK 提供：
 - `example/basic-call`
   用于参考初始化、入会、渲染和事件消费方式的示例工程。
 
-## 4. SDK 导入
+## SDK Import
 
-### 4.1 Option A: Import the packaged plugin
+### Option A: Import the packaged plugin
 
 适用于客户按标准交付包接入的场景。
 
@@ -81,7 +82,7 @@ SDK 提供：
 2. 确认目标项目中已生成 `extensions/agora-rtc`。
 3. 将目标项目导出为 Android 或 iOS 原生工程。
 
-### 4.2 Option B: Import the unpacked SDK during development
+### Option B: Import the unpacked SDK during development
 
 适用于联调、二次开发或直接查看 SDK 源码的场景。
 
@@ -89,9 +90,7 @@ SDK 提供：
 2. 重新打开 Cocos 项目，确保扩展已被加载。
 3. 按照下文的集成步骤继续接入。
 
-## 5. 快速集成流程
-
-### 5.1 Quick Integration Workflow
+## Quick Integration Workflow
 
 建议按以下清单完成接入：
 
@@ -106,11 +105,11 @@ SDK 提供：
 9. 远端用户加入后绑定远端视图。
 10. 在页面销毁或业务结束时离开频道并销毁客户端。
 
-### 5.2 Recommended Lifecycle
+## Recommended Lifecycle
 
 以下流程以 `sdk/agora-rtc/js/agora.ts` 中已提供的接口为准，建议业务代码按照生命周期组织接入逻辑。
 
-#### Initialization
+### Initialization
 
 初始化阶段建议按以下顺序执行：
 
@@ -120,7 +119,7 @@ SDK 提供：
 4. 根据业务需要调用 `setChannelProfile(...)`、`setClientRole(...)`、`setVideoEncoderConfiguration(...)` 等可选配置接口。
 5. 在入会前完成事件注册，至少建议监听 `joinChannelSuccess`、`userJoined`、`userOffline`、`error`，并按需补充 `rtcStats`、`remoteVideoStateChanged`、`remoteAudioStateChanged`、`volumeIndication` 等事件。
 
-#### Local Preview
+### Local Preview
 
 如果业务包含视频通话或本地预览，建议在入会前完成本地视频准备：
 
@@ -129,7 +128,7 @@ SDK 提供：
 3. 如需在入会前先展示摄像头预览，可额外调用 `startPreview(sourceType?)`。
 4. 如果业务后续需要更新布局，可调用 `updateLocalVideoView(canvas)`。
 
-#### Channel Join
+### Channel Join
 
 入会阶段根据业务使用的身份类型选择一种接口：
 
@@ -138,7 +137,7 @@ SDK 提供：
 3. 如需查询字符串账号与数值 UID 的映射结果，可调用 `getUserInfoByUserAccount(userAccount)`。
 4. Token 即将过期或需要续期时，调用 `renewToken(token)`。
 
-#### Remote User Handling
+### Remote User Handling
 
 远端用户生命周期建议围绕事件回调组织：
 
@@ -147,7 +146,7 @@ SDK 提供：
 3. 在 `userOffline` 事件中调用 `removeRemoteVideoView(uid)` 清理远端画面。
 4. 可结合 `remoteVideoStateChanged`、`remoteAudioStateChanged`、`rtcStats` 判断订阅状态和通话质量。
 
-#### Leave and Destroy
+### Leave and Destroy
 
 退出阶段建议显式清理会话资源，避免原生资源残留：
 
@@ -157,7 +156,7 @@ SDK 提供：
 4. 对仍保留的远端用户调用 `removeRemoteVideoView(uid)`。
 5. 最后调用 `destroy()` 销毁引擎与桥接监听。
 
-### 5.3 生命周期示例
+### Lifecycle Example
 
 以下示例展示一个与上述生命周期一致的最小视频通话接入流程：
 
@@ -229,7 +228,7 @@ export async function teardownRtcSession(): Promise<void> {
 }
 ```
 
-### 5.4 使用字符串账号入会
+### 使用字符串账号入会
 
 如果业务系统使用字符串账号而不是整型 `uid`，可使用：
 
