@@ -477,12 +477,19 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "setParameters":
             requireEngine(requestId: requestId) { engine in
-                guard let parameters = requiredString(
-                    params,
-                    key: "parameters",
-                    requestId: requestId,
-                    message: "Parameters are required."
-                ) else {
+                let parameterValue = params["parameters"]
+                let parameters: String?
+                if let stringValue = parameterValue as? String {
+                    parameters = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+                } else if JSONSerialization.isValidJSONObject(parameterValue as Any),
+                          let parametersData = try? JSONSerialization.data(withJSONObject: parameterValue as Any),
+                          let serialized = String(data: parametersData, encoding: .utf8) {
+                    parameters = serialized
+                } else {
+                    parameters = nil
+                }
+                guard let parameters, !parameters.isEmpty else {
+                    self.dispatchError(requestId: requestId, message: "Parameters are required.")
                     return
                 }
                 let result = engine.setParameters(parameters)
