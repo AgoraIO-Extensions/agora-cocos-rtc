@@ -133,7 +133,10 @@ test('initialize sends a native bridge request and resolves on matching response
 
   const request = JSON.parse(transport.sent[0].payload);
   assert.equal(request.method, 'initialize');
-  assert.deepEqual(request.params, { appId: 'test-app-id' });
+  assert.deepEqual(request.params, {
+    appId: 'test-app-id',
+    parameters: '{"rtc.set_app_type":10}',
+  });
 
   transport.emit(
     'agora:response',
@@ -176,6 +179,7 @@ test('initialize can dispatch native engine config options', async () => {
   assert.equal(request.method, 'initialize');
   assert.deepEqual(request.params, {
     appId: 'test-app-id',
+    parameters: '{"rtc.set_app_type":10}',
     areaCode: 2,
     channelProfile: 1,
     license: 'license-key',
@@ -1443,7 +1447,36 @@ test('setParameters serializes object payloads before dispatching the native req
 
   assert.equal(request.method, 'setParameters');
   assert.deepEqual(request.params, {
-    parameters: '{"rtc.debug":true,"nested":{"bitrate":1200}}',
+    parameters: '{"rtc.debug":true,"nested":{"bitrate":1200},"rtc.set_app_type":10}',
+  });
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+});
+
+test('setParameters overrides a caller-provided rtc.set_app_type with the protected cocos value', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.setParameters({
+    'rtc.set_app_type': 4,
+    'rtc.debug': true,
+  });
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'setParameters');
+  assert.deepEqual(request.params, {
+    parameters: '{"rtc.set_app_type":10,"rtc.debug":true}',
   });
 
   transport.emit(
@@ -1619,7 +1652,7 @@ test('client dispatches expected native requests for all expanded public APIs', 
     'advancedVideoOptions',
     fullVideoEncoderConfig.advancedVideoOptions,
   );
-  await testApi('setParameters', () => client.setParameters({ key: 'value' }), { parameters: '{"key":"value"}' });
+  await testApi('setParameters', () => client.setParameters({ key: 'value' }), { parameters: '{"key":"value","rtc.set_app_type":10}' });
   await testApi('enableVideo', () => client.enableVideo(true), { enabled: true });
   await testApi('muteLocalVideoStream', () => client.muteLocalVideoStream(true), { muted: true });
   await testApi('muteRemoteVideoStream', () => client.muteRemoteVideoStream(123, true), { uid: 123, muted: true });
