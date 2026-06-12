@@ -310,6 +310,10 @@ test('android engine-texture backend builds texture slots from JS canvas payload
   assert.match(engineTextureBackendContent, /observedFramePosition/);
   assert.match(engineTextureBackendContent, /POSITION_PRE_ENCODER/);
   assert.doesNotMatch(engineTextureBackendContent, /return POSITION_POST_CAPTURER \| POSITION_PRE_RENDERER;/);
+  assert.match(
+    engineTextureBackendContent,
+    /try \{\s*int result = rtcEngine\.registerVideoFrameObserver\(this\);\s*dispatchBackendState\("observerPosition", result, -1\);\s*\} catch \(RuntimeException error\) \{\s*dispatchBackendState\("observerPosition", -1, -1\);\s*Log\.w\(LOG_TAG, "registerVideoFrameObserver refresh failed", error\);\s*\}/,
+  );
   assert.match(engineTextureBackendContent, /public void startPreview\(JSONObject params, AgoraRenderResultCallback callback\)/);
   assert.match(engineTextureBackendContent, /rtcEngine\.startPreview\(resolvePreviewVideoSourceType\(params\)\)/);
   assert.match(engineTextureBackendContent, /public void stopPreview\(JSONObject params, AgoraRenderResultCallback callback\)/);
@@ -2314,6 +2318,7 @@ public class Base64 {
 
 public class Log {
     public static int i(String tag, String message) { return 0; }
+    public static int w(String tag, String message, Throwable throwable) { return 0; }
 }
 `,
     'utf8',
@@ -3106,6 +3111,62 @@ public class RtcEngine {
     'utf8',
   );
 
+  await writeFile(
+    path.join(srcRoot, 'main/java/io/agora/cocos/rtc/render/AgoraEngineTextureSlotBridge.java'),
+    `package io.agora.cocos.rtc.render;
+
+import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicInteger;
+
+final class AgoraEngineTextureSlotBridge {
+    private static final AtomicInteger NEXT_SLOT_ID = new AtomicInteger(1);
+
+    private AgoraEngineTextureSlotBridge() {}
+
+    static int nativeCreateSlot(int width, int height) {
+        return NEXT_SLOT_ID.getAndIncrement();
+    }
+
+    static void nativeUpdateSlot(int slotId, ByteBuffer rgbaBuffer, int rgbaLength, int width, int height) {}
+
+    static void nativeUpdateI420Slot(
+        int slotId,
+        ByteBuffer dataY,
+        int strideY,
+        ByteBuffer dataU,
+        int strideU,
+        ByteBuffer dataV,
+        int strideV,
+        int width,
+        int height,
+        int targetWidth,
+        int targetHeight,
+        int renderMode,
+        int rotation,
+        boolean mirror
+    ) {}
+
+    static void nativeUpdateNV12Slot(
+        int slotId,
+        ByteBuffer dataY,
+        int strideY,
+        ByteBuffer dataUV,
+        int strideUV,
+        int width,
+        int height,
+        int targetWidth,
+        int targetHeight,
+        int renderMode,
+        int rotation,
+        boolean mirror
+    ) {}
+
+    static void nativeReleaseSlot(int slotId) {}
+}
+`,
+    'utf8',
+  );
+
   const pluginFile = path.join(
     srcRoot,
     'main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
@@ -3166,6 +3227,7 @@ public class RtcEngine {
     path.join(srcRoot, 'io/agora/rtc2/video/IVideoFrameObserver.java'),
     path.join(srcRoot, 'io/agora/rtc2/video/VideoCanvas.java'),
     path.join(srcRoot, 'io/agora/rtc2/RtcEngine.java'),
+    path.join(srcRoot, 'main/java/io/agora/cocos/rtc/render/AgoraEngineTextureSlotBridge.java'),
     ...renderBackendFiles,
     pluginFile,
   ];
@@ -3287,4 +3349,101 @@ public class PermissionQueueTest {
   );
   await execFileAsync('/usr/bin/javac', ['-cp', classesRoot, '-d', classesRoot, permissionQueueTestFile]);
   await execFileAsync('/usr/bin/java', ['-cp', classesRoot, 'PermissionQueueTest']);
+
+  const observerTransitionTestFile = path.join(srcRoot, 'ObserverTransitionTest.java');
+  await writeFile(
+    observerTransitionTestFile,
+    `import io.agora.cocos.rtc.render.AgoraRenderEventDispatcher;
+import io.agora.cocos.rtc.render.AgoraRenderResultCallback;
+import io.agora.cocos.rtc.render.RawFrameTextureRenderBackend;
+import io.agora.rtc2.RtcEngine;
+import io.agora.rtc2.video.IVideoFrameObserver;
+import org.json.JSONObject;
+import java.util.ArrayList;
+import java.util.List;
+
+public class ObserverTransitionTest {
+    public static void main(String[] args) throws Exception {
+        TrackingRtcEngine rtcEngine = new TrackingRtcEngine();
+        RawFrameTextureRenderBackend backend = new RawFrameTextureRenderBackend(new AgoraRenderEventDispatcher() {
+            @Override
+            public void dispatchEvent(String eventName, JSONObject payload) {}
+        });
+        backend.bindEngine(rtcEngine);
+
+        JSONObject localParams = new JSONObject()
+            .put("uid", 0)
+            .put("position", IVideoFrameObserver.POSITION_POST_CAPTURER)
+            .put("width", 240)
+            .put("height", 180)
+            .put("textureWidth", 240)
+            .put("textureHeight", 180);
+        JSONObject remoteParams = new JSONObject()
+            .put("uid", 42422)
+            .put("position", IVideoFrameObserver.POSITION_PRE_RENDERER)
+            .put("width", 240)
+            .put("height", 180)
+            .put("textureWidth", 240)
+            .put("textureHeight", 180);
+
+        backend.setupLocalVideoView(null, localParams, new NoopCallback());
+        backend.setupRemoteVideoView(null, remoteParams, new NoopCallback());
+
+        rtcEngine.failWhenObservedFramePosition = IVideoFrameObserver.POSITION_POST_CAPTURER;
+
+        final boolean[] succeeded = new boolean[] { false };
+        backend.removeRemoteVideoView(remoteParams, new AgoraRenderResultCallback() {
+            @Override
+            public void onSuccess() {
+                succeeded[0] = true;
+            }
+
+            @Override
+            public void onError(String message) {
+                throw new AssertionError("removeRemoteVideoView should not surface observer refresh failure: " + message);
+            }
+        });
+
+        if (!succeeded[0]) {
+            throw new AssertionError("removeRemoteVideoView should resolve even if observer refresh fails");
+        }
+        if (rtcEngine.observedPositions.size() < 2) {
+            throw new AssertionError("expected observer position history to include setup transitions");
+        }
+        int lastObservedPosition = rtcEngine.observedPositions.get(rtcEngine.observedPositions.size() - 1);
+        if (lastObservedPosition != IVideoFrameObserver.POSITION_POST_CAPTURER) {
+            throw new AssertionError("expected remote removal to request post-capturer observer position, got " + lastObservedPosition);
+        }
+    }
+
+    private static final class NoopCallback implements AgoraRenderResultCallback {
+        @Override
+        public void onSuccess() {}
+
+        @Override
+        public void onError(String message) {
+            throw new AssertionError("unexpected callback error: " + message);
+        }
+    }
+
+    public static final class TrackingRtcEngine extends RtcEngine {
+        public final List<Integer> observedPositions = new ArrayList<>();
+        public int failWhenObservedFramePosition = Integer.MIN_VALUE;
+
+        @Override
+        public int registerVideoFrameObserver(IVideoFrameObserver observer) {
+            int position = observer != null ? observer.getObservedFramePosition() : Integer.MIN_VALUE;
+            observedPositions.add(position);
+            if (position == failWhenObservedFramePosition) {
+                throw new RuntimeException("observer refresh failed for position " + position);
+            }
+            return 0;
+        }
+    }
+}
+`,
+    'utf8',
+  );
+  await execFileAsync('/usr/bin/javac', ['-cp', classesRoot, '-d', classesRoot, observerTransitionTestFile]);
+  await execFileAsync('/usr/bin/java', ['-cp', classesRoot, 'ObserverTransitionTest']);
 });
