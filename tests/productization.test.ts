@@ -329,7 +329,6 @@ test('gitignore behavior matches the intended commit boundary', async () => {
     'example/basic-call/extensions/agora-rtc',
     'example/basic-call/native/engine/android/app/build.gradle',
     '.DS_Store',
-    'docs/customer-integration.md',
     'docs/architecture.md',
     'docs/.DS_Store',
     'sdk/agora-rtc/.DS_Store',

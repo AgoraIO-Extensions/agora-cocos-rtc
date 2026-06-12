@@ -61,9 +61,18 @@ test('package-customer-delivery script assembles sdk zip and example assets with
 
   const checks = [
     'agora-rtc-cocos-plugin.zip',
+    'example-basic-call/.creator/default-meta.json',
+    'example-basic-call/.gitignore',
     'example-basic-call/README.md',
     'example-basic-call/assets',
     'example-basic-call/build-configs',
+    'example-basic-call/native/agora-rtc/cc_plugin.json',
+    'example-basic-call/native/engine/android/res/values/strings.xml',
+    'example-basic-call/native/engine/common/CMakeLists.txt',
+    'example-basic-call/native/engine/ios/Info.plist',
+    'example-basic-call/package.json',
+    'example-basic-call/settings/v2/packages/project.json',
+    'example-basic-call/tsconfig.json',
   ];
 
   for (const relativePath of checks) {
@@ -81,7 +90,6 @@ test('package-customer-delivery script assembles sdk zip and example assets with
     /^example-basic-call\/build(?:-|\/)(?!configs\/)/,
     /^example-basic-call\/library\//,
     /^example-basic-call\/temp\//,
-    /^example-basic-call\/native\/engine\//,
     /^example-basic-call\/assets\/resources\/agora-config\.build\.json(?:\.meta)?$/,
     /\.(?:mobileprovision|p12|jks|keystore)$/,
   ];
