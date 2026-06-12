@@ -844,7 +844,7 @@ test('client supports ios jsb bridge wrapper method names', async () => {
     timeoutMs: 50,
   });
 
-  const pending = client.setRenderBackend('surface-view');
+  const pending = client.setRenderBackend('engine-texture');
 
   assert.equal(transport.sent.length, 1);
   assert.equal(transport.sent[0].eventName, 'agora:request');
@@ -1407,12 +1407,12 @@ test('setRenderBackend dispatches the expected native request', async () => {
     timeoutMs: 50,
   });
 
-  const pending = client.setRenderBackend('texture-view');
+  const pending = client.setRenderBackend('engine-texture');
   const request = JSON.parse(transport.sent[0].payload);
 
   assert.equal(request.method, 'setRenderBackend');
   assert.deepEqual(request.params, {
-    backend: 'texture-view',
+    backend: 'engine-texture',
   });
 
   transport.emit(
