@@ -58,7 +58,7 @@ public final class AgoraRtcPlugin {
     private boolean attached;
     private boolean permissionRequestInFlight;
     private final Queue<PendingPermissionAction> pendingPermissionActions = new ArrayDeque<>();
-    private String renderBackendType = "surface-view";
+    private String renderBackendType = "engine-texture";
     private AgoraRenderBackend renderBackend = AgoraRenderBackendFactory.create(
             renderBackendType,
             this::dispatchEvent
@@ -414,7 +414,7 @@ public final class AgoraRtcPlugin {
     }
 
     private void handleSetRenderBackend(String requestId, JSONObject params) {
-        String backend = params != null ? params.optString("backend", "surface-view") : "surface-view";
+        String backend = params != null ? params.optString("backend", "engine-texture") : "engine-texture";
         if (backend == null || backend.trim().isEmpty()) {
             dispatchError(requestId, "Render backend is required.");
             return;
@@ -1828,9 +1828,7 @@ public final class AgoraRtcPlugin {
     }
 
     private boolean isSupportedRenderBackend(String backend) {
-        return "surface-view".equals(backend)
-                || "texture-view".equals(backend)
-                || "engine-texture".equals(backend);
+        return "engine-texture".equals(backend);
     }
 
     private String extractRequestId(String payload) {

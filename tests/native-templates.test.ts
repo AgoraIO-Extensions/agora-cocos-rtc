@@ -274,8 +274,6 @@ test('ios swift bridge template uses Swift-compatible Foundation and AVFoundatio
     /AVAudioSession\.sharedInstance\(\)\.recordPermission\(\)/,
   );
   assert.doesNotMatch(bridgeContent, /NSStringFromCGRect|NSStringFromCGSize/);
-  assert.match(bridgeContent, /NSCoder\.string\(for: view\.frame\)/);
-  assert.match(bridgeContent, /NSCoder\.string\(for: rootView\.bounds\)/);
   assert.match(bridgeContent, /NSCoder\.string\(for: size\)/);
 });
 
@@ -294,53 +292,8 @@ test('engine-texture backend keeps template/runtime slot upload dimensions in sy
   );
 });
 
-test('android render backends build video canvas and texture slots from JS canvas payloads', async () => {
-  const nativeViewBackendContent = await readFile(
-    path.join(
-      repoRoot,
-      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/render/AbstractNativeViewRenderBackend.java',
-    ),
-    'utf8',
-  );
+test('android engine-texture backend builds texture slots from JS canvas payloads', async () => {
   const engineTextureBackendContent = await readFile(engineTextureBackendTemplate, 'utf8');
-
-  assert.match(nativeViewBackendContent, /private VideoCanvas buildVideoCanvas\(View view, JSONObject params, int fallbackUid\)/);
-  assert.match(nativeViewBackendContent, /new VideoCanvas\(view, resolveRenderMode\(params\), resolveUid\(params, fallbackUid\)\)/);
-  assert.match(nativeViewBackendContent, /canvas\.uid = resolveUid\(params, fallbackUid\)/);
-  assert.match(nativeViewBackendContent, /canvas\.subviewUid = resolveSubviewUid\(params\)/);
-  assert.match(nativeViewBackendContent, /canvas\.renderMode = resolveRenderMode\(params\)/);
-  assert.match(nativeViewBackendContent, /canvas\.mirrorMode = resolveMirrorMode\(params\)/);
-  assert.match(nativeViewBackendContent, /canvas\.setupMode = resolveVideoViewSetupMode\(params\)/);
-  assert.match(nativeViewBackendContent, /canvas\.sourceType = resolveVideoSourceType\(params\)/);
-  assert.match(nativeViewBackendContent, /canvas\.mediaPlayerId = resolveMediaPlayerId\(params\)/);
-  assert.match(nativeViewBackendContent, /canvas\.rect = cropArea/);
-  assert.match(nativeViewBackendContent, /canvas\.enableAlphaMask = params\.optBoolean\("enableAlphaMask", canvas\.enableAlphaMask\)/);
-  assert.match(nativeViewBackendContent, /canvas\.backgroundColor = params\.optInt\("backgroundColor", canvas\.backgroundColor\)/);
-  assert.match(nativeViewBackendContent, /canvas\.position = resolveVideoModulePosition\(params\)/);
-  assert.match(nativeViewBackendContent, /return "adaptive"\.equals\(renderMode\) \? Constants\.RENDER_MODE_ADAPTIVE/);
-  assert.match(nativeViewBackendContent, /rtcEngine\.setLocalRenderMode\(resolveRenderMode\(params\), resolveMirrorMode\(params\)\)/);
-  assert.match(nativeViewBackendContent, /rtcEngine\.setRemoteRenderMode\(uid, resolveRenderMode\(params\), resolveMirrorMode\(params\)\)/);
-  assert.match(nativeViewBackendContent, /rtcEngine\.setupLocalVideo\(buildVideoCanvas\(localVideoView, params, 0\)\)/);
-  assert.match(nativeViewBackendContent, /rtcEngine\.setupRemoteVideo\(buildVideoCanvas\(remoteView, params, uid\)\)/);
-  const setupLocalMatch = nativeViewBackendContent.match(
-    /public void setupLocalVideoView[\s\S]*?public void setupRemoteVideoView/,
-  );
-  assert.ok(setupLocalMatch);
-  assert.match(
-    setupLocalMatch[0],
-    /applyLayout\(localVideoView, params\);\s*rtcEngine\.setupLocalVideo\(buildVideoCanvas\(localVideoView, params, 0\)\);\s*rtcEngine\.setLocalRenderMode/,
-  );
-  const setupRemoteMatch = nativeViewBackendContent.match(
-    /public void setupRemoteVideoView[\s\S]*?public void updateLocalVideoView/,
-  );
-  assert.ok(setupRemoteMatch);
-  assert.match(
-    setupRemoteMatch[0],
-    /applyLayout\(remoteView, params\);\s*rtcEngine\.setupRemoteVideo\(buildVideoCanvas\(remoteView, params, uid\)\);\s*rtcEngine\.setRemoteRenderMode/,
-  );
-  assert.doesNotMatch(nativeViewBackendContent, /new VideoCanvas\(\s*\)/);
-  assert.doesNotMatch(nativeViewBackendContent, /new VideoCanvas\(\s*localVideoView,\s*resolveRenderMode\(params\),\s*0\s*\)/);
-  assert.doesNotMatch(nativeViewBackendContent, /new VideoCanvas\(\s*remoteView,\s*resolveRenderMode\(params\),\s*uid\s*\)/);
 
   assert.match(engineTextureBackendContent, /final boolean mirror = slot\.mirror;/);
   assert.match(engineTextureBackendContent, /resolveMirror\(params, true\)/);
@@ -357,13 +310,11 @@ test('android render backends build video canvas and texture slots from JS canva
   assert.match(engineTextureBackendContent, /observedFramePosition/);
   assert.match(engineTextureBackendContent, /POSITION_PRE_ENCODER/);
   assert.doesNotMatch(engineTextureBackendContent, /return POSITION_POST_CAPTURER \| POSITION_PRE_RENDERER;/);
-  for (const content of [nativeViewBackendContent, engineTextureBackendContent]) {
-    assert.match(content, /public void startPreview\(JSONObject params, AgoraRenderResultCallback callback\)/);
-    assert.match(content, /rtcEngine\.startPreview\(resolvePreviewVideoSourceType\(params\)\)/);
-    assert.match(content, /public void stopPreview\(JSONObject params, AgoraRenderResultCallback callback\)/);
-    assert.match(content, /rtcEngine\.stopPreview\(resolvePreviewVideoSourceType\(params\)\)/);
-    assert.match(content, /protected Constants\.VideoSourceType resolvePreviewVideoSourceType\(JSONObject params\)/);
-  }
+  assert.match(engineTextureBackendContent, /public void startPreview\(JSONObject params, AgoraRenderResultCallback callback\)/);
+  assert.match(engineTextureBackendContent, /rtcEngine\.startPreview\(resolvePreviewVideoSourceType\(params\)\)/);
+  assert.match(engineTextureBackendContent, /public void stopPreview\(JSONObject params, AgoraRenderResultCallback callback\)/);
+  assert.match(engineTextureBackendContent, /rtcEngine\.stopPreview\(resolvePreviewVideoSourceType\(params\)\)/);
+  assert.match(engineTextureBackendContent, /protected Constants\.VideoSourceType resolvePreviewVideoSourceType\(JSONObject params\)/);
 });
 
 test('engine-texture backend emits texture slot lifecycle events instead of Base64 frame payloads', async () => {
@@ -1732,6 +1683,9 @@ test('ios bridge template rejects unsafe invalid arguments before calling the rt
   assert.match(setRenderBackendMatch[0], /Render backend is required\./);
   assert.match(setRenderBackendMatch[0], /isSupportedRenderBackend\(requestedBackend\)/);
   assert.match(setRenderBackendMatch[0], /Unsupported render backend/);
+  assert.match(setRenderBackendMatch[0], /renderBackend = requestedBackend/);
+  assert.doesNotMatch(setRenderBackendMatch[0], /renderBackend = "surface-view"/);
+  assert.doesNotMatch(setRenderBackendMatch[0], /"phase": "fallback"/);
   assertPatternBefore(
     setRenderBackendMatch[0],
     /dispatchInvalidArgumentError/,
@@ -2057,68 +2011,50 @@ test('ios integration script can remove simulator launch assets for local smoke 
   );
 });
 
-test('ios bridge template manages native video canvas views for local and remote rendering', async () => {
+test('ios bridge template manages engine-texture local and remote lifecycle hooks', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
     'utf8',
   );
 
-  assert.match(bridgeContent, /AgoraRtcVideoCanvas/);
   assert.match(bridgeContent, /setupLocalVideoView/);
   assert.match(bridgeContent, /setupRemoteVideoView/);
   assert.match(bridgeContent, /updateLocalVideoView/);
   assert.match(bridgeContent, /updateRemoteVideoView/);
   assert.match(bridgeContent, /removeLocalVideoView/);
   assert.match(bridgeContent, /removeRemoteVideoView/);
-  assert.match(bridgeContent, /addSubview/);
-  assert.match(bridgeContent, /removeFromSuperview/);
-  assert.match(bridgeContent, /setLocalRenderMode/);
-  assert.match(bridgeContent, /setRemoteRenderMode/);
-  assert.match(bridgeContent, /CGRect/);
+  assert.match(bridgeContent, /localTextureRequested = true/);
+  assert.match(bridgeContent, /remoteTextureUids\.insert\(uid\)/);
+  assert.match(bridgeContent, /releaseLocalTextureSlot\(\)/);
+  assert.match(bridgeContent, /releaseRemoteTextureSlot\(uid\)/);
 });
 
-test('ios bridge template builds AgoraRtcVideoCanvas from JS canvas payloads', async () => {
+test('ios bridge template maps JS canvas payloads into engine-texture slot parameters', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
     'utf8',
   );
 
-  assert.match(bridgeContent, /private func applyVideoCanvasParams\(_ canvas: AgoraRtcVideoCanvas, params: \[String: Any\], fallbackUid: UInt\)/);
-  assert.match(bridgeContent, /canvas\.uid = uintValue\(params\["uid"\] \?\? fallbackUid\)/);
-  assert.match(bridgeContent, /canvas\.subviewUid = uintValue\(params\["subviewUid"\] \?\? canvas\.subviewUid\)/);
-  assert.match(bridgeContent, /canvas\.renderMode = renderMode\(from: params\)/);
-  assert.match(bridgeContent, /canvas\.mirrorMode = mirrorMode\(from: params\)/);
-  assert.match(bridgeContent, /canvas\.setupMode = videoViewSetupMode\(from: params\)/);
-  assert.match(bridgeContent, /canvas\.sourceType = videoSourceType\(from: params\)/);
-  assert.match(bridgeContent, /canvas\.mediaPlayerId = Int32\(intValue\(params\["mediaPlayerId"\] \?\? canvas\.mediaPlayerId\)\)/);
-  assert.match(bridgeContent, /canvas\.cropArea = cropArea/);
-  assert.match(bridgeContent, /canvas\.backgroundColor = uint32Value\(params\["backgroundColor"\] \?\? canvas\.backgroundColor\)/);
-  assert.match(bridgeContent, /canvas\.enableAlphaMask = boolValue\(params\["enableAlphaMask"\] \?\? canvas\.enableAlphaMask\)/);
-  assert.match(bridgeContent, /canvas\.position = videoModulePosition\(from: params\)/);
-  assert.match(bridgeContent, /AgoraVideoModulePosition\(rawValue: value\) \?\? \.postCapture/);
+  assert.match(bridgeContent, /private func resolveTextureWidth\(_ params: \[String: Any\], local: Bool\) -> Int/);
+  assert.match(bridgeContent, /private func resolveTextureHeight\(_ params: \[String: Any\], local: Bool\) -> Int/);
+  assert.match(bridgeContent, /private func resolveTextureMirror\(_ params: \[String: Any\], local: Bool\) -> Bool/);
+  assert.match(bridgeContent, /private func resolveFrameObserverPosition\(/);
   assert.match(bridgeContent, /case "adaptive":\s*return \.adaptive/);
-  assert.match(bridgeContent, /let canvas = self\.localCanvas \?\? AgoraRtcVideoCanvas\(\)[\s\S]*self\.applyVideoCanvasParams\(canvas, params: params, fallbackUid: 0\)[\s\S]*_ = engine\.setupLocalVideo\(canvas\)/);
-  assert.match(bridgeContent, /let canvas = self\.remoteCanvases\[uid\] \?\? AgoraRtcVideoCanvas\(\)[\s\S]*self\.applyVideoCanvasParams\(canvas, params: params, fallbackUid: uid\)[\s\S]*_ = engine\.setupRemoteVideo\(canvas\)/);
-  assert.match(bridgeContent, /engine\.setLocalRenderMode\(self\.renderMode\(from: params\), mirror: self\.mirrorMode\(from: params\)\)/);
-  assert.match(bridgeContent, /engine\.setRemoteRenderMode\(uid, mode: self\.renderMode\(from: params\), mirror: self\.mirrorMode\(from: params\)\)/);
-  assert.doesNotMatch(bridgeContent, /canvas\.mirrorMode = \.auto/);
-  assert.doesNotMatch(bridgeContent, /setLocalRenderMode\(self\.renderMode\(from: params\), mirror: \.auto\)/);
-  assert.doesNotMatch(bridgeContent, /setRemoteRenderMode\(uid, mode: self\.renderMode\(from: params\), mirror: \.auto\)/);
+  assert.match(bridgeContent, /ensureLocalTextureSlot\(params\)/);
+  assert.match(bridgeContent, /ensureRemoteTextureSlot\(uid, params: params\)/);
+  assert.match(bridgeContent, /configureTextureSlot\(slotId: slotId, width: width, height: height, renderMode: renderMode\)/);
 });
 
-test('ios bridge template falls back unsupported render backends to surface-view and dispatches backend state', async () => {
+test('ios bridge template only accepts engine-texture render backend', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
     'utf8',
   );
 
-  assert.match(bridgeContent, /renderBackend = "surface-view"/);
+  assert.match(bridgeContent, /renderBackend = "engine-texture"/);
   assert.match(bridgeContent, /case "setRenderBackend":/);
-  assert.match(bridgeContent, /if requestedBackend == "texture-view"/);
-  assert.match(bridgeContent, /dispatchEvent\(name: "renderBackendState"/);
-  assert.match(bridgeContent, /"phase": "fallback"/);
-  assert.match(bridgeContent, /"fallbackBackend": renderBackend/);
-  assert.match(bridgeContent, /"platform": "ios"/);
+  assert.doesNotMatch(bridgeContent, /surface-view/);
+  assert.doesNotMatch(bridgeContent, /texture-view/);
 });
 
 test('ios bridge template routes engine-texture through AgoraVideoFrameDelegate instead of UIView overlay', async () => {
@@ -2151,8 +2087,9 @@ test('ios bridge template routes engine-texture through AgoraVideoFrameDelegate 
   assert.match(bridgeContent, /\.preEncoder/);
   assert.doesNotMatch(bridgeContent, /return \[\.postCapture, \.preRenderer\]/);
   assert.match(bridgeContent, /payload\["uid"\] = uid/);
-  assert.match(bridgeContent, /private func handleUpdateLocalVideoView\(requestId: String, params: \[String: Any\]\) \{\n        if renderBackend == "engine-texture" \{[\s\S]*?ensureLocalTextureSlot\(params\)/);
-  assert.match(bridgeContent, /private func handleUpdateRemoteVideoView\(requestId: String, params: \[String: Any\]\) \{\n        let uid = uintValue\(params\["uid"\] \?\? 0\)[\s\S]*?\n        if renderBackend == "engine-texture" \{[\s\S]*?ensureRemoteTextureSlot\(uid, params: params\)/);
+  assert.match(bridgeContent, /private func handleUpdateLocalVideoView\(requestId: String, params: \[String: Any\]\) \{[\s\S]*?ensureLocalTextureSlot\(params\)/);
+  assert.match(bridgeContent, /private func handleUpdateRemoteVideoView\(requestId: String, params: \[String: Any\]\) \{[\s\S]*?ensureRemoteTextureSlot\(uid, params: params\)/);
+  assert.match(bridgeContent, /func rtcEngine\(_ engine: AgoraRtcEngineKit, didOfflineOfUid uid: UInt, reason: AgoraUserOfflineReason\) \{[\s\S]*?remoteTextureUids\.remove\(uid\)[\s\S]*?releaseRemoteTextureSlot\(uid\)[\s\S]*?dispatchEvent\(name: "userOffline"/);
   assert.match(slotBridgeContent, /case 12:/);
   assert.match(slotBridgeContent, /case 13:/);
   assert.match(slotBridgeContent, /case 14:/);
@@ -3179,6 +3116,9 @@ public class RtcEngine {
   assert.match(pluginSource, /GlobalObject\.getActivity\(\)/);
   assert.match(pluginSource, /setRenderBackend/);
   assert.match(pluginSource, /AgoraRenderBackendFactory/);
+  assert.match(pluginSource, /renderBackendType = "engine-texture"/);
+  assert.doesNotMatch(pluginSource, /surface-view/);
+  assert.doesNotMatch(pluginSource, /texture-view/);
   const handleJoinChannelMatch = pluginSource.match(
     /private void handleJoinChannel[\s\S]*?private void handleSetupLocalVideoView/,
   );

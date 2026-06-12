@@ -100,4 +100,4 @@ await client.joinChannel(token, channelId, uid);
 
 ## Cocos render helpers
 
-The render backend, video view, engine texture, and native video overlay APIs are Cocos integration helpers rather than one-to-one Agora Native SDK passthroughs. `setNativeVideoOverlaySuspended` hides or restores the native video overlay views used by the native-view render backends. For `engine-texture`, video frames are uploaded through Cocos texture slots, so the native video overlay helper has no visible native view to suspend.
+The render backend, video view, engine texture, and native video overlay APIs are Cocos integration helpers rather than one-to-one Agora Native SDK passthroughs. In the current delivery, `engine-texture` is the only supported render backend. `setNativeVideoOverlaySuspended` remains as a compatibility no-op; video frames are uploaded through Cocos texture slots, so there is no visible native overlay to suspend.

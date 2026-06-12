@@ -406,6 +406,21 @@ test('rtc session service retries engine texture binding until the native slot i
   assert.match(content, /clearTimeout/);
 });
 
+test('rtc session service removes remote render bindings when a user goes offline', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  const userOfflineMatch = content.match(
+    /this\.client\.on\('userOffline', \(\{ uid, reason \}\) => \{[\s\S]*?\n    \}\);/,
+  );
+  assert.ok(userOfflineMatch);
+  assert.match(userOfflineMatch[0], /void this\.removeRemoteVideoView\(uid\)\.catch/);
+  assert.match(userOfflineMatch[0], /this\.clearRemoteVideoRenderState\(\[uid\]\)/);
+  assert.match(userOfflineMatch[0], /this\.lastRemoteVideoStatsByUid\.delete\(uid\)/);
+});
+
 test('video stage panel owns local stage, remote thumbnails, and stats overlays', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/panels/VideoStagePanel.ts`,
