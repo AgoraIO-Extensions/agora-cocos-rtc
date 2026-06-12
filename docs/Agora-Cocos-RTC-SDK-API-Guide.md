@@ -506,7 +506,7 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `audioDelayMs` | `number` | No | 音频发布延迟，单位毫秒。 |
 | `mediaPlayerAudioDelayMs` | `number` | No | 媒体播放器音频延迟，单位毫秒。 |
 | `startPreview` | `boolean` | No | 加入频道前是否先启动本地预览；iOS bridge 也会据此调用 `startPreview`。 |
-| `sourceType` | `number` | No | 预览或发布所使用的视频源类型；iOS bridge 用于预览辅助参数。 |
+| `sourceType` | `number` | No | iOS bridge 在 `startPreview` 为 `true` 时使用的辅助字段，用于指定预览使用的视频源类型；Android `ChannelMediaOptions` 不暴露该字段。 |
 | `enableBuiltInMediaEncryption` | `boolean` | No | 是否启用内置媒体加密。 |
 | `publishRhythmPlayerTrack` | `boolean` | No | 是否发布节奏播放器轨道。 |
 | `isInteractiveAudience` | `boolean` | No | 是否以连麦观众身份加入。 |
@@ -516,7 +516,7 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `uplinkMultipathMode` | `number` | No | 上行多路径模式。 |
 | `downlinkMultipathMode` | `number` | No | 下行多路径模式。 |
 | `preferMultipathType` | `number` | No | 多路径网络优先策略。 |
-| `token` | `string` | No | 加入频道时附带的 token，便于某些业务侧统一封装入会参数。 |
+| `token` | `string` | No | 业务侧可保留在统一的 options 对象中做透传或封装；但 JS `joinChannel(...)` / `joinChannelWithUserAccount(...)` 仍以方法参数 `token` 作为主要入参。 |
 | `parameters` | `string` | No | 透传给底层原生 SDK 的附加参数字符串。 |
 
 推荐视频通话配置示例：
@@ -537,7 +537,7 @@ const mediaOptions: AgoraChannelMediaOptions = {
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `uid` | `number` | No | 目标用户 UID；本地视图通常不必显式传入，远端视图可用于标识绑定对象。 |
+| `uid` | `number` | No | 画布对象中可附带的 UID 信息；本地视图通常不必显式传入。远端绑定目标仍以 `setupRemoteVideoView(uid, canvas)` / `updateRemoteVideoView(uid, canvas)` 的方法参数 `uid` 为准。 |
 | `subviewUid` | `number` | No | 子视图 UID，用于多路子画面场景。 |
 | `x` | `number` | Yes | 渲染区域左上角横坐标。 |
 | `y` | `number` | Yes | 渲染区域左上角纵坐标。 |
@@ -558,7 +558,7 @@ const mediaOptions: AgoraChannelMediaOptions = {
 推荐说明：
 
 - `renderMode` 选择 `'hidden'` 时允许裁剪以铺满区域，`'fit'` 会完整显示画面但可能留边，`'adaptive'` 适合交给底层做自适应处理。
-- `uid` 在 `setupRemoteVideoView` / `updateRemoteVideoView` 这类远端渲染流程里应与目标远端用户保持一致，避免复用同一画布配置时错绑到其他用户。
+- 在 `setupRemoteVideoView(uid, canvas)` / `updateRemoteVideoView(uid, canvas)` 中，真正决定远端绑定目标的是方法参数 `uid`；不要把 `canvas.uid` 当作唯一或主要的绑定控制入口。
 - 使用 `engine-texture` 时，`textureWidth` / `textureHeight` 建议与实际 Cocos 视图尺寸保持一致，这样可减少额外缩放带来的拉伸、模糊和纹理重建成本。
 
 ### AgoraVideoEncoderConfiguration
@@ -595,12 +595,16 @@ const mediaOptions: AgoraChannelMediaOptions = {
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `module` | `number` | No | 内容审核模块类型。 |
+| `module` | `number` | No | 单模块配置写法，对应一个内容审核模块类型。 |
 | `interval` | `number` | No | 审核采样间隔。 |
 | `position` | `number` | No | 审核位置参数。 |
 | `extraInfo` | `string` | No | 业务附加信息。 |
 | `serverConfig` | `string` | No | 服务端审核配置字符串。 |
-| `modules` | `Array<{ type?: number; interval?: number; position?: number; }>` | No | 多模块审核配置列表。 |
+| `modules` | `Array<{ type?: number; interval?: number; position?: number; }>` | No | 多模块配置写法，可同时声明多个审核模块。 |
+
+补充说明：
+
+- `module` 适合单模块配置，`modules` 适合多模块配置；启用内容审核时，通常应至少提供一条可生效的模块配置路径。
 
 ### AgoraLeaveChannelOptions
 
