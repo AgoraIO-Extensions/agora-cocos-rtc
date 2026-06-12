@@ -376,6 +376,20 @@ test('rtc session service tracks flutter-style video settings and stats', async 
   assert.match(content, /applyVideoEncoderPreset/);
 });
 
+test('rtc session service resets preview state after stopping preview so toggle can start it again', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  const stopPreviewMatch = content.match(/async stopLocalPreview\(\): Promise<void>[\s\S]*?async togglePreview/);
+  assert.ok(stopPreviewMatch);
+  assert.match(stopPreviewMatch[0], /await this\.getClient\(\)\.stopPreview\(\);/);
+  assert.match(stopPreviewMatch[0], /this\.previewStarted = false;/);
+  assert.match(stopPreviewMatch[0], /this\.clearLocalVideoRenderState\(\);/);
+  assert.match(stopPreviewMatch[0], /this\.emitState\(\);/);
+});
+
 test('rtc session service retries engine texture binding until the native slot is ready', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
@@ -569,6 +583,18 @@ test('demo root supports case list navigation before case detail actions', async
   assert.match(panelContent, /AudioEffectMixing/);
 });
 
+test('parameter preset buttons keep success and failure state on the pressed button key', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /async applyKeepAudioSessionParameter\(\): Promise<void> \{[\s\S]*applyParameterPreset\('KeepAudioSession', \{ 'che\.audio\.keep\.audiosession': true \}\)/);
+  assert.match(content, /async applyMixableAudioParameter\(\): Promise<void> \{[\s\S]*applyParameterPreset\('MixableAudio', \{ 'che\.audio\.enable\.mixable': true \}\)/);
+  assert.match(content, /private async applyParameterPreset\(actionName: string, parameters: Record<string, unknown>\): Promise<void>/);
+  assert.match(content, /await this\.runSessionAction\(actionName, \(session\) => session\.applyParameterPreset\(parameters\)\);/);
+});
+
 test('audio effect mixing case wires flutter-required controls', async () => {
   const actionsContent = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/actions.ts`,
@@ -615,10 +641,25 @@ test('audio effect mixing case resolves a bundled local mixing asset', async () 
 
   assert.match(content, /Agora\.io-Interactions\.mp3/);
   assert.match(content, /resolveAudioMixingAssetPath/);
+  assert.match(content, /resolveAudioEffectAssetPath/);
+  assert.match(content, /export const AUDIO_EFFECT_RESOURCE = 'audio\/Agora\.io-Interactions\.mp3'/);
   assert.match(content, /native\.fileUtils/);
   assert.match(content, /getWritablePath/);
   assert.match(content, /copyFile/);
-  assert.match(content, /https:\/\/webdemo\.agora\.io\/ding\.mp3/);
+  assert.doesNotMatch(content, /https:\/\/webdemo\.agora\.io\/ding\.mp3/);
+});
+
+test('audio effect demo actions use the bundled local asset path instead of a remote url', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /resolveAudioEffectAssetPath/);
+  assert.match(content, /private readonly audioEffectPath = resolveAudioEffectAssetPath\(\);/);
+  assert.match(content, /preloadEffect\(this\.audioEffectSoundId, this\.audioEffectPath\)/);
+  assert.match(content, /path: this\.audioEffectPath,/);
+  assert.doesNotMatch(content, /audioEffectUrl = 'https:\/\/webdemo\.agora\.io\/ding\.mp3'/);
 });
 
 test('demo action panel renders case-specific controls instead of the full qa matrix', async () => {
