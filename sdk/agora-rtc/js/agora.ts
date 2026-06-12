@@ -320,18 +320,6 @@ export class AgoraRtcClient {
   }
 
   startAudioMixing(config: AgoraAudioMixingConfig): Promise<void> {
-    if (Object.prototype.hasOwnProperty.call(config as unknown as Record<string, unknown>, 'replace')) {
-      return Promise.reject(
-        new AgoraSdkError(
-          AgoraErrorCode.ProtocolError,
-          'startAudioMixing.replace is not supported by the Agora RTC 4.5.3 native bridge.',
-          {
-            method: 'startAudioMixing',
-            parameter: 'replace',
-          },
-        ),
-      );
-    }
     return this.#invoke('startAudioMixing', { ...config }) as Promise<void>;
   }
 
@@ -368,6 +356,21 @@ export class AgoraRtcClient {
   }
 
   playEffect(config: AgoraPlayEffectConfig): Promise<void> {
+    if (
+      config.gain !== undefined &&
+      (!Number.isFinite(config.gain) || !Number.isInteger(config.gain))
+    ) {
+      return Promise.reject(
+        new AgoraSdkError(
+          AgoraErrorCode.ProtocolError,
+          'playEffect.gain must be an integer volume value for the current native bridge.',
+          {
+            method: 'playEffect',
+            parameter: 'gain',
+          },
+        ),
+      );
+    }
     return this.#invoke('playEffect', { ...config }) as Promise<void>;
   }
 

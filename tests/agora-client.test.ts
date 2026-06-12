@@ -595,6 +595,27 @@ test('joinChannel keeps the existing payload when options are omitted', async ()
   await pending;
 });
 
+test('joinChannelWithUserAccount keeps the existing payload when options are omitted', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.joinChannelWithUserAccount('demo-token', 'demo-channel', 'user-7');
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'joinChannelWithUserAccount');
+  assert.deepEqual(request.params, {
+    token: 'demo-token',
+    channelId: 'demo-channel',
+    userAccount: 'user-7',
+  });
+
+  transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true }));
+  await pending;
+});
+
 test('client preserves native validation error details for bad api calls', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -1096,27 +1117,42 @@ test('startAudioMixing dispatches the expected native request', async () => {
   await pending;
 });
 
-test('startAudioMixing rejects replace because RTC 4.5.3 bridge signatures do not support it', async () => {
+test('startAudioMixing forwards unknown extra fields without client-side rejection', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
     transport,
     timeoutMs: 50,
   });
 
-  await assert.rejects(
-    client.startAudioMixing({
-      path: 'audio/demo.mp3',
-      loopback: false,
-      cycle: 1,
-      replace: false,
-    } as any),
-    (error: { code: string; message: string; details: Record<string, unknown> }) =>
-      error.code === AgoraErrorCode.ProtocolError &&
-      error.message === 'startAudioMixing.replace is not supported by the Agora RTC 4.5.3 native bridge.' &&
-      error.details.method === 'startAudioMixing' &&
-      error.details.parameter === 'replace',
+  const pending = client.startAudioMixing({
+    path: 'audio/demo.mp3',
+    loopback: false,
+    cycle: 1,
+    replace: false,
+  } as any);
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'startAudioMixing');
+  assert.deepEqual(request.params, {
+    path: 'audio/demo.mp3',
+    loopback: false,
+    cycle: 1,
+    replace: false,
+  });
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
   );
-  assert.equal(transport.sent.length, 0);
+
+  await pending;
+});
+
+test('startAudioMixing no longer advertises replace in the public config contract', () => {
+  assert.ok(!extractInterfaceFields('AgoraAudioMixingConfig').includes('replace'));
 });
 
 test('AudioEffectMixing extra APIs dispatch expected native requests', async () => {
@@ -1805,4 +1841,25 @@ test('client dispatches expected native requests for all expanded public APIs', 
   await testApi('setNativeVideoOverlaySuspended', () => client.setNativeVideoOverlaySuspended(true), { suspended: true });
   await testApi('stopPreview', () => client.stopPreview(1), { sourceType: 1 });
   await testApi('renewToken', () => client.renewToken('token123'), { token: 'token123' });
+});
+
+test('playEffect rejects non-integer gain values before bridge dispatch', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  await assert.rejects(
+    client.playEffect({
+      soundId: 1,
+      path: '/path',
+      gain: 12.5,
+    } as any),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'playEffect' &&
+      error.details.parameter === 'gain',
+  );
+  assert.equal(transport.sent.length, 0);
 });
