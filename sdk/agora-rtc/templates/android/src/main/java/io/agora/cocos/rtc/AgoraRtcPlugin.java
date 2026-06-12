@@ -560,7 +560,7 @@ public final class AgoraRtcPlugin {
                 @Override
                 public void onLocalVideoStateChanged(Constants.VideoSourceType source, int state, int error) {
                     dispatchEvent("localVideoStateChanged", jsonObject(
-                            "sourceType", source != null ? source.ordinal() : 0,
+                            "sourceType", mapLocalVideoSourceType(source),
                             "state", state,
                             "error", error
                     ));
@@ -971,9 +971,35 @@ public final class AgoraRtcPlugin {
         ));
     }
 
+    private int mapLocalVideoSourceType(Constants.VideoSourceType source) {
+        if (source == null) {
+            return 0;
+        }
+        switch (source) {
+            case VIDEO_SOURCE_CAMERA_PRIMARY:
+            default:
+                return 0;
+        }
+    }
+
+    private boolean isSupportedLocalTextureSourceType(JSONObject params) {
+        int sourceType = params != null ? params.optInt("sourceType", 0) : 0;
+        return sourceType == 0;
+    }
+
     private void handleSetupLocalVideoView(String requestId, JSONObject params) {
         Activity activity = requireActivity(requestId);
         if (activity == null) {
+            return;
+        }
+        if (!isSupportedLocalTextureSourceType(params)) {
+            dispatchInvalidArgumentError(
+                    requestId,
+                    "engine-texture local rendering supports only the primary camera source.",
+                    "setupLocalVideoView",
+                    "sourceType",
+                    String.valueOf(params != null ? params.optInt("sourceType", 0) : 0)
+            );
             return;
         }
         renderBackend.setupLocalVideoView(activity, params, requestCallback(requestId));
@@ -988,6 +1014,16 @@ public final class AgoraRtcPlugin {
     }
 
     private void handleUpdateLocalVideoView(String requestId, JSONObject params) {
+        if (!isSupportedLocalTextureSourceType(params)) {
+            dispatchInvalidArgumentError(
+                    requestId,
+                    "engine-texture local rendering supports only the primary camera source.",
+                    "updateLocalVideoView",
+                    "sourceType",
+                    String.valueOf(params != null ? params.optInt("sourceType", 0) : 0)
+            );
+            return;
+        }
         renderBackend.updateLocalVideoView(params, requestCallback(requestId));
     }
 

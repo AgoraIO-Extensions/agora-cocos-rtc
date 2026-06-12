@@ -395,7 +395,7 @@ test('engine-texture raw frame path applies orientation before uploading texture
   assert.match(commonBridgeContent, /mirror/);
 });
 
-test('engine-texture local camera preview keeps platform-specific mirror semantics', async () => {
+test('engine-texture local camera preview requires explicit enabled mirror semantics', async () => {
   const androidTemplateContent = await readFile(engineTextureBackendTemplate, 'utf8');
   const androidRuntimeContent = await readFile(engineTextureBackendRuntime, 'utf8');
   const iosBridgeContent = await readFile(
@@ -407,7 +407,7 @@ test('engine-texture local camera preview keeps platform-specific mirror semanti
     assert.match(content, /final boolean mirror = slot\.mirror;/);
     assert.match(content, /resolveLocalMirror\(params\)/);
     assert.match(content, /private boolean resolveLocalMirror\(JSONObject params\)/);
-    assert.match(content, /return mirrorMode != 2;/);
+    assert.match(content, /return mirrorMode == 1;/);
     assert.match(content, /boolean mirror = resolveMirror\(params, true\);/);
     assert.match(content, /boolean mirror = resolveMirror\(params, false\);/);
   }
@@ -931,6 +931,36 @@ test('android bridge template requests rtc runtime permissions before camera and
   assert.match(bridgeContent, /options\.stopMicrophoneRecording = params\.optBoolean\("stopMicrophoneRecording"\)/);
 });
 
+test('android bridge template narrows local engine-texture source validation and mirror semantics', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+  const backendContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/render/RawFrameTextureRenderBackend.java',
+    ),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /private boolean isSupportedLocalTextureSourceType\(JSONObject params\)/);
+  assert.match(
+    bridgeContent,
+    /private void handleSetupLocalVideoView\(String requestId, JSONObject params\) \{[\s\S]*?if \(!isSupportedLocalTextureSourceType\(params\)\)[\s\S]*?dispatchInvalidArgumentError/,
+  );
+  assert.match(
+    bridgeContent,
+    /private void handleUpdateLocalVideoView\(String requestId, JSONObject params\) \{[\s\S]*?if \(!isSupportedLocalTextureSourceType\(params\)\)[\s\S]*?dispatchInvalidArgumentError/,
+  );
+  assert.match(backendContent, /private boolean resolveLocalMirror\(JSONObject params\)/);
+  assert.match(backendContent, /return mirrorMode == 1;/);
+  assert.doesNotMatch(backendContent, /return mirrorMode != 2;/);
+});
+
 test('android bridge template supports default audio route to speakerphone', async () => {
   const bridgeContent = await readFile(
     path.join(
@@ -1008,7 +1038,8 @@ test('android bridge template dispatches expanded native rtc callbacks as js eve
   assert.match(bridgeContent, /"uid", uid,[\s\S]*"state", state,[\s\S]*"reason", reason,[\s\S]*"elapsed", elapsed/);
   assert.match(bridgeContent, /onLocalVideoStateChanged/);
   assert.match(bridgeContent, /dispatchEvent\("localVideoStateChanged"/);
-  assert.match(bridgeContent, /"sourceType", source != null \? source\.ordinal\(\) : 0/);
+  assert.match(bridgeContent, /private int mapLocalVideoSourceType\(Constants\.VideoSourceType source\)/);
+  assert.match(bridgeContent, /"sourceType", mapLocalVideoSourceType\(source\)/);
   assert.match(bridgeContent, /"error", error/);
   assert.match(bridgeContent, /onAudioMixingFinished/);
   assert.match(bridgeContent, /dispatchEvent\("audioMixingFinished"/);
