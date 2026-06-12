@@ -1,0 +1,30 @@
+{
+  "rules": [
+    {
+      "type": "mirror",
+      "src": "sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc",
+      "dst": "example/basic-call/native/agora-rtc/android/src/main/java/io/agora/cocos/rtc"
+    },
+    {
+      "type": "mirror",
+      "src": "sdk/agora-rtc/templates/ios",
+      "dst": "example/basic-call/native/agora-rtc/ios",
+      "include": [
+        "AgoraRtcBridge.swift",
+        "AgoraRtcPlugin.mm",
+        "AgoraEngineTextureSlotBridge.h",
+        "AgoraEngineTextureSlotBridge.mm"
+      ]
+    },
+    {
+      "type": "preserve",
+      "src": "customer-delivery/example-basic-call/native/engine"
+    }
+  ],
+  "overrides": [
+    {
+      "type": "exclude",
+      "pattern": "**/.DS_Store"
+    }
+  ]
+}

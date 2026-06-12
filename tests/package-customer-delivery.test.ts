@@ -106,19 +106,69 @@ test('package-customer-delivery script assembles sdk zip and example assets with
   }
 });
 
-test('package-customer-delivery script bootstraps missing native engine files before packaging', async () => {
+test('package-customer-delivery script copies the checked-in native engine template before packaging', async () => {
   const script = await readFile(
     path.join(repoRoot, 'scripts/package-customer-delivery.sh'),
     'utf8',
   );
 
-  assert.match(script, /engine_bootstrap_required=false/);
-  assert.match(script, /if \[\[ ! -f "\$ENGINE_ROOT\/android\/res\/values\/strings\.xml" \]\]; then/);
-  assert.match(script, /if \[\[ ! -f "\$ENGINE_ROOT\/common\/CMakeLists\.txt" \]\]; then/);
-  assert.match(script, /if \[\[ ! -f "\$ENGINE_ROOT\/ios\/Info\.plist" \]\]; then/);
-  assert.match(script, /if \[\[ "\$engine_bootstrap_required" == true \]\]; then/);
-  assert.match(script, /node "\$ROOT_DIR\/scripts\/sync-example-sdk-config\.mjs" >/);
-  assert.match(script, /cat > "\$ENGINE_ROOT\/android\/res\/values\/strings\.xml"/);
-  assert.match(script, /cat > "\$ENGINE_ROOT\/common\/CMakeLists\.txt"/);
-  assert.match(script, /cat > "\$ENGINE_ROOT\/ios\/Info\.plist"/);
+  assert.match(script, /DELIVERY_TEMPLATE_DIR="\$ROOT_DIR\/customer-delivery\/example-basic-call"/);
+  assert.match(script, /mkdir -p "\$EXAMPLE_DIR\/native"/);
+  assert.match(script, /cp -R "\$DELIVERY_TEMPLATE_DIR\/native\/engine" "\$EXAMPLE_DIR\/native\/"/);
+
+  const engineTemplateRoot = path.join(
+    repoRoot,
+    'customer-delivery/example-basic-call/native/engine',
+  );
+  const expectedTemplateFiles = [
+    'android/res/values/strings.xml',
+    'common/CMakeLists.txt',
+    'ios/Info.plist',
+  ];
+
+  for (const relativePath of expectedTemplateFiles) {
+    await access(path.join(engineTemplateRoot, relativePath));
+  }
+});
+
+test('customer-delivery template map defines directory-level sync boundaries', async () => {
+  const templateMap = JSON.parse(
+    await readFile(
+      path.join(repoRoot, 'scripts/customer-delivery-template-map.json'),
+      'utf8',
+    ),
+  );
+
+  assert.ok(Array.isArray(templateMap.rules));
+  assert.ok(templateMap.rules.length > 0);
+  assert.ok(Array.isArray(templateMap.overrides));
+
+  const exampleAndroidRule = templateMap.rules.find(
+    (rule: Record<string, unknown>) =>
+      rule.type === 'mirror'
+      && rule.src === 'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc'
+      && rule.dst === 'example/basic-call/native/agora-rtc/android/src/main/java/io/agora/cocos/rtc',
+  );
+  assert.ok(exampleAndroidRule, 'example Android runtime bridge should mirror from sdk templates');
+
+  const deliveryEngineRule = templateMap.rules.find(
+    (rule: Record<string, unknown>) =>
+      rule.type === 'preserve'
+      && rule.src === 'customer-delivery/example-basic-call/native/engine',
+  );
+  assert.ok(deliveryEngineRule, 'customer-delivery native engine should be preserved as a dedicated template root');
+});
+
+test('customer-delivery sync script enforces template rules from the shared map', async () => {
+  const script = await readFile(
+    path.join(repoRoot, 'scripts/sync-customer-delivery-templates.mjs'),
+    'utf8',
+  );
+
+  assert.match(script, /customer-delivery-template-map\.json/);
+  assert.match(script, /rule\.src/);
+  assert.match(script, /rule\.dst/);
+  assert.match(script, /Unsupported rule type/);
+  assert.match(script, /preserve/);
+  assert.match(script, /mirror/);
 });
