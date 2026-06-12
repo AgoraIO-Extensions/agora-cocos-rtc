@@ -247,9 +247,8 @@ For the full list, see:
 
 ### Android
 
-These APIs intentionally return `unsupported`:
+This API intentionally returns `unsupported`:
 
-- `setDefaultAudioRouteToSpeakerphone`
 - `setAudioSessionOperationRestriction`
 
 ### iOS

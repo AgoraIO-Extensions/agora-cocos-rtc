@@ -100,7 +100,7 @@ iOS has reached the main delivery goals:
 Keep these boundaries explicit in customer-facing communication:
 
 - Android
-  - `setDefaultAudioRouteToSpeakerphone` returns `unsupported`.
+  - `setDefaultAudioRouteToSpeakerphone` is supported.
   - `setAudioSessionOperationRestriction` returns `unsupported`.
 - iOS
   - `texture-view` is not a standalone primary delivery path.
