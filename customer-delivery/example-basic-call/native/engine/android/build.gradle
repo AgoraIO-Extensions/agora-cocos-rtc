@@ -1,0 +1,36 @@
+def localAgoraRepo = new File(NATIVE_DIR, "../../../local-maven")
+
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+
+    repositories {
+        if (new File(NATIVE_DIR, "../../../local-maven").exists()) {
+            maven { url uri(new File(NATIVE_DIR, "../../../local-maven")) }
+        }
+        google()
+        mavenCentral()
+        // jcenter() // keeped as anchor, will be removed soon
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.13.1'
+
+        // NOTE: Do not place your application dependencies here; they belong
+        // in the individual module build.gradle files
+    }
+}
+
+allprojects {
+    repositories {
+        if (new File(NATIVE_DIR, "../../../local-maven").exists()) {
+            maven { url uri(new File(NATIVE_DIR, "../../../local-maven")) }
+        }
+        google()
+        mavenCentral()
+        // jcenter() // keeped as anchor, will be removed soon
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+}
