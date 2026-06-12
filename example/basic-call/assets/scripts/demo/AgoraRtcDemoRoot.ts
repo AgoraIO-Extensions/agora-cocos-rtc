@@ -378,23 +378,23 @@ export class AgoraRtcDemoRoot extends Component {
   }
 
   async applyKeepAudioSessionParameter(): Promise<void> {
-    await this.applyParameterPreset({ 'che.audio.keep.audiosession': true });
+    await this.applyParameterPreset('KeepAudioSession', { 'che.audio.keep.audiosession': true });
   }
 
   async applyMixableAudioParameter(): Promise<void> {
-    await this.applyParameterPreset({ 'che.audio.enable.mixable': true });
+    await this.applyParameterPreset('MixableAudio', { 'che.audio.enable.mixable': true });
   }
 
   async applyRestartInterruptedParameter(): Promise<void> {
-    await this.applyParameterPreset({ 'che.audio.restart_when_interrupted': true });
+    await this.applyParameterPreset('RestartInterrupted', { 'che.audio.restart_when_interrupted': true });
   }
 
   async applyAutoMirrorParameter(): Promise<void> {
-    await this.applyParameterPreset({ 'che.video.frame_observer_auto_mirror': true });
+    await this.applyParameterPreset('AutoMirror', { 'che.video.frame_observer_auto_mirror': true });
   }
 
   async applyDebugFlagParameter(): Promise<void> {
-    await this.applyParameterPreset({ 'rtc.debug': true });
+    await this.applyParameterPreset('DebugFlag', { 'rtc.debug': true });
   }
 
   async clearStatusLog(): Promise<void> {
@@ -584,8 +584,8 @@ export class AgoraRtcDemoRoot extends Component {
     this.actionPanel?.setActionResult(actionName, result);
   }
 
-  private async applyParameterPreset(parameters: Record<string, unknown>): Promise<void> {
-    await this.runSessionAction('SetParameters', (session) => session.applyParameterPreset(parameters));
+  private async applyParameterPreset(actionName: string, parameters: Record<string, unknown>): Promise<void> {
+    await this.runSessionAction(actionName, (session) => session.applyParameterPreset(parameters));
   }
 
   private applyConfig(channelId: string, uid: number): void {
