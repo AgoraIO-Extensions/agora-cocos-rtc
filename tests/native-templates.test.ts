@@ -395,7 +395,7 @@ test('engine-texture raw frame path applies orientation before uploading texture
   assert.match(commonBridgeContent, /mirror/);
 });
 
-test('engine-texture local camera preview mirrors for auto and enabled modes', async () => {
+test('engine-texture local camera preview keeps platform-specific mirror semantics', async () => {
   const androidTemplateContent = await readFile(engineTextureBackendTemplate, 'utf8');
   const androidRuntimeContent = await readFile(engineTextureBackendRuntime, 'utf8');
   const iosBridgeContent = await readFile(
@@ -428,7 +428,7 @@ test('engine-texture local camera preview mirrors for auto and enabled modes', a
     iosBridgeContent,
     /private func resolveTextureMirror\(_ params: \[String: Any\], local: Bool\) -> Bool \{/,
   );
-  assert.match(iosBridgeContent, /if local \{\s*return value != Int\(AgoraVideoMirrorMode.disabled.rawValue\)\s*\}/);
+  assert.match(iosBridgeContent, /if local \{\s*return value == Int\(AgoraVideoMirrorMode.enabled.rawValue\)\s*\}/);
 });
 
 test('engine-texture iOS mirror is applied in display coordinates after rotation', async () => {
@@ -2088,6 +2088,12 @@ test('ios bridge template maps JS canvas payloads into engine-texture slot param
   assert.match(bridgeContent, /private func resolveTextureWidth\(_ params: \[String: Any\], local: Bool\) -> Int/);
   assert.match(bridgeContent, /private func resolveTextureHeight\(_ params: \[String: Any\], local: Bool\) -> Int/);
   assert.match(bridgeContent, /private func resolveTextureMirror\(_ params: \[String: Any\], local: Bool\) -> Bool/);
+  assert.match(bridgeContent, /private func isSupportedLocalTextureSourceType\(_ sourceType: AgoraVideoSourceType\) -> Bool/);
+  assert.match(bridgeContent, /private func validateLocalTextureSourceType\(requestId: String, params: \[String: Any\]\) -> Bool/);
+  assert.match(bridgeContent, /return sourceType == \.camera/);
+  assert.match(bridgeContent, /dispatchInvalidArgumentError\(/);
+  assert.match(bridgeContent, /value == Int\(AgoraVideoMirrorMode.enabled.rawValue\)/);
+  assert.doesNotMatch(bridgeContent, /return value != Int\(AgoraVideoMirrorMode.disabled.rawValue\)/);
   assert.match(bridgeContent, /private func resolveFrameObserverPosition\(/);
   assert.match(bridgeContent, /case "adaptive":\s*return \.adaptive/);
   assert.match(bridgeContent, /ensureLocalTextureSlot\(params\)/);
