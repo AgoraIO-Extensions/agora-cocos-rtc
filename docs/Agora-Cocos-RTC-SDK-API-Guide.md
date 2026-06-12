@@ -35,18 +35,6 @@ The following items are part of the standard SDK delivery set:
    - [customer-architecture-note.md](customer-architecture-note.md)
    - [api-verification-matrix.md](api-verification-matrix.md)
 
-重新打包插件：
-
-```bash
-./scripts/package-sdk.sh ./dist
-```
-
-重新生成客户交付目录：
-
-```bash
-./scripts/package-customer-delivery.sh ./dist/customer-delivery
-```
-
 ## 2. Supported Scope
 
 This SDK delivery supports:
@@ -76,20 +64,16 @@ Integration requires:
 - Android Studio / Android SDK / JDK 17
 - Xcode 15+ / CocoaPods
 
-The following SDK paths are the primary integration reference points:
+The following customer integration entry points are the primary reference items:
 
-- `sdk/agora-rtc`
-  交付给客户的 Cocos 扩展包主体。
+- `dist/agora-rtc-cocos-plugin.zip`
+  Standard plugin package for import through Cocos Extension Manager.
 - `sdk/agora-rtc/js/agora.ts`
-  对外公开的 SDK 客户端封装入口。
+  Public JavaScript / TypeScript API entry for SDK client creation and integration.
 - `sdk/agora-rtc/js/types.ts`
-  对外公开的参数类型、事件类型和错误码定义。
-- `sdk/agora-rtc/templates/android`
-  Android 原生桥接模板。
-- `sdk/agora-rtc/templates/ios`
-  iOS 原生桥接模板。
+  Public type definitions for parameters, events, and error codes.
 - `example/basic-call`
-  示例工程，包含完整的初始化、入会、渲染、事件监听和能力验证流程。
+  Reference project covering initialization, channel join, rendering, and event consumption.
 
 ## 4. SDK Import
 
