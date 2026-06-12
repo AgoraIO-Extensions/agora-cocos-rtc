@@ -5,6 +5,7 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 OUTPUT_DIR=${1:-"$ROOT_DIR/dist/customer-delivery"}
 EXAMPLE_DIR="$OUTPUT_DIR/example-basic-call"
+DELIVERY_TEMPLATE_DIR="$ROOT_DIR/customer-delivery/example-basic-call"
 
 mkdir -p "$OUTPUT_DIR"
 
@@ -22,7 +23,9 @@ cp "$ROOT_DIR/example/basic-call/tsconfig.json" "$EXAMPLE_DIR/tsconfig.json"
 cp -R "$ROOT_DIR/example/basic-call/assets" "$EXAMPLE_DIR/"
 cp -R "$ROOT_DIR/example/basic-call/build-configs" "$EXAMPLE_DIR/"
 cp -R "$ROOT_DIR/example/basic-call/settings" "$EXAMPLE_DIR/"
-cp -R "$ROOT_DIR/example/basic-call/native" "$EXAMPLE_DIR/"
+mkdir -p "$EXAMPLE_DIR/native"
+cp -R "$ROOT_DIR/example/basic-call/native/agora-rtc" "$EXAMPLE_DIR/native/agora-rtc"
+cp -R "$DELIVERY_TEMPLATE_DIR/native/engine" "$EXAMPLE_DIR/native/"
 cp "$ROOT_DIR/example/basic-call/README.md" "$EXAMPLE_DIR/README.md"
 cp "$ROOT_DIR/example/basic-call/AGORA_RTC_SPM_SETUP.md" "$EXAMPLE_DIR/AGORA_RTC_SPM_SETUP.md" 2>/dev/null || true
 
