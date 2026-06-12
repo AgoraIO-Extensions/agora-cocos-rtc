@@ -1,6 +1,7 @@
 import { native, sys } from 'cc';
 
-export const AUDIO_EFFECT_URL = 'https://webdemo.agora.io/ding.mp3';
+export const AUDIO_EFFECT_RESOURCE = 'audio/Agora.io-Interactions.mp3';
+export const AUDIO_EFFECT_FILE_NAME = 'Agora.io-Interactions.mp3';
 export const AUDIO_MIXING_RESOURCE = 'audio/Agora.io-Interactions.mp3';
 export const AUDIO_MIXING_FILE_NAME = 'Agora.io-Interactions.mp3';
 
@@ -11,9 +12,9 @@ type FileUtilsLike = {
   copyFile?(source: string, destination: string): boolean;
 };
 
-export function resolveAudioMixingAssetPath(): string {
+function resolveBundledAudioAssetPath(resourcePath: string, fileName: string): string {
   if (!sys.isNative) {
-    return AUDIO_MIXING_RESOURCE;
+    return resourcePath;
   }
 
   const fileUtils = native.fileUtils as FileUtilsLike | undefined;
@@ -22,12 +23,12 @@ export function resolveAudioMixingAssetPath(): string {
   }
 
   const source =
-    fileUtils.fullPathForFilename?.(`assets/resources/${AUDIO_MIXING_RESOURCE}`) ||
-    fileUtils.fullPathForFilename?.(AUDIO_MIXING_RESOURCE) ||
+    fileUtils.fullPathForFilename?.(`assets/resources/${resourcePath}`) ||
+    fileUtils.fullPathForFilename?.(resourcePath) ||
     '';
 
   if (!source) {
-    throw new Error(`Audio mixing asset not found: ${AUDIO_MIXING_RESOURCE}`);
+    throw new Error(`Audio asset not found: ${resourcePath}`);
   }
 
   const writablePath = fileUtils.getWritablePath?.() ?? '';
@@ -35,7 +36,7 @@ export function resolveAudioMixingAssetPath(): string {
     return source;
   }
 
-  const destination = `${writablePath}${AUDIO_MIXING_FILE_NAME}`;
+  const destination = `${writablePath}${fileName}`;
   if (fileUtils.isFileExist?.(destination)) {
     return destination;
   }
@@ -46,4 +47,12 @@ export function resolveAudioMixingAssetPath(): string {
   }
 
   return destination;
+}
+
+export function resolveAudioEffectAssetPath(): string {
+  return resolveBundledAudioAssetPath(AUDIO_EFFECT_RESOURCE, AUDIO_EFFECT_FILE_NAME);
+}
+
+export function resolveAudioMixingAssetPath(): string {
+  return resolveBundledAudioAssetPath(AUDIO_MIXING_RESOURCE, AUDIO_MIXING_FILE_NAME);
 }
