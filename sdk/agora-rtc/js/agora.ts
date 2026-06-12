@@ -39,6 +39,33 @@ type PendingRequest = {
 
 type AnyAgoraEventListener = (payload: AgoraEventMap[keyof AgoraEventMap]) => void;
 
+const PROTECTED_APP_TYPE_PARAMETERS = { 'rtc.set_app_type': 10 } as const;
+
+function mergeProtectedParameters(
+  parameters?: string | Record<string, unknown> | null,
+): string {
+  if (parameters == null || parameters === '') {
+    return JSON.stringify(PROTECTED_APP_TYPE_PARAMETERS);
+  }
+
+  if (typeof parameters === 'string') {
+    try {
+      const clientParams = JSON.parse(parameters) as Record<string, unknown>;
+      return JSON.stringify({
+        ...clientParams,
+        ...PROTECTED_APP_TYPE_PARAMETERS,
+      });
+    } catch {
+      return JSON.stringify(PROTECTED_APP_TYPE_PARAMETERS);
+    }
+  }
+
+  return JSON.stringify({
+    ...parameters,
+    ...PROTECTED_APP_TYPE_PARAMETERS,
+  });
+}
+
 export { AgoraErrorCode, AgoraSdkError };
 
 export type AgoraRtcClientOptions = {
@@ -92,7 +119,9 @@ export class AgoraRtcClient {
   }
 
   initialize(config: string | AgoraRtcEngineConfig): Promise<void> {
-    const params = typeof config === 'string' ? { appId: config } : { ...config };
+    const params = typeof config === 'string'
+      ? { appId: config, parameters: mergeProtectedParameters() }
+      : { ...config, parameters: mergeProtectedParameters(config.parameters) };
     return this.#invoke('initialize', params) as Promise<void>;
   }
 
@@ -367,10 +396,8 @@ export class AgoraRtcClient {
   }
 
   setParameters(parameters: string | Record<string, unknown>): Promise<void> {
-    const normalizedParameters =
-      typeof parameters === 'string' ? parameters : JSON.stringify(parameters);
     return this.#invoke('setParameters', {
-      parameters: normalizedParameters,
+      parameters: mergeProtectedParameters(parameters),
     }) as Promise<void>;
   }
 

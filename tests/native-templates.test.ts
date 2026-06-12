@@ -1040,6 +1040,7 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.match(bridgeContent, /config\.mAppId = appId/);
   assert.match(bridgeContent, /config\.mAreaCode = params\.optInt\("areaCode", config\.mAreaCode\)/);
   assert.match(bridgeContent, /config\.mChannelProfile = params\.optInt\("channelProfile", config\.mChannelProfile\)/);
+  assert.match(bridgeContent, /private static final String PROTECTED_APP_TYPE_PARAMETERS = /);
   assert.match(bridgeContent, /config\.mLicense = params\.optString\("license", config\.mLicense\)/);
   assert.match(bridgeContent, /config\.mAudioScenario = params\.optInt\("audioScenario", config\.mAudioScenario\)/);
   assert.match(bridgeContent, /config\.mAutoRegisterAgoraExtensions = params\.optBoolean\(/);
@@ -1052,6 +1053,9 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.match(bridgeContent, /logConfig\.level = logConfigParams\.optInt\("level", logConfig\.level\)/);
   assert.match(bridgeContent, /config\.mLogConfig = logConfig/);
   assert.match(bridgeContent, /config\.addExtension\(extensions\.optString\(index\)\)/);
+  assert.match(bridgeContent, /applyProtectedParameters\(rtcEngine, requestId, "initialize"\)/);
+  assert.match(bridgeContent, /clientParams\.put\("rtc\.set_app_type", 10\);/);
+  assert.match(bridgeContent, /return PROTECTED_APP_TYPE_PARAMETERS;/);
 
   const clientRoleMatch = bridgeContent.match(
     /private void handleSetClientRole[\s\S]*?private void handleSetRenderBackend/,
@@ -1454,6 +1458,7 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
 
   assert.match(bridgeContent, /AgoraRtcEngineConfig\(\)/);
   assert.match(bridgeContent, /sharedEngine\(with: config, delegate: self\)/);
+  assert.match(bridgeContent, /private let protectedAppTypeParameters = /);
   assert.match(bridgeContent, /config\.appId = appId/);
   assert.match(bridgeContent, /config\.channelProfile = channelProfile/);
   assert.match(bridgeContent, /config\.license = license/);
@@ -1541,6 +1546,9 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(inspectMatch[0], /config\.modules = buildContentInspectModules/);
   assert.match(bridgeContent, /module\.position = parseContentInspectModulePosition/);
   assert.match(bridgeContent, /private func parseContentInspectModulePosition/);
+  assert.match(bridgeContent, /applyProtectedParameters\(engine: engine, requestId: requestId, method: "initialize"\)/);
+  assert.match(bridgeContent, /clientParams\["rtc\.set_app_type"\] = 10/);
+  assert.match(bridgeContent, /return protectedAppTypeParameters/);
 
   const inspectModuleMatch = bridgeContent.match(
     /private func buildContentInspectModules[\s\S]*?private func intValue/,
@@ -1726,6 +1734,8 @@ test('ios bridge template rejects unsafe invalid arguments before calling the rt
   );
   assert.ok(setParametersMatch);
   assert.match(setParametersMatch[0], /Parameters are required\./);
+  assert.match(setParametersMatch[0], /let parameters = mergeProtectedParameters\(parameterValue\)/);
+  assert.match(bridgeContent, /clientParams\["rtc\.set_app_type"\] = 10/);
   assertPatternBefore(
     setParametersMatch[0],
     /Parameters are required\./,

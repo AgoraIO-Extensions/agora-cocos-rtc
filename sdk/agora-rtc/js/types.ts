@@ -156,6 +156,7 @@ export type AgoraChannelProfile =
 
 export interface AgoraRtcEngineConfig {
   appId: string;
+  parameters?: string;
   areaCode?: number;
   channelProfile?: number;
   license?: string;

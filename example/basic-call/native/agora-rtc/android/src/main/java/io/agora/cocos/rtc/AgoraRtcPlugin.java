@@ -46,6 +46,7 @@ public final class AgoraRtcPlugin {
     private static final String RESPONSE_EVENT = "agora:response";
     private static final String CALLBACK_EVENT = "agora:event";
     private static final String REQUEST_EVENT = "agora:request";
+    private static final String PROTECTED_APP_TYPE_PARAMETERS = "{\"rtc.set_app_type\":10}";
     private static final int RTC_PERMISSION_REQUEST_CODE = 9108;
     private static final long NATIVE_QUERY_TIMEOUT_MS = 5000L;
     private static final String[] RTC_RUNTIME_PERMISSIONS = new String[] {
@@ -603,6 +604,10 @@ public final class AgoraRtcPlugin {
             rtcEngine = RtcEngine.create(config);
             if (rtcEngine == null) {
                 dispatchError(requestId, "RtcEngine.create returned null.");
+                return;
+            }
+            if (!applyProtectedParameters(rtcEngine, requestId, "initialize")) {
+                rtcEngine = null;
                 return;
             }
             if (renderBackend != null) {
@@ -1720,7 +1725,7 @@ public final class AgoraRtcPlugin {
             dispatchError(requestId, "RtcEngine is not initialized.");
             return;
         }
-        String parameters = params != null ? params.optString("parameters", "") : "";
+        String parameters = mergeProtectedParameters(params != null ? params.optString("parameters", "") : "");
         if (parameters == null || parameters.trim().isEmpty()) {
             dispatchError(requestId, "Parameters are required.");
             return;
@@ -1731,6 +1736,28 @@ public final class AgoraRtcPlugin {
             return;
         }
         dispatchOk(requestId);
+    }
+
+    private boolean applyProtectedParameters(RtcEngine engine, String requestId, String method) {
+        int result = engine.setParameters(PROTECTED_APP_TYPE_PARAMETERS);
+        if (result < 0) {
+            dispatchAgoraError(requestId, method, result);
+            return false;
+        }
+        return true;
+    }
+
+    private String mergeProtectedParameters(String parameters) {
+        if (parameters == null || parameters.trim().isEmpty()) {
+            return PROTECTED_APP_TYPE_PARAMETERS;
+        }
+        try {
+            JSONObject clientParams = new JSONObject(parameters);
+            clientParams.put("rtc.set_app_type", 10);
+            return clientParams.toString();
+        } catch (JSONException error) {
+            return PROTECTED_APP_TYPE_PARAMETERS;
+        }
     }
 
     private Activity requireActivity(String requestId) {
