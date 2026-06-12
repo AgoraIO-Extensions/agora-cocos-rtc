@@ -24,18 +24,7 @@ node "$ROOT_DIR/scripts/sync-sdk-version.mjs" >/dev/null
 
 ln -sfn "../../../sdk/agora-rtc" "$TARGET_LINK"
 cp "$ROOT_DIR/sdk/agora-rtc/cc_plugin.json" "$NATIVE_PLUGIN_DIR/cc_plugin.json"
-mkdir -p "$NATIVE_PLUGIN_DIR/android/src/main/java/io/agora/cocos/rtc"
-mkdir -p "$NATIVE_PLUGIN_DIR/ios"
-cp -R "$ROOT_DIR/sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/." \
-  "$NATIVE_PLUGIN_DIR/android/src/main/java/io/agora/cocos/rtc/"
-cp "$ROOT_DIR/sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift" \
-  "$NATIVE_PLUGIN_DIR/ios/AgoraRtcBridge.swift"
-cp "$ROOT_DIR/sdk/agora-rtc/templates/ios/AgoraRtcPlugin.mm" \
-  "$NATIVE_PLUGIN_DIR/ios/AgoraRtcPlugin.mm"
-cp "$ROOT_DIR/sdk/agora-rtc/templates/ios/AgoraEngineTextureSlotBridge.h" \
-  "$NATIVE_PLUGIN_DIR/ios/AgoraEngineTextureSlotBridge.h"
-cp "$ROOT_DIR/sdk/agora-rtc/templates/ios/AgoraEngineTextureSlotBridge.mm" \
-  "$NATIVE_PLUGIN_DIR/ios/AgoraEngineTextureSlotBridge.mm"
+node "$ROOT_DIR/scripts/sync-customer-delivery-templates.mjs"
 node "$ROOT_DIR/scripts/sync-native-engine-texture-bridge.mjs"
 node "$ROOT_DIR/scripts/sync-android-app-bridge.mjs"
 node "$ROOT_DIR/scripts/sync-example-sdk-config.mjs"

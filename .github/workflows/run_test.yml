@@ -28,6 +28,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Check customer-delivery template drift
+        run: |
+          node ./scripts/sync-customer-delivery-templates.mjs
+          git diff --exit-code || {
+            echo "customer-delivery template drift detected. Run node ./scripts/sync-customer-delivery-templates.mjs and commit the results." >&2
+            exit 1
+          }
       - run: npm run typecheck
       - run: npm test
 
