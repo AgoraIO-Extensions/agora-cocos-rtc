@@ -48,5 +48,8 @@ test('package-sdk script creates a distributable zip with plugin manifests', asy
   assert.match(readme, /setNativeVideoOverlaySuspended/);
   assert.match(readme, /Cocos render helpers/);
   assert.match(readme, /native video overlay/);
+  assert.match(readme, /`?engine-texture`? local rendering currently supports only the primary camera source/i);
+  assert.match(readme, /supports only a subset of `position` semantics/i);
+  assert.match(readme, /playEffect\.gain.*integer/i);
   assert.doesNotMatch(readme, /Android currently returns explicit `unsupported` responses for `setDefaultAudioRouteToSpeakerphone`/);
 });
