@@ -172,6 +172,76 @@ function assertPatternBefore(
   );
 }
 
+function normalizeReferenceRotation(rotation: number) {
+  const normalized = ((rotation % 360) + 360) % 360;
+  return normalized === 90 || normalized === 180 || normalized === 270
+    ? normalized
+    : 0;
+}
+
+function mapReferenceRotatedPixel(
+  outputX: number,
+  outputY: number,
+  width: number,
+  height: number,
+  outputWidth: number,
+  outputHeight: number,
+  rotation: number,
+) {
+  const normalizedRotation = normalizeReferenceRotation(rotation);
+  const swapsDimensions = normalizedRotation === 90 || normalizedRotation === 270;
+  const naturalWidth = swapsDimensions ? height : width;
+  const naturalHeight = swapsDimensions ? width : height;
+  const naturalX = Math.min(
+    naturalWidth - 1,
+    Math.max(0, Math.floor(outputX * naturalWidth / outputWidth)),
+  );
+  const naturalY = Math.min(
+    naturalHeight - 1,
+    Math.max(0, Math.floor(outputY * naturalHeight / outputHeight)),
+  );
+
+  switch (normalizedRotation) {
+    case 90:
+      return { x: naturalY, y: height - 1 - naturalX };
+    case 180:
+      return { x: width - 1 - naturalX, y: height - 1 - naturalY };
+    case 270:
+      return { x: width - 1 - naturalY, y: naturalX };
+    default:
+      return { x: naturalX, y: naturalY };
+  }
+}
+
+function transformReferencePixels(
+  labels: string[][],
+  rotation: number,
+  targetWidth?: number,
+  targetHeight?: number,
+) {
+  const height = labels.length;
+  const width = labels[0].length;
+  const normalizedRotation = normalizeReferenceRotation(rotation);
+  const swapsDimensions = normalizedRotation === 90 || normalizedRotation === 270;
+  const outputWidth = targetWidth ?? (swapsDimensions ? height : width);
+  const outputHeight = targetHeight ?? (swapsDimensions ? width : height);
+
+  return Array.from({ length: outputHeight }, (_, outputY) =>
+    Array.from({ length: outputWidth }, (_, outputX) => {
+      const source = mapReferenceRotatedPixel(
+        outputX,
+        outputY,
+        width,
+        height,
+        outputWidth,
+        outputHeight,
+        rotation,
+      );
+      return labels[source.y][source.x];
+    }),
+  );
+}
+
 test('ios swift bridge template passes a syntax-only compile', async () => {
   const swiftFile = path.join(
     repoRoot,
@@ -413,7 +483,28 @@ test('engine-texture iOS keeps rotation-aware coordinate conversion in the share
   assert.doesNotMatch(commonBridgeContent, /const int mappedNaturalX = mirror \? naturalWidth - 1 - naturalX : naturalX;/);
 });
 
-test('engine-texture iOS requests a frame format with explicit rotation and mirror conversion', async () => {
+test('engine-texture native coordinate mapping keeps rotated sampling and target-size scaling stable', () => {
+  const source = [
+    ['A', 'B', 'C'],
+    ['D', 'E', 'F'],
+  ];
+
+  assert.deepEqual(transformReferencePixels(source, 90), [
+    ['D', 'A'],
+    ['E', 'B'],
+    ['F', 'C'],
+  ]);
+  assert.deepEqual(transformReferencePixels(source, 270), [
+    ['C', 'F'],
+    ['B', 'E'],
+    ['A', 'D'],
+  ]);
+  assert.deepEqual(transformReferencePixels(source, 0, 2, 1), [
+    ['A', 'B'],
+  ]);
+});
+
+test('engine-texture iOS requests a frame format with explicit rotation-aware conversion', async () => {
   const iosBridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
     'utf8',
