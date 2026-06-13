@@ -58,6 +58,8 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /sync-android-app-bridge\.mjs/);
   assert.match(prepareContent, /sync-native-engine-texture-bridge\.mjs/);
   assert.match(prepareContent, /sync-android-app-bridge\.mjs/);
+  assert.match(prepareContent, /if \[ -d "\$TARGET_LINK" \] && \[ ! -L "\$TARGET_LINK" \]; then/);
+  assert.match(prepareContent, /rm -rf "\$TARGET_LINK"/);
   assert.doesNotMatch(content, /generate-ios-podfile\.mjs/);
   assert.match(content, /integrate-ios-project\.rb --with-package/);
   assert.match(content, /ANDROID_GRADLE_OFFLINE="\$\{ANDROID_GRADLE_OFFLINE:-false\}"/);

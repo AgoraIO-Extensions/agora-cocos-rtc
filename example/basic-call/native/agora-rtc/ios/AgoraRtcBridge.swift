@@ -802,6 +802,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             return
         }
         let uid = uintValue(params["uid"] ?? 0)
+        NSLog("[agora-rtc-native] handleJoinChannel requestId=%@ channel=%@ uid=%u options=%@", requestId, channelId, uid, String(describing: params["options"]))
 
         if let mediaOptionParams = params["options"] as? [String: Any] {
             let mediaOptions = buildChannelMediaOptions(mediaOptionParams)
@@ -815,12 +816,14 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 requiresCamera: requiresCameraPermission,
                 requiresMicrophone: requiresMicrophonePermission
             ) {
+                NSLog("[agora-rtc-native] handleJoinChannel permissions granted requestId=%@", requestId)
                 guard let engine = self.rtcEngine else {
                     self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                     return
                 }
                 if mediaOptionBool(mediaOptionParams, key: "startPreview", defaultValue: false) {
                     let previewResult = engine.startPreview(self.videoSourceType(from: mediaOptionParams))
+                    NSLog("[agora-rtc-native] handleJoinChannel startPreview result=%d requestId=%@", previewResult, requestId)
                     guard previewResult >= 0 else {
                         self.dispatchResult(requestId: requestId, method: "startPreview", result: previewResult)
                         return
@@ -833,14 +836,12 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     mediaOptions: mediaOptions,
                     joinSuccess: nil
                 )
+                NSLog("[agora-rtc-native] handleJoinChannel joinChannel result=%d requestId=%@", result, requestId)
                 self.dispatchResult(requestId: requestId, method: "joinChannel", result: result)
             }
         } else {
-            ensureRtcPermissions(
-                requestId: requestId,
-                requiresCamera: false,
-                requiresMicrophone: false
-            ) {
+            ensureRtcPermissions(requestId: requestId) {
+                NSLog("[agora-rtc-native] handleJoinChannel permissions granted requestId=%@", requestId)
                 guard let engine = self.rtcEngine else {
                     self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                     return
@@ -852,6 +853,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     uid: uid,
                     joinSuccess: nil
                 )
+                NSLog("[agora-rtc-native] handleJoinChannel joinChannel result=%d requestId=%@", result, requestId)
                 self.dispatchResult(requestId: requestId, method: "joinChannel", result: result)
             }
         }
@@ -1254,15 +1256,19 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         }
         guard requiresCamera else {
-            continueWithMicrophone()
+            DispatchQueue.main.async {
+                continueWithMicrophone()
+            }
             return
         }
-        ensureCameraPermission { cameraGranted in
-            guard cameraGranted else {
-                self.dispatchError(requestId: requestId, message: "Camera permission is required.")
-                return
+        DispatchQueue.main.async {
+            self.ensureCameraPermission { cameraGranted in
+                guard cameraGranted else {
+                    self.dispatchError(requestId: requestId, message: "Camera permission is required.")
+                    return
+                }
+                continueWithMicrophone()
             }
-            continueWithMicrophone()
         }
     }
 
@@ -1868,6 +1874,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, didJoinChannel channel: String, withUid uid: UInt, elapsed: Int) {
+        NSLog("[agora-rtc-native] didJoinChannel channel=%@ uid=%u elapsed=%d", channel, uid, elapsed)
         dispatchEvent(name: "joinChannelSuccess", payload: [
             "channelId": channel,
             "uid": uid,

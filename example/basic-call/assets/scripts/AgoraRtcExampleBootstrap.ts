@@ -6,6 +6,13 @@ const MAX_ROOT_ATTEMPTS = 120;
 let rootAttempts = 0;
 let rootLoopScheduled = false;
 
+function shouldMountDemoRoot(): boolean {
+  if (!sys.isNative) {
+    return false;
+  }
+  return typeof (globalThis as any).jsb?.fileUtils?.getWritablePath === 'function';
+}
+
 function ensureDemoRootMounted(): boolean {
   const scene = director.getScene();
   const canvas = scene?.getChildByName('Canvas');
@@ -75,8 +82,10 @@ if (sys.isNative) {
   }
 }
 
-director.on(Director.EVENT_AFTER_SCENE_LAUNCH, scheduleDemoRootCheck);
-game.onPostProjectInitDelegate?.add?.(scheduleDemoRootCheck);
-scheduleDemoRootCheck();
+if (shouldMountDemoRoot()) {
+  director.on(Director.EVENT_AFTER_SCENE_LAUNCH, scheduleDemoRootCheck);
+  game.onPostProjectInitDelegate?.add?.(scheduleDemoRootCheck);
+  scheduleDemoRootCheck();
+}
 
 export {};

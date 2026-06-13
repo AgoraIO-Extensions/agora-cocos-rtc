@@ -87,6 +87,17 @@ test('example bootstrap no longer mounts the monolithic controller at runtime', 
   assert.doesNotMatch(content, /ensureExampleControllerMounted/);
 });
 
+test('example bootstrap only schedules demo-root mounting in a real native runtime', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /function shouldMountDemoRoot\(\): boolean/);
+  assert.match(content, /return typeof \(globalThis as any\)\.jsb\?\.fileUtils\?\.getWritablePath === 'function';/);
+  assert.match(content, /if \(shouldMountDemoRoot\(\)\) \{/);
+});
+
 test('new demo component scripts have stable Cocos metadata', async () => {
   const rootMeta = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts.meta`,
@@ -385,6 +396,7 @@ test('rtc session service resets preview state after stopping preview so toggle 
   const stopPreviewMatch = content.match(/async stopLocalPreview\(\): Promise<void>[\s\S]*?async togglePreview/);
   assert.ok(stopPreviewMatch);
   assert.match(stopPreviewMatch[0], /await this\.getClient\(\)\.stopPreview\(\);/);
+  assert.match(stopPreviewMatch[0], /if \(this\.localViewAttached\)[\s\S]*removeLocalVideoView\(\)/);
   assert.match(stopPreviewMatch[0], /this\.previewStarted = false;/);
   assert.match(stopPreviewMatch[0], /this\.clearLocalVideoRenderState\(\);/);
   assert.match(stopPreviewMatch[0], /this\.emitState\(\);/);
@@ -449,6 +461,12 @@ test('demo root loads runtime smoke config and can auto join when requested', as
   assert.match(content, /this\.loadJsonConfig\('agora-config'\)/);
   assert.match(content, /this\.autoPreview/);
   assert.match(content, /this\.autoJoin/);
+  assert.match(content, /const AUTO_STARTUP_DELAY_MS = 800;/);
+  assert.match(content, /game\.on\(game\.constructor\.EVENT_SHOW, this\.handleGameShow, this\);/);
+  assert.match(content, /this\.scheduleAutoStartup\(\);/);
+  assert.match(content, /private scheduleAutoStartup\(\): void \{/);
+  assert.match(content, /Auto startup scheduled in \$\{AUTO_STARTUP_DELAY_MS\}ms/);
+  assert.match(content, /private async runAutoStartup\(\): Promise<void> \{/);
   assert.match(content, /Auto preview enabled/);
   assert.match(content, /await this\.initializeRtc\(\);/);
   assert.match(content, /if \(this\.autoPreview\)[\s\S]*await this\.startLocalPreview\(\);/);
@@ -471,6 +489,17 @@ test('demo root lays out panels from the landscape visible size', async () => {
   assert.doesNotMatch(content, /videoStagePanel\?\.node\.setScale\(stageScale/);
 });
 
+test('log panel is anchored to the right side so it does not block the left action panel', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /const logWidth = this\.logPanel\.node\.getComponent\(UITransform\)\?\.width \?\? 0;/);
+  assert.match(content, /this\.logPanel\.node\.setPosition\(\s*right - logWidth \/ 2,\s*0,\s*0,\s*\)/);
+  assert.doesNotMatch(content, /this\.logPanel\.node\.setPosition\(0, 0, 0\)/);
+});
+
 test('video stage panel uses concrete layout dimensions and visible video frames', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/panels/VideoStagePanel.ts`,
@@ -482,6 +511,14 @@ test('video stage panel uses concrete layout dimensions and visible video frames
   assert.match(content, /private stageHeight/);
   assert.match(content, /drawPanel/);
   assert.match(content, /LocalVideoSprite', localVideoWidth, localVideoHeight/);
+  assert.match(content, /const REMOTE_THUMB_WIDTH = 240;/);
+  assert.match(content, /const REMOTE_THUMB_HEIGHT = 148;/);
+  assert.match(content, /const REMOTE_ROW_HEIGHT = 176;/);
+  assert.match(content, /RemoteThumbnailContent/);
+  assert.match(content, /this\.remoteRowScrollView\.horizontal = true;/);
+  assert.match(content, /getScrollOffset\(\)/);
+  assert.match(content, /scrollToOffset\(nextOffset, 0, false\)/);
+  assert.doesNotMatch(content, /this\.remoteRowContent\.setPosition\(/);
 });
 
 test('demo action registry keeps all QA API buttons grouped', async () => {
@@ -591,11 +628,43 @@ test('demo root supports case list navigation before case detail actions', async
   assert.match(rootContent, /selectedCaseName/);
   assert.match(rootContent, /showCaseList/);
   assert.match(rootContent, /selectDemoCase/);
+  assert.match(rootContent, /private refreshPanelsTimer: ReturnType<typeof setTimeout> \| null = null;/);
+  assert.match(rootContent, /private scheduleRefreshPanels\(\): void \{/);
+  assert.match(rootContent, /this\.refreshPanelsTimer = setTimeout\(\(\) => \{/);
+  assert.match(rootContent, /\}, 120\);/);
+  assert.match(rootContent, /this\.pushStatus\(`Case selected: \$\{this\.selectedCaseName\}`, \{ deferPanels: true \}\);/);
   assert.match(rootContent, /DEMO_CASES/);
   assert.match(panelContent, /renderCaseList/);
   assert.match(panelContent, /renderCaseControls/);
   assert.match(panelContent, /Back/);
   assert.match(panelContent, /AudioEffectMixing/);
+});
+
+test('case detail blurs channel inputs after rerender so the join button tap is not eaten by edit focus', async () => {
+  const panelContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+
+  assert.match(panelContent, /this\.scheduleBlurInputs\(\);/);
+  assert.match(panelContent, /private blurInputsTimer: ReturnType<typeof setTimeout> \| null = null;/);
+  assert.match(panelContent, /private scheduleBlurInputs\(\): void \{/);
+  assert.match(panelContent, /this\.blurInputsTimer = setTimeout\(\(\) => \{/);
+  assert.match(panelContent, /private blurInputs\(\): void \{/);
+  assert.match(panelContent, /this\.channelInput\?\.blur\?\.\(\);/);
+  assert.match(panelContent, /this\.uidInput\?\.blur\?\.\(\);/);
+});
+
+test('pushStatus can defer panel refresh when a case-selection tap would otherwise focus the next page input', async () => {
+  const rootContent = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  assert.match(rootContent, /private pushStatus\(line: string, options: \{ deferPanels\?: boolean \} = \{\}\): void/);
+  assert.match(rootContent, /console\.log\(`\[agora-demo\] \$\{line\}`\);/);
+  assert.match(rootContent, /if \(options\.deferPanels\) \{/);
+  assert.match(rootContent, /this\.scheduleRefreshPanels\(\);/);
 });
 
 test('parameter preset buttons keep success and failure state on the pressed button key', async () => {
@@ -671,9 +740,13 @@ test('audio effect demo actions use the bundled local asset path instead of a re
   );
 
   assert.match(content, /resolveAudioEffectAssetPath/);
-  assert.match(content, /private readonly audioEffectPath = resolveAudioEffectAssetPath\(\);/);
-  assert.match(content, /preloadEffect\(this\.audioEffectSoundId, this\.audioEffectPath\)/);
-  assert.match(content, /path: this\.audioEffectPath,/);
+  assert.match(content, /const DEMO_NATIVE_REQUEST_TIMEOUT_MS = 20000;/);
+  assert.match(content, /timeoutMs: DEMO_NATIVE_REQUEST_TIMEOUT_MS,/);
+  assert.match(content, /private getAudioEffectPath\(\): string \{/);
+  assert.match(content, /return resolveAudioEffectAssetPath\(\);/);
+  assert.match(content, /const audioEffectPath = this\.getAudioEffectPath\(\);/);
+  assert.match(content, /preloadEffect\(this\.audioEffectSoundId, audioEffectPath\)/);
+  assert.match(content, /path: audioEffectPath,/);
   assert.doesNotMatch(content, /audioEffectUrl = 'https:\/\/webdemo\.agora\.io\/ding\.mp3'/);
 });
 
@@ -689,6 +762,20 @@ test('demo action panel renders case-specific controls instead of the full qa ma
   assert.match(content, /buildBeautyControls/);
   assert.match(content, /buildEncoderControls/);
   assert.match(content, /buildContentInspectControls/);
+});
+
+test('case detail keeps a single join control so join input binding and button state stay aligned', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /buildConnectionSection\(connection\)/);
+  assert.match(
+    content,
+    /const names = selectedCase \? selectedCase\.actions\.filter\(\(name\) => name !== 'JoinChannel'\) : \[\];/,
+  );
+  assert.match(content, /this\.buildButtonList\(parent, \[\.\.\.names\], CASE_ACTION_COLUMNS/);
 });
 
 test('example scene and template use landscape canvas dimensions', async () => {

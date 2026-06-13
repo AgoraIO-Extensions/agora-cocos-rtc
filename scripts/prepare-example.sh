@@ -22,6 +22,9 @@ mkdir -p "$SCRIPTS_DIR/demo/ui"
 
 node "$ROOT_DIR/scripts/sync-sdk-version.mjs" >/dev/null
 
+if [ -d "$TARGET_LINK" ] && [ ! -L "$TARGET_LINK" ]; then
+  rm -rf "$TARGET_LINK"
+fi
 ln -sfn "../../../sdk/agora-rtc" "$TARGET_LINK"
 cp "$ROOT_DIR/sdk/agora-rtc/cc_plugin.json" "$NATIVE_PLUGIN_DIR/cc_plugin.json"
 node "$ROOT_DIR/scripts/sync-customer-delivery-templates.mjs"
