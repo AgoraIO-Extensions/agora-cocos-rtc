@@ -1149,6 +1149,7 @@ export class RtcSessionService {
       ),
     );
     await this.getClient().switchCamera();
+    this.applyLocalVideoMirror();
     await this.callAndLogFailure('setBeautyEffectOptions', () =>
       this.getClient().setBeautyEffectOptions(true, config.beautyDemoOptions ?? { smoothnessLevel: 0.5 }),
     );

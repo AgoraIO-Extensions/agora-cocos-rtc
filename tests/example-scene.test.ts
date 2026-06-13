@@ -305,6 +305,8 @@ test('rtc session service uses runtime-configurable audio, mixing, effect, and d
   assert.ok(videoControlDemoMatch);
   assert.match(videoControlDemoMatch[0], /const config = this\.options\.getConfig\(\);/);
   assert.match(videoControlDemoMatch[0], /config\.videoEncoderConfiguration \?\? VIDEO_ENCODER_PRESETS\[this\.selectedVideoEncoderPresetName\]/);
+  assert.match(videoControlDemoMatch[0], /await this\.getClient\(\)\.switchCamera\(\);/);
+  assert.match(videoControlDemoMatch[0], /this\.applyLocalVideoMirror\(\);/);
   assert.match(videoControlDemoMatch[0], /config\.beautyDemoOptions \?\? \{ smoothnessLevel: 0\.5 \}/);
   assert.match(videoControlDemoMatch[0], /config\.contentInspectDemoConfig \?\? \{ module: 0, interval: 0 \}/);
 });
