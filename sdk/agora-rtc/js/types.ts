@@ -252,6 +252,10 @@ export interface AgoraUserInfo {
 export type AgoraRenderBackend =
   'engine-texture';
 
+export type AgoraEngineTextureCameraFacing =
+  'front'
+  | 'rear';
+
 export interface AgoraBridgeRequest {
   requestId: string;
   method: AgoraMethod;
