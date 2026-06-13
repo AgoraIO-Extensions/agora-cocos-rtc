@@ -23,13 +23,13 @@ export function shouldMirrorScreenLikeSource(sourceType?: number): boolean {
 export function resolveEngineTextureMirror(input: EngineTextureMirrorInput): boolean {
   const mirrorMode = input.mirrorMode ?? MIRROR_MODE_AUTO;
 
-  if (!shouldMirrorScreenLikeSource(input.sourceType)) {
-    return false;
-  }
   if (mirrorMode === MIRROR_MODE_ENABLED) {
     return true;
   }
   if (mirrorMode === MIRROR_MODE_DISABLED) {
+    return false;
+  }
+  if (!shouldMirrorScreenLikeSource(input.sourceType)) {
     return false;
   }
   if (!input.isLocal) {
