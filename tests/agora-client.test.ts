@@ -1950,4 +1950,22 @@ test('engine-texture mirror never mirrors screen-like sources in auto mode', () 
     }),
     false,
   );
+  assert.equal(
+    resolveEngineTextureMirror({
+      mirrorMode: 0,
+      isLocal: true,
+      isFrontCamera: true,
+      sourceType: 3,
+    }),
+    false,
+  );
+  assert.equal(
+    resolveEngineTextureMirror({
+      mirrorMode: 0,
+      isLocal: true,
+      isFrontCamera: true,
+      sourceType: 10,
+    }),
+    false,
+  );
 });
