@@ -41,6 +41,12 @@ const MAX_TEXTURE_BIND_RETRIES = 600;
 const TEXTURE_BIND_RETRY_MS = 100;
 const DEMO_NATIVE_REQUEST_TIMEOUT_MS = 20000;
 
+type DisplayMirrorScale = {
+  x: number;
+  y: number;
+  z: number;
+};
+
 export interface RtcSessionServiceOptions {
   getConfig(): RuntimeConfigState;
   getLocalVideoNode(): Node | null;
@@ -56,7 +62,7 @@ export interface RtcSessionServiceOptions {
 
 export class RtcSessionService {
   private client: AgoraRtcClient | null = null;
-  private textureViewController = createAgoraEngineTextureViewController(this.getClient());
+  private textureViewController: ReturnType<typeof createAgoraEngineTextureViewController> | null = null;
   private listenersBound = false;
   private initialized = false;
   private joined = false;
@@ -68,6 +74,7 @@ export class RtcSessionService {
   private localVideoSpriteFrame: SpriteFrame | null = null;
   private remoteTextureSlotIds = new Map<number, number>();
   private remoteVideoSpriteFrames = new Map<number, SpriteFrame>();
+  private mirrorBaseScales = new Map<string, DisplayMirrorScale>();
   private textureBindRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private audioEnabled = true;
   private localAudioEnabled = true;
@@ -260,7 +267,7 @@ export class RtcSessionService {
   private async removeRemoteVideoView(uid: number): Promise<void> {
     await this.getClient().removeRemoteVideoView(uid);
     this.remoteTextureSlotIds.delete(uid);
-    this.textureViewController.unregisterView(this.getRemoteViewId(uid));
+    this.textureViewController?.unregisterView(this.getRemoteViewId(uid));
   }
 
   async startLocalPreview(): Promise<void> {
@@ -755,7 +762,6 @@ export class RtcSessionService {
       await this.teardownRtcStep('destroy', () => client.destroy());
     } finally {
       const remoteUids = [...this.remoteUserUids];
-      this.client = null;
       this.listenersBound = false;
       this.initialized = false;
       this.joined = false;
@@ -769,6 +775,8 @@ export class RtcSessionService {
       this.localTextureSlotId = null;
       this.clearLocalVideoRenderState();
       this.clearRemoteVideoRenderState(remoteUids);
+      this.client = null;
+      this.textureViewController = null;
       this.lastRemoteVideoStatsByUid.clear();
       this.options.onRemoteUsersChanged([], null);
       this.emitState();
@@ -784,9 +792,14 @@ export class RtcSessionService {
         },
         timeoutMs: DEMO_NATIVE_REQUEST_TIMEOUT_MS,
       });
+      this.textureViewController = createAgoraEngineTextureViewController(this.client);
     }
     this.bindRtcEventListeners();
     return this.client;
+  }
+
+  private getTextureViewController() {
+    return this.textureViewController ?? createAgoraEngineTextureViewController(this.getClient());
   }
 
   private bindRtcEventListeners(): void {
@@ -890,7 +903,7 @@ export class RtcSessionService {
       setupMode: 0,
       sourceType: 0,
     });
-    this.textureViewController.registerLocalView({
+    this.getTextureViewController().registerLocalView({
       viewId: this.getLocalViewId(),
       mirrorMode,
       sourceType: config.localVideoCanvas?.sourceType ?? 0,
@@ -911,7 +924,7 @@ export class RtcSessionService {
       setupMode: 0,
       sourceType: 0,
     });
-    this.textureViewController.registerRemoteView({
+    this.getTextureViewController().registerRemoteView({
       viewId: this.getRemoteViewId(uid),
       uid,
       mirrorMode,
@@ -1063,16 +1076,41 @@ export class RtcSessionService {
     if (!node) {
       return;
     }
+    const controller = this.textureViewController ?? this.getTextureViewController();
+    const baseScale = this.getMirrorBaseScale(viewId, node);
+    const nextScaleX = controller.getViewMirror(viewId) ? -baseScale.x : baseScale.x;
+    node.setScale(nextScaleX, baseScale.y, baseScale.z);
+  }
+
+  private getMirrorBaseScale(viewId: string, node: Node): DisplayMirrorScale {
+    const existingScale = this.mirrorBaseScales.get(viewId);
+    if (existingScale) {
+      return existingScale;
+    }
     const scale = node.getScale();
-    const nextScaleX = Math.abs(scale.x) * (this.textureViewController.getViewMirror(viewId) ? -1 : 1);
-    node.setScale(nextScaleX, scale.y, scale.z);
+    const baseScale = { x: scale.x, y: scale.y, z: scale.z };
+    this.mirrorBaseScales.set(viewId, baseScale);
+    return baseScale;
+  }
+
+  private resetVideoNodeMirror(target: DisplayMirrorTarget): void {
+    const { node, viewId } = target;
+    const baseScale = this.mirrorBaseScales.get(viewId);
+    if (node && baseScale) {
+      node.setScale(baseScale.x, baseScale.y, baseScale.z);
+    }
+    this.mirrorBaseScales.delete(viewId);
   }
 
   private clearLocalVideoRenderState(): void {
     this.previewStarted = false;
     this.localViewAttached = false;
     this.localTextureSlotId = null;
-    this.textureViewController.unregisterView(this.getLocalViewId());
+    this.textureViewController?.unregisterView(this.getLocalViewId());
+    this.resetVideoNodeMirror({
+      node: this.options.getLocalVideoNode(),
+      viewId: this.getLocalViewId(),
+    });
     if (this.localVideoSpriteFrame) {
       this.localVideoSpriteFrame.texture = null;
     }
@@ -1086,7 +1124,11 @@ export class RtcSessionService {
       if (spriteFrame) {
         spriteFrame.texture = null;
       }
-      this.textureViewController.unregisterView(this.getRemoteViewId(uid));
+      this.textureViewController?.unregisterView(this.getRemoteViewId(uid));
+      this.resetVideoNodeMirror({
+        node: this.options.getRemoteVideoNode(uid),
+        viewId: this.getRemoteViewId(uid),
+      });
       this.remoteTextureSlotIds.delete(uid);
       this.remoteVideoSpriteFrames.delete(uid);
       this.options.onRemoteVideoCleared(uid);
