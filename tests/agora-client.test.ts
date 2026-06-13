@@ -1935,6 +1935,15 @@ test('engine-texture mirror explicit modes override auto for local and remote vi
     }),
     false,
   );
+  assert.equal(
+    resolveEngineTextureMirror({
+      mirrorMode: 1,
+      isLocal: true,
+      isFrontCamera: false,
+      sourceType: 2,
+    }),
+    true,
+  );
 });
 
 test('engine-texture mirror never mirrors screen-like sources in auto mode', () => {
