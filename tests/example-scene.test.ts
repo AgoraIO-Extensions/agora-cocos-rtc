@@ -514,10 +514,11 @@ test('video stage panel uses concrete layout dimensions and visible video frames
   assert.match(content, /const REMOTE_THUMB_WIDTH = 240;/);
   assert.match(content, /const REMOTE_THUMB_HEIGHT = 148;/);
   assert.match(content, /const REMOTE_ROW_HEIGHT = 176;/);
-  assert.match(content, /StageScrollView/);
   assert.match(content, /RemoteThumbnailContent/);
-  assert.match(content, /this\.stageScrollView\.vertical = true;/);
   assert.match(content, /this\.remoteRowScrollView\.horizontal = true;/);
+  assert.match(content, /getScrollOffset\(\)/);
+  assert.match(content, /scrollToOffset\(nextOffset, 0, false\)/);
+  assert.doesNotMatch(content, /this\.remoteRowContent\.setPosition\(/);
 });
 
 test('demo action registry keeps all QA API buttons grouped', async () => {

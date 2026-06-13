@@ -10,6 +10,7 @@ import {
   SpriteFrame,
   Texture2D,
   UITransform,
+  Vec2,
 } from 'cc';
 import type { DemoSessionState } from '../types.ts';
 import { COLORS, configureLabel, drawPanel, ensureTransform } from '../ui/uiStyles.ts';
@@ -26,8 +27,6 @@ const REMOTE_THUMB_WIDTH = 240;
 const REMOTE_THUMB_HEIGHT = 148;
 const REMOTE_THUMB_GAP = 12;
 const REMOTE_ROW_INSET = 12;
-const VERTICAL_SCROLL_WIDTH = 14;
-const STAGE_CONTENT_GAP = 14;
 
 @ccclass('VideoStagePanel')
 export class VideoStagePanel extends Component {
@@ -49,8 +48,6 @@ export class VideoStagePanel extends Component {
   @property(Node)
   remoteThumbnailRow: Node | null = null;
 
-  private stageScrollView: ScrollView | null = null;
-  private stageScrollContent: Node | null = null;
   private remoteRowScrollView: ScrollView | null = null;
   private remoteRowContent: Node | null = null;
   private remoteHintLabels = new Map<number, Label>();
@@ -164,34 +161,18 @@ export class VideoStagePanel extends Component {
   private ensureBaseNodes(): void {
     const stageWidth = this.stageWidth;
     const stageHeight = this.stageHeight;
-    const viewportWidth = Math.max(1, stageWidth - STAGE_PADDING * 2);
-    const viewportHeight = Math.max(1, stageHeight - STAGE_PADDING * 2);
-    const contentWidth = Math.max(1, viewportWidth - VERTICAL_SCROLL_WIDTH);
-    const localHeight = Math.max(280, stageHeight - REMOTE_ROW_HEIGHT - STAGE_CONTENT_GAP - STAGE_PADDING * 2);
-    const contentHeight = localHeight + REMOTE_ROW_HEIGHT + STAGE_CONTENT_GAP;
-    const localWidth = contentWidth;
+    const localWidth = Math.max(1, stageWidth - STAGE_PADDING * 2);
+    const localHeight = Math.max(1, stageHeight - STAGE_PADDING * 2);
     const localVideoWidth = Math.max(1, localWidth - VIDEO_INSET * 2);
     const localVideoHeight = Math.max(1, localHeight - VIDEO_INSET * 2);
     const rowWidth = Math.max(1, localWidth);
-    const localY = contentHeight / 2 - localHeight / 2;
-    const rowY = -contentHeight / 2 + REMOTE_ROW_HEIGHT / 2;
+    const rowY = stageHeight / 2 - STAGE_PADDING - REMOTE_ROW_HEIGHT / 2;
     const labelX = -localWidth / 2 + 16;
     const labelWidth = Math.max(120, Math.min(420, localWidth - 32));
 
     ensureTransform(this.node, stageWidth, stageHeight);
-    const stageViewport = this.ensureScrollViewport('StageScrollView', stageWidth, stageHeight, viewportWidth, viewportHeight);
-    const stageContent = this.ensureScrollContent(stageViewport, 'StageScrollContent', contentWidth, Math.max(viewportHeight, contentHeight));
-    this.stageScrollView = stageViewport.getComponent(ScrollView) ?? stageViewport.addComponent(ScrollView);
-    this.stageScrollView.horizontal = false;
-    this.stageScrollView.vertical = true;
-    this.stageScrollView.elastic = true;
-    this.stageScrollView.inertia = true;
-    this.stageScrollView.brake = 0.75;
-    this.stageScrollView.content = stageContent;
-    this.stageScrollContent = stageContent;
-
-    this.localCard = this.ensureCard('LocalStage', 0, localY, localWidth, localHeight, stageContent);
-    this.remoteThumbnailRow = this.ensureHorizontalScrollRow(stageContent, rowWidth, REMOTE_ROW_HEIGHT, rowY);
+    this.localCard = this.ensureCard('LocalStage', 0, 0, localWidth, localHeight);
+    this.remoteThumbnailRow = this.ensureHorizontalScrollRow(this.node, rowWidth, REMOTE_ROW_HEIGHT, rowY);
     this.remoteCard = this.remoteThumbnailRow;
     this.remoteThumbnailRow.active = this.remoteVideoNodes.size > 0;
     this.localVideoSprite = this.ensureSprite(this.localCard, 'LocalVideoSprite', localVideoWidth, localVideoHeight);
@@ -229,35 +210,6 @@ export class VideoStagePanel extends Component {
     return node;
   }
 
-  private ensureScrollViewport(name: string, stageWidth: number, stageHeight: number, width: number, height: number): Node {
-    let node = this.node.getChildByName(name);
-    if (!node) {
-      node = new Node(name);
-      node.setParent(this.node);
-    }
-    node.layer = this.node.layer;
-    node.active = true;
-    node.setPosition(0, 0, 0);
-    ensureTransform(node, width, height);
-    node.getComponent(UITransform)?.setAnchorPoint(0.5, 0.5);
-    node.getComponent(Mask) ?? node.addComponent(Mask);
-    return node;
-  }
-
-  private ensureScrollContent(parent: Node, name: string, width: number, height: number): Node {
-    let node = parent.getChildByName(name);
-    if (!node) {
-      node = new Node(name);
-      node.setParent(parent);
-    }
-    node.layer = parent.layer;
-    node.active = true;
-    node.setPosition(0, height / 2, 0);
-    const transform = ensureTransform(node, width, height);
-    transform.setAnchorPoint(0.5, 1);
-    return node;
-  }
-
   private ensureHorizontalScrollRow(parent: Node, width: number, height: number, y: number): Node {
     let viewport = parent.getChildByName('RemoteThumbnailRow');
     if (!viewport) {
@@ -271,15 +223,19 @@ export class VideoStagePanel extends Component {
     viewport.getComponent(Mask) ?? viewport.addComponent(Mask);
 
     let content = viewport.getChildByName('RemoteThumbnailContent');
+    const createdContent = !content;
     if (!content) {
       content = new Node('RemoteThumbnailContent');
       content.setParent(viewport);
     }
     content.layer = viewport.layer;
     content.active = true;
-    const transform = ensureTransform(content, width, height);
+    const transform = content.getComponent(UITransform) ?? content.addComponent(UITransform);
     transform.setAnchorPoint(0, 0.5);
-    content.setPosition(-width / 2 + REMOTE_ROW_INSET, 0, 0);
+    if (createdContent) {
+      transform.setContentSize(width, height);
+      content.setPosition(-width / 2 + REMOTE_ROW_INSET, 0, 0);
+    }
 
     this.remoteRowScrollView = viewport.getComponent(ScrollView) ?? viewport.addComponent(ScrollView);
     this.remoteRowScrollView.horizontal = true;
@@ -372,20 +328,26 @@ export class VideoStagePanel extends Component {
 
   private layoutRemoteThumbnails(): void {
     const nodes = [...this.remoteVideoNodes.values()];
+    const viewportWidth = Math.max(1, this.stageWidth - STAGE_PADDING * 2);
     if (this.remoteThumbnailRow) {
       this.remoteThumbnailRow.active = nodes.length > 0;
+      this.remoteThumbnailRow.setSiblingIndex((this.node.children.length ?? 1) - 1);
     }
-    if (this.remoteRowContent) {
+    if (this.remoteRowContent && this.remoteRowScrollView) {
       const contentWidth = Math.max(
-        (this.stageWidth - STAGE_PADDING * 2 - VERTICAL_SCROLL_WIDTH),
+        viewportWidth,
         REMOTE_ROW_INSET * 2 + nodes.length * REMOTE_THUMB_WIDTH + Math.max(0, nodes.length - 1) * REMOTE_THUMB_GAP,
       );
+      const scrollOffset = this.remoteRowScrollView.getScrollOffset();
       ensureTransform(this.remoteRowContent, contentWidth, REMOTE_ROW_HEIGHT);
-      this.remoteRowContent.setPosition(
-        -(this.stageWidth - STAGE_PADDING * 2 - VERTICAL_SCROLL_WIDTH) / 2 + REMOTE_ROW_INSET,
-        0,
-        0,
+      const maxScrollX = Math.max(0, contentWidth - viewportWidth);
+      const nextOffset = new Vec2(
+        Math.min(Math.max(0, scrollOffset.x), maxScrollX),
+        scrollOffset.y,
       );
+      if (scrollOffset.x !== nextOffset.x || scrollOffset.y !== nextOffset.y) {
+        this.remoteRowScrollView.scrollToOffset(nextOffset, 0, false);
+      }
     }
     nodes.forEach((node, index) => {
       node.setPosition(this.remoteThumbX(index, nodes.length), 0, 0);
