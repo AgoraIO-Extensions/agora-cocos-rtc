@@ -295,11 +295,11 @@ test('engine-texture backend keeps template/runtime slot upload dimensions in sy
 test('android engine-texture backend builds texture slots from JS canvas payloads', async () => {
   const engineTextureBackendContent = await readFile(engineTextureBackendTemplate, 'utf8');
 
-  assert.match(engineTextureBackendContent, /final boolean mirror = slot\.mirror;/);
-  assert.match(engineTextureBackendContent, /resolveMirror\(params, true\)/);
-  assert.match(engineTextureBackendContent, /resolveMirror\(params, false\)/);
-  assert.match(engineTextureBackendContent, /resolveLocalMirror\(params\)/);
-  assert.match(engineTextureBackendContent, /resolveRemoteMirror\(params\)/);
+  assert.doesNotMatch(engineTextureBackendContent, /final boolean mirror = slot\.mirror;/);
+  assert.doesNotMatch(engineTextureBackendContent, /resolveMirror\(params, true\)/);
+  assert.doesNotMatch(engineTextureBackendContent, /resolveMirror\(params, false\)/);
+  assert.doesNotMatch(engineTextureBackendContent, /resolveLocalMirror\(params\)/);
+  assert.doesNotMatch(engineTextureBackendContent, /resolveRemoteMirror\(params\)/);
   assert.match(engineTextureBackendContent, /resolveTextureWidth\(params, true\)/);
   assert.match(engineTextureBackendContent, /resolveTextureHeight\(params, true\)/);
   assert.match(engineTextureBackendContent, /resolveTextureWidth\(params, false\)/);
@@ -367,13 +367,13 @@ test('engine-texture raw frame path applies orientation before uploading texture
 
   for (const content of [templateContent, runtimeContent]) {
     assert.match(content, /videoFrame\.getRotation\(\)/);
-    assert.match(content, /final boolean mirror = slot\.mirror;/);
+    assert.doesNotMatch(content, /final boolean mirror = slot\.mirror;/);
     assert.doesNotMatch(
       content,
       /VideoFrame\.SourceType\.kFrontCamera/,
       'engine-texture should not add a selfie mirror on top of raw frame orientation.',
     );
-    assert.match(content, /nativeUpdateI420Slot\([\s\S]*rotation,[\s\S]*mirror[\s\S]*\);/);
+    assert.doesNotMatch(content, /nativeUpdateI420Slot\([\s\S]*rotation,[\s\S]*mirror[\s\S]*\);/);
     assert.doesNotMatch(
       content,
       /buffer\.rotate\(rotation\)|buffer\.mirror\(/,
@@ -382,17 +382,20 @@ test('engine-texture raw frame path applies orientation before uploading texture
   }
 
   assert.match(iosSlotBridgeContent, /videoFrame\.rotation/);
-  assert.match(iosSlotBridgeContent, /mirroredVideoFrame:\(AgoraOutputVideoFrame \*\)videoFrame/);
-  assert.match(iosSlotBridgeContent, /update_agora_engine_texture_nv12_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
-  assert.match(
+  assert.doesNotMatch(iosSlotBridgeContent, /mirroredVideoFrame/);
+  assert.doesNotMatch(iosSlotBridgeContent, /videoFrame:videoFrame mirror:/);
+  assert.doesNotMatch(iosSlotBridgeContent, /update_agora_engine_texture_nv12_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
+  assert.doesNotMatch(
     iosSlotBridgeContent,
     /update_agora_engine_texture_nv12_slot\([\s\S]*targetWidth[\s\S]*targetHeight[\s\S]*renderMode[\s\S]*static_cast<int>\(videoFrame\.rotation\),\s*mirror[\s\S]*\);/,
   );
-  assert.match(iosSlotBridgeContent, /update_agora_engine_texture_i420_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
+  assert.doesNotMatch(iosSlotBridgeContent, /update_agora_engine_texture_i420_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
   assert.match(iosSlotBridgeContent, /configureSlot:\(NSNumber \*\)slotId options:\(NSDictionary \*\)options/);
   assert.match(commonBridgeContent, /normalizeRotation/);
   assert.match(commonBridgeContent, /mapTransformedPixel/);
-  assert.match(commonBridgeContent, /mirror/);
+  assert.match(commonBridgeContent, /rotation/);
+  assert.doesNotMatch(commonBridgeContent, /mappedNaturalX = mirror \?/);
+  assert.doesNotMatch(commonBridgeContent, /bool mirror,/);
 });
 
 test('engine-texture local camera preview requires explicit enabled mirror semantics', async () => {
@@ -404,31 +407,22 @@ test('engine-texture local camera preview requires explicit enabled mirror seman
   );
 
   for (const content of [androidTemplateContent, androidRuntimeContent]) {
-    assert.match(content, /final boolean mirror = slot\.mirror;/);
-    assert.match(content, /resolveLocalMirror\(params\)/);
-    assert.match(content, /private boolean resolveLocalMirror\(JSONObject params\)/);
-    assert.match(content, /return mirrorMode == 1;/);
-    assert.match(content, /boolean mirror = resolveMirror\(params, true\);/);
-    assert.match(content, /boolean mirror = resolveMirror\(params, false\);/);
+    assert.doesNotMatch(content, /final boolean mirror = slot\.mirror;/);
+    assert.doesNotMatch(content, /resolveLocalMirror\(params\)/);
+    assert.doesNotMatch(content, /private boolean resolveLocalMirror\(JSONObject params\)/);
+    assert.doesNotMatch(content, /return mirrorMode == 1;/);
+    assert.doesNotMatch(content, /boolean mirror = resolveMirror\(params, true\);/);
+    assert.doesNotMatch(content, /boolean mirror = resolveMirror\(params, false\);/);
   }
 
   assert.match(
     iosBridgeContent,
-    /private func updateTextureSlot\(_ slot: TextureSlotState, videoFrame: AgoraOutputVideoFrame\) \{[\s\S]*mirror: slot\.mirror[\s\S]*dispatchTextureReadyIfNeeded/,
+    /private func updateTextureSlot\(_ slot: TextureSlotState, videoFrame: AgoraOutputVideoFrame\) \{[\s\S]*updateTextureSlot\(slotId: slot\.slotId, videoFrame: videoFrame\)[\s\S]*dispatchTextureReadyIfNeeded/,
   );
-  assert.match(
-    iosBridgeContent,
-    /let mirror = self\.resolveTextureMirror\(params, local: true\)/,
-  );
-  assert.match(
-    iosBridgeContent,
-    /let mirror = self\.resolveTextureMirror\(params, local: false\)/,
-  );
-  assert.match(
-    iosBridgeContent,
-    /private func resolveTextureMirror\(_ params: \[String: Any\], local: Bool\) -> Bool \{/,
-  );
-  assert.match(iosBridgeContent, /if local \{\s*return value == Int\(AgoraVideoMirrorMode.enabled.rawValue\)\s*\}/);
+  assert.doesNotMatch(iosBridgeContent, /let mirror = self\.resolveTextureMirror\(params, local: true\)/);
+  assert.doesNotMatch(iosBridgeContent, /let mirror = self\.resolveTextureMirror\(params, local: false\)/);
+  assert.doesNotMatch(iosBridgeContent, /private func resolveTextureMirror\(_ params: \[String: Any\], local: Bool\) -> Bool \{/);
+  assert.doesNotMatch(iosBridgeContent, /if local \{\s*return value == Int\(AgoraVideoMirrorMode.enabled.rawValue\)\s*\}/);
 });
 
 test('engine-texture iOS mirror is applied in display coordinates after rotation', async () => {
@@ -453,21 +447,7 @@ test('engine-texture iOS mirror is applied in display coordinates after rotation
     commonBridgeContent,
     /const int naturalX = std::min\(naturalWidth - 1, std::max\(0, outputX \* naturalWidth \/ outputWidth\)\);/,
   );
-  assert.match(
-    commonBridgeContent,
-    /const int mappedNaturalX = mirror \? naturalWidth - 1 - naturalX : naturalX;/,
-  );
-  assert.doesNotMatch(
-    commonBridgeContent,
-    /sourceX = width - 1 - sourceX;/,
-    'Mirror must be applied in output/display coordinates before inverse rotation mapping.',
-  );
-  assertPatternBefore(
-    commonBridgeContent,
-    /const int mappedNaturalX = mirror \? naturalWidth - 1 - naturalX : naturalX;/,
-    /switch \(normalizedRotation\)/,
-    'iOS local mirror should stay horizontal after applying videoFrame.rotation',
-  );
+  assert.doesNotMatch(commonBridgeContent, /const int mappedNaturalX = mirror \? naturalWidth - 1 - naturalX : naturalX;/);
 });
 
 test('engine-texture iOS coordinate mapping keeps mirror horizontal for rotated frames', () => {
@@ -563,7 +543,7 @@ test('engine-texture iOS converts CVPixelBuffer I420 frames instead of dropping 
     iosSlotBridgeContent,
     /case 13:[\s\S]*CVPixelBufferGetBaseAddressOfPlane\(videoFrame\.pixelBuffer, 0\)[\s\S]*CVPixelBufferGetBaseAddressOfPlane\(videoFrame\.pixelBuffer, 1\)[\s\S]*CVPixelBufferGetBaseAddressOfPlane\(videoFrame\.pixelBuffer, 2\)/,
   );
-  assert.match(
+  assert.doesNotMatch(
     iosSlotBridgeContent,
     /case 13:[\s\S]*update_agora_engine_texture_i420_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror[\s\S]*\);[\s\S]*break;/,
   );
@@ -956,8 +936,8 @@ test('android bridge template narrows local engine-texture source validation and
     bridgeContent,
     /private void handleUpdateLocalVideoView\(String requestId, JSONObject params\) \{[\s\S]*?if \(!isSupportedLocalTextureSourceType\(params\)\)[\s\S]*?dispatchInvalidArgumentError/,
   );
-  assert.match(backendContent, /private boolean resolveLocalMirror\(JSONObject params\)/);
-  assert.match(backendContent, /return mirrorMode == 1;/);
+  assert.doesNotMatch(backendContent, /private boolean resolveLocalMirror\(JSONObject params\)/);
+  assert.doesNotMatch(backendContent, /return mirrorMode == 1;/);
   assert.doesNotMatch(backendContent, /return mirrorMode != 2;/);
 });
 
@@ -2119,12 +2099,12 @@ test('ios bridge template maps JS canvas payloads into engine-texture slot param
 
   assert.match(bridgeContent, /private func resolveTextureWidth\(_ params: \[String: Any\], local: Bool\) -> Int/);
   assert.match(bridgeContent, /private func resolveTextureHeight\(_ params: \[String: Any\], local: Bool\) -> Int/);
-  assert.match(bridgeContent, /private func resolveTextureMirror\(_ params: \[String: Any\], local: Bool\) -> Bool/);
+  assert.doesNotMatch(bridgeContent, /private func resolveTextureMirror\(_ params: \[String: Any\], local: Bool\) -> Bool/);
   assert.match(bridgeContent, /private func isSupportedLocalTextureSourceType\(_ sourceType: AgoraVideoSourceType\) -> Bool/);
   assert.match(bridgeContent, /private func validateLocalTextureSourceType\(requestId: String, params: \[String: Any\]\) -> Bool/);
   assert.match(bridgeContent, /return sourceType == \.camera/);
   assert.match(bridgeContent, /dispatchInvalidArgumentError\(/);
-  assert.match(bridgeContent, /value == Int\(AgoraVideoMirrorMode.enabled.rawValue\)/);
+  assert.doesNotMatch(bridgeContent, /value == Int\(AgoraVideoMirrorMode.enabled.rawValue\)/);
   assert.doesNotMatch(bridgeContent, /return value != Int\(AgoraVideoMirrorMode.disabled.rawValue\)/);
   assert.match(bridgeContent, /private func resolveFrameObserverPosition\(/);
   assert.match(bridgeContent, /case "adaptive":\s*return \.adaptive/);
@@ -2166,10 +2146,10 @@ test('ios bridge template routes engine-texture through AgoraVideoFrameDelegate 
   assert.match(bridgeContent, /"slotId": slot\.slotId/);
   assert.match(bridgeContent, /"width": slot\.width/);
   assert.match(bridgeContent, /"height": slot\.height/);
-  assert.match(bridgeContent, /let mirror = self\.resolveTextureMirror\(params, local: true\)/);
-  assert.match(bridgeContent, /let mirror = self\.resolveTextureMirror\(params, local: false\)/);
-  assert.match(bridgeContent, /TextureSlotState\([\s\S]*slotId: slotId,[\s\S]*width: width,[\s\S]*height: height,[\s\S]*mirror: mirror,[\s\S]*observerPosition: observerPosition[\s\S]*\)/);
-  assert.match(bridgeContent, /updateTextureSlot\(slotId: slot\.slotId, videoFrame: videoFrame, mirror: slot\.mirror\)/);
+  assert.doesNotMatch(bridgeContent, /let mirror = self\.resolveTextureMirror\(params, local: true\)/);
+  assert.doesNotMatch(bridgeContent, /let mirror = self\.resolveTextureMirror\(params, local: false\)/);
+  assert.match(bridgeContent, /TextureSlotState\([\s\S]*slotId: slotId,[\s\S]*width: width,[\s\S]*height: height,[\s\S]*renderMode: renderMode,[\s\S]*observerPosition: observerPosition[\s\S]*\)/);
+  assert.match(bridgeContent, /updateTextureSlot\(slotId: slot\.slotId, videoFrame: videoFrame\)/);
   assert.match(bridgeContent, /resolveFrameObserverPosition\(\s*params,/);
   assert.match(bridgeContent, /observedFramePosition/);
   assert.match(bridgeContent, /\.preEncoder/);
@@ -3226,8 +3206,7 @@ final class AgoraEngineTextureSlotBridge {
         int targetWidth,
         int targetHeight,
         int renderMode,
-        int rotation,
-        boolean mirror
+        int rotation
     ) {}
 
     static void nativeUpdateNV12Slot(
@@ -3241,8 +3220,7 @@ final class AgoraEngineTextureSlotBridge {
         int targetWidth,
         int targetHeight,
         int renderMode,
-        int rotation,
-        boolean mirror
+        int rotation
     ) {}
 
     static void nativeReleaseSlot(int slotId) {}

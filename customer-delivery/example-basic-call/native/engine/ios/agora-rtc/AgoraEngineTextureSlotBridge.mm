@@ -63,14 +63,6 @@ static dispatch_queue_t gSlotOptionsQueue;
 }
 
 + (void)updateSlot:(NSNumber *)slotId videoFrame:(AgoraOutputVideoFrame *)videoFrame {
-    [self updateSlot:slotId videoFrame:videoFrame mirror:false];
-}
-
-+ (void)updateSlot:(NSNumber *)slotId mirroredVideoFrame:(AgoraOutputVideoFrame *)videoFrame {
-    [self updateSlot:slotId videoFrame:videoFrame mirror:true];
-}
-
-+ (void)updateSlot:(NSNumber *)slotId videoFrame:(AgoraOutputVideoFrame *)videoFrame mirror:(bool)mirror {
     if (videoFrame == nil) {
         return;
     }
@@ -108,8 +100,7 @@ static dispatch_queue_t gSlotOptionsQueue;
                         targetWidth,
                         targetHeight,
                         renderMode,
-                        static_cast<int>(videoFrame.rotation),
-                        mirror
+                        static_cast<int>(videoFrame.rotation)
                     );
                 }
             }
@@ -143,8 +134,7 @@ static dispatch_queue_t gSlotOptionsQueue;
                         targetWidth,
                         targetHeight,
                         renderMode,
-                        static_cast<int>(videoFrame.rotation),
-                        mirror
+                        static_cast<int>(videoFrame.rotation)
                     );
                 }
             }
@@ -170,8 +160,7 @@ static dispatch_queue_t gSlotOptionsQueue;
                 targetWidth,
                 targetHeight,
                 renderMode,
-                static_cast<int>(videoFrame.rotation),
-                mirror
+                static_cast<int>(videoFrame.rotation)
             );
             break;
         default:
