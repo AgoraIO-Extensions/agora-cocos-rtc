@@ -3,10 +3,13 @@ import {
   Component,
   Graphics,
   Label,
+  Mask,
   Node,
+  ScrollView,
   Sprite,
   SpriteFrame,
   Texture2D,
+  UITransform,
 } from 'cc';
 import type { DemoSessionState } from '../types.ts';
 import { COLORS, configureLabel, drawPanel, ensureTransform } from '../ui/uiStyles.ts';
@@ -18,10 +21,13 @@ const MIN_STAGE_WIDTH = 360;
 const MIN_STAGE_HEIGHT = 320;
 const STAGE_PADDING = 10;
 const VIDEO_INSET = 8;
-const REMOTE_ROW_HEIGHT = 104;
-const REMOTE_THUMB_WIDTH = 136;
-const REMOTE_THUMB_HEIGHT = 86;
+const REMOTE_ROW_HEIGHT = 176;
+const REMOTE_THUMB_WIDTH = 240;
+const REMOTE_THUMB_HEIGHT = 148;
 const REMOTE_THUMB_GAP = 12;
+const REMOTE_ROW_INSET = 12;
+const VERTICAL_SCROLL_WIDTH = 14;
+const STAGE_CONTENT_GAP = 14;
 
 @ccclass('VideoStagePanel')
 export class VideoStagePanel extends Component {
@@ -43,6 +49,10 @@ export class VideoStagePanel extends Component {
   @property(Node)
   remoteThumbnailRow: Node | null = null;
 
+  private stageScrollView: ScrollView | null = null;
+  private stageScrollContent: Node | null = null;
+  private remoteRowScrollView: ScrollView | null = null;
+  private remoteRowContent: Node | null = null;
   private remoteHintLabels = new Map<number, Label>();
   private remoteVideoSprites = new Map<number, Sprite>();
   private remoteVideoNodes = new Map<number, Node>();
@@ -154,18 +164,34 @@ export class VideoStagePanel extends Component {
   private ensureBaseNodes(): void {
     const stageWidth = this.stageWidth;
     const stageHeight = this.stageHeight;
-    const localWidth = Math.max(1, stageWidth - STAGE_PADDING * 2);
-    const localHeight = Math.max(1, stageHeight - STAGE_PADDING * 2);
+    const viewportWidth = Math.max(1, stageWidth - STAGE_PADDING * 2);
+    const viewportHeight = Math.max(1, stageHeight - STAGE_PADDING * 2);
+    const contentWidth = Math.max(1, viewportWidth - VERTICAL_SCROLL_WIDTH);
+    const localHeight = Math.max(280, stageHeight - REMOTE_ROW_HEIGHT - STAGE_CONTENT_GAP - STAGE_PADDING * 2);
+    const contentHeight = localHeight + REMOTE_ROW_HEIGHT + STAGE_CONTENT_GAP;
+    const localWidth = contentWidth;
     const localVideoWidth = Math.max(1, localWidth - VIDEO_INSET * 2);
     const localVideoHeight = Math.max(1, localHeight - VIDEO_INSET * 2);
-    const rowWidth = Math.max(1, localWidth - VIDEO_INSET * 2);
-    const rowY = stageHeight / 2 - STAGE_PADDING - REMOTE_ROW_HEIGHT / 2;
+    const rowWidth = Math.max(1, localWidth);
+    const localY = contentHeight / 2 - localHeight / 2;
+    const rowY = -contentHeight / 2 + REMOTE_ROW_HEIGHT / 2;
     const labelX = -localWidth / 2 + 16;
     const labelWidth = Math.max(120, Math.min(420, localWidth - 32));
 
     ensureTransform(this.node, stageWidth, stageHeight);
-    this.localCard = this.ensureCard('LocalStage', 0, 0, localWidth, localHeight);
-    this.remoteThumbnailRow = this.ensureCard('RemoteThumbnailRow', 0, rowY, rowWidth, REMOTE_ROW_HEIGHT);
+    const stageViewport = this.ensureScrollViewport('StageScrollView', stageWidth, stageHeight, viewportWidth, viewportHeight);
+    const stageContent = this.ensureScrollContent(stageViewport, 'StageScrollContent', contentWidth, Math.max(viewportHeight, contentHeight));
+    this.stageScrollView = stageViewport.getComponent(ScrollView) ?? stageViewport.addComponent(ScrollView);
+    this.stageScrollView.horizontal = false;
+    this.stageScrollView.vertical = true;
+    this.stageScrollView.elastic = true;
+    this.stageScrollView.inertia = true;
+    this.stageScrollView.brake = 0.75;
+    this.stageScrollView.content = stageContent;
+    this.stageScrollContent = stageContent;
+
+    this.localCard = this.ensureCard('LocalStage', 0, localY, localWidth, localHeight, stageContent);
+    this.remoteThumbnailRow = this.ensureHorizontalScrollRow(stageContent, rowWidth, REMOTE_ROW_HEIGHT, rowY);
     this.remoteCard = this.remoteThumbnailRow;
     this.remoteThumbnailRow.active = this.remoteVideoNodes.size > 0;
     this.localVideoSprite = this.ensureSprite(this.localCard, 'LocalVideoSprite', localVideoWidth, localVideoHeight);
@@ -201,6 +227,69 @@ export class VideoStagePanel extends Component {
     ensureTransform(node, width, height);
     drawPanel(node.getComponent(Graphics) ?? node.addComponent(Graphics), width, height);
     return node;
+  }
+
+  private ensureScrollViewport(name: string, stageWidth: number, stageHeight: number, width: number, height: number): Node {
+    let node = this.node.getChildByName(name);
+    if (!node) {
+      node = new Node(name);
+      node.setParent(this.node);
+    }
+    node.layer = this.node.layer;
+    node.active = true;
+    node.setPosition(0, 0, 0);
+    ensureTransform(node, width, height);
+    node.getComponent(UITransform)?.setAnchorPoint(0.5, 0.5);
+    node.getComponent(Mask) ?? node.addComponent(Mask);
+    return node;
+  }
+
+  private ensureScrollContent(parent: Node, name: string, width: number, height: number): Node {
+    let node = parent.getChildByName(name);
+    if (!node) {
+      node = new Node(name);
+      node.setParent(parent);
+    }
+    node.layer = parent.layer;
+    node.active = true;
+    node.setPosition(0, height / 2, 0);
+    const transform = ensureTransform(node, width, height);
+    transform.setAnchorPoint(0.5, 1);
+    return node;
+  }
+
+  private ensureHorizontalScrollRow(parent: Node, width: number, height: number, y: number): Node {
+    let viewport = parent.getChildByName('RemoteThumbnailRow');
+    if (!viewport) {
+      viewport = new Node('RemoteThumbnailRow');
+      viewport.setParent(parent);
+    }
+    viewport.layer = parent.layer;
+    viewport.active = true;
+    viewport.setPosition(0, y, 0);
+    ensureTransform(viewport, width, height);
+    viewport.getComponent(Mask) ?? viewport.addComponent(Mask);
+
+    let content = viewport.getChildByName('RemoteThumbnailContent');
+    if (!content) {
+      content = new Node('RemoteThumbnailContent');
+      content.setParent(viewport);
+    }
+    content.layer = viewport.layer;
+    content.active = true;
+    const transform = ensureTransform(content, width, height);
+    transform.setAnchorPoint(0, 0.5);
+    content.setPosition(-width / 2 + REMOTE_ROW_INSET, 0, 0);
+
+    this.remoteRowScrollView = viewport.getComponent(ScrollView) ?? viewport.addComponent(ScrollView);
+    this.remoteRowScrollView.horizontal = true;
+    this.remoteRowScrollView.vertical = false;
+    this.remoteRowScrollView.elastic = true;
+    this.remoteRowScrollView.inertia = true;
+    this.remoteRowScrollView.brake = 0.75;
+    this.remoteRowScrollView.content = content;
+    this.remoteRowContent = content;
+    return viewport;
   }
 
   private ensureSprite(parent: Node, name: string, width: number, height: number): Sprite {
@@ -244,7 +333,7 @@ export class VideoStagePanel extends Component {
     if (this.remoteVideoNodes.has(uid)) {
       return this.remoteVideoNodes.get(uid) ?? null;
     }
-    const parent = this.remoteThumbnailRow ?? this.node;
+    const parent = this.remoteRowContent ?? this.remoteThumbnailRow ?? this.node;
     const index = this.remoteVideoNodes.size;
     const x = this.remoteThumbX(index, this.remoteVideoNodes.size + 1);
     const pageNode = this.ensureCard(`RemoteUser_${uid}`, x, 0, REMOTE_THUMB_WIDTH, REMOTE_THUMB_HEIGHT, parent);
@@ -286,13 +375,24 @@ export class VideoStagePanel extends Component {
     if (this.remoteThumbnailRow) {
       this.remoteThumbnailRow.active = nodes.length > 0;
     }
+    if (this.remoteRowContent) {
+      const contentWidth = Math.max(
+        (this.stageWidth - STAGE_PADDING * 2 - VERTICAL_SCROLL_WIDTH),
+        REMOTE_ROW_INSET * 2 + nodes.length * REMOTE_THUMB_WIDTH + Math.max(0, nodes.length - 1) * REMOTE_THUMB_GAP,
+      );
+      ensureTransform(this.remoteRowContent, contentWidth, REMOTE_ROW_HEIGHT);
+      this.remoteRowContent.setPosition(
+        -(this.stageWidth - STAGE_PADDING * 2 - VERTICAL_SCROLL_WIDTH) / 2 + REMOTE_ROW_INSET,
+        0,
+        0,
+      );
+    }
     nodes.forEach((node, index) => {
       node.setPosition(this.remoteThumbX(index, nodes.length), 0, 0);
     });
   }
 
   private remoteThumbX(index: number, count: number): number {
-    const totalWidth = count * REMOTE_THUMB_WIDTH + Math.max(0, count - 1) * REMOTE_THUMB_GAP;
-    return -totalWidth / 2 + REMOTE_THUMB_WIDTH / 2 + index * (REMOTE_THUMB_WIDTH + REMOTE_THUMB_GAP);
+    return REMOTE_THUMB_WIDTH / 2 + index * (REMOTE_THUMB_WIDTH + REMOTE_THUMB_GAP);
   }
 }
