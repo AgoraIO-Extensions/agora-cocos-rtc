@@ -446,6 +446,13 @@ export class AgoraRtcDemoRoot extends Component {
     if (this.videoStagePanel) {
       this.videoStagePanel.node.active = definition.displayMode === 'video';
     }
+    if (definition.displayMode === 'video') {
+      this.createSession();
+      const state = this.getSessionState();
+      if (state.previewStarted || state.joined) {
+        void this.session?.refreshRtcViews();
+      }
+    }
     this.pushStatus(`Case selected: ${this.selectedCaseName}`, { deferPanels: true });
     this.scheduleRefreshPanels();
   }
