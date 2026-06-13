@@ -396,6 +396,7 @@ test('rtc session service resets preview state after stopping preview so toggle 
   const stopPreviewMatch = content.match(/async stopLocalPreview\(\): Promise<void>[\s\S]*?async togglePreview/);
   assert.ok(stopPreviewMatch);
   assert.match(stopPreviewMatch[0], /await this\.getClient\(\)\.stopPreview\(\);/);
+  assert.match(stopPreviewMatch[0], /if \(this\.localViewAttached\)[\s\S]*removeLocalVideoView\(\)/);
   assert.match(stopPreviewMatch[0], /this\.previewStarted = false;/);
   assert.match(stopPreviewMatch[0], /this\.clearLocalVideoRenderState\(\);/);
   assert.match(stopPreviewMatch[0], /this\.emitState\(\);/);

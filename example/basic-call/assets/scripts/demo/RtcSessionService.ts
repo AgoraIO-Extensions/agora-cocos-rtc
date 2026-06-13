@@ -278,6 +278,9 @@ export class RtcSessionService {
       return;
     }
     await this.getClient().stopPreview();
+    if (this.localViewAttached) {
+      await this.getClient().removeLocalVideoView();
+    }
     this.previewStarted = false;
     this.clearLocalVideoRenderState();
     this.log('Preview stopped');
