@@ -7,6 +7,10 @@ import {
   createAgoraRtcClient,
   getAgoraEngineTextureBridge,
 } from '../sdk/agora-rtc/js/agora.ts';
+import {
+  resolveEngineTextureMirror,
+  shouldMirrorScreenLikeSource,
+} from '../sdk/agora-rtc/js/internal/engine_texture_mirror.ts';
 
 const sdkTypesSource = readFileSync('sdk/agora-rtc/js/types.ts', 'utf8');
 
@@ -1862,4 +1866,88 @@ test('playEffect rejects non-integer gain values before bridge dispatch', async 
       error.details.parameter === 'gain',
   );
   assert.equal(transport.sent.length, 0);
+});
+
+test('engine-texture mirror auto matches flutter-style local and remote semantics', () => {
+  assert.equal(
+    resolveEngineTextureMirror({
+      mirrorMode: 0,
+      isLocal: true,
+      isFrontCamera: true,
+      sourceType: 0,
+    }),
+    true,
+  );
+  assert.equal(
+    resolveEngineTextureMirror({
+      mirrorMode: 0,
+      isLocal: true,
+      isFrontCamera: false,
+      sourceType: 0,
+    }),
+    false,
+  );
+  assert.equal(
+    resolveEngineTextureMirror({
+      mirrorMode: 0,
+      isLocal: false,
+      isFrontCamera: true,
+      sourceType: 0,
+    }),
+    false,
+  );
+});
+
+test('engine-texture mirror explicit modes override auto for local and remote views', () => {
+  assert.equal(
+    resolveEngineTextureMirror({
+      mirrorMode: 1,
+      isLocal: true,
+      isFrontCamera: false,
+      sourceType: 0,
+    }),
+    true,
+  );
+  assert.equal(
+    resolveEngineTextureMirror({
+      mirrorMode: 2,
+      isLocal: true,
+      isFrontCamera: true,
+      sourceType: 0,
+    }),
+    false,
+  );
+  assert.equal(
+    resolveEngineTextureMirror({
+      mirrorMode: 1,
+      isLocal: false,
+      isFrontCamera: true,
+      sourceType: 0,
+    }),
+    true,
+  );
+  assert.equal(
+    resolveEngineTextureMirror({
+      mirrorMode: 2,
+      isLocal: false,
+      isFrontCamera: true,
+      sourceType: 0,
+    }),
+    false,
+  );
+});
+
+test('engine-texture mirror never mirrors screen-like sources in auto mode', () => {
+  assert.equal(shouldMirrorScreenLikeSource(2), false);
+  assert.equal(shouldMirrorScreenLikeSource(3), false);
+  assert.equal(shouldMirrorScreenLikeSource(10), false);
+  assert.equal(
+    resolveEngineTextureMirror({
+      mirrorMode: 0,
+      isLocal: true,
+      isFrontCamera: true,
+      sourceType: 2,
+    }),
+    false,
+  );
 });
