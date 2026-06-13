@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   AgoraErrorCode,
+  createAgoraEngineTextureViewController,
   createAgoraRtcClient,
   getAgoraEngineTextureBridge,
 } from '../sdk/agora-rtc/js/agora.ts';
@@ -1442,6 +1443,52 @@ test('startPreview and switchCamera dispatch the expected native requests', asyn
     }),
   );
   await switchPending;
+});
+
+test('engine texture view controller tracks camera facing across switchCamera', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({ transport, timeoutMs: 50 });
+  const controller = createAgoraEngineTextureViewController(client);
+
+  assert.equal(controller.getLocalCameraFacing(), 'front');
+
+  const pending = client.switchCamera();
+  const request = JSON.parse(transport.sent.at(-1)!.payload);
+  transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true }));
+  await pending;
+
+  assert.equal(controller.getLocalCameraFacing(), 'rear');
+});
+
+test('engine texture view controller resolves local auto mirror from client camera facing', () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({ transport, timeoutMs: 50 });
+  const controller = createAgoraEngineTextureViewController(client);
+
+  controller.registerLocalView({
+    viewId: 'local',
+    mirrorMode: 0,
+    sourceType: 0,
+  });
+  assert.equal(controller.getViewMirror('local'), true);
+
+  controller.setLocalCameraFacing('rear');
+  assert.equal(controller.getViewMirror('local'), false);
+});
+
+test('engine texture view controller keeps remote auto non-mirrored', () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({ transport, timeoutMs: 50 });
+  const controller = createAgoraEngineTextureViewController(client);
+
+  controller.registerRemoteView({
+    viewId: 'remote:42',
+    uid: 42,
+    mirrorMode: 0,
+    sourceType: 0,
+  });
+
+  assert.equal(controller.getViewMirror('remote:42'), false);
 });
 
 test('setRenderBackend dispatches the expected native request', async () => {
