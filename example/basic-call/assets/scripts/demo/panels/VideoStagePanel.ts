@@ -56,6 +56,7 @@ export class VideoStagePanel extends Component {
   private remoteStatsLabels = new Map<number, Label>();
   private stageWidth = DEFAULT_STAGE_WIDTH;
   private stageHeight = DEFAULT_STAGE_HEIGHT;
+  private lastRemoteContentWidth = 0;
 
   initialize(): void {
     this.ensureBaseNodes();
@@ -69,7 +70,9 @@ export class VideoStagePanel extends Component {
   }
 
   setLocalHint(text: string): void {
-    this.ensureBaseNodes();
+    if (!this.localHintLabel) {
+      this.ensureBaseNodes();
+    }
     if (this.localHintLabel) {
       this.localHintLabel.string = text;
     }
@@ -92,21 +95,29 @@ export class VideoStagePanel extends Component {
   }
 
   setLocalStageState(state: DemoSessionState): void {
-    this.ensureBaseNodes();
     this.setLocalHint(state.previewStarted ? 'Local preview' : 'Preview stopped');
   }
 
   setStats(state: DemoSessionState): void {
-    this.ensureBaseNodes();
+    if (!this.localStatsLabel) {
+      this.ensureBaseNodes();
+    }
     if (this.localStatsLabel) {
       this.localStatsLabel.string = `Local ${state.lastLocalVideoStatsSummary} | RTC ${state.lastRtcStatsSummary}`;
     }
+    let addedRemote = false;
     for (const uid of state.remoteUserUids) {
-      this.ensureRemoteUserPage(uid);
+      if (!this.remoteVideoNodes.has(uid)) {
+        this.ensureRemoteUserPage(uid);
+        addedRemote = true;
+      }
       const label = this.remoteStatsLabels.get(uid);
       if (label) {
         label.string = state.lastRemoteVideoStatsByUid[uid] ?? `Remote ${uid}`;
       }
+    }
+    if (addedRemote) {
+      this.layoutRemoteThumbnails();
     }
   }
 
@@ -321,8 +332,9 @@ export class VideoStagePanel extends Component {
 
   private focusRemoteUser(uid: number): void {
     const node = this.remoteVideoNodes.get(uid);
-    if (node) {
-      node.setSiblingIndex((this.remoteThumbnailRow?.children.length ?? 1) - 1);
+    const parent = this.remoteRowContent;
+    if (node && parent) {
+      node.setSiblingIndex(parent.children.length - 1);
     }
   }
 
@@ -338,15 +350,16 @@ export class VideoStagePanel extends Component {
         viewportWidth,
         REMOTE_ROW_INSET * 2 + nodes.length * REMOTE_THUMB_WIDTH + Math.max(0, nodes.length - 1) * REMOTE_THUMB_GAP,
       );
-      const scrollOffset = this.remoteRowScrollView.getScrollOffset();
-      ensureTransform(this.remoteRowContent, contentWidth, REMOTE_ROW_HEIGHT);
-      const maxScrollX = Math.max(0, contentWidth - viewportWidth);
-      const nextOffset = new Vec2(
-        Math.min(Math.max(0, scrollOffset.x), maxScrollX),
-        scrollOffset.y,
-      );
-      if (scrollOffset.x !== nextOffset.x || scrollOffset.y !== nextOffset.y) {
+      if (contentWidth !== this.lastRemoteContentWidth) {
+        const scrollOffset = this.remoteRowScrollView.getScrollOffset();
+        ensureTransform(this.remoteRowContent, contentWidth, REMOTE_ROW_HEIGHT);
+        const maxScrollX = Math.max(0, contentWidth - viewportWidth);
+        const nextOffset = new Vec2(
+          Math.min(Math.max(0, Number.isFinite(scrollOffset.x) ? scrollOffset.x : 0), maxScrollX),
+          Number.isFinite(scrollOffset.y) ? scrollOffset.y : 0,
+        );
         this.remoteRowScrollView.scrollToOffset(nextOffset, 0, false);
+        this.lastRemoteContentWidth = contentWidth;
       }
     }
     nodes.forEach((node, index) => {
