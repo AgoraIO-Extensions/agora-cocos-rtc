@@ -202,7 +202,12 @@ test('rtc session service passes configurable video join media options from Type
   assert.match(joinMethod, /autoSubscribeAudio:\s*config\.autoSubscribeAudio/);
   assert.match(joinMethod, /autoSubscribeVideo:\s*config\.autoSubscribeVideo/);
   assert.match(joinMethod, /if \(config\.publishCameraTrack\)/);
-  assert.match(content, /setupLocalVideoView\(\{[\s\S]*mirrorMode:\s*0,/);
+  assert.match(content, /createAgoraEngineTextureViewController/);
+  assert.match(content, /registerLocalView/);
+  assert.match(content, /registerRemoteView/);
+  assert.match(content, /getViewMirror/);
+  assert.doesNotMatch(content, /mirrorMode:\s*0,/);
+  assert.doesNotMatch(content, /mirrorMode:\s*2,/);
 });
 
 test('rtc session service uses runtime-configurable canvas, preview, beauty, and content inspect parameters', async () => {
@@ -232,12 +237,21 @@ test('rtc session service uses runtime-configurable canvas, preview, beauty, and
   assert.match(localCanvasMatch[0], /const config = this\.options\.getConfig\(\);/);
   assert.match(localCanvasMatch[0], /resolveNodeRect\(node, 'hidden'\)/);
   assert.match(localCanvasMatch[0], /\.\.\.config\.localVideoCanvas/);
+  assert.match(localCanvasMatch[0], /const mirrorMode = config\.localVideoCanvas\?\.mirrorMode\s*\?\?\s*0/);
+  assert.match(localCanvasMatch[0], /mirrorMode,/);
+  assert.match(localCanvasMatch[0], /this\.textureViewController\.registerLocalView\(/);
 
   const remoteCanvasMatch = content.match(/private async setupRemoteVideoView\(uid: number\): Promise<void>[\s\S]*?private bindNativeTextureSprite/);
   assert.ok(remoteCanvasMatch);
   assert.match(remoteCanvasMatch[0], /const config = this\.options\.getConfig\(\);/);
   assert.match(remoteCanvasMatch[0], /resolveNodeRect\(node, 'fit'\)/);
   assert.match(remoteCanvasMatch[0], /\.\.\.config\.remoteVideoCanvas/);
+  assert.match(remoteCanvasMatch[0], /const mirrorMode = config\.remoteVideoCanvas\?\.mirrorMode\s*\?\?\s*0/);
+  assert.match(remoteCanvasMatch[0], /mirrorMode,/);
+  assert.match(remoteCanvasMatch[0], /this\.textureViewController\.registerRemoteView\(/);
+  assert.match(remoteCanvasMatch[0], /this\.applyVideoNodeMirror\(/);
+  assert.match(content, /this\.textureViewController\.unregisterView\(/);
+  assert.match(content, /triggerSwitchCamera\(\): Promise<void>[\s\S]*applyVideoNodeMirror\(/);
 });
 
 test('rtc session service uses runtime-configurable audio, mixing, effect, and diagnostics parameters', async () => {

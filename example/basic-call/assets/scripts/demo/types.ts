@@ -122,6 +122,11 @@ export interface VideoTextureBinding {
   spriteFrame: SpriteFrame | null;
 }
 
+export interface DisplayMirrorTarget {
+  node: Node | null;
+  viewId: string;
+}
+
 export type DemoActionHandler = () => Promise<void> | void;
 
 export interface DemoPanelCallbacks {
