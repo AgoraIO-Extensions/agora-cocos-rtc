@@ -34,6 +34,7 @@ const CLIENT_ROLE_PRESETS: ClientRole[] = ['broadcaster', 'audience'];
 const VIDEO_ENCODER_PRESET_NAMES: VideoEncoderPresetName[] = ['360p', '540p', '720p'];
 const MAX_TEXTURE_BIND_RETRIES = 600;
 const TEXTURE_BIND_RETRY_MS = 100;
+const DEMO_NATIVE_REQUEST_TIMEOUT_MS = 20000;
 
 export interface RtcSessionServiceOptions {
   getConfig(): RuntimeConfigState;
@@ -98,7 +99,6 @@ export class RtcSessionService {
   private audioMixingPositionMs = 1000;
   private remoteAudioStateSummary = '-';
   private readonly audioEffectSoundId = 1;
-  private readonly audioEffectPath = resolveAudioEffectAssetPath();
 
   constructor(private readonly options: RtcSessionServiceOptions) {}
 
@@ -278,6 +278,9 @@ export class RtcSessionService {
       return;
     }
     await this.getClient().stopPreview();
+    if (this.localViewAttached) {
+      await this.getClient().removeLocalVideoView();
+    }
     this.previewStarted = false;
     this.clearLocalVideoRenderState();
     this.log('Preview stopped');
@@ -596,9 +599,10 @@ export class RtcSessionService {
   }
 
   async preloadAudioEffect(): Promise<void> {
-    await this.getClient().preloadEffect(this.audioEffectSoundId, this.audioEffectPath);
+    const audioEffectPath = this.getAudioEffectPath();
+    await this.getClient().preloadEffect(this.audioEffectSoundId, audioEffectPath);
     this.audioEffectPreloaded = true;
-    this.log(`Audio effect preloaded: ${this.audioEffectPath}`);
+    this.log(`Audio effect preloaded: ${audioEffectPath}`);
     this.emitState();
   }
 
@@ -610,9 +614,10 @@ export class RtcSessionService {
       this.emitState();
       return;
     }
+    const audioEffectPath = this.getAudioEffectPath();
     await this.getClient().playEffect({
       soundId: this.audioEffectSoundId,
-      path: this.audioEffectPath,
+      path: audioEffectPath,
       loopCount: -1,
       pitch: 1,
       pan: 0,
@@ -623,6 +628,10 @@ export class RtcSessionService {
     this.audioEffectPlaying = true;
     this.log('Audio effect playing');
     this.emitState();
+  }
+
+  private getAudioEffectPath(): string {
+    return resolveAudioEffectAssetPath();
   }
 
   async pauseAudioEffect(): Promise<void> {
@@ -765,6 +774,7 @@ export class RtcSessionService {
           native,
           sys,
         },
+        timeoutMs: DEMO_NATIVE_REQUEST_TIMEOUT_MS,
       });
     }
     this.bindRtcEventListeners();

@@ -1,4 +1,4 @@
-import { _decorator, Component, JsonAsset, Node, resources, UITransform, view } from 'cc';
+import { _decorator, Component, game, JsonAsset, Node, resources, UITransform, view } from 'cc';
 import type {
   AgoraBeautyOptions,
   AgoraContentInspectConfig,
@@ -34,6 +34,7 @@ const ACTION_PANEL_WIDTH = 420;
 const ACTION_PANEL_HEIGHT = 620;
 const MIN_VIDEO_STAGE_WIDTH = 360;
 const STRING_USER_ACCOUNT = 'cocos-user-0';
+const AUTO_STARTUP_DELAY_MS = 800;
 
 type CocosTestGlobal = typeof globalThis & {
   AGORA_COCOS_TEST_MODE?: string;
@@ -107,6 +108,10 @@ export class AgoraRtcDemoRoot extends Component {
   private actionResults = new Map<string, ActionResult>();
   private statusFrozen = false;
   private selectedCase: DemoCaseDefinition | null = null;
+  private refreshPanelsTimer: ReturnType<typeof setTimeout> | null = null;
+  private autoStartupTimer: ReturnType<typeof setTimeout> | null = null;
+  private autoStartupRunning = false;
+  private autoStartupCompleted = false;
 
   private get selectedCaseName(): string | null {
     return this.selectedCase?.name ?? null;
@@ -131,6 +136,7 @@ export class AgoraRtcDemoRoot extends Component {
       onClear: () => { void this.clearStatusLog(); },
       onFreeze: () => { void this.toggleStatusFreeze(); },
     });
+    game.on(game.constructor.EVENT_SHOW, this.handleGameShow, this);
     this.layoutResponsivePanels();
     if (this.videoStagePanel) {
       this.videoStagePanel.node.active = false;
@@ -152,25 +158,20 @@ export class AgoraRtcDemoRoot extends Component {
       this.pushStatus('Cocos test mode: RTC auto startup skipped');
       return;
     }
-    try {
-      await this.initializeRtc();
-      if (this.autoPreview) {
-        this.pushStatus('Auto preview enabled');
-        await this.startLocalPreview();
-      } else {
-        this.pushStatus('Auto preview disabled');
-      }
-      if (this.autoJoin) {
-        this.pushStatus('Auto join enabled');
-        await this.joinRtcChannel();
-      }
-    } catch (error) {
-      this.pushStatus(`Auto startup failed: ${String(error)}`);
-    }
+    this.scheduleAutoStartup();
   }
 
   onDestroy(): void {
     view.off('canvas-resize', this.layoutResponsivePanels, this);
+    game.off(game.constructor.EVENT_SHOW, this.handleGameShow, this);
+    if (this.refreshPanelsTimer) {
+      clearTimeout(this.refreshPanelsTimer);
+      this.refreshPanelsTimer = null;
+    }
+    if (this.autoStartupTimer) {
+      clearTimeout(this.autoStartupTimer);
+      this.autoStartupTimer = null;
+    }
     void this.session?.teardownRtc();
   }
 
@@ -424,7 +425,7 @@ export class AgoraRtcDemoRoot extends Component {
     if (this.videoStagePanel) {
       this.videoStagePanel.node.active = false;
     }
-    this.refreshPanels();
+    this.scheduleRefreshPanels();
   }
 
   private async backToCaseList(): Promise<void> {
@@ -445,8 +446,8 @@ export class AgoraRtcDemoRoot extends Component {
     if (this.videoStagePanel) {
       this.videoStagePanel.node.active = definition.displayMode === 'video';
     }
-    this.pushStatus(`Case selected: ${this.selectedCaseName}`);
-    this.refreshPanels();
+    this.pushStatus(`Case selected: ${this.selectedCaseName}`, { deferPanels: true });
+    this.scheduleRefreshPanels();
   }
 
   private resolvePanelBindings(): void {
@@ -552,9 +553,11 @@ export class AgoraRtcDemoRoot extends Component {
   ): Promise<void> {
     this.createSession();
     this.setActionResult(actionName, 'idle');
+    this.pushStatus(`${actionName} started`);
     try {
       await action(this.session!);
       this.setActionResult(actionName, 'ok');
+      this.pushStatus(`${actionName} completed`);
     } catch (error) {
       this.setActionResult(actionName, 'fail');
       this.pushStatus(`${actionName} failed: ${String(error)}`);
@@ -618,15 +621,20 @@ export class AgoraRtcDemoRoot extends Component {
     this.pushStatus(`Config updated: channel ${this.channelId}, uid ${this.uid}`);
   }
 
-  private pushStatus(line: string): void {
+  private pushStatus(line: string, options: { deferPanels?: boolean } = {}): void {
     if (this.statusFrozen) {
       return;
     }
+    console.log(`[agora-demo] ${line}`);
     this.statusLines.push(`[${new Date().toLocaleTimeString()}] ${line}`);
     if (this.statusLines.length > MAX_LOG_LINES) {
       this.statusLines.splice(0, this.statusLines.length - MAX_LOG_LINES);
     }
     this.refreshLogPanel();
+    if (options.deferPanels) {
+      this.scheduleRefreshPanels();
+      return;
+    }
     this.refreshPanels();
   }
 
@@ -642,6 +650,63 @@ export class AgoraRtcDemoRoot extends Component {
     this.actionPanel?.refresh();
     this.videoStagePanel?.setLocalStageState(state);
     this.videoStagePanel?.setStats(state);
+  }
+
+  private scheduleRefreshPanels(): void {
+    if (this.refreshPanelsTimer) {
+      clearTimeout(this.refreshPanelsTimer);
+    }
+    this.refreshPanelsTimer = setTimeout(() => {
+      this.refreshPanelsTimer = null;
+      this.refreshPanels();
+    }, 120);
+  }
+
+  private handleGameShow(): void {
+    if (this.isCocosTestMode() || this.autoStartupCompleted || this.autoStartupRunning) {
+      return;
+    }
+    this.pushStatus('Game foregrounded');
+    this.scheduleAutoStartup();
+  }
+
+  private scheduleAutoStartup(): void {
+    if (this.autoStartupCompleted || this.autoStartupRunning) {
+      return;
+    }
+    if (this.autoStartupTimer) {
+      clearTimeout(this.autoStartupTimer);
+    }
+    this.pushStatus(`Auto startup scheduled in ${AUTO_STARTUP_DELAY_MS}ms`);
+    this.autoStartupTimer = setTimeout(() => {
+      this.autoStartupTimer = null;
+      void this.runAutoStartup();
+    }, AUTO_STARTUP_DELAY_MS);
+  }
+
+  private async runAutoStartup(): Promise<void> {
+    if (this.autoStartupCompleted || this.autoStartupRunning) {
+      return;
+    }
+    this.autoStartupRunning = true;
+    try {
+      await this.initializeRtc();
+      if (this.autoPreview) {
+        this.pushStatus('Auto preview enabled');
+        await this.startLocalPreview();
+      } else {
+        this.pushStatus('Auto preview disabled');
+      }
+      if (this.autoJoin) {
+        this.pushStatus('Auto join enabled');
+        await this.joinRtcChannel();
+      }
+      this.autoStartupCompleted = true;
+    } catch (error) {
+      this.pushStatus(`Auto startup failed: ${String(error)}`);
+    } finally {
+      this.autoStartupRunning = false;
+    }
   }
 
   private layoutResponsivePanels(): void {
@@ -673,7 +738,12 @@ export class AgoraRtcDemoRoot extends Component {
     if (this.logPanel) {
       this.logPanel.applyLayout(landscapeWidth, landscapeHeight);
       this.logPanel.node.setScale(1, 1, 1);
-      this.logPanel.node.setPosition(0, 0, 0);
+      const logWidth = this.logPanel.node.getComponent(UITransform)?.width ?? 0;
+      this.logPanel.node.setPosition(
+        right - logWidth / 2,
+        0,
+        0,
+      );
     }
   }
 

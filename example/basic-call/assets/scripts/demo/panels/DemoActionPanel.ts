@@ -77,6 +77,7 @@ export class DemoActionPanel extends Component {
   private scrollView: ScrollView | null = null;
   private scrollContent: Node | null = null;
   private contentCursorY = -CONTENT_TOP_PADDING;
+  private blurInputsTimer: ReturnType<typeof setTimeout> | null = null;
 
   initialize(callbacks: ActionCallbacks | ((actionName: string) => void)): void {
     if (typeof callbacks === 'function') {
@@ -116,6 +117,7 @@ export class DemoActionPanel extends Component {
     this.cases = cases;
     this.selectedCase = selectedCase;
     this.ensureControls();
+    this.scheduleBlurInputs();
     this.refresh();
   }
 
@@ -225,6 +227,10 @@ export class DemoActionPanel extends Component {
     this.statusLabel = null;
     this.advancedToggleLabel = null;
     this.advancedSection = null;
+    if (this.blurInputsTimer) {
+      clearTimeout(this.blurInputsTimer);
+      this.blurInputsTimer = null;
+    }
   }
 
   private ensureScrollContainers(): void {
@@ -425,7 +431,7 @@ export class DemoActionPanel extends Component {
     const title = ensureLabelNode(parent, 'SectionTitle', 360, 24, 'Actions', 14, COLORS.textPrimary);
     title.node.setPosition(0, titleY, 0);
     const selectedCase = this.selectedCase;
-    const names = selectedCase ? selectedCase.actions : [];
+    const names = selectedCase ? selectedCase.actions.filter((name) => name !== 'JoinChannel') : [];
     this.buildButtonList(parent, [...names], CASE_ACTION_COLUMNS, titleY - 38, 176, 32, 184, CASE_ACTION_ROW_GAP);
   }
 
@@ -512,6 +518,21 @@ export class DemoActionPanel extends Component {
     editBox.string = editBox.string || value;
     editBox.maxLength = name === 'UidInput' ? 10 : 64;
     return editBox;
+  }
+
+  private blurInputs(): void {
+    this.channelInput?.blur?.();
+    this.uidInput?.blur?.();
+  }
+
+  private scheduleBlurInputs(): void {
+    if (this.blurInputsTimer) {
+      clearTimeout(this.blurInputsTimer);
+    }
+    this.blurInputsTimer = setTimeout(() => {
+      this.blurInputsTimer = null;
+      this.blurInputs();
+    }, 0);
   }
 
   private ensureEditBoxLabel(parent: Node, name: string, width: number, text: string, color = COLORS.textPrimary): Label {
