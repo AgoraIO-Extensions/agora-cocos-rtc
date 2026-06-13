@@ -360,6 +360,7 @@ test('engine-texture raw frame path applies orientation before uploading texture
   const templateContent = await readFile(engineTextureBackendTemplate, 'utf8');
   const runtimeContent = await readFile(engineTextureBackendRuntime, 'utf8');
   const iosSlotBridgeContent = await readFile(iosEngineTextureSlotBridgeTemplate, 'utf8');
+  const iosSlotBridgeHeaderContent = await readFile(iosEngineTextureSlotBridgeHeaderTemplate, 'utf8');
   const commonBridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/common/Classes/agora/AgoraEngineTextureBridge.cpp'),
     'utf8',
@@ -383,6 +384,7 @@ test('engine-texture raw frame path applies orientation before uploading texture
 
   assert.match(iosSlotBridgeContent, /videoFrame\.rotation/);
   assert.doesNotMatch(iosSlotBridgeContent, /mirroredVideoFrame/);
+  assert.doesNotMatch(iosSlotBridgeHeaderContent, /mirroredVideoFrame/);
   assert.doesNotMatch(iosSlotBridgeContent, /videoFrame:videoFrame mirror:/);
   assert.doesNotMatch(iosSlotBridgeContent, /update_agora_engine_texture_nv12_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
   assert.doesNotMatch(
@@ -2185,6 +2187,7 @@ test('engine-texture backend uses DirectByteBuffer and slot-level reusable nativ
   assert.match(slotBridgeContent, /ByteBuffer dataU/);
   assert.match(slotBridgeContent, /ByteBuffer dataV/);
   assert.match(iosSlotBridgeHeaderContent, /updateSlot:\(NSNumber \*\)slotId videoFrame:/);
+  assert.doesNotMatch(iosSlotBridgeHeaderContent, /mirroredVideoFrame/);
   assert.match(iosSlotBridgeContent, /CVPixelBufferLockBaseAddress/);
   assert.match(iosSlotBridgeContent, /static_cast<const uint8_t \*>/);
 });
