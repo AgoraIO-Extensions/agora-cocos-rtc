@@ -1,7 +1,6 @@
 import type { AgoraRtcClient } from '../agora.ts';
+import type { AgoraEngineTextureCameraFacing } from '../types.ts';
 import { resolveEngineTextureMirror } from './engine_texture_mirror.ts';
-
-export type EngineTextureCameraFacing = 'front' | 'rear';
 
 type EngineTextureViewState = {
   viewId: string;
@@ -11,18 +10,38 @@ type EngineTextureViewState = {
   isLocal: boolean;
 };
 
+type EngineTextureClientState = {
+  localCameraFacing: AgoraEngineTextureCameraFacing;
+};
+
+const engineTextureClientStates = new WeakMap<AgoraRtcClient, EngineTextureClientState>();
+
+function getEngineTextureClientState(client: AgoraRtcClient): EngineTextureClientState {
+  const existingState = engineTextureClientStates.get(client);
+  if (existingState) {
+    return existingState;
+  }
+
+  const state: EngineTextureClientState = {
+    localCameraFacing: 'front',
+  };
+
+  const originalSwitchCamera = client.switchCamera.bind(client);
+  client.switchCamera = async () => {
+    await originalSwitchCamera();
+    state.localCameraFacing = state.localCameraFacing === 'front' ? 'rear' : 'front';
+  };
+
+  engineTextureClientStates.set(client, state);
+  return state;
+}
+
 export class AgoraEngineTextureViewController {
-  #client: AgoraRtcClient;
-  #localCameraFacing: EngineTextureCameraFacing = 'front';
+  #clientState: EngineTextureClientState;
   #views = new Map<string, EngineTextureViewState>();
 
   constructor(client: AgoraRtcClient) {
-    this.#client = client;
-    const originalSwitchCamera = client.switchCamera.bind(client);
-    client.switchCamera = async () => {
-      await originalSwitchCamera();
-      this.#localCameraFacing = this.#localCameraFacing === 'front' ? 'rear' : 'front';
-    };
+    this.#clientState = getEngineTextureClientState(client);
   }
 
   registerLocalView(view: Omit<EngineTextureViewState, 'isLocal'>): void {
@@ -37,12 +56,12 @@ export class AgoraEngineTextureViewController {
     this.#views.delete(viewId);
   }
 
-  setLocalCameraFacing(facing: EngineTextureCameraFacing): void {
-    this.#localCameraFacing = facing;
+  setLocalCameraFacing(facing: AgoraEngineTextureCameraFacing): void {
+    this.#clientState.localCameraFacing = facing;
   }
 
-  getLocalCameraFacing(): EngineTextureCameraFacing {
-    return this.#localCameraFacing;
+  getLocalCameraFacing(): AgoraEngineTextureCameraFacing {
+    return this.#clientState.localCameraFacing;
   }
 
   getViewMirror(viewId: string): boolean {
@@ -53,7 +72,7 @@ export class AgoraEngineTextureViewController {
     return resolveEngineTextureMirror({
       mirrorMode: view.mirrorMode,
       isLocal: view.isLocal,
-      isFrontCamera: this.#localCameraFacing === 'front',
+      isFrontCamera: this.#clientState.localCameraFacing === 'front',
       sourceType: view.sourceType,
     });
   }

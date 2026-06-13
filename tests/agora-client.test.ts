@@ -1460,6 +1460,54 @@ test('engine texture view controller tracks camera facing across switchCamera', 
   assert.equal(controller.getLocalCameraFacing(), 'rear');
 });
 
+test('engine texture view controller shares camera facing across controllers without double wrapping switchCamera', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({ transport, timeoutMs: 50 });
+  const firstController = createAgoraEngineTextureViewController(client);
+  const secondController = createAgoraEngineTextureViewController(client);
+
+  assert.equal(firstController.getLocalCameraFacing(), 'front');
+  assert.equal(secondController.getLocalCameraFacing(), 'front');
+
+  const pending = client.switchCamera();
+  const request = JSON.parse(transport.sent.at(-1)!.payload);
+  transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true }));
+  await pending;
+
+  assert.equal(firstController.getLocalCameraFacing(), 'rear');
+  assert.equal(secondController.getLocalCameraFacing(), 'rear');
+});
+
+test('engine texture view controller keeps camera facing unchanged when switchCamera fails', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({ transport, timeoutMs: 50 });
+  const controller = createAgoraEngineTextureViewController(client);
+
+  assert.equal(controller.getLocalCameraFacing(), 'front');
+
+  const pending = client.switchCamera();
+  const request = JSON.parse(transport.sent.at(-1)!.payload);
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: false,
+      error: {
+        code: AgoraErrorCode.NativeFailure,
+        message: 'switchCamera failed',
+      },
+    }),
+  );
+
+  await assert.rejects(
+    pending,
+    (error: { code: string; message: string }) =>
+      error.code === AgoraErrorCode.NativeFailure &&
+      error.message === 'switchCamera failed',
+  );
+  assert.equal(controller.getLocalCameraFacing(), 'front');
+});
+
 test('engine texture view controller resolves local auto mirror from client camera facing', () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({ transport, timeoutMs: 50 });
