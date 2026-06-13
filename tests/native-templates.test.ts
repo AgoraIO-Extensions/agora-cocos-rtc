@@ -395,7 +395,7 @@ test('engine-texture raw frame path applies orientation before uploading texture
   assert.match(commonBridgeContent, /mirror/);
 });
 
-test('engine-texture local camera preview mirrors for auto and enabled modes', async () => {
+test('engine-texture local camera preview requires explicit enabled mirror semantics', async () => {
   const androidTemplateContent = await readFile(engineTextureBackendTemplate, 'utf8');
   const androidRuntimeContent = await readFile(engineTextureBackendRuntime, 'utf8');
   const iosBridgeContent = await readFile(
@@ -407,7 +407,7 @@ test('engine-texture local camera preview mirrors for auto and enabled modes', a
     assert.match(content, /final boolean mirror = slot\.mirror;/);
     assert.match(content, /resolveLocalMirror\(params\)/);
     assert.match(content, /private boolean resolveLocalMirror\(JSONObject params\)/);
-    assert.match(content, /return mirrorMode != 2;/);
+    assert.match(content, /return mirrorMode == 1;/);
     assert.match(content, /boolean mirror = resolveMirror\(params, true\);/);
     assert.match(content, /boolean mirror = resolveMirror\(params, false\);/);
   }
@@ -428,7 +428,7 @@ test('engine-texture local camera preview mirrors for auto and enabled modes', a
     iosBridgeContent,
     /private func resolveTextureMirror\(_ params: \[String: Any\], local: Bool\) -> Bool \{/,
   );
-  assert.match(iosBridgeContent, /if local \{\s*return value != Int\(AgoraVideoMirrorMode.disabled.rawValue\)\s*\}/);
+  assert.match(iosBridgeContent, /if local \{\s*return value == Int\(AgoraVideoMirrorMode.enabled.rawValue\)\s*\}/);
 });
 
 test('engine-texture iOS mirror is applied in display coordinates after rotation', async () => {
@@ -931,6 +931,36 @@ test('android bridge template requests rtc runtime permissions before camera and
   assert.match(bridgeContent, /options\.stopMicrophoneRecording = params\.optBoolean\("stopMicrophoneRecording"\)/);
 });
 
+test('android bridge template narrows local engine-texture source validation and mirror semantics', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+  const backendContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/render/RawFrameTextureRenderBackend.java',
+    ),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /private boolean isSupportedLocalTextureSourceType\(JSONObject params\)/);
+  assert.match(
+    bridgeContent,
+    /private void handleSetupLocalVideoView\(String requestId, JSONObject params\) \{[\s\S]*?if \(!isSupportedLocalTextureSourceType\(params\)\)[\s\S]*?dispatchInvalidArgumentError/,
+  );
+  assert.match(
+    bridgeContent,
+    /private void handleUpdateLocalVideoView\(String requestId, JSONObject params\) \{[\s\S]*?if \(!isSupportedLocalTextureSourceType\(params\)\)[\s\S]*?dispatchInvalidArgumentError/,
+  );
+  assert.match(backendContent, /private boolean resolveLocalMirror\(JSONObject params\)/);
+  assert.match(backendContent, /return mirrorMode == 1;/);
+  assert.doesNotMatch(backendContent, /return mirrorMode != 2;/);
+});
+
 test('android bridge template supports default audio route to speakerphone', async () => {
   const bridgeContent = await readFile(
     path.join(
@@ -1008,7 +1038,8 @@ test('android bridge template dispatches expanded native rtc callbacks as js eve
   assert.match(bridgeContent, /"uid", uid,[\s\S]*"state", state,[\s\S]*"reason", reason,[\s\S]*"elapsed", elapsed/);
   assert.match(bridgeContent, /onLocalVideoStateChanged/);
   assert.match(bridgeContent, /dispatchEvent\("localVideoStateChanged"/);
-  assert.match(bridgeContent, /"sourceType", source != null \? source\.ordinal\(\) : 0/);
+  assert.match(bridgeContent, /private int mapLocalVideoSourceType\(Constants\.VideoSourceType source\)/);
+  assert.match(bridgeContent, /"sourceType", mapLocalVideoSourceType\(source\)/);
   assert.match(bridgeContent, /"error", error/);
   assert.match(bridgeContent, /onAudioMixingFinished/);
   assert.match(bridgeContent, /dispatchEvent\("audioMixingFinished"/);
@@ -1629,10 +1660,11 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(playEffectMatch[0], /let loopCount = params\["loopCount"\] as\? Int \?\? 1/);
   assert.match(playEffectMatch[0], /let pitch = params\["pitch"\] as\? Double \?\? 1\.0/);
   assert.match(playEffectMatch[0], /let pan = params\["pan"\] as\? Double \?\? 0\.0/);
-  assert.match(playEffectMatch[0], /let gain = params\["gain"\] as\? Double \?\? 100\.0/);
+  assert.match(playEffectMatch[0], /let gain = params\["gain"\] as\? Int \?\? 100/);
   assert.match(playEffectMatch[0], /let publish = params\["publish"\] as\? Bool \?\? false/);
   assert.match(playEffectMatch[0], /let startPos = params\["startPos"\] as\? Int \?\? 0/);
-  assert.match(playEffectMatch[0], /engine\.playEffect\(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: Int\(gain\), publish: publish, startPos: Int32\(startPos\)\)/);
+  assert.doesNotMatch(playEffectMatch[0], /let gain = params\["gain"\] as\? Double \?\? 100\.0/);
+  assert.match(playEffectMatch[0], /engine\.playEffect\(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: gain, publish: publish, startPos: Int32\(startPos\)\)/);
 
   const startMixingMatch = bridgeContent.match(
     /case "startAudioMixing":[\s\S]*?case "pauseAudioMixing":/,
@@ -1802,6 +1834,42 @@ test('ios bridge template explicitly requests rtc permissions before camera and 
     /engine\.joinChannel/,
     'joinChannel must request required iOS permissions before invoking native sdk',
   );
+
+  assert.match(
+    handleJoinChannelMatch[0],
+    /else\s*\{[\s\S]*?ensureRtcPermissions\(\s*requestId: requestId,\s*requiresCamera: false,\s*requiresMicrophone: false/,
+  );
+
+  const handleJoinChannelWithUserAccountMatch = bridgeContent.match(
+    /private func handleJoinChannelWithUserAccount[\s\S]*?private func handleGetUserInfoByUserAccount/,
+  );
+  assert.ok(handleJoinChannelWithUserAccountMatch);
+  assert.match(
+    handleJoinChannelWithUserAccountMatch[0],
+    /else\s*\{[\s\S]*?ensureRtcPermissions\(\s*requestId: requestId,\s*requiresCamera: false,\s*requiresMicrophone: false/,
+  );
+});
+
+test('ios bridge template routes bridged uid parsing through uintValue helper for native uint calls', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /let uid = uintValue\(params\["uid"\] \?\? 0\)/);
+  assert.match(
+    bridgeContent,
+    /case "muteRemoteAudioStream":[\s\S]*?let uid = uintValue\(params\["uid"\] \?\? 0\)/,
+  );
+  assert.match(
+    bridgeContent,
+    /case "muteRemoteVideoStream":[\s\S]*?let uid = uintValue\(params\["uid"\] \?\? 0\)/,
+  );
+  assert.match(
+    bridgeContent,
+    /case "adjustUserPlaybackSignalVolume":[\s\S]*?let uid = uintValue\(params\["uid"\] \?\? 0\)/,
+  );
+  assert.doesNotMatch(bridgeContent, /UInt\(params\["uid"\] as\? Int \?\? 0\)/);
 });
 
 test('ios bridge template only dispatches callbacks exposed by the installed rtc delegate header', async (t) => {
@@ -2052,6 +2120,12 @@ test('ios bridge template maps JS canvas payloads into engine-texture slot param
   assert.match(bridgeContent, /private func resolveTextureWidth\(_ params: \[String: Any\], local: Bool\) -> Int/);
   assert.match(bridgeContent, /private func resolveTextureHeight\(_ params: \[String: Any\], local: Bool\) -> Int/);
   assert.match(bridgeContent, /private func resolveTextureMirror\(_ params: \[String: Any\], local: Bool\) -> Bool/);
+  assert.match(bridgeContent, /private func isSupportedLocalTextureSourceType\(_ sourceType: AgoraVideoSourceType\) -> Bool/);
+  assert.match(bridgeContent, /private func validateLocalTextureSourceType\(requestId: String, params: \[String: Any\]\) -> Bool/);
+  assert.match(bridgeContent, /return sourceType == \.camera/);
+  assert.match(bridgeContent, /dispatchInvalidArgumentError\(/);
+  assert.match(bridgeContent, /value == Int\(AgoraVideoMirrorMode.enabled.rawValue\)/);
+  assert.doesNotMatch(bridgeContent, /return value != Int\(AgoraVideoMirrorMode.disabled.rawValue\)/);
   assert.match(bridgeContent, /private func resolveFrameObserverPosition\(/);
   assert.match(bridgeContent, /case "adaptive":\s*return \.adaptive/);
   assert.match(bridgeContent, /ensureLocalTextureSlot\(params\)/);

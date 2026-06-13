@@ -320,7 +320,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "muteRemoteAudioStream":
             requireEngine(requestId: requestId) { engine in
-                let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+                let uid = uintValue(params["uid"] ?? 0)
                 let muted = params["muted"] as? Bool ?? false
                 let result = engine.muteRemoteAudioStream(uid, mute: muted)
                 dispatchResult(requestId: requestId, method: method, result: result)
@@ -351,7 +351,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "muteRemoteVideoStream":
             requireEngine(requestId: requestId) { engine in
-                let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+                let uid = uintValue(params["uid"] ?? 0)
                 let muted = params["muted"] as? Bool ?? false
                 let result = engine.muteRemoteVideoStream(uid, mute: muted)
                 dispatchResult(requestId: requestId, method: method, result: result)
@@ -393,7 +393,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "adjustUserPlaybackSignalVolume":
             requireEngine(requestId: requestId) { engine in
-                let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+                let uid = uintValue(params["uid"] ?? 0)
                 let volume = params["volume"] as? Int ?? 100
                 let result = engine.adjustUserPlaybackSignalVolume(uid, volume: Int32(volume))
                 dispatchResult(requestId: requestId, method: method, result: result)
@@ -578,10 +578,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 let loopCount = params["loopCount"] as? Int ?? 1
                 let pitch = params["pitch"] as? Double ?? 1.0
                 let pan = params["pan"] as? Double ?? 0.0
-                let gain = params["gain"] as? Double ?? 100.0
+                let gain = params["gain"] as? Int ?? 100
                 let publish = params["publish"] as? Bool ?? false
                 let startPos = params["startPos"] as? Int ?? 0
-                let result = engine.playEffect(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: Int(gain), publish: publish, startPos: Int32(startPos))
+                let result = engine.playEffect(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: gain, publish: publish, startPos: Int32(startPos))
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "pauseEffect":
@@ -801,7 +801,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         ) else {
             return
         }
-        let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+        let uid = uintValue(params["uid"] ?? 0)
 
         if let mediaOptionParams = params["options"] as? [String: Any] {
             let mediaOptions = buildChannelMediaOptions(mediaOptionParams)
@@ -836,7 +836,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 self.dispatchResult(requestId: requestId, method: "joinChannel", result: result)
             }
         } else {
-            ensureRtcPermissions(requestId: requestId) {
+            ensureRtcPermissions(
+                requestId: requestId,
+                requiresCamera: false,
+                requiresMicrophone: false
+            ) {
                 guard let engine = self.rtcEngine else {
                     self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                     return
@@ -1169,7 +1173,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 self.dispatchResult(requestId: requestId, method: "joinChannelWithUserAccount", result: result)
             }
         } else {
-            ensureRtcPermissions(requestId: requestId) {
+            ensureRtcPermissions(
+                requestId: requestId,
+                requiresCamera: false,
+                requiresMicrophone: false
+            ) {
                 guard let engine = self.rtcEngine else {
                     self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                     return
@@ -1304,8 +1312,30 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
 
     private func isSupportedRenderBackend(_ backend: String) -> Bool { backend == "engine-texture" }
 
+    private func isSupportedLocalTextureSourceType(_ sourceType: AgoraVideoSourceType) -> Bool {
+        return sourceType == .camera
+    }
+
+    private func validateLocalTextureSourceType(requestId: String, params: [String: Any]) -> Bool {
+        let sourceType = videoSourceType(from: params)
+        guard isSupportedLocalTextureSourceType(sourceType) else {
+            dispatchInvalidArgumentError(
+                requestId: requestId,
+                message: "engine-texture local rendering supports only the primary camera source.",
+                method: "setupLocalVideoView",
+                argumentName: "sourceType",
+                argumentValue: "\(sourceType.rawValue)"
+            )
+            return false
+        }
+        return true
+    }
+
     private func handleSetupLocalVideoView(requestId: String, params: [String: Any]) {
         requireEngine(requestId: requestId) { _ in
+            guard self.validateLocalTextureSourceType(requestId: requestId, params: params) else {
+                return
+            }
             self.localTextureRequested = true
             self.ensureLocalTextureSlot(params)
             self.dispatchResponse([
@@ -1328,6 +1358,9 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     private func handleUpdateLocalVideoView(requestId: String, params: [String: Any]) {
+        guard validateLocalTextureSourceType(requestId: requestId, params: params) else {
+            return
+        }
         localTextureRequested = true
         ensureLocalTextureSlot(params)
         dispatchResponse([
@@ -1593,7 +1626,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     private func resolveTextureMirror(_ params: [String: Any], local: Bool) -> Bool {
         let value = intValue(params["mirrorMode"] ?? AgoraVideoMirrorMode.auto.rawValue)
         if local {
-            return value != Int(AgoraVideoMirrorMode.disabled.rawValue)
+            return value == Int(AgoraVideoMirrorMode.enabled.rawValue)
         }
         return value == Int(AgoraVideoMirrorMode.enabled.rawValue)
     }

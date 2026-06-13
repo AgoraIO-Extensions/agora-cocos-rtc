@@ -434,7 +434,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
 
     private boolean resolveLocalMirror(JSONObject params) {
       int mirrorMode = params != null ? params.optInt("mirrorMode", 0) : 0;
-      return mirrorMode != 2;
+      return mirrorMode == 1;
     }
 
     private boolean resolveRemoteMirror(JSONObject params) {
