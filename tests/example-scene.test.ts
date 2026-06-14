@@ -178,8 +178,9 @@ test('rtc session service owns client lifecycle and native texture binding', asy
   assert.match(content, /private getClient\(\): AgoraRtcClient/);
   assert.match(content, /setupLocalVideoView/);
   assert.match(content, /setupRemoteVideoView/);
-  assert.match(content, /bindNativeTextureSprite/);
-  assert.match(content, /getEngineTexture\(slotId\)/);
+  assert.match(content, /displayNode:/);
+  assert.match(content, /applyVideoEncoderMirrorConfiguration/);
+  assert.doesNotMatch(content, /bindNativeTextureSprite/);
   assert.doesNotMatch(content, /Texture2D\.PixelFormat\.RGBA8888/);
   assert.doesNotMatch(content, /uploadData/);
 });
@@ -202,14 +203,11 @@ test('rtc session service passes configurable video join media options from Type
   assert.match(joinMethod, /autoSubscribeAudio:\s*config\.autoSubscribeAudio/);
   assert.match(joinMethod, /autoSubscribeVideo:\s*config\.autoSubscribeVideo/);
   assert.match(joinMethod, /if \(config\.publishCameraTrack\)/);
-  assert.match(content, /createAgoraEngineTextureViewController/);
-  assert.match(content, /registerLocalView/);
-  assert.match(content, /registerRemoteView/);
-  assert.match(content, /getViewMirror/);
-  assert.match(content, /this\.textureViewController = createAgoraEngineTextureViewController\(this\.client\);/);
-  assert.match(content, /private getTextureViewController\(\)/);
-  assert.doesNotMatch(content, /mirrorMode:\s*0,/);
-  assert.doesNotMatch(content, /mirrorMode:\s*2,/);
+  assert.match(content, /displayNode:/);
+  assert.match(content, /applyVideoEncoderMirrorConfiguration/);
+  assert.doesNotMatch(content, /createAgoraEngineTextureViewController/);
+  assert.doesNotMatch(content, /registerLocalView/);
+  assert.doesNotMatch(content, /applyVideoNodeMirror/);
 });
 
 test('rtc session service uses runtime-configurable canvas, preview, beauty, and content inspect parameters', async () => {
@@ -240,28 +238,22 @@ test('rtc session service uses runtime-configurable canvas, preview, beauty, and
   assert.match(localCanvasMatch[0], /resolveNodeRect\(node, 'hidden'\)/);
   assert.match(localCanvasMatch[0], /\.\.\.config\.localVideoCanvas/);
   assert.match(localCanvasMatch[0], /const mirrorMode = 0;/);
-  assert.match(localCanvasMatch[0], /const sourceType = config\.localVideoCanvas\?\.sourceType\s*\?\?\s*0/);
+  assert.match(localCanvasMatch[0], /displayNode:/);
   assert.match(localCanvasMatch[0], /mirrorMode,/);
   assert.match(localCanvasMatch[0], /sourceType,/);
-  assert.match(localCanvasMatch[0], /this\.getTextureViewController\(\)\.registerLocalView\(/);
 
-  const remoteCanvasMatch = content.match(/private async setupRemoteVideoView\(uid: number\): Promise<void>[\s\S]*?private bindNativeTextureSprite/);
+  const remoteCanvasMatch = content.match(/private async setupRemoteVideoView\(uid: number\): Promise<void>[\s\S]*?private async applyVideoEncoderMirrorConfiguration/);
   assert.ok(remoteCanvasMatch);
   assert.match(remoteCanvasMatch[0], /const config = this\.options\.getConfig\(\);/);
   assert.match(remoteCanvasMatch[0], /resolveNodeRect\(node, 'fit'\)/);
   assert.match(remoteCanvasMatch[0], /\.\.\.config\.remoteVideoCanvas/);
-  assert.match(remoteCanvasMatch[0], /const mirrorMode = config\.remoteVideoCanvas\?\.mirrorMode\s*\?\?\s*0/);
-  assert.match(remoteCanvasMatch[0], /const sourceType = config\.remoteVideoCanvas\?\.sourceType\s*\?\?\s*0/);
+  assert.match(remoteCanvasMatch[0], /const mirrorMode = config\.remoteVideoCanvas\?\.mirrorMode\s*\?\?\s*2/);
+  assert.match(remoteCanvasMatch[0], /displayNode:/);
   assert.match(remoteCanvasMatch[0], /mirrorMode,/);
   assert.match(remoteCanvasMatch[0], /sourceType,/);
-  assert.match(remoteCanvasMatch[0], /this\.getTextureViewController\(\)\.registerRemoteView\(/);
-  assert.match(remoteCanvasMatch[0], /this\.applyVideoNodeMirror\(/);
-  assert.match(content, /this\.textureViewController\?\.unregisterView\(/);
-  assert.match(content, /triggerSwitchCamera\(\): Promise<void>[\s\S]*applyVideoNodeMirror\(/);
-  assert.match(content, /private mirrorBaseScales = new Map<string, DisplayMirrorScale>\(\);/);
-  assert.match(content, /private getMirrorBaseScale\(viewId: string, node: Node\): DisplayMirrorScale/);
-  assert.match(content, /private resetVideoNodeMirror\(target: DisplayMirrorTarget\): void/);
-  assert.match(content, /node\.setScale\(baseScale\.x, baseScale\.y, baseScale\.z\);/);
+  assert.match(content, /triggerSwitchCamera\(\): Promise<void>[\s\S]*await this\.getClient\(\)\.switchCamera\(\)/);
+  assert.doesNotMatch(content, /applyVideoNodeMirror/);
+  assert.doesNotMatch(content, /bindNativeTextureSprite/);
 });
 
 test('rtc session service uses runtime-configurable audio, mixing, effect, and diagnostics parameters', async () => {
@@ -316,7 +308,6 @@ test('rtc session service uses runtime-configurable audio, mixing, effect, and d
   assert.match(videoControlDemoMatch[0], /const config = this\.options\.getConfig\(\);/);
   assert.match(videoControlDemoMatch[0], /config\.videoEncoderConfiguration\s*\?\?\s*VIDEO_ENCODER_PRESETS\[this\.selectedVideoEncoderPresetName\]/);
   assert.match(videoControlDemoMatch[0], /await this\.getClient\(\)\.switchCamera\(\);/);
-  assert.match(videoControlDemoMatch[0], /this\.applyLocalVideoMirror\(\);/);
   assert.match(videoControlDemoMatch[0], /config\.beautyDemoOptions \?\? \{ smoothnessLevel: 0\.5 \}/);
   assert.match(videoControlDemoMatch[0], /config\.contentInspectDemoConfig \?\? \{ module: 0, interval: 0 \}/);
 });
@@ -413,19 +404,21 @@ test('rtc session service tracks flutter-style video settings and stats', async 
   assert.match(content, /applyVideoEncoderPreset/);
 });
 
-test('rtc session service only derives encoder mirror mode when config leaves it unset', async () => {
-  const content = await readFile(
+test('sdk derives encoder mirror mode from camera facing when unset', async () => {
+  const encoderMirror = await readFile(
+    `${repoRoot}/sdk/agora-rtc/js/internal/engine_texture_encoder_mirror.ts`,
+    'utf8',
+  );
+  const session = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
     'utf8',
   );
 
-  assert.match(content, /const VIDEO_ENCODER_MIRROR_MODE_ENABLED = 1;/);
-  assert.match(content, /const VIDEO_ENCODER_MIRROR_MODE_DISABLED = 2;/);
-
-  const resolveConfigMatch = content.match(/private resolveVideoEncoderConfiguration\([\s\S]*?private async applyVideoEncoderMirrorConfiguration/);
-  assert.ok(resolveConfigMatch);
-  assert.match(resolveConfigMatch[0], /const facing = this\.getTextureViewController\(\)\.getLocalCameraFacing\(\);/);
-  assert.match(resolveConfigMatch[0], /mirrorMode:\s*base\.mirrorMode\s*\?\?\s*\(facing === 'front' \? VIDEO_ENCODER_MIRROR_MODE_DISABLED : VIDEO_ENCODER_MIRROR_MODE_ENABLED\)/);
+  assert.match(encoderMirror, /VIDEO_ENCODER_MIRROR_MODE_ENABLED = 1/);
+  assert.match(encoderMirror, /VIDEO_ENCODER_MIRROR_MODE_DISABLED = 2/);
+  assert.match(encoderMirror, /facing === 'front'/);
+  assert.match(session, /applyVideoEncoderMirrorConfiguration/);
+  assert.match(session, /getClient\(\)\.applyVideoEncoderMirrorConfiguration\(base\)/);
 });
 
 test('rtc session service resets preview state after stopping preview so toggle can start it again', async () => {
@@ -443,19 +436,17 @@ test('rtc session service resets preview state after stopping preview so toggle 
   assert.match(stopPreviewMatch[0], /this\.emitState\(\);/);
 });
 
-test('rtc session service retries engine texture binding until the native slot is ready', async () => {
+test('engine texture view manager retries binding until the native slot is ready', async () => {
   const content = await readFile(
-    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    `${repoRoot}/sdk/agora-rtc/js/internal/engine_texture_view_manager.ts`,
     'utf8',
   );
 
   assert.match(content, /MAX_TEXTURE_BIND_RETRIES/);
   assert.match(content, /TEXTURE_BIND_RETRY_MS/);
-  assert.match(content, /private textureBindRetryTimers/);
-  assert.match(content, /scheduleTextureBindRetry/);
-  assert.match(content, /bindNativeTextureSprite\('local', slotId, undefined, 0\)/);
-  assert.match(content, /bindNativeTextureSprite\('local', this\.localTextureSlotId, undefined, 0\)/);
-  assert.match(content, /this\.bindNativeTextureSprite\(kind, slotId, uid, retryCount \+ 1\)/);
+  assert.match(content, /#textureBindRetryTimers/);
+  assert.match(content, /#scheduleTextureBindRetry/);
+  assert.match(content, /#bindTextureSlot\(viewId, slotId, retryCount \+ 1\)/);
   assert.match(content, /clearTimeout/);
 });
 

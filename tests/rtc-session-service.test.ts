@@ -44,10 +44,21 @@ export class Node {
   constructor() {
     this._scale = { x: 1, y: 1, z: 1 };
     this._transform = new UITransform();
+    this.children = [];
   }
 
   getComponent(component) {
-    return component === UITransform ? this._transform : null;
+    if (component === UITransform) {
+      return this._transform;
+    }
+    if (component === Sprite) {
+      return this._sprite ?? null;
+    }
+    return null;
+  }
+
+  getChildByName(_name) {
+    return null;
   }
 
   getScale() {
@@ -56,6 +67,13 @@ export class Node {
 
   setScale(x, y, z) {
     this._scale = { x, y, z };
+  }
+}
+
+export class Sprite {
+  constructor() {
+    this.spriteFrame = new SpriteFrame();
+    this.node = null;
   }
 }
 
@@ -83,7 +101,9 @@ const TRANSPILE_TARGETS = [
   'example/basic-call/extensions/agora-rtc/js/types.ts',
   'example/basic-call/extensions/agora-rtc/js/internal/bridge.ts',
   'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_mirror.ts',
+  'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_encoder_mirror.ts',
   'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_view.ts',
+  'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_view_manager.ts',
 ] as const;
 
 class AutoResponseTransport {

@@ -100,7 +100,17 @@ export interface AgoraRtcVideoCanvas {
   position?: number;
   textureWidth?: number;
   textureHeight?: number;
+  /** When set, SDK binds engine texture to this node and applies view mirror. */
+  displayNode?: AgoraCocosDisplayNode;
 }
+
+export type AgoraCocosDisplayNode = {
+  setScale(x: number, y: number, z: number): void;
+  getScale(): { x: number; y: number; z: number };
+  getComponent?(type: unknown): unknown;
+  getChildByName?(name: string): AgoraCocosDisplayNode | null;
+  children?: AgoraCocosDisplayNode[];
+};
 
 export type AgoraVideoViewRect = AgoraRtcVideoCanvas;
 
