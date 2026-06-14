@@ -19,6 +19,7 @@ import {
   type AgoraBridgeEvent,
   type AgoraBridgeRequest,
   type AgoraBridgeResponse,
+  type AgoraCocosDisplayNode,
   type AgoraEventMap,
   type CocosBridgeRuntime,
   type CocosEngineTextureBridge,
@@ -347,7 +348,9 @@ export class AgoraRtcClient {
     return this.#engineTextureViewManager;
   }
 
-  #stripDisplayNodeFromCanvas<T extends { displayNode?: unknown }>(canvas: T): Omit<T, 'displayNode'> {
+  #stripDisplayNodeFromCanvas<T extends { displayNode?: AgoraCocosDisplayNode }>(
+    canvas: T,
+  ): Omit<T, 'displayNode'> {
     const module = this.#engineTextureViewManagerModule;
     if (module) {
       return module.stripDisplayNodeFromCanvas(canvas);
