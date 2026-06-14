@@ -9,5 +9,9 @@
   "publishCameraTrack": true,
   "publishMicrophoneTrack": true,
   "autoSubscribeAudio": true,
-  "autoSubscribeVideo": true
+  "autoSubscribeVideo": true,
+  "localVideoCanvas": {
+    "mirrorMode": 0,
+    "sourceType": 0
+  }
 }
