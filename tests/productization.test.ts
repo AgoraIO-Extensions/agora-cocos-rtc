@@ -40,64 +40,26 @@ async function listTrackedSourceFiles(
   root: string,
   options: { includePlatformMetadata?: boolean } = {},
 ) {
-  const ignoredPathParts = new Set([
-    '.git',
-    '.gemini',
-    '.github',
-    'node_modules',
-    'dist',
-    'tmp',
-    '.worktrees',
-    'library',
-    'local',
-    'temp',
-    'profiles',
-    'build',
-    'build-android',
-    'build-ios',
-    'build-logs',
-    'build-android-logs',
-    'build-ios-logs',
-    'local-maven',
-    'native/engine',
-    'superpowers',
-  ]);
-  const results: string[] = [];
+  const { stdout } = await execFileAsync('git', ['ls-files'], { cwd: root });
 
-  async function walk(directory: string) {
-    for (const entry of await readdir(directory, { withFileTypes: true })) {
-      if (entry.name === '.DS_Store' && !options.includePlatformMetadata) {
-        continue;
+  return stdout
+    .split('\n')
+    .filter(Boolean)
+    .filter((relativePath) => {
+      if (relativePath.startsWith('.github/')) {
+        return false;
       }
-
+      if (relativePath.includes('/.DS_Store') || relativePath === '.DS_Store') {
+        return options.includePlatformMetadata ?? false;
+      }
       if (
-        entry.name === 'agora-config.build.json' ||
-        entry.name === 'agora-config.build.json.meta'
+        relativePath.endsWith('/agora-config.build.json')
+        || relativePath.endsWith('/agora-config.build.json.meta')
       ) {
-        continue;
+        return false;
       }
-
-      const absolutePath = path.join(directory, entry.name);
-      const relativePath = path.relative(root, absolutePath);
-
-      const pathParts = relativePath.split(path.sep);
-      if (
-        ignoredPathParts.has(entry.name) ||
-        ignoredPathParts.has(pathParts.join('/'))
-      ) {
-        continue;
-      }
-
-      if (entry.isDirectory()) {
-        await walk(absolutePath);
-      } else if (entry.isFile()) {
-        results.push(relativePath);
-      }
-    }
-  }
-
-  await walk(root);
-  return results;
+      return true;
+    });
 }
 
 test('root package exposes productization scripts and clean repository name', async () => {
@@ -347,7 +309,7 @@ test('gitignore behavior matches the intended commit boundary', async () => {
     'docs/superpowers/plans/example.md',
     'docs/PROJECT_HANDOFF.md',
     'dist/agora-rtc-cocos-plugin.zip',
-    'node_modules/release-it/package.json',
+    'node_modules/release-it',
   ];
   const committedPaths = [
     'sdk/agora-rtc/package.json',

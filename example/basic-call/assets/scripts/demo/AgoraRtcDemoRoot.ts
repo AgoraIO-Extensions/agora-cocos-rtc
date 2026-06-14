@@ -810,6 +810,7 @@ export class AgoraRtcDemoRoot extends Component {
       remoteVideoMuted: false,
       allRemoteAudioMuted: false,
       allRemoteVideoMuted: false,
+      localCameraFacing: 'front',
       speakerphoneEnabled: null,
       lastErrorMessage: '-',
       lastRtcStatsSummary: '-',

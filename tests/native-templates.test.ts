@@ -36,6 +36,16 @@ const iosEngineTextureSlotBridgeHeaderTemplate = path.join(
   repoRoot,
   'sdk/agora-rtc/templates/ios/AgoraEngineTextureSlotBridge.h',
 );
+const iosBridgeMirrorCopyPaths = [
+  'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift',
+  'example/basic-call/native/agora-rtc/ios/AgoraRtcBridge.swift',
+  'customer-delivery/example-basic-call/native/engine/ios/agora-rtc/AgoraRtcBridge.swift',
+];
+const iosSlotBridgeMirrorCopyPaths = [
+  'sdk/agora-rtc/templates/ios/AgoraEngineTextureSlotBridge.mm',
+  'example/basic-call/native/agora-rtc/ios/AgoraEngineTextureSlotBridge.mm',
+  'customer-delivery/example-basic-call/native/engine/ios/agora-rtc/AgoraEngineTextureSlotBridge.mm',
+];
 const primaryRepoRoot = repoRoot.replace(/\/\.worktrees\/[^/]+$/, '');
 const iosIntegrationDerivedDataPath = path.join('/tmp', 'agora-cocos-ios-api-tests-derived');
 
@@ -162,80 +172,70 @@ function assertPatternBefore(
   );
 }
 
-function normalizeRotation(rotation: number) {
+function normalizeReferenceRotation(rotation: number) {
   const normalized = ((rotation % 360) + 360) % 360;
   return normalized === 90 || normalized === 180 || normalized === 270
     ? normalized
     : 0;
 }
 
-function mapTransformedPixel(
+function mapReferenceRotatedPixel(
   outputX: number,
   outputY: number,
   width: number,
   height: number,
+  outputWidth: number,
+  outputHeight: number,
   rotation: number,
-  mirror: boolean,
-  verticalFlip = false,
-  outputWidth?: number,
-  outputHeight?: number,
 ) {
-  const normalizedRotation = normalizeRotation(rotation);
+  const normalizedRotation = normalizeReferenceRotation(rotation);
   const swapsDimensions = normalizedRotation === 90 || normalizedRotation === 270;
   const naturalWidth = swapsDimensions ? height : width;
   const naturalHeight = swapsDimensions ? width : height;
-  const resolvedOutputWidth = outputWidth ?? naturalWidth;
-  const resolvedOutputHeight = outputHeight ?? naturalHeight;
   const naturalX = Math.min(
     naturalWidth - 1,
-    Math.max(0, Math.floor(outputX * naturalWidth / resolvedOutputWidth)),
+    Math.max(0, Math.floor(outputX * naturalWidth / outputWidth)),
   );
-  const rawNaturalY = Math.min(
+  const naturalY = Math.min(
     naturalHeight - 1,
-    Math.max(0, Math.floor(outputY * naturalHeight / resolvedOutputHeight)),
+    Math.max(0, Math.floor(outputY * naturalHeight / outputHeight)),
   );
-  const naturalY = verticalFlip ? naturalHeight - 1 - rawNaturalY : rawNaturalY;
-  const mappedNaturalX = mirror ? naturalWidth - 1 - naturalX : naturalX;
 
   switch (normalizedRotation) {
     case 90:
-      return { x: naturalY, y: height - 1 - mappedNaturalX };
+      return { x: naturalY, y: height - 1 - naturalX };
     case 180:
-      return { x: width - 1 - mappedNaturalX, y: height - 1 - naturalY };
+      return { x: width - 1 - naturalX, y: height - 1 - naturalY };
     case 270:
-      return { x: width - 1 - naturalY, y: mappedNaturalX };
+      return { x: width - 1 - naturalY, y: naturalX };
     default:
-      return { x: mappedNaturalX, y: naturalY };
+      return { x: naturalX, y: naturalY };
   }
 }
 
-function transformPixelLabels(
+function transformReferencePixels(
   labels: string[][],
   rotation: number,
-  mirror: boolean,
   targetWidth?: number,
   targetHeight?: number,
-  verticalFlip = false,
 ) {
   const height = labels.length;
   const width = labels[0].length;
-  const normalizedRotation = normalizeRotation(rotation);
+  const normalizedRotation = normalizeReferenceRotation(rotation);
   const swapsDimensions = normalizedRotation === 90 || normalizedRotation === 270;
   const outputWidth = targetWidth ?? (swapsDimensions ? height : width);
   const outputHeight = targetHeight ?? (swapsDimensions ? width : height);
 
   return Array.from({ length: outputHeight }, (_, outputY) =>
     Array.from({ length: outputWidth }, (_, outputX) => {
-      const source = mapTransformedPixel(
+      const source = mapReferenceRotatedPixel(
         outputX,
         outputY,
         width,
         height,
-        rotation,
-        mirror,
-        verticalFlip,
         outputWidth,
         outputHeight,
+        rotation,
       );
       return labels[source.y][source.x];
     }),
@@ -295,11 +295,11 @@ test('engine-texture backend keeps template/runtime slot upload dimensions in sy
 test('android engine-texture backend builds texture slots from JS canvas payloads', async () => {
   const engineTextureBackendContent = await readFile(engineTextureBackendTemplate, 'utf8');
 
-  assert.match(engineTextureBackendContent, /final boolean mirror = slot\.mirror;/);
-  assert.match(engineTextureBackendContent, /resolveMirror\(params, true\)/);
-  assert.match(engineTextureBackendContent, /resolveMirror\(params, false\)/);
-  assert.match(engineTextureBackendContent, /resolveLocalMirror\(params\)/);
-  assert.match(engineTextureBackendContent, /resolveRemoteMirror\(params\)/);
+  assert.doesNotMatch(engineTextureBackendContent, /final boolean mirror = slot\.mirror;/);
+  assert.doesNotMatch(engineTextureBackendContent, /resolveMirror\(params, true\)/);
+  assert.doesNotMatch(engineTextureBackendContent, /resolveMirror\(params, false\)/);
+  assert.doesNotMatch(engineTextureBackendContent, /resolveLocalMirror\(params\)/);
+  assert.doesNotMatch(engineTextureBackendContent, /resolveRemoteMirror\(params\)/);
   assert.match(engineTextureBackendContent, /resolveTextureWidth\(params, true\)/);
   assert.match(engineTextureBackendContent, /resolveTextureHeight\(params, true\)/);
   assert.match(engineTextureBackendContent, /resolveTextureWidth\(params, false\)/);
@@ -360,6 +360,7 @@ test('engine-texture raw frame path applies orientation before uploading texture
   const templateContent = await readFile(engineTextureBackendTemplate, 'utf8');
   const runtimeContent = await readFile(engineTextureBackendRuntime, 'utf8');
   const iosSlotBridgeContent = await readFile(iosEngineTextureSlotBridgeTemplate, 'utf8');
+  const iosSlotBridgeHeaderContent = await readFile(iosEngineTextureSlotBridgeHeaderTemplate, 'utf8');
   const commonBridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/common/Classes/agora/AgoraEngineTextureBridge.cpp'),
     'utf8',
@@ -367,13 +368,13 @@ test('engine-texture raw frame path applies orientation before uploading texture
 
   for (const content of [templateContent, runtimeContent]) {
     assert.match(content, /videoFrame\.getRotation\(\)/);
-    assert.match(content, /final boolean mirror = slot\.mirror;/);
+    assert.doesNotMatch(content, /final boolean mirror = slot\.mirror;/);
     assert.doesNotMatch(
       content,
       /VideoFrame\.SourceType\.kFrontCamera/,
       'engine-texture should not add a selfie mirror on top of raw frame orientation.',
     );
-    assert.match(content, /nativeUpdateI420Slot\([\s\S]*rotation,[\s\S]*mirror[\s\S]*\);/);
+    assert.doesNotMatch(content, /nativeUpdateI420Slot\([\s\S]*rotation,[\s\S]*mirror[\s\S]*\);/);
     assert.doesNotMatch(
       content,
       /buffer\.rotate\(rotation\)|buffer\.mirror\(/,
@@ -382,158 +383,128 @@ test('engine-texture raw frame path applies orientation before uploading texture
   }
 
   assert.match(iosSlotBridgeContent, /videoFrame\.rotation/);
-  assert.match(iosSlotBridgeContent, /mirroredVideoFrame:\(AgoraOutputVideoFrame \*\)videoFrame/);
-  assert.match(iosSlotBridgeContent, /update_agora_engine_texture_nv12_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
-  assert.match(
+  assert.doesNotMatch(iosSlotBridgeContent, /mirroredVideoFrame/);
+  assert.doesNotMatch(iosSlotBridgeHeaderContent, /mirroredVideoFrame/);
+  assert.doesNotMatch(iosSlotBridgeContent, /videoFrame:videoFrame mirror:/);
+  assert.doesNotMatch(iosSlotBridgeContent, /update_agora_engine_texture_nv12_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
+  assert.doesNotMatch(
     iosSlotBridgeContent,
     /update_agora_engine_texture_nv12_slot\([\s\S]*targetWidth[\s\S]*targetHeight[\s\S]*renderMode[\s\S]*static_cast<int>\(videoFrame\.rotation\),\s*mirror[\s\S]*\);/,
   );
-  assert.match(iosSlotBridgeContent, /update_agora_engine_texture_i420_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
+  assert.doesNotMatch(iosSlotBridgeContent, /update_agora_engine_texture_i420_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/);
   assert.match(iosSlotBridgeContent, /configureSlot:\(NSNumber \*\)slotId options:\(NSDictionary \*\)options/);
   assert.match(commonBridgeContent, /normalizeRotation/);
   assert.match(commonBridgeContent, /mapTransformedPixel/);
-  assert.match(commonBridgeContent, /mirror/);
+  assert.match(commonBridgeContent, /rotation/);
+  assert.doesNotMatch(commonBridgeContent, /mappedNaturalX = mirror \?/);
+  assert.doesNotMatch(commonBridgeContent, /bool mirror,/);
 });
 
-test('engine-texture local camera preview requires explicit enabled mirror semantics', async () => {
+test('engine-texture local camera preview removes native upload mirror semantics across iOS mirror copies', async () => {
   const androidTemplateContent = await readFile(engineTextureBackendTemplate, 'utf8');
   const androidRuntimeContent = await readFile(engineTextureBackendRuntime, 'utf8');
-  const iosBridgeContent = await readFile(
-    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
-    'utf8',
+  const bridgeCopies = await Promise.all(
+    iosBridgeMirrorCopyPaths.map(async (relativePath) => ({
+      relativePath,
+      content: await readFile(path.join(repoRoot, relativePath), 'utf8'),
+    })),
+  );
+  const slotBridgeCopies = await Promise.all(
+    iosSlotBridgeMirrorCopyPaths.map(async (relativePath) => ({
+      relativePath,
+      content: await readFile(path.join(repoRoot, relativePath), 'utf8'),
+    })),
   );
 
   for (const content of [androidTemplateContent, androidRuntimeContent]) {
-    assert.match(content, /final boolean mirror = slot\.mirror;/);
-    assert.match(content, /resolveLocalMirror\(params\)/);
-    assert.match(content, /private boolean resolveLocalMirror\(JSONObject params\)/);
-    assert.match(content, /return mirrorMode == 1;/);
-    assert.match(content, /boolean mirror = resolveMirror\(params, true\);/);
-    assert.match(content, /boolean mirror = resolveMirror\(params, false\);/);
+    assert.doesNotMatch(content, /final boolean mirror = slot\.mirror;/);
+    assert.doesNotMatch(content, /resolveLocalMirror\(params\)/);
+    assert.doesNotMatch(content, /private boolean resolveLocalMirror\(JSONObject params\)/);
+    assert.doesNotMatch(content, /return mirrorMode == 1;/);
+    assert.doesNotMatch(content, /boolean mirror = resolveMirror\(params, true\);/);
+    assert.doesNotMatch(content, /boolean mirror = resolveMirror\(params, false\);/);
   }
 
-  assert.match(
-    iosBridgeContent,
-    /private func updateTextureSlot\(_ slot: TextureSlotState, videoFrame: AgoraOutputVideoFrame\) \{[\s\S]*mirror: slot\.mirror[\s\S]*dispatchTextureReadyIfNeeded/,
-  );
-  assert.match(
-    iosBridgeContent,
-    /let mirror = self\.resolveTextureMirror\(params, local: true\)/,
-  );
-  assert.match(
-    iosBridgeContent,
-    /let mirror = self\.resolveTextureMirror\(params, local: false\)/,
-  );
-  assert.match(
-    iosBridgeContent,
-    /private func resolveTextureMirror\(_ params: \[String: Any\], local: Bool\) -> Bool \{/,
-  );
-  assert.match(iosBridgeContent, /if local \{\s*return value == Int\(AgoraVideoMirrorMode.enabled.rawValue\)\s*\}/);
+  for (const { relativePath, content } of bridgeCopies) {
+    assert.match(
+      content,
+      /private func updateTextureSlot\(_ slot: TextureSlotState, videoFrame: AgoraOutputVideoFrame\) \{[\s\S]*updateTextureSlot\(slotId: slot\.slotId, videoFrame: videoFrame\)[\s\S]*dispatchTextureReadyIfNeeded/,
+      `${relativePath} should upload local textures without mirror state.`,
+    );
+    assert.match(
+      content,
+      /private func updateRemoteTextureSlot\(_ slot: TextureSlotState, uid: UInt, videoFrame: AgoraOutputVideoFrame\) \{[\s\S]*updateTextureSlot\(slotId: slot\.slotId, videoFrame: videoFrame\)[\s\S]*dispatchTextureReadyIfNeeded/,
+      `${relativePath} should upload remote textures without mirror state.`,
+    );
+    assert.match(
+      content,
+      /TextureSlotState\([\s\S]*slotId: slotId,[\s\S]*width: width,[\s\S]*height: height,[\s\S]*renderMode: renderMode,[\s\S]*observerPosition: observerPosition[\s\S]*\)/,
+      `${relativePath} should keep slot state focused on size, render mode, and observer position.`,
+    );
+    assert.match(content, /resolveFrameObserverPosition\(\s*params,/, `${relativePath} should still configure observer position.`);
+    assert.match(content, /\.preEncoder/, `${relativePath} should still support preEncoder observation.`);
+    assert.match(
+      content,
+      /private func updateTextureSlot\(slotId: Int, videoFrame: AgoraOutputVideoFrame\) \{[\s\S]*NSSelectorFromString\("updateSlot:videoFrame:"\)/,
+      `${relativePath} should use updateSlot:videoFrame: only.`,
+    );
+    assert.doesNotMatch(content, /mirroredVideoFrame/, `${relativePath} should not reference mirrored uploads.`);
+    assert.doesNotMatch(content, /videoFrame:videoFrame mirror:/, `${relativePath} should not pass mirror through upload APIs.`);
+    assert.doesNotMatch(content, /slot\.mirror/, `${relativePath} should not retain mirror in slot comparisons or updates.`);
+    assert.doesNotMatch(content, /resolveTextureMirror/, `${relativePath} should not resolve native upload mirror.`);
+  }
+
+  for (const { relativePath, content } of slotBridgeCopies) {
+    assert.match(content, /videoFrame\.rotation/, `${relativePath} should keep rotation-aware uploads.`);
+    assert.match(content, /update_agora_engine_texture_i420_slot/, `${relativePath} should still convert I420 frames natively.`);
+    assert.doesNotMatch(content, /mirroredVideoFrame/, `${relativePath} should not expose mirroredVideoFrame.`);
+    assert.doesNotMatch(content, /videoFrame:videoFrame mirror:/, `${relativePath} should not expose mirrored upload selectors.`);
+    assert.doesNotMatch(
+      content,
+      /update_agora_engine_texture_(?:nv12|i420)_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror/,
+      `${relativePath} should not pass mirror into native upload conversion.`,
+    );
+  }
 });
 
-test('engine-texture iOS mirror is applied in display coordinates after rotation', async () => {
+test('engine-texture iOS keeps rotation-aware coordinate conversion in the shared texture bridge', async () => {
   const commonBridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/common/Classes/agora/AgoraEngineTextureBridge.cpp'),
     'utf8',
   );
 
-  assert.match(
-    commonBridgeContent,
-    /const int normalizedRotation = normalizeRotation\(rotation\);/,
-  );
-  assert.match(
-    commonBridgeContent,
-    /const bool swapsDimensions = normalizedRotation == 90 \|\| normalizedRotation == 270;/,
-  );
-  assert.match(
-    commonBridgeContent,
-    /const int naturalWidth = swapsDimensions \? height : width;/,
-  );
+  assert.match(commonBridgeContent, /const int normalizedRotation = normalizeRotation\(rotation\);/);
+  assert.match(commonBridgeContent, /const bool swapsDimensions = normalizedRotation == 90 \|\| normalizedRotation == 270;/);
+  assert.match(commonBridgeContent, /const int naturalWidth = swapsDimensions \? height : width;/);
   assert.match(
     commonBridgeContent,
     /const int naturalX = std::min\(naturalWidth - 1, std::max\(0, outputX \* naturalWidth \/ outputWidth\)\);/,
   );
-  assert.match(
-    commonBridgeContent,
-    /const int mappedNaturalX = mirror \? naturalWidth - 1 - naturalX : naturalX;/,
-  );
-  assert.doesNotMatch(
-    commonBridgeContent,
-    /sourceX = width - 1 - sourceX;/,
-    'Mirror must be applied in output/display coordinates before inverse rotation mapping.',
-  );
-  assertPatternBefore(
-    commonBridgeContent,
-    /const int mappedNaturalX = mirror \? naturalWidth - 1 - naturalX : naturalX;/,
-    /switch \(normalizedRotation\)/,
-    'iOS local mirror should stay horizontal after applying videoFrame.rotation',
-  );
+  assert.doesNotMatch(commonBridgeContent, /const int mappedNaturalX = mirror \? naturalWidth - 1 - naturalX : naturalX;/);
 });
 
-test('engine-texture iOS coordinate mapping keeps mirror horizontal for rotated frames', () => {
+test('engine-texture native coordinate mapping keeps rotated sampling and target-size scaling stable', () => {
   const source = [
     ['A', 'B', 'C'],
     ['D', 'E', 'F'],
   ];
 
-  assert.deepEqual(transformPixelLabels(source, 90, false), [
+  assert.deepEqual(transformReferencePixels(source, 90), [
     ['D', 'A'],
     ['E', 'B'],
     ['F', 'C'],
   ]);
-  assert.deepEqual(transformPixelLabels(source, 90, true), [
-    ['A', 'D'],
-    ['B', 'E'],
-    ['C', 'F'],
-  ]);
-  assert.deepEqual(transformPixelLabels(source, 270, false), [
+  assert.deepEqual(transformReferencePixels(source, 270), [
     ['C', 'F'],
     ['B', 'E'],
     ['A', 'D'],
   ]);
-  assert.deepEqual(transformPixelLabels(source, 270, true), [
-    ['F', 'C'],
-    ['E', 'B'],
-    ['D', 'A'],
+  assert.deepEqual(transformReferencePixels(source, 0, 2, 1), [
+    ['A', 'B'],
   ]);
 });
 
-test('engine-texture Android coordinate mapping supports native target-size scaling', () => {
-  const source = [
-    ['A', 'B', 'C', 'D'],
-    ['E', 'F', 'G', 'H'],
-  ];
-
-  assert.deepEqual(transformPixelLabels(source, 0, false, 2, 1), [
-    ['A', 'C'],
-  ]);
-  assert.deepEqual(transformPixelLabels(source, 90, true, 2, 4), [
-    ['A', 'E'],
-    ['B', 'F'],
-    ['C', 'G'],
-    ['D', 'H'],
-  ]);
-});
-
-test('engine-texture coordinate mapping preserves top-to-bottom upload order for Cocos textures', () => {
-  const source = [
-    ['top-left', 'top-right'],
-    ['bottom-left', 'bottom-right'],
-  ];
-
-  assert.deepEqual(transformPixelLabels(source, 0, false), source);
-  assert.deepEqual(transformPixelLabels(source, 0, true), [
-    ['top-right', 'top-left'],
-    ['bottom-right', 'bottom-left'],
-  ]);
-  assert.notDeepEqual(
-    transformPixelLabels(source, 0, false, undefined, undefined, true),
-    source,
-    'A vertical flip would upload the bottom camera row into the top Cocos texture row.',
-  );
-});
-
-test('engine-texture iOS requests a frame format with explicit rotation and mirror conversion', async () => {
+test('engine-texture iOS requests a frame format with explicit rotation-aware conversion', async () => {
   const iosBridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
     'utf8',
@@ -563,7 +534,7 @@ test('engine-texture iOS converts CVPixelBuffer I420 frames instead of dropping 
     iosSlotBridgeContent,
     /case 13:[\s\S]*CVPixelBufferGetBaseAddressOfPlane\(videoFrame\.pixelBuffer, 0\)[\s\S]*CVPixelBufferGetBaseAddressOfPlane\(videoFrame\.pixelBuffer, 1\)[\s\S]*CVPixelBufferGetBaseAddressOfPlane\(videoFrame\.pixelBuffer, 2\)/,
   );
-  assert.match(
+  assert.doesNotMatch(
     iosSlotBridgeContent,
     /case 13:[\s\S]*update_agora_engine_texture_i420_slot\([\s\S]*videoFrame\.rotation[\s\S]*mirror[\s\S]*\);[\s\S]*break;/,
   );
@@ -956,8 +927,8 @@ test('android bridge template narrows local engine-texture source validation and
     bridgeContent,
     /private void handleUpdateLocalVideoView\(String requestId, JSONObject params\) \{[\s\S]*?if \(!isSupportedLocalTextureSourceType\(params\)\)[\s\S]*?dispatchInvalidArgumentError/,
   );
-  assert.match(backendContent, /private boolean resolveLocalMirror\(JSONObject params\)/);
-  assert.match(backendContent, /return mirrorMode == 1;/);
+  assert.doesNotMatch(backendContent, /private boolean resolveLocalMirror\(JSONObject params\)/);
+  assert.doesNotMatch(backendContent, /return mirrorMode == 1;/);
   assert.doesNotMatch(backendContent, /return mirrorMode != 2;/);
 });
 
@@ -2119,12 +2090,12 @@ test('ios bridge template maps JS canvas payloads into engine-texture slot param
 
   assert.match(bridgeContent, /private func resolveTextureWidth\(_ params: \[String: Any\], local: Bool\) -> Int/);
   assert.match(bridgeContent, /private func resolveTextureHeight\(_ params: \[String: Any\], local: Bool\) -> Int/);
-  assert.match(bridgeContent, /private func resolveTextureMirror\(_ params: \[String: Any\], local: Bool\) -> Bool/);
+  assert.doesNotMatch(bridgeContent, /private func resolveTextureMirror\(_ params: \[String: Any\], local: Bool\) -> Bool/);
   assert.match(bridgeContent, /private func isSupportedLocalTextureSourceType\(_ sourceType: AgoraVideoSourceType\) -> Bool/);
   assert.match(bridgeContent, /private func validateLocalTextureSourceType\(requestId: String, params: \[String: Any\]\) -> Bool/);
   assert.match(bridgeContent, /return sourceType == \.camera/);
   assert.match(bridgeContent, /dispatchInvalidArgumentError\(/);
-  assert.match(bridgeContent, /value == Int\(AgoraVideoMirrorMode.enabled.rawValue\)/);
+  assert.doesNotMatch(bridgeContent, /value == Int\(AgoraVideoMirrorMode.enabled.rawValue\)/);
   assert.doesNotMatch(bridgeContent, /return value != Int\(AgoraVideoMirrorMode.disabled.rawValue\)/);
   assert.match(bridgeContent, /private func resolveFrameObserverPosition\(/);
   assert.match(bridgeContent, /case "adaptive":\s*return \.adaptive/);
@@ -2166,10 +2137,10 @@ test('ios bridge template routes engine-texture through AgoraVideoFrameDelegate 
   assert.match(bridgeContent, /"slotId": slot\.slotId/);
   assert.match(bridgeContent, /"width": slot\.width/);
   assert.match(bridgeContent, /"height": slot\.height/);
-  assert.match(bridgeContent, /let mirror = self\.resolveTextureMirror\(params, local: true\)/);
-  assert.match(bridgeContent, /let mirror = self\.resolveTextureMirror\(params, local: false\)/);
-  assert.match(bridgeContent, /TextureSlotState\([\s\S]*slotId: slotId,[\s\S]*width: width,[\s\S]*height: height,[\s\S]*mirror: mirror,[\s\S]*observerPosition: observerPosition[\s\S]*\)/);
-  assert.match(bridgeContent, /updateTextureSlot\(slotId: slot\.slotId, videoFrame: videoFrame, mirror: slot\.mirror\)/);
+  assert.doesNotMatch(bridgeContent, /let mirror = self\.resolveTextureMirror\(params, local: true\)/);
+  assert.doesNotMatch(bridgeContent, /let mirror = self\.resolveTextureMirror\(params, local: false\)/);
+  assert.match(bridgeContent, /TextureSlotState\([\s\S]*slotId: slotId,[\s\S]*width: width,[\s\S]*height: height,[\s\S]*renderMode: renderMode,[\s\S]*observerPosition: observerPosition[\s\S]*\)/);
+  assert.match(bridgeContent, /updateTextureSlot\(slotId: slot\.slotId, videoFrame: videoFrame\)/);
   assert.match(bridgeContent, /resolveFrameObserverPosition\(\s*params,/);
   assert.match(bridgeContent, /observedFramePosition/);
   assert.match(bridgeContent, /\.preEncoder/);
@@ -2177,7 +2148,6 @@ test('ios bridge template routes engine-texture through AgoraVideoFrameDelegate 
   assert.match(bridgeContent, /payload\["uid"\] = uid/);
   assert.match(bridgeContent, /private func handleUpdateLocalVideoView\(requestId: String, params: \[String: Any\]\) \{[\s\S]*?ensureLocalTextureSlot\(params\)/);
   assert.match(bridgeContent, /private func handleUpdateRemoteVideoView\(requestId: String, params: \[String: Any\]\) \{[\s\S]*?ensureRemoteTextureSlot\(uid, params: params\)/);
-  assert.match(bridgeContent, /func rtcEngine\(_ engine: AgoraRtcEngineKit, didOfflineOfUid uid: UInt, reason: AgoraUserOfflineReason\) \{[\s\S]*?remoteTextureUids\.remove\(uid\)[\s\S]*?releaseRemoteTextureSlot\(uid\)[\s\S]*?dispatchEvent\(name: "userOffline"/);
   assert.match(slotBridgeContent, /case 12:/);
   assert.match(slotBridgeContent, /case 13:/);
   assert.match(slotBridgeContent, /case 14:/);
@@ -2205,6 +2175,7 @@ test('engine-texture backend uses DirectByteBuffer and slot-level reusable nativ
   assert.match(slotBridgeContent, /ByteBuffer dataU/);
   assert.match(slotBridgeContent, /ByteBuffer dataV/);
   assert.match(iosSlotBridgeHeaderContent, /updateSlot:\(NSNumber \*\)slotId videoFrame:/);
+  assert.doesNotMatch(iosSlotBridgeHeaderContent, /mirroredVideoFrame/);
   assert.match(iosSlotBridgeContent, /CVPixelBufferLockBaseAddress/);
   assert.match(iosSlotBridgeContent, /static_cast<const uint8_t \*>/);
 });
@@ -3226,8 +3197,7 @@ final class AgoraEngineTextureSlotBridge {
         int targetWidth,
         int targetHeight,
         int renderMode,
-        int rotation,
-        boolean mirror
+        int rotation
     ) {}
 
     static void nativeUpdateNV12Slot(
@@ -3241,8 +3211,7 @@ final class AgoraEngineTextureSlotBridge {
         int targetWidth,
         int targetHeight,
         int renderMode,
-        int rotation,
-        boolean mirror
+        int rotation
     ) {}
 
     static void nativeReleaseSlot(int slotId) {}

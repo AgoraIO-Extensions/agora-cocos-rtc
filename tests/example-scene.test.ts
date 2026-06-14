@@ -202,7 +202,14 @@ test('rtc session service passes configurable video join media options from Type
   assert.match(joinMethod, /autoSubscribeAudio:\s*config\.autoSubscribeAudio/);
   assert.match(joinMethod, /autoSubscribeVideo:\s*config\.autoSubscribeVideo/);
   assert.match(joinMethod, /if \(config\.publishCameraTrack\)/);
-  assert.match(content, /setupLocalVideoView\(\{[\s\S]*mirrorMode:\s*0,/);
+  assert.match(content, /createAgoraEngineTextureViewController/);
+  assert.match(content, /registerLocalView/);
+  assert.match(content, /registerRemoteView/);
+  assert.match(content, /getViewMirror/);
+  assert.match(content, /this\.textureViewController = createAgoraEngineTextureViewController\(this\.client\);/);
+  assert.match(content, /private getTextureViewController\(\)/);
+  assert.doesNotMatch(content, /mirrorMode:\s*0,/);
+  assert.doesNotMatch(content, /mirrorMode:\s*2,/);
 });
 
 test('rtc session service uses runtime-configurable canvas, preview, beauty, and content inspect parameters', async () => {
@@ -232,12 +239,29 @@ test('rtc session service uses runtime-configurable canvas, preview, beauty, and
   assert.match(localCanvasMatch[0], /const config = this\.options\.getConfig\(\);/);
   assert.match(localCanvasMatch[0], /resolveNodeRect\(node, 'hidden'\)/);
   assert.match(localCanvasMatch[0], /\.\.\.config\.localVideoCanvas/);
+  assert.match(localCanvasMatch[0], /const mirrorMode = 0;/);
+  assert.match(localCanvasMatch[0], /const sourceType = config\.localVideoCanvas\?\.sourceType\s*\?\?\s*0/);
+  assert.match(localCanvasMatch[0], /mirrorMode,/);
+  assert.match(localCanvasMatch[0], /sourceType,/);
+  assert.match(localCanvasMatch[0], /this\.getTextureViewController\(\)\.registerLocalView\(/);
 
   const remoteCanvasMatch = content.match(/private async setupRemoteVideoView\(uid: number\): Promise<void>[\s\S]*?private bindNativeTextureSprite/);
   assert.ok(remoteCanvasMatch);
   assert.match(remoteCanvasMatch[0], /const config = this\.options\.getConfig\(\);/);
   assert.match(remoteCanvasMatch[0], /resolveNodeRect\(node, 'fit'\)/);
   assert.match(remoteCanvasMatch[0], /\.\.\.config\.remoteVideoCanvas/);
+  assert.match(remoteCanvasMatch[0], /const mirrorMode = config\.remoteVideoCanvas\?\.mirrorMode\s*\?\?\s*0/);
+  assert.match(remoteCanvasMatch[0], /const sourceType = config\.remoteVideoCanvas\?\.sourceType\s*\?\?\s*0/);
+  assert.match(remoteCanvasMatch[0], /mirrorMode,/);
+  assert.match(remoteCanvasMatch[0], /sourceType,/);
+  assert.match(remoteCanvasMatch[0], /this\.getTextureViewController\(\)\.registerRemoteView\(/);
+  assert.match(remoteCanvasMatch[0], /this\.applyVideoNodeMirror\(/);
+  assert.match(content, /this\.textureViewController\?\.unregisterView\(/);
+  assert.match(content, /triggerSwitchCamera\(\): Promise<void>[\s\S]*applyVideoNodeMirror\(/);
+  assert.match(content, /private mirrorBaseScales = new Map<string, DisplayMirrorScale>\(\);/);
+  assert.match(content, /private getMirrorBaseScale\(viewId: string, node: Node\): DisplayMirrorScale/);
+  assert.match(content, /private resetVideoNodeMirror\(target: DisplayMirrorTarget\): void/);
+  assert.match(content, /node\.setScale\(baseScale\.x, baseScale\.y, baseScale\.z\);/);
 });
 
 test('rtc session service uses runtime-configurable audio, mixing, effect, and diagnostics parameters', async () => {
@@ -290,7 +314,9 @@ test('rtc session service uses runtime-configurable audio, mixing, effect, and d
   const videoControlDemoMatch = content.match(/private async runVideoControlDemo\(\): Promise<void>[\s\S]*?private clampVolume/);
   assert.ok(videoControlDemoMatch);
   assert.match(videoControlDemoMatch[0], /const config = this\.options\.getConfig\(\);/);
-  assert.match(videoControlDemoMatch[0], /config\.videoEncoderConfiguration \?\? VIDEO_ENCODER_PRESETS\[this\.selectedVideoEncoderPresetName\]/);
+  assert.match(videoControlDemoMatch[0], /config\.videoEncoderConfiguration\s*\?\?\s*VIDEO_ENCODER_PRESETS\[this\.selectedVideoEncoderPresetName\]/);
+  assert.match(videoControlDemoMatch[0], /await this\.getClient\(\)\.switchCamera\(\);/);
+  assert.match(videoControlDemoMatch[0], /this\.applyLocalVideoMirror\(\);/);
   assert.match(videoControlDemoMatch[0], /config\.beautyDemoOptions \?\? \{ smoothnessLevel: 0\.5 \}/);
   assert.match(videoControlDemoMatch[0], /config\.contentInspectDemoConfig \?\? \{ module: 0, interval: 0 \}/);
 });
@@ -385,6 +411,21 @@ test('rtc session service tracks flutter-style video settings and stats', async 
   assert.match(content, /startLocalPreview/);
   assert.match(content, /stopLocalPreview/);
   assert.match(content, /applyVideoEncoderPreset/);
+});
+
+test('rtc session service only derives encoder mirror mode when config leaves it unset', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/RtcSessionService.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /const VIDEO_ENCODER_MIRROR_MODE_ENABLED = 1;/);
+  assert.match(content, /const VIDEO_ENCODER_MIRROR_MODE_DISABLED = 2;/);
+
+  const resolveConfigMatch = content.match(/private resolveVideoEncoderConfiguration\([\s\S]*?private async applyVideoEncoderMirrorConfiguration/);
+  assert.ok(resolveConfigMatch);
+  assert.match(resolveConfigMatch[0], /const facing = this\.getTextureViewController\(\)\.getLocalCameraFacing\(\);/);
+  assert.match(resolveConfigMatch[0], /mirrorMode:\s*base\.mirrorMode\s*\?\?\s*\(facing === 'front' \? VIDEO_ENCODER_MIRROR_MODE_DISABLED : VIDEO_ENCODER_MIRROR_MODE_ENABLED\)/);
 });
 
 test('rtc session service resets preview state after stopping preview so toggle can start it again', async () => {

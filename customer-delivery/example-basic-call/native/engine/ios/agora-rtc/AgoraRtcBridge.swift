@@ -10,16 +10,14 @@ final class TextureSlotState: NSObject {
     let width: Int
     let height: Int
     let renderMode: AgoraVideoRenderMode
-    let mirror: Bool
     let observerPosition: AgoraVideoFramePosition
     var readyDispatched = false
 
-    init(slotId: Int, width: Int, height: Int, renderMode: AgoraVideoRenderMode, mirror: Bool, observerPosition: AgoraVideoFramePosition) {
+    init(slotId: Int, width: Int, height: Int, renderMode: AgoraVideoRenderMode, observerPosition: AgoraVideoFramePosition) {
         self.slotId = slotId
         self.width = width
         self.height = height
         self.renderMode = renderMode
-        self.mirror = mirror
         self.observerPosition = observerPosition
     }
 }
@@ -144,12 +142,12 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         _ = typeObject.perform?(selector, with: NSNumber(value: slotId), with: pixelBuffer)
     }
 
-    private func updateTextureSlot(slotId: Int, videoFrame: AgoraOutputVideoFrame, mirror: Bool) {
+    private func updateTextureSlot(slotId: Int, videoFrame: AgoraOutputVideoFrame) {
         guard let type = textureSlotBridgeClass() else {
             return
         }
         let typeObject: AnyObject = type
-        let selector = NSSelectorFromString(mirror ? "updateSlot:mirroredVideoFrame:" : "updateSlot:videoFrame:")
+        let selector = NSSelectorFromString("updateSlot:videoFrame:")
         guard typeObject.responds?(to: selector) == true else {
             return
         }
@@ -1541,7 +1539,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         let width = resolveTextureWidth(params, local: true)
         let height = resolveTextureHeight(params, local: true)
         let renderMode = self.renderMode(from: params)
-        let mirror = self.resolveTextureMirror(params, local: true)
         let observerPosition = resolveFrameObserverPosition(
             params,
             supportedPositions: [.postCapture, .preEncoder],
@@ -1551,8 +1548,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
            localTextureSlot.width == width,
            localTextureSlot.height == height,
            localTextureSlot.renderMode == renderMode,
-           localTextureSlot.mirror == mirror,
-            localTextureSlot.observerPosition == observerPosition {
+           localTextureSlot.observerPosition == observerPosition {
             refreshObservedFramePosition()
             return
         }
@@ -1565,7 +1561,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             width: width,
             height: height,
             renderMode: renderMode,
-            mirror: mirror,
             observerPosition: observerPosition
         )
         configureTextureSlot(slotId: slotId, width: width, height: height, renderMode: renderMode)
@@ -1576,7 +1571,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         let width = resolveTextureWidth(params, local: false)
         let height = resolveTextureHeight(params, local: false)
         let renderMode = self.renderMode(from: params)
-        let mirror = self.resolveTextureMirror(params, local: false)
         let observerPosition = resolveFrameObserverPosition(
             params,
             supportedPositions: .preRenderer,
@@ -1586,8 +1580,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
            slot.width == width,
            slot.height == height,
            slot.renderMode == renderMode,
-            slot.mirror == mirror,
-            slot.observerPosition == observerPosition {
+           slot.observerPosition == observerPosition {
             refreshObservedFramePosition()
             return
         }
@@ -1600,7 +1593,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             width: width,
             height: height,
             renderMode: renderMode,
-            mirror: mirror,
             observerPosition: observerPosition
         )
         configureTextureSlot(slotId: slotId, width: width, height: height, renderMode: renderMode)
@@ -1641,12 +1633,12 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     private func updateTextureSlot(_ slot: TextureSlotState, videoFrame: AgoraOutputVideoFrame) {
-        updateTextureSlot(slotId: slot.slotId, videoFrame: videoFrame, mirror: slot.mirror)
+        updateTextureSlot(slotId: slot.slotId, videoFrame: videoFrame)
         dispatchTextureReadyIfNeeded(slot, kind: "local", uid: nil)
     }
 
     private func updateRemoteTextureSlot(_ slot: TextureSlotState, uid: UInt, videoFrame: AgoraOutputVideoFrame) {
-        updateTextureSlot(slotId: slot.slotId, videoFrame: videoFrame, mirror: slot.mirror)
+        updateTextureSlot(slotId: slot.slotId, videoFrame: videoFrame)
         dispatchTextureReadyIfNeeded(slot, kind: "remote", uid: uid)
     }
 
@@ -1760,14 +1752,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     private func resolveTextureHeight(_ params: [String: Any], local: Bool) -> Int {
         let fallback = local ? 180 : 480
         return max(1, intValue(params["textureHeight"] ?? params["height"] ?? fallback))
-    }
-
-    private func resolveTextureMirror(_ params: [String: Any], local: Bool) -> Bool {
-        let value = intValue(params["mirrorMode"] ?? AgoraVideoMirrorMode.auto.rawValue)
-        if local {
-            return value != Int(AgoraVideoMirrorMode.disabled.rawValue)
-        }
-        return value == Int(AgoraVideoMirrorMode.enabled.rawValue)
     }
 
     private func resolveFrameObserverPosition(

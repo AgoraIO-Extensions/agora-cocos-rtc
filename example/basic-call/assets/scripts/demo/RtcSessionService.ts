@@ -7,17 +7,24 @@ import {
   sys,
 } from 'cc';
 
-import { createAgoraRtcClient, type AgoraRtcClient } from '../../../extensions/agora-rtc/js/agora.ts';
-import type { AgoraRtcVideoCanvas } from '../../../extensions/agora-rtc/js/types.ts';
+import {
+  createAgoraEngineTextureViewController,
+  createAgoraRtcClient,
+  type AgoraRtcClient,
+} from '../../../extensions/agora-rtc/js/agora.ts';
+import type { AgoraRtcVideoCanvas, AgoraVideoEncoderConfiguration } from '../../../extensions/agora-rtc/js/types.ts';
 import { resolveAudioEffectAssetPath } from './cases/AudioEffectMixingCase.ts';
 import type {
   ChannelProfile,
   ClientRole,
+  DisplayMirrorTarget,
   DemoSessionState,
   RuntimeConfigState,
   VideoEncoderPresetName,
 } from './types.ts';
 
+const VIDEO_ENCODER_MIRROR_MODE_ENABLED = 1;
+const VIDEO_ENCODER_MIRROR_MODE_DISABLED = 2;
 const VIDEO_ENCODER_PRESETS: Record<VideoEncoderPresetName, {
   name: VideoEncoderPresetName;
   width: number;
@@ -36,6 +43,12 @@ const MAX_TEXTURE_BIND_RETRIES = 600;
 const TEXTURE_BIND_RETRY_MS = 100;
 const DEMO_NATIVE_REQUEST_TIMEOUT_MS = 20000;
 
+type DisplayMirrorScale = {
+  x: number;
+  y: number;
+  z: number;
+};
+
 export interface RtcSessionServiceOptions {
   getConfig(): RuntimeConfigState;
   getLocalVideoNode(): Node | null;
@@ -51,6 +64,7 @@ export interface RtcSessionServiceOptions {
 
 export class RtcSessionService {
   private client: AgoraRtcClient | null = null;
+  private textureViewController: ReturnType<typeof createAgoraEngineTextureViewController> | null = null;
   private listenersBound = false;
   private initialized = false;
   private joined = false;
@@ -62,6 +76,7 @@ export class RtcSessionService {
   private localVideoSpriteFrame: SpriteFrame | null = null;
   private remoteTextureSlotIds = new Map<number, number>();
   private remoteVideoSpriteFrames = new Map<number, SpriteFrame>();
+  private mirrorBaseScales = new Map<string, DisplayMirrorScale>();
   private textureBindRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private audioEnabled = true;
   private localAudioEnabled = true;
@@ -123,6 +138,7 @@ export class RtcSessionService {
       remoteVideoMuted: this.remoteVideoMuted,
       allRemoteAudioMuted: this.allRemoteAudioMuted,
       allRemoteVideoMuted: this.allRemoteVideoMuted,
+      localCameraFacing: this.textureViewController?.getLocalCameraFacing() ?? 'front',
       speakerphoneEnabled: this.speakerphoneEnabled,
       lastErrorMessage: this.lastErrorMessage,
       lastRtcStatsSummary: this.lastRtcStatsSummary,
@@ -155,6 +171,7 @@ export class RtcSessionService {
     const client = this.getClient();
     await client.setRenderBackend(config.renderBackend);
     await client.initialize(config.appId.trim());
+    // await client.setParameters({ 'rtc.camera_capture_mirror_mode': 1 });
     await client.enableVideo(true);
     this.initialized = true;
     this.videoEnabled = true;
@@ -177,6 +194,7 @@ export class RtcSessionService {
     const client = this.getClient();
     if (config.publishCameraTrack) {
       await this.setupLocalVideoView();
+      await this.applyVideoEncoderMirrorConfiguration();
     }
     await client.joinChannel(config.token, config.channelId.trim(), config.uid, {
       clientRoleType: this.selectedClientRole,
@@ -254,6 +272,7 @@ export class RtcSessionService {
   private async removeRemoteVideoView(uid: number): Promise<void> {
     await this.getClient().removeRemoteVideoView(uid);
     this.remoteTextureSlotIds.delete(uid);
+    this.textureViewController?.unregisterView(this.getRemoteViewId(uid));
   }
 
   async startLocalPreview(): Promise<void> {
@@ -266,6 +285,7 @@ export class RtcSessionService {
     }
     const config = this.options.getConfig();
     await this.setupLocalVideoView();
+    await this.applyVideoEncoderMirrorConfiguration();
     await this.getClient().startPreview(config.previewSourceType);
     this.previewStarted = true;
     this.log('Preview started');
@@ -353,7 +373,7 @@ export class RtcSessionService {
   async applyVideoEncoderPreset(name: VideoEncoderPresetName): Promise<void> {
     this.selectedVideoEncoderPresetName = name;
     const preset = VIDEO_ENCODER_PRESETS[name];
-    await this.getClient().setVideoEncoderConfiguration(preset);
+    await this.applyVideoEncoderMirrorConfiguration(preset);
     this.log(`Video encoder: ${preset.name}`);
     this.emitState();
   }
@@ -484,10 +504,13 @@ export class RtcSessionService {
 
   async triggerSwitchCamera(): Promise<void> {
     await this.getClient().switchCamera();
+    await this.applyVideoEncoderMirrorConfiguration();
+    this.applyLocalVideoMirror();
     if (this.localTextureSlotId !== null) {
       this.bindNativeTextureSprite('local', this.localTextureSlotId, undefined, 0);
     }
     this.log('Camera switched');
+    this.emitState();
   }
 
   async toggleBeautyEffect(): Promise<void> {
@@ -747,7 +770,6 @@ export class RtcSessionService {
       await this.teardownRtcStep('destroy', () => client.destroy());
     } finally {
       const remoteUids = [...this.remoteUserUids];
-      this.client = null;
       this.listenersBound = false;
       this.initialized = false;
       this.joined = false;
@@ -761,6 +783,8 @@ export class RtcSessionService {
       this.localTextureSlotId = null;
       this.clearLocalVideoRenderState();
       this.clearRemoteVideoRenderState(remoteUids);
+      this.client = null;
+      this.textureViewController = null;
       this.lastRemoteVideoStatsByUid.clear();
       this.options.onRemoteUsersChanged([], null);
       this.emitState();
@@ -776,9 +800,14 @@ export class RtcSessionService {
         },
         timeoutMs: DEMO_NATIVE_REQUEST_TIMEOUT_MS,
       });
+      this.textureViewController = createAgoraEngineTextureViewController(this.client);
     }
     this.bindRtcEventListeners();
     return this.client;
+  }
+
+  private getTextureViewController() {
+    return this.textureViewController ?? createAgoraEngineTextureViewController(this.getClient());
   }
 
   private bindRtcEventListeners(): void {
@@ -873,27 +902,47 @@ export class RtcSessionService {
   private async setupLocalVideoView(): Promise<void> {
     const node = this.options.getLocalVideoNode();
     const config = this.options.getConfig();
+    const mirrorMode = 0;
+    const sourceType = config.localVideoCanvas?.sourceType ?? 0;
     await this.getClient().setupLocalVideoView({
       ...this.resolveNodeRect(node, 'hidden'),
       ...config.localVideoCanvas,
       uid: 0,
-      mirrorMode: 0,
+      mirrorMode,
       setupMode: 0,
-      sourceType: 0,
+      sourceType,
+    });
+    this.getTextureViewController().registerLocalView({
+      viewId: this.getLocalViewId(),
+      mirrorMode,
+      sourceType,
     });
     this.localViewAttached = true;
+    this.applyLocalVideoMirror();
   }
 
   private async setupRemoteVideoView(uid: number): Promise<void> {
     const node = this.options.getRemoteVideoNode(uid);
     const config = this.options.getConfig();
+    const mirrorMode = config.remoteVideoCanvas?.mirrorMode ?? 0;
+    const sourceType = config.remoteVideoCanvas?.sourceType ?? 0;
     await this.getClient().setupRemoteVideoView(uid, {
       ...this.resolveNodeRect(node, 'fit'),
       ...config.remoteVideoCanvas,
       uid,
-      mirrorMode: 2,
+      mirrorMode,
       setupMode: 0,
-      sourceType: 0,
+      sourceType,
+    });
+    this.getTextureViewController().registerRemoteView({
+      viewId: this.getRemoteViewId(uid),
+      uid,
+      mirrorMode,
+      sourceType,
+    });
+    this.applyVideoNodeMirror({
+      node,
+      viewId: this.getRemoteViewId(uid),
     });
   }
 
@@ -925,9 +974,14 @@ export class RtcSessionService {
     spriteFrame.texture = texture;
     if (kind === 'local') {
       this.localTextureSlotId = slotId;
+      this.applyLocalVideoMirror();
       this.options.onLocalTextureReady(texture, spriteFrame);
     } else if (uid !== undefined) {
       this.remoteTextureSlotIds.set(uid, slotId);
+      this.applyVideoNodeMirror({
+        node: this.options.getRemoteVideoNode(uid),
+        viewId: this.getRemoteViewId(uid),
+      });
       this.options.onRemoteTextureReady(uid, texture, spriteFrame);
     }
     this.log(`Bound ${kind} engine texture slot ${slotId}`);
@@ -997,6 +1051,28 @@ export class RtcSessionService {
     return spriteFrame;
   }
 
+  private resolveVideoEncoderConfiguration(
+    override?: Partial<AgoraVideoEncoderConfiguration>,
+  ): AgoraVideoEncoderConfiguration {
+    const config = this.options.getConfig();
+    const base = override
+      ?? config.videoEncoderConfiguration
+      ?? VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetName];
+    const facing = this.getTextureViewController().getLocalCameraFacing();
+    return {
+      ...base,
+      mirrorMode: base.mirrorMode ?? (facing === 'front' ? VIDEO_ENCODER_MIRROR_MODE_DISABLED : VIDEO_ENCODER_MIRROR_MODE_ENABLED),
+    };
+  }
+
+  private async applyVideoEncoderMirrorConfiguration(
+    override?: Partial<AgoraVideoEncoderConfiguration>,
+  ): Promise<void> {
+    await this.getClient().setVideoEncoderConfiguration(
+      this.resolveVideoEncoderConfiguration(override),
+    );
+  }
+
   private resolveNodeRect(node: Node | null, renderMode: 'hidden' | 'fit' | 'adaptive'): AgoraRtcVideoCanvas {
     const size = node?.getComponent(UITransform)?.contentSize;
     const width = Math.max(1, Math.round(size?.width ?? 320));
@@ -1012,10 +1088,61 @@ export class RtcSessionService {
     };
   }
 
+  private getLocalViewId(): string {
+    return 'local';
+  }
+
+  private getRemoteViewId(uid: number): string {
+    return `remote:${uid}`;
+  }
+
+  private applyLocalVideoMirror(): void {
+    this.applyVideoNodeMirror({
+      node: this.options.getLocalVideoNode(),
+      viewId: this.getLocalViewId(),
+    });
+  }
+
+  private applyVideoNodeMirror(target: DisplayMirrorTarget): void {
+    const { node, viewId } = target;
+    if (!node) {
+      return;
+    }
+    const controller = this.textureViewController ?? this.getTextureViewController();
+    const baseScale = this.getMirrorBaseScale(viewId, node);
+    const nextScaleX = controller.getViewMirror(viewId) ? -baseScale.x : baseScale.x;
+    node.setScale(nextScaleX, baseScale.y, baseScale.z);
+  }
+
+  private getMirrorBaseScale(viewId: string, node: Node): DisplayMirrorScale {
+    const existingScale = this.mirrorBaseScales.get(viewId);
+    if (existingScale) {
+      return existingScale;
+    }
+    const scale = node.getScale();
+    const baseScale = { x: scale.x, y: scale.y, z: scale.z };
+    this.mirrorBaseScales.set(viewId, baseScale);
+    return baseScale;
+  }
+
+  private resetVideoNodeMirror(target: DisplayMirrorTarget): void {
+    const { node, viewId } = target;
+    const baseScale = this.mirrorBaseScales.get(viewId);
+    if (node && baseScale) {
+      node.setScale(baseScale.x, baseScale.y, baseScale.z);
+    }
+    this.mirrorBaseScales.delete(viewId);
+  }
+
   private clearLocalVideoRenderState(): void {
     this.previewStarted = false;
     this.localViewAttached = false;
     this.localTextureSlotId = null;
+    this.textureViewController?.unregisterView(this.getLocalViewId());
+    this.resetVideoNodeMirror({
+      node: this.options.getLocalVideoNode(),
+      viewId: this.getLocalViewId(),
+    });
     if (this.localVideoSpriteFrame) {
       this.localVideoSpriteFrame.texture = null;
     }
@@ -1029,6 +1156,11 @@ export class RtcSessionService {
       if (spriteFrame) {
         spriteFrame.texture = null;
       }
+      this.textureViewController?.unregisterView(this.getRemoteViewId(uid));
+      this.resetVideoNodeMirror({
+        node: this.options.getRemoteVideoNode(uid),
+        viewId: this.getRemoteViewId(uid),
+      });
       this.remoteTextureSlotIds.delete(uid);
       this.remoteVideoSpriteFrames.delete(uid);
       this.options.onRemoteVideoCleared(uid);
@@ -1086,11 +1218,13 @@ export class RtcSessionService {
     await this.getClient().muteLocalVideoStream(false);
     await this.getClient().muteAllRemoteVideoStreams(false);
     await this.callAndLogFailure('setVideoEncoderConfiguration', () =>
-      this.getClient().setVideoEncoderConfiguration(
-        config.videoEncoderConfiguration ?? VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetName],
+      this.applyVideoEncoderMirrorConfiguration(
+        config.videoEncoderConfiguration
+          ?? VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetName],
       ),
     );
     await this.getClient().switchCamera();
+    this.applyLocalVideoMirror();
     await this.callAndLogFailure('setBeautyEffectOptions', () =>
       this.getClient().setBeautyEffectOptions(true, config.beautyDemoOptions ?? { smoothnessLevel: 0.5 }),
     );

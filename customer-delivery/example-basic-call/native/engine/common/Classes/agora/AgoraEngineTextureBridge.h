@@ -22,8 +22,7 @@ void update_agora_engine_texture_i420_slot(
     int targetWidth,
     int targetHeight,
     int renderMode,
-    int rotation,
-    bool mirror);
+    int rotation);
 void update_agora_engine_texture_nv12_slot(
     int slotId,
     const uint8_t *dataY,
@@ -35,8 +34,7 @@ void update_agora_engine_texture_nv12_slot(
     int targetWidth,
     int targetHeight,
     int renderMode,
-    int rotation,
-    bool mirror);
+    int rotation);
 void release_agora_engine_texture_slot(int slotId);
 
 } // namespace agora::cocos
