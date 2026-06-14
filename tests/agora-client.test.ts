@@ -12,6 +12,7 @@ import {
   resolveEngineTextureMirror,
   isScreenLikeVideoSource,
 } from '../sdk/agora-rtc/js/internal/engine_texture_mirror.ts';
+import { resolveEngineEncoderMirrorMode } from '../sdk/agora-rtc/js/internal/engine_texture_encoder_mirror.ts';
 
 const sdkTypesSource = readFileSync('sdk/agora-rtc/js/types.ts', 'utf8');
 
@@ -1324,7 +1325,7 @@ test('setupLocalVideoView dispatches the expected native request', async () => {
     textureWidth: 640,
     textureHeight: 360,
   });
-  assertFixtureCoversInterfaceFields('AgoraRtcVideoCanvas', request.params);
+  assertFixtureCoversInterfaceFields('AgoraRtcVideoCanvas', request.params, ['displayNode']);
 
   transport.emit(
     'agora:response',
@@ -1385,7 +1386,7 @@ test('setupRemoteVideoView dispatches AgoraRtcVideoCanvas fields to native', asy
     textureWidth: 1280,
     textureHeight: 720,
   });
-  assertFixtureCoversInterfaceFields('AgoraRtcVideoCanvas', request.params);
+  assertFixtureCoversInterfaceFields('AgoraRtcVideoCanvas', request.params, ['displayNode']);
 
   transport.emit(
     'agora:response',
@@ -1456,6 +1457,7 @@ test('engine texture view controller tracks camera facing across switchCamera', 
   const request = JSON.parse(transport.sent.at(-1)!.payload);
   transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true }));
   await pending;
+  controller.setLocalCameraFacing('rear');
 
   assert.equal(controller.getLocalCameraFacing(), 'rear');
 });
@@ -1473,6 +1475,7 @@ test('engine texture view controller shares camera facing across controllers wit
   const request = JSON.parse(transport.sent.at(-1)!.payload);
   transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true }));
   await pending;
+  firstController.setLocalCameraFacing('rear');
 
   assert.equal(firstController.getLocalCameraFacing(), 'rear');
   assert.equal(secondController.getLocalCameraFacing(), 'rear');
@@ -2023,6 +2026,12 @@ test('engine-texture mirror explicit modes override auto for local and remote vi
     }),
     false,
   );
+});
+
+test('engine-texture encoder mirror resolves facing-specific defaults', () => {
+  assert.equal(resolveEngineEncoderMirrorMode('front'), 2);
+  assert.equal(resolveEngineEncoderMirrorMode('rear'), 1);
+  assert.equal(resolveEngineEncoderMirrorMode('front', 1), 1);
 });
 
 test('engine-texture mirror never mirrors screen-like sources in auto mode', () => {
