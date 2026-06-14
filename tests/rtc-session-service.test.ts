@@ -94,16 +94,46 @@ export class SpriteFrame {
 `;
 
 const TRANSPILE_TARGETS = [
-  'example/basic-call/assets/scripts/demo/RtcSessionService.ts',
-  'example/basic-call/assets/scripts/demo/cases/AudioEffectMixingCase.ts',
-  'example/basic-call/assets/scripts/demo/types.ts',
-  'example/basic-call/extensions/agora-rtc/js/agora.ts',
-  'example/basic-call/extensions/agora-rtc/js/types.ts',
-  'example/basic-call/extensions/agora-rtc/js/internal/bridge.ts',
-  'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_mirror.ts',
-  'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_encoder_mirror.ts',
-  'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_view.ts',
-  'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_view_manager.ts',
+  {
+    sourcePath: 'example/basic-call/assets/scripts/demo/RtcSessionService.ts',
+    outputPath: 'example/basic-call/assets/scripts/demo/RtcSessionService.ts',
+  },
+  {
+    sourcePath: 'example/basic-call/assets/scripts/demo/cases/AudioEffectMixingCase.ts',
+    outputPath: 'example/basic-call/assets/scripts/demo/cases/AudioEffectMixingCase.ts',
+  },
+  {
+    sourcePath: 'example/basic-call/assets/scripts/demo/types.ts',
+    outputPath: 'example/basic-call/assets/scripts/demo/types.ts',
+  },
+  {
+    sourcePath: 'sdk/agora-rtc/js/agora.ts',
+    outputPath: 'example/basic-call/extensions/agora-rtc/js/agora.ts',
+  },
+  {
+    sourcePath: 'sdk/agora-rtc/js/types.ts',
+    outputPath: 'example/basic-call/extensions/agora-rtc/js/types.ts',
+  },
+  {
+    sourcePath: 'sdk/agora-rtc/js/internal/bridge.ts',
+    outputPath: 'example/basic-call/extensions/agora-rtc/js/internal/bridge.ts',
+  },
+  {
+    sourcePath: 'sdk/agora-rtc/js/internal/engine_texture_mirror.ts',
+    outputPath: 'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_mirror.ts',
+  },
+  {
+    sourcePath: 'sdk/agora-rtc/js/internal/engine_texture_encoder_mirror.ts',
+    outputPath: 'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_encoder_mirror.ts',
+  },
+  {
+    sourcePath: 'sdk/agora-rtc/js/internal/engine_texture_view.ts',
+    outputPath: 'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_view.ts',
+  },
+  {
+    sourcePath: 'sdk/agora-rtc/js/internal/engine_texture_view_manager.ts',
+    outputPath: 'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_view_manager.ts',
+  },
 ] as const;
 
 class AutoResponseTransport {
@@ -162,8 +192,8 @@ async function prepareRtcSessionFixture() {
     'utf8',
   );
 
-  for (const relativePath of TRANSPILE_TARGETS) {
-    const source = await readFile(path.join(repoRoot, relativePath), 'utf8');
+  for (const { sourcePath, outputPath } of TRANSPILE_TARGETS) {
+    const source = await readFile(path.join(repoRoot, sourcePath), 'utf8');
     const output = ts.transpileModule(source, {
       compilerOptions: {
         module: ts.ModuleKind.ESNext,
@@ -171,11 +201,11 @@ async function prepareRtcSessionFixture() {
         rewriteRelativeImportExtensions: true,
         verbatimModuleSyntax: true,
       },
-      fileName: relativePath,
+      fileName: outputPath,
     });
-    const outputPath = path.join(fixtureRoot, relativePath.replace(/\.ts$/, '.js'));
-    await mkdir(path.dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, output.outputText, 'utf8');
+    const fixtureOutputPath = path.join(fixtureRoot, outputPath.replace(/\.ts$/, '.js'));
+    await mkdir(path.dirname(fixtureOutputPath), { recursive: true });
+    await writeFile(fixtureOutputPath, output.outputText, 'utf8');
   }
 
   const ccModule = await import(pathToFileURL(path.join(fixtureRoot, 'node_modules/cc/index.js')).href);
