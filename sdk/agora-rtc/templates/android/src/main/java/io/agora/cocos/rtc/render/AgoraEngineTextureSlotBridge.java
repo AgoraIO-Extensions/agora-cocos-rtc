@@ -22,8 +22,7 @@ final class AgoraEngineTextureSlotBridge {
         int targetWidth,
         int targetHeight,
         int renderMode,
-        int rotation,
-        boolean mirror
+        int rotation
     );
 
     static native void nativeUpdateNV12Slot(
@@ -37,8 +36,7 @@ final class AgoraEngineTextureSlotBridge {
         int targetWidth,
         int targetHeight,
         int renderMode,
-        int rotation,
-        boolean mirror
+        int rotation
     );
 
     static native void nativeReleaseSlot(int slotId);

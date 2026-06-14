@@ -575,6 +575,9 @@ export class DemoActionPanel extends Component {
     if (name === 'StartPreview' && this.sessionState?.previewStarted) {
       return 'Stop Preview';
     }
+    if (name === 'SwitchCamera') {
+      return this.sessionState?.localCameraFacing === 'rear' ? 'Rear' : 'Front';
+    }
     if (name === 'MuteLocalVideo') {
       return this.sessionState?.localVideoMuted ? 'Camera Off' : 'Camera On';
     }

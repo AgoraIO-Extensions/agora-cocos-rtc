@@ -30,6 +30,9 @@ import {
   resolveBridgeTransport,
   resolveEngineTextureBridge,
 } from './internal/bridge.ts';
+import {
+  AgoraEngineTextureViewController,
+} from './internal/engine_texture_view.ts';
 
 type PendingRequest = {
   reject: (error: Error) => void;
@@ -67,6 +70,7 @@ function mergeProtectedParameters(
 }
 
 export { AgoraErrorCode, AgoraSdkError };
+export { AgoraEngineTextureViewController };
 
 export type AgoraRtcClientOptions = {
   bridgeRuntime?: CocosBridgeRuntime;
@@ -607,6 +611,10 @@ export class AgoraRtcClient {
 
 export function createAgoraRtcClient(options: AgoraRtcClientOptions = {}) {
   return new AgoraRtcClient(options);
+}
+
+export function createAgoraEngineTextureViewController(client: AgoraRtcClient) {
+  return new AgoraEngineTextureViewController(client);
 }
 
 export function getAgoraEngineTextureBridge(

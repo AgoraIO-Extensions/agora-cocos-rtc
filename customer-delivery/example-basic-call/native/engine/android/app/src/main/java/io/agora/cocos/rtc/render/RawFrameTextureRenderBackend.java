@@ -31,15 +31,13 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       final int width;
       final int height;
       final int renderMode;
-      final boolean mirror;
       final int observerPosition;
 
-      TextureSlotState(int slotId, int width, int height, int renderMode, boolean mirror, int observerPosition) {
+      TextureSlotState(int slotId, int width, int height, int renderMode, int observerPosition) {
         this.slotId = slotId;
         this.width = width;
         this.height = height;
         this.renderMode = renderMode;
-        this.mirror = mirror;
         this.observerPosition = observerPosition;
       }
     }
@@ -270,7 +268,6 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       VideoFrame.I420Buffer i420Buffer = null;
       try {
         final int rotation = normalizeRotation(videoFrame.getRotation());
-        final boolean mirror = slot.mirror;
         i420Buffer = videoFrame.getBuffer().toI420();
         if (i420Buffer == null) {
           return;
@@ -288,8 +285,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
             slot.width,
             slot.height,
             slot.renderMode,
-            rotation,
-            mirror
+            rotation
         );
         diagnostic.slotUpdates++;
         maybeLogFrameDiagnostic(kind, uid, slot, videoFrame, diagnostic);
@@ -351,7 +347,6 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       int width = resolveTextureWidth(params, true);
       int height = resolveTextureHeight(params, true);
       int renderMode = resolveRenderMode(params);
-      boolean mirror = resolveMirror(params, true);
       int observerPosition = resolveFrameObserverPosition(
           params,
           POSITION_POST_CAPTURER | POSITION_PRE_ENCODER,
@@ -362,14 +357,13 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
               && localTextureSlot.width == width
               && localTextureSlot.height == height
               && localTextureSlot.renderMode == renderMode
-              && localTextureSlot.mirror == mirror
               && localTextureSlot.observerPosition == observerPosition
       ) {
         refreshObservedFramePosition();
         return;
       }
       releaseLocalTextureSlot();
-      localTextureSlot = createTextureSlotState(width, height, renderMode, mirror, observerPosition);
+      localTextureSlot = createTextureSlotState(width, height, renderMode, observerPosition);
       refreshObservedFramePosition();
       dispatchTextureReadyEvent(
           "localVideoTextureReady",
@@ -387,7 +381,6 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       int width = resolveTextureWidth(params, false);
       int height = resolveTextureHeight(params, false);
       int renderMode = resolveRenderMode(params);
-      boolean mirror = resolveMirror(params, false);
       int observerPosition = resolveFrameObserverPosition(
           params,
           POSITION_PRE_RENDERER,
@@ -399,14 +392,13 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
               && existing.width == width
               && existing.height == height
               && existing.renderMode == renderMode
-              && existing.mirror == mirror
               && existing.observerPosition == observerPosition
       ) {
         refreshObservedFramePosition();
         return;
       }
       releaseRemoteTextureSlot(uid);
-      TextureSlotState slot = createTextureSlotState(width, height, renderMode, mirror, observerPosition);
+      TextureSlotState slot = createTextureSlotState(width, height, renderMode, observerPosition);
       remoteTextureSlots.put(uid, slot);
       refreshObservedFramePosition();
       dispatchTextureReadyEvent(
@@ -426,19 +418,6 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
     private int resolveTextureHeight(JSONObject params, boolean local) {
       int fallback = local ? LOCAL_TARGET_HEIGHT : REMOTE_TARGET_HEIGHT;
       return resolvePositiveInt(params, "textureHeight", params != null ? params.optInt("height", fallback) : fallback);
-    }
-
-    private boolean resolveMirror(JSONObject params, boolean local) {
-      return local ? resolveLocalMirror(params) : resolveRemoteMirror(params);
-    }
-
-    private boolean resolveLocalMirror(JSONObject params) {
-      int mirrorMode = params != null ? params.optInt("mirrorMode", 0) : 0;
-      return mirrorMode != 2;
-    }
-
-    private boolean resolveRemoteMirror(JSONObject params) {
-      return params != null && params.optInt("mirrorMode", 0) == 1;
     }
 
     private int resolveRenderMode(JSONObject params) {
@@ -478,9 +457,9 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       return Math.max(1, value);
     }
 
-    private TextureSlotState createTextureSlotState(int width, int height, int renderMode, boolean mirror, int observerPosition) {
+    private TextureSlotState createTextureSlotState(int width, int height, int renderMode, int observerPosition) {
       int slotId = AgoraEngineTextureSlotBridge.nativeCreateSlot(width, height);
-      return new TextureSlotState(slotId, width, height, renderMode, mirror, observerPosition);
+      return new TextureSlotState(slotId, width, height, renderMode, observerPosition);
     }
 
     private void refreshObservedFramePosition() {
@@ -502,8 +481,13 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       }
       observedFramePosition = nextPosition;
       if (rtcEngine != null) {
-        int result = rtcEngine.registerVideoFrameObserver(this);
-        dispatchBackendState("observerPosition", result, -1);
+        try {
+          int result = rtcEngine.registerVideoFrameObserver(this);
+          dispatchBackendState("observerPosition", result, -1);
+        } catch (RuntimeException error) {
+          dispatchBackendState("observerPosition", -1, -1);
+          Log.w(LOG_TAG, "registerVideoFrameObserver refresh failed", error);
+        }
       }
     }
 

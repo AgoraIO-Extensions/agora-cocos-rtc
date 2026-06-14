@@ -52,7 +52,6 @@ void mapTransformedPixel(
     int outputWidth,
     int outputHeight,
     int rotation,
-    bool mirror,
     int &sourceX,
     int &sourceY) {
     const int normalizedRotation = normalizeRotation(rotation);
@@ -61,23 +60,22 @@ void mapTransformedPixel(
     const int naturalHeight = swapsDimensions ? width : height;
     const int naturalX = std::min(naturalWidth - 1, std::max(0, outputX * naturalWidth / outputWidth));
     const int naturalY = std::min(naturalHeight - 1, std::max(0, outputY * naturalHeight / outputHeight));
-    const int mappedNaturalX = mirror ? naturalWidth - 1 - naturalX : naturalX;
 
     switch (normalizedRotation) {
         case 90:
             sourceX = naturalY;
-            sourceY = height - 1 - mappedNaturalX;
+            sourceY = height - 1 - naturalX;
             break;
         case 180:
-            sourceX = width - 1 - mappedNaturalX;
+            sourceX = width - 1 - naturalX;
             sourceY = height - 1 - naturalY;
             break;
         case 270:
             sourceX = width - 1 - naturalY;
-            sourceY = mappedNaturalX;
+            sourceY = naturalX;
             break;
         default:
-            sourceX = mappedNaturalX;
+            sourceX = naturalX;
             sourceY = naturalY;
             break;
     }
@@ -109,7 +107,6 @@ bool sampleRenderFramePixel(
     int targetWidth,
     int targetHeight,
     int rotation,
-    bool mirror,
     int renderMode,
     int &sourceX,
     int &sourceY) {
@@ -126,7 +123,7 @@ bool sampleRenderFramePixel(
 
     const auto mode = normalizeRenderMode(renderMode);
     if (mode == TextureRenderMode::Adaptive) {
-        mapTransformedPixel(outputX, outputY, width, height, outputWidth, outputHeight, rotation, mirror, sourceX, sourceY);
+        mapTransformedPixel(outputX, outputY, width, height, outputWidth, outputHeight, rotation, sourceX, sourceY);
         return true;
     }
 
@@ -153,23 +150,22 @@ bool sampleRenderFramePixel(
 
     const int clampedNaturalX = std::min(naturalWidth - 1, std::max(0, static_cast<int>(sampleX)));
     const int clampedNaturalY = std::min(naturalHeight - 1, std::max(0, static_cast<int>(sampleY)));
-    const int mappedNaturalX = mirror ? naturalWidth - 1 - clampedNaturalX : clampedNaturalX;
 
     switch (normalizedRotation) {
         case 90:
             sourceX = clampedNaturalY;
-            sourceY = height - 1 - mappedNaturalX;
+            sourceY = height - 1 - clampedNaturalX;
             break;
         case 180:
-            sourceX = width - 1 - mappedNaturalX;
+            sourceX = width - 1 - clampedNaturalX;
             sourceY = height - 1 - clampedNaturalY;
             break;
         case 270:
             sourceX = width - 1 - clampedNaturalY;
-            sourceY = mappedNaturalX;
+            sourceY = clampedNaturalX;
             break;
         default:
-            sourceX = mappedNaturalX;
+            sourceX = clampedNaturalX;
             sourceY = clampedNaturalY;
             break;
     }
@@ -189,7 +185,6 @@ void convertI420ToRgba(
     int targetHeight,
     int renderMode,
     int rotation,
-    bool mirror,
     uint8_t *rgba) {
     const bool swapsDimensions = normalizeRotation(rotation) == 90 || normalizeRotation(rotation) == 270;
     const int naturalOutputWidth = swapsDimensions ? height : width;
@@ -208,7 +203,6 @@ void convertI420ToRgba(
                     outputWidth,
                     outputHeight,
                     rotation,
-                    mirror,
                     renderMode,
                     sourceX,
                     sourceY)) {
@@ -251,7 +245,6 @@ void convertNV12ToRgba(
     int targetHeight,
     int renderMode,
     int rotation,
-    bool mirror,
     uint8_t *rgba) {
     const bool swapsDimensions = normalizeRotation(rotation) == 90 || normalizeRotation(rotation) == 270;
     const int naturalOutputWidth = swapsDimensions ? height : width;
@@ -270,7 +263,6 @@ void convertNV12ToRgba(
                     outputWidth,
                     outputHeight,
                     rotation,
-                    mirror,
                     renderMode,
                     sourceX,
                     sourceY)) {
@@ -398,8 +390,7 @@ public:
         int targetWidth,
         int targetHeight,
         int renderMode,
-        int rotation,
-        bool mirror) {
+        int rotation) {
         const bool swapsDimensions = normalizeRotation(rotation) == 90 || normalizeRotation(rotation) == 270;
         const int naturalOutputWidth = swapsDimensions ? height : width;
         const int naturalOutputHeight = swapsDimensions ? width : height;
@@ -436,7 +427,6 @@ public:
                 outputHeight,
                 renderMode,
                 rotation,
-                mirror,
                 slot->stagingRgba.data()
             );
             slot->dirty = true;
@@ -460,8 +450,7 @@ public:
         int targetWidth,
         int targetHeight,
         int renderMode,
-        int rotation,
-        bool mirror) {
+        int rotation) {
         const bool swapsDimensions = normalizeRotation(rotation) == 90 || normalizeRotation(rotation) == 270;
         const int naturalOutputWidth = swapsDimensions ? height : width;
         const int naturalOutputHeight = swapsDimensions ? width : height;
@@ -496,7 +485,6 @@ public:
                 outputHeight,
                 renderMode,
                 rotation,
-                mirror,
                 slot->stagingRgba.data()
             );
             slot->dirty = true;
@@ -768,8 +756,7 @@ void update_agora_engine_texture_i420_slot(
     int targetWidth,
     int targetHeight,
     int renderMode,
-    int rotation,
-    bool mirror) {
+    int rotation) {
     EngineTextureRegistry::getInstance().updateI420Slot(
         slotId,
         dataY,
@@ -783,8 +770,7 @@ void update_agora_engine_texture_i420_slot(
         targetWidth,
         targetHeight,
         renderMode,
-        rotation,
-        mirror
+        rotation
     );
 }
 
@@ -799,8 +785,7 @@ void update_agora_engine_texture_nv12_slot(
     int targetWidth,
     int targetHeight,
     int renderMode,
-    int rotation,
-    bool mirror) {
+    int rotation) {
     EngineTextureRegistry::getInstance().updateNV12Slot(
         slotId,
         dataY,
@@ -812,8 +797,7 @@ void update_agora_engine_texture_nv12_slot(
         targetWidth,
         targetHeight,
         renderMode,
-        rotation,
-        mirror
+        rotation
     );
 }
 
@@ -876,8 +860,7 @@ JNIEXPORT void JNICALL Java_io_agora_cocos_rtc_render_AgoraEngineTextureSlotBrid
     jint targetWidth,
     jint targetHeight,
     jint renderMode,
-    jint rotation,
-    jboolean mirror) {
+    jint rotation) {
     if (env == nullptr || dataY == nullptr || dataU == nullptr || dataV == nullptr) {
         return;
     }
@@ -902,8 +885,7 @@ JNIEXPORT void JNICALL Java_io_agora_cocos_rtc_render_AgoraEngineTextureSlotBrid
         targetWidth,
         targetHeight,
         renderMode,
-        rotation,
-        mirror == JNI_TRUE
+        rotation
     );
 }
 
@@ -920,8 +902,7 @@ JNIEXPORT void JNICALL Java_io_agora_cocos_rtc_render_AgoraEngineTextureSlotBrid
     jint targetWidth,
     jint targetHeight,
     jint renderMode,
-    jint rotation,
-    jboolean mirror) {
+    jint rotation) {
     if (env == nullptr || dataY == nullptr || dataUV == nullptr) {
         return;
     }
@@ -943,8 +924,7 @@ JNIEXPORT void JNICALL Java_io_agora_cocos_rtc_render_AgoraEngineTextureSlotBrid
         targetWidth,
         targetHeight,
         renderMode,
-        rotation,
-        mirror == JNI_TRUE
+        rotation
     );
 }
 
