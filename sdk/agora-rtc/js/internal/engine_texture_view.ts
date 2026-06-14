@@ -71,8 +71,6 @@ export class AgoraEngineTextureViewController {
     }
     return resolveEngineTextureMirror({
       mirrorMode: view.mirrorMode,
-      isLocal: view.isLocal,
-      isFrontCamera: this.#clientState.localCameraFacing === 'front',
       sourceType: view.sourceType,
     });
   }

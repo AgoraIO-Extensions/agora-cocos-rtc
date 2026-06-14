@@ -1,6 +1,7 @@
 import type { Node, Sprite, SpriteFrame, Texture2D } from 'cc';
 import type {
   AgoraAudioMixingConfig,
+  AgoraEngineTextureCameraFacing,
   AgoraVideoEncoderConfiguration,
   AgoraBeautyOptions,
   AgoraContentInspectConfig,
@@ -106,6 +107,7 @@ export interface DemoSessionState {
   remoteVideoMuted: boolean;
   allRemoteAudioMuted: boolean;
   allRemoteVideoMuted: boolean;
+  localCameraFacing: AgoraEngineTextureCameraFacing;
   speakerphoneEnabled: boolean | null;
   lastErrorMessage: string;
   lastRtcStatsSummary: string;
