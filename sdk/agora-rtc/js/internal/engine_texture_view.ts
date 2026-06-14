@@ -26,12 +26,6 @@ function getEngineTextureClientState(client: AgoraRtcClient): EngineTextureClien
     localCameraFacing: 'front',
   };
 
-  const originalSwitchCamera = client.switchCamera.bind(client);
-  client.switchCamera = async () => {
-    await originalSwitchCamera();
-    state.localCameraFacing = state.localCameraFacing === 'front' ? 'rear' : 'front';
-  };
-
   engineTextureClientStates.set(client, state);
   return state;
 }
