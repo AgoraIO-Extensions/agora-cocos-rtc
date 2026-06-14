@@ -33,6 +33,10 @@ import {
 import {
   AgoraEngineTextureViewController,
 } from './internal/engine_texture_view.ts';
+import { resolveEngineEncoderMirrorMode } from './internal/engine_texture_encoder_mirror.ts';
+
+type EngineTextureViewManagerModule = typeof import('./internal/engine_texture_view_manager.ts');
+type AgoraEngineTextureViewManager = EngineTextureViewManagerModule['AgoraEngineTextureViewManager'];
 
 type PendingRequest = {
   reject: (error: Error) => void;
@@ -41,6 +45,12 @@ type PendingRequest = {
 };
 
 type AnyAgoraEventListener = (payload: AgoraEventMap[keyof AgoraEventMap]) => void;
+
+type TextureReadySlotCache = {
+  slotId: number;
+  width: number;
+  height: number;
+};
 
 const PROTECTED_APP_TYPE_PARAMETERS = { 'rtc.set_app_type': 10 } as const;
 
@@ -71,6 +81,17 @@ function mergeProtectedParameters(
 
 export { AgoraErrorCode, AgoraSdkError };
 export { AgoraEngineTextureViewController };
+export type { AgoraEngineTextureViewManager } from './internal/engine_texture_view_manager.ts';
+export {
+  resolveEngineTextureMirror,
+  isScreenLikeVideoSource,
+} from './internal/engine_texture_mirror.ts';
+export {
+  resolveEngineEncoderMirrorMode,
+  VIDEO_ENCODER_MIRROR_MODE_AUTO,
+  VIDEO_ENCODER_MIRROR_MODE_ENABLED,
+  VIDEO_ENCODER_MIRROR_MODE_DISABLED,
+} from './internal/engine_texture_encoder_mirror.ts';
 
 export type AgoraRtcClientOptions = {
   bridgeRuntime?: CocosBridgeRuntime;
@@ -91,6 +112,16 @@ export class AgoraRtcClient {
   #bridgeRuntime?: CocosBridgeRuntime;
   #transport: CocosJsbBridgeTransport | null;
   #transportListenersAttached = false;
+  #engineTextureViewManager: InstanceType<AgoraEngineTextureViewManager> | null = null;
+  #engineTextureViewManagerModule: EngineTextureViewManagerModule | null = null;
+  #engineTextureViewManagerPromise: Promise<void> | null = null;
+  #textureReadyCache: {
+    local: TextureReadySlotCache | null;
+    remote: Map<number, TextureReadySlotCache>;
+  } = {
+    local: null,
+    remote: new Map(),
+  };
 
   constructor(options: AgoraRtcClientOptions = {}) {
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -271,12 +302,95 @@ export class AgoraRtcClient {
     return this.#invoke('setVideoEncoderConfiguration', { ...config }) as Promise<void>;
   }
 
-  setupLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void> {
-    return this.#invoke('setupLocalVideoView', { ...canvas }) as Promise<void>;
+  async applyVideoEncoderMirrorConfiguration(
+    config: Partial<AgoraVideoEncoderConfiguration> & Pick<AgoraVideoEncoderConfiguration, 'width' | 'height'>,
+  ): Promise<void> {
+    const manager = await this.#ensureEngineTextureViewManager();
+    if (manager) {
+      return manager.applyEncoderConfiguration(config);
+    }
+    return this.setVideoEncoderConfiguration({
+      ...config,
+      mirrorMode: resolveEngineEncoderMirrorMode('front', config.mirrorMode),
+    } as AgoraVideoEncoderConfiguration);
   }
 
-  setupRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise<void> {
-    return this.#invoke('setupRemoteVideoView', { ...canvas, uid }) as Promise<void>;
+  getEngineTextureViewManager(): InstanceType<AgoraEngineTextureViewManager> | null {
+    return this.#engineTextureViewManager;
+  }
+
+  takeCachedLocalTextureSlot(): TextureReadySlotCache | null {
+    const cached = this.#textureReadyCache.local;
+    this.#textureReadyCache.local = null;
+    return cached;
+  }
+
+  takeCachedRemoteTextureSlot(uid: number): TextureReadySlotCache | null {
+    const cached = this.#textureReadyCache.remote.get(uid);
+    if (cached) {
+      this.#textureReadyCache.remote.delete(uid);
+    }
+    return cached ?? null;
+  }
+
+  async #ensureEngineTextureViewManager(): Promise<InstanceType<AgoraEngineTextureViewManager> | null> {
+    if (!this.#bridgeRuntime) {
+      return null;
+    }
+    if (!this.#engineTextureViewManagerPromise) {
+      this.#engineTextureViewManagerPromise = import('./internal/engine_texture_view_manager.ts').then((module) => {
+        this.#engineTextureViewManagerModule = module;
+        this.#engineTextureViewManager = new module.AgoraEngineTextureViewManager(this, this.#bridgeRuntime);
+      });
+    }
+    await this.#engineTextureViewManagerPromise;
+    return this.#engineTextureViewManager;
+  }
+
+  #stripDisplayNodeFromCanvas<T extends { displayNode?: unknown }>(canvas: T): Omit<T, 'displayNode'> {
+    const module = this.#engineTextureViewManagerModule;
+    if (module) {
+      return module.stripDisplayNodeFromCanvas(canvas);
+    }
+    const { displayNode: _displayNode, ...nativeCanvas } = canvas;
+    return nativeCanvas;
+  }
+
+  async setupLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void> {
+    const manager = canvas.displayNode
+      ? await this.#ensureEngineTextureViewManager()
+      : null;
+    if (canvas.displayNode && manager) {
+      manager.registerLocalDisplay({
+        displayNode: canvas.displayNode,
+        mirrorMode: canvas.mirrorMode,
+        sourceType: canvas.sourceType,
+      });
+    }
+    await this.#invoke('setupLocalVideoView', this.#stripDisplayNodeFromCanvas(canvas)) as Promise<void>;
+    if (canvas.displayNode && manager) {
+      manager.applyCachedTextureSlot('local');
+    }
+  }
+
+  async setupRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise<void> {
+    const manager = canvas.displayNode
+      ? await this.#ensureEngineTextureViewManager()
+      : null;
+    if (canvas.displayNode && manager) {
+      manager.registerRemoteDisplay(uid, {
+        displayNode: canvas.displayNode,
+        mirrorMode: canvas.mirrorMode,
+        sourceType: canvas.sourceType,
+      });
+    }
+    await this.#invoke(
+      'setupRemoteVideoView',
+      { ...this.#stripDisplayNodeFromCanvas(canvas), uid },
+    ) as Promise<void>;
+    if (canvas.displayNode && manager) {
+      manager.applyCachedTextureSlot('remote', uid);
+    }
   }
 
   updateLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void> {
@@ -288,10 +402,16 @@ export class AgoraRtcClient {
   }
 
   removeLocalVideoView(): Promise<void> {
+    if (this.#engineTextureViewManager) {
+      this.#engineTextureViewManager.unregisterLocalDisplay();
+    }
     return this.#invoke('removeLocalVideoView', {}) as Promise<void>;
   }
 
   removeRemoteVideoView(uid: number): Promise<void> {
+    if (this.#engineTextureViewManager) {
+      this.#engineTextureViewManager.unregisterRemoteDisplay(uid);
+    }
     return this.#invoke('removeRemoteVideoView', { uid }) as Promise<void>;
   }
 
@@ -307,8 +427,12 @@ export class AgoraRtcClient {
     return this.#invoke('stopPreview', sourceType === undefined ? {} : { sourceType }) as Promise<void>;
   }
 
-  switchCamera(): Promise<void> {
-    return this.#invoke('switchCamera', {}) as Promise<void>;
+  async switchCamera(): Promise<void> {
+    await this.#invoke('switchCamera', {}) as Promise<void>;
+    const manager = await this.#ensureEngineTextureViewManager();
+    if (manager) {
+      await manager.onCameraSwitched();
+    }
   }
 
   setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number): Promise<void> {
@@ -520,6 +644,8 @@ export class AgoraRtcClient {
       return;
     }
 
+    this.#cacheTextureReadyEvent(event);
+
     this.#emit(
       event.eventName as keyof AgoraEventMap,
       (event.payload ?? {}) as AgoraEventMap[keyof AgoraEventMap],
@@ -540,7 +666,37 @@ export class AgoraRtcClient {
     }
   }
 
+  #cacheTextureReadyEvent(event: AgoraBridgeEvent): void {
+    const payload = event.payload as Record<string, unknown> | undefined;
+    if (!payload || typeof payload.slotId !== 'number') {
+      return;
+    }
+    const slot = {
+      slotId: payload.slotId,
+      width: typeof payload.width === 'number' ? payload.width : 0,
+      height: typeof payload.height === 'number' ? payload.height : 0,
+    };
+    if (event.eventName === 'localVideoTextureReady') {
+      this.#textureReadyCache.local = slot;
+      return;
+    }
+    if (event.eventName === 'remoteVideoTextureReady' && typeof payload.uid === 'number') {
+      this.#textureReadyCache.remote.set(payload.uid, slot);
+      return;
+    }
+    if (event.eventName === 'localVideoTextureReleased') {
+      this.#textureReadyCache.local = null;
+      return;
+    }
+    if (event.eventName === 'remoteVideoTextureReleased' && typeof payload.uid === 'number') {
+      this.#textureReadyCache.remote.delete(payload.uid);
+    }
+  }
+
   #teardown(): void {
+    this.#engineTextureViewManager?.release();
+    this.#textureReadyCache.local = null;
+    this.#textureReadyCache.remote.clear();
     if (this.#transportListenersAttached) {
       if (typeof this.#transport?.removeNativeEventListener === 'function') {
         this.#transport.removeNativeEventListener(
@@ -611,6 +767,15 @@ export class AgoraRtcClient {
 
 export function createAgoraRtcClient(options: AgoraRtcClientOptions = {}) {
   return new AgoraRtcClient(options);
+}
+
+export function createAgoraEngineTextureViewManager(
+  client: AgoraRtcClient,
+  bridgeRuntime?: CocosBridgeRuntime,
+): Promise<InstanceType<AgoraEngineTextureViewManager>> {
+  return import('./internal/engine_texture_view_manager.ts').then(({ AgoraEngineTextureViewManager }) =>
+    new AgoraEngineTextureViewManager(client, bridgeRuntime),
+  );
 }
 
 export function createAgoraEngineTextureViewController(client: AgoraRtcClient) {

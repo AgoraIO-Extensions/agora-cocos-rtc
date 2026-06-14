@@ -1,14 +1,11 @@
 import {
   native,
   Node,
-  SpriteFrame,
-  Texture2D,
   UITransform,
   sys,
 } from 'cc';
 
 import {
-  createAgoraEngineTextureViewController,
   createAgoraRtcClient,
   type AgoraRtcClient,
 } from '../../../extensions/agora-rtc/js/agora.ts';
@@ -17,15 +14,11 @@ import { resolveAudioEffectAssetPath } from './cases/AudioEffectMixingCase.ts';
 import type {
   ChannelProfile,
   ClientRole,
-  DisplayMirrorTarget,
   DemoSessionState,
   RuntimeConfigState,
   VideoEncoderPresetName,
 } from './types.ts';
 
-const VIDEO_ENCODER_MIRROR_MODE_AUTO = 0;
-const VIDEO_ENCODER_MIRROR_MODE_ENABLED = 1;
-const VIDEO_ENCODER_MIRROR_MODE_DISABLED = 2;
 const VIDEO_ENCODER_PRESETS: Record<VideoEncoderPresetName, {
   name: VideoEncoderPresetName;
   width: number;
@@ -40,15 +33,7 @@ const VIDEO_ENCODER_PRESETS: Record<VideoEncoderPresetName, {
 const CHANNEL_PROFILE_PRESETS: ChannelProfile[] = ['communication', 'liveBroadcasting'];
 const CLIENT_ROLE_PRESETS: ClientRole[] = ['broadcaster', 'audience'];
 const VIDEO_ENCODER_PRESET_NAMES: VideoEncoderPresetName[] = ['360p', '540p', '720p'];
-const MAX_TEXTURE_BIND_RETRIES = 600;
-const TEXTURE_BIND_RETRY_MS = 100;
 const DEMO_NATIVE_REQUEST_TIMEOUT_MS = 20000;
-
-type DisplayMirrorScale = {
-  x: number;
-  y: number;
-  z: number;
-};
 
 export interface RtcSessionServiceOptions {
   getConfig(): RuntimeConfigState;
@@ -57,15 +42,12 @@ export interface RtcSessionServiceOptions {
   onLog(line: string): void;
   onStateChanged(): void;
   onRemoteUsersChanged(uids: number[], activeUid: number | null): void;
-  onLocalTextureReady(texture: Texture2D, spriteFrame: SpriteFrame): void;
-  onRemoteTextureReady(uid: number, texture: Texture2D, spriteFrame: SpriteFrame): void;
   onLocalVideoCleared(): void;
   onRemoteVideoCleared(uid: number): void;
 }
 
 export class RtcSessionService {
   private client: AgoraRtcClient | null = null;
-  private textureViewController: ReturnType<typeof createAgoraEngineTextureViewController> | null = null;
   private listenersBound = false;
   private initialized = false;
   private joined = false;
@@ -73,12 +55,6 @@ export class RtcSessionService {
   private activeRemoteUid: number | null = null;
   private remoteUserUids = new Set<number>();
   private localViewAttached = false;
-  private localTextureSlotId: number | null = null;
-  private localVideoSpriteFrame: SpriteFrame | null = null;
-  private remoteTextureSlotIds = new Map<number, number>();
-  private remoteVideoSpriteFrames = new Map<number, SpriteFrame>();
-  private mirrorBaseScales = new Map<string, DisplayMirrorScale>();
-  private textureBindRetryTimers = new Map<string, ReturnType<typeof setTimeout>>();
   private audioEnabled = true;
   private localAudioEnabled = true;
   private localVideoEnabled = true;
@@ -139,7 +115,7 @@ export class RtcSessionService {
       remoteVideoMuted: this.remoteVideoMuted,
       allRemoteAudioMuted: this.allRemoteAudioMuted,
       allRemoteVideoMuted: this.allRemoteVideoMuted,
-      localCameraFacing: this.textureViewController?.getLocalCameraFacing() ?? 'front',
+      localCameraFacing: this.client?.getEngineTextureViewManager()?.getLocalCameraFacing() ?? 'front',
       speakerphoneEnabled: this.speakerphoneEnabled,
       lastErrorMessage: this.lastErrorMessage,
       lastRtcStatsSummary: this.lastRtcStatsSummary,
@@ -272,8 +248,6 @@ export class RtcSessionService {
 
   private async removeRemoteVideoView(uid: number): Promise<void> {
     await this.getClient().removeRemoteVideoView(uid);
-    this.remoteTextureSlotIds.delete(uid);
-    this.textureViewController?.unregisterView(this.getRemoteViewId(uid));
   }
 
   async startLocalPreview(): Promise<void> {
@@ -374,7 +348,7 @@ export class RtcSessionService {
   async applyVideoEncoderPreset(name: VideoEncoderPresetName): Promise<void> {
     this.selectedVideoEncoderPresetName = name;
     const preset = VIDEO_ENCODER_PRESETS[name];
-    await this.applyVideoEncoderMirrorConfiguration(preset);
+    await this.getClient().applyVideoEncoderMirrorConfiguration(preset);
     this.log(`Video encoder: ${preset.name}`);
     this.emitState();
   }
@@ -505,11 +479,6 @@ export class RtcSessionService {
 
   async triggerSwitchCamera(): Promise<void> {
     await this.getClient().switchCamera();
-    await this.applyVideoEncoderMirrorConfiguration();
-    this.applyLocalVideoMirror();
-    if (this.localTextureSlotId !== null) {
-      this.bindNativeTextureSprite('local', this.localTextureSlotId, undefined, 0);
-    }
     this.log('Camera switched');
     this.emitState();
   }
@@ -781,11 +750,9 @@ export class RtcSessionService {
       this.audioMixingStarted = false;
       this.remoteUserUids.clear();
       this.localViewAttached = false;
-      this.localTextureSlotId = null;
       this.clearLocalVideoRenderState();
       this.clearRemoteVideoRenderState(remoteUids);
       this.client = null;
-      this.textureViewController = null;
       this.lastRemoteVideoStatsByUid.clear();
       this.options.onRemoteUsersChanged([], null);
       this.emitState();
@@ -801,14 +768,9 @@ export class RtcSessionService {
         },
         timeoutMs: DEMO_NATIVE_REQUEST_TIMEOUT_MS,
       });
-      this.textureViewController = createAgoraEngineTextureViewController(this.client);
     }
     this.bindRtcEventListeners();
     return this.client;
-  }
-
-  private getTextureViewController() {
-    return this.textureViewController ?? createAgoraEngineTextureViewController(this.getClient());
   }
 
   private bindRtcEventListeners(): void {
@@ -862,9 +824,6 @@ export class RtcSessionService {
     this.client.on('localVideoStateChanged', ({ state, error }) => {
       this.lastLocalVideoStatsSummary = `state ${state}/err ${error}`;
       this.log(`Local video state: ${state} error ${error}`);
-      if (state === 1 && this.localTextureSlotId !== null) {
-        this.bindNativeTextureSprite('local', this.localTextureSlotId, undefined, 0);
-      }
       this.emitState();
     });
     this.client.on('remoteVideoStateChanged', ({ uid, state, reason }) => {
@@ -877,16 +836,14 @@ export class RtcSessionService {
       this.log(`Remote audio state: ${this.remoteAudioStateSummary}`);
       this.emitState();
     });
-    this.client.on('localVideoTextureReady', ({ slotId, width, height }) => {
+    this.client.on('localVideoTextureReady', ({ width, height }) => {
       this.log(`Local texture ready: ${width}x${height}`);
-      this.bindNativeTextureSprite('local', slotId, undefined, 0);
     });
-    this.client.on('remoteVideoTextureReady', ({ uid, slotId, width, height }) => {
+    this.client.on('remoteVideoTextureReady', ({ uid, width, height }) => {
       this.activeRemoteUid = uid;
       this.remoteUserUids.add(uid);
       this.options.onRemoteUsersChanged([...this.remoteUserUids], this.activeRemoteUid);
       this.log(`Remote texture ready: ${uid} ${width}x${height}`);
-      this.bindNativeTextureSprite('remote', slotId, uid, 0);
       this.emitState();
     });
     this.client.on('renderBackendState', (payload) => {
@@ -908,170 +865,39 @@ export class RtcSessionService {
     await this.getClient().setupLocalVideoView({
       ...this.resolveNodeRect(node, 'hidden'),
       ...config.localVideoCanvas,
+      displayNode: node ?? undefined,
       uid: 0,
       mirrorMode,
       setupMode: 0,
       sourceType,
     });
-    this.getTextureViewController().registerLocalView({
-      viewId: this.getLocalViewId(),
-      mirrorMode,
-      sourceType,
-    });
     this.localViewAttached = true;
-    this.applyLocalVideoMirror();
   }
 
   private async setupRemoteVideoView(uid: number): Promise<void> {
     const node = this.options.getRemoteVideoNode(uid);
     const config = this.options.getConfig();
-    const mirrorMode = config.remoteVideoCanvas?.mirrorMode ?? 0;
+    const mirrorMode = config.remoteVideoCanvas?.mirrorMode ?? 2;
     const sourceType = config.remoteVideoCanvas?.sourceType ?? 0;
     await this.getClient().setupRemoteVideoView(uid, {
       ...this.resolveNodeRect(node, 'fit'),
       ...config.remoteVideoCanvas,
+      displayNode: node ?? undefined,
       uid,
       mirrorMode,
       setupMode: 0,
       sourceType,
     });
-    this.getTextureViewController().registerRemoteView({
-      viewId: this.getRemoteViewId(uid),
-      uid,
-      mirrorMode,
-      sourceType,
-    });
-    // this.applyVideoNodeMirror({
-    //   node,
-    //   viewId: this.getRemoteViewId(uid),
-    // });
-  }
-
-  private bindNativeTextureSprite(
-    kind: 'local' | 'remote',
-    slotId: number,
-    uid?: number,
-    retryCount = 0,
-  ): void {
-    if (this.options.getConfig().renderBackend !== 'engine-texture') {
-      return;
-    }
-    const texture = this.client?.getEngineTexture(slotId) as Texture2D | null;
-    if (!texture) {
-      this.scheduleTextureBindRetry(kind, slotId, uid, retryCount);
-      return;
-    }
-    this.clearTextureBindRetry(kind, slotId, uid);
-    texture.setFilters(Texture2D.Filter.LINEAR, Texture2D.Filter.LINEAR);
-    texture.setMipFilter(Texture2D.Filter.NONE);
-    texture.setWrapMode(
-      Texture2D.WrapMode.CLAMP_TO_EDGE,
-      Texture2D.WrapMode.CLAMP_TO_EDGE,
-      Texture2D.WrapMode.CLAMP_TO_EDGE,
-    );
-    const spriteFrame = kind === 'local'
-      ? (this.localVideoSpriteFrame ??= new SpriteFrame())
-      : this.ensureRemoteSpriteFrame(uid ?? 0);
-    spriteFrame.texture = texture;
-    if (kind === 'local') {
-      this.localTextureSlotId = slotId;
-      this.applyLocalVideoMirror();
-      this.options.onLocalTextureReady(texture, spriteFrame);
-    } else if (uid !== undefined) {
-      this.remoteTextureSlotIds.set(uid, slotId);
-      // this.applyVideoNodeMirror({
-      //   node: this.options.getRemoteVideoNode(uid),
-      //   viewId: this.getRemoteViewId(uid),
-      // });
-      this.options.onRemoteTextureReady(uid, texture, spriteFrame);
-    }
-    this.log(`Bound ${kind} engine texture slot ${slotId}`);
-  }
-
-  private scheduleTextureBindRetry(
-    kind: 'local' | 'remote',
-    slotId: number,
-    uid: number | undefined,
-    retryCount: number,
-  ): void {
-    const key = this.textureBindRetryKey(kind, slotId, uid);
-    if (this.textureBindRetryTimers.has(key)) {
-      return;
-    }
-    if (retryCount >= MAX_TEXTURE_BIND_RETRIES) {
-      this.log(`Engine texture slot ${slotId} is not ready after ${retryCount} retries`);
-      return;
-    }
-    if (retryCount === 0) {
-      this.log(`Engine texture slot ${slotId} is not ready; retrying`);
-    }
-    const timer = setTimeout(() => {
-      this.textureBindRetryTimers.delete(key);
-      this.bindNativeTextureSprite(kind, slotId, uid, retryCount + 1);
-    }, TEXTURE_BIND_RETRY_MS);
-    this.textureBindRetryTimers.set(key, timer);
-  }
-
-  private clearTextureBindRetry(kind: 'local' | 'remote', slotId: number, uid?: number): void {
-    const key = this.textureBindRetryKey(kind, slotId, uid);
-    const timer = this.textureBindRetryTimers.get(key);
-    if (!timer) {
-      return;
-    }
-    clearTimeout(timer);
-    this.textureBindRetryTimers.delete(key);
-  }
-
-  private clearTextureBindRetries(): void {
-    for (const timer of this.textureBindRetryTimers.values()) {
-      clearTimeout(timer);
-    }
-    this.textureBindRetryTimers.clear();
-  }
-
-  private clearTextureBindRetriesByKind(kind: 'local' | 'remote'): void {
-    for (const [key, timer] of this.textureBindRetryTimers.entries()) {
-      if (!key.startsWith(`${kind}:`)) {
-        continue;
-      }
-      clearTimeout(timer);
-      this.textureBindRetryTimers.delete(key);
-    }
-  }
-
-  private textureBindRetryKey(kind: 'local' | 'remote', slotId: number, uid?: number): string {
-    return `${kind}:${slotId}:${uid ?? 'local'}`;
-  }
-
-  private ensureRemoteSpriteFrame(uid: number): SpriteFrame {
-    let spriteFrame = this.remoteVideoSpriteFrames.get(uid);
-    if (!spriteFrame) {
-      spriteFrame = new SpriteFrame();
-      this.remoteVideoSpriteFrames.set(uid, spriteFrame);
-    }
-    return spriteFrame;
-  }
-
-  private resolveVideoEncoderConfiguration(
-    override?: Partial<AgoraVideoEncoderConfiguration>,
-  ): AgoraVideoEncoderConfiguration {
-    const config = this.options.getConfig();
-    const base = override
-      ?? config.videoEncoderConfiguration
-      ?? VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetName];
-    const facing = this.getTextureViewController().getLocalCameraFacing();
-    return {
-      ...base,
-      mirrorMode: base.mirrorMode ?? (facing === 'front' ? 0 : VIDEO_ENCODER_MIRROR_MODE_ENABLED),
-    };
   }
 
   private async applyVideoEncoderMirrorConfiguration(
     override?: Partial<AgoraVideoEncoderConfiguration>,
   ): Promise<void> {
-    await this.getClient().setVideoEncoderConfiguration(
-      this.resolveVideoEncoderConfiguration(override),
-    );
+    const config = this.options.getConfig();
+    const base = override
+      ?? config.videoEncoderConfiguration
+      ?? VIDEO_ENCODER_PRESETS[this.selectedVideoEncoderPresetName];
+    await this.getClient().applyVideoEncoderMirrorConfiguration(base);
   }
 
   private resolveNodeRect(node: Node | null, renderMode: 'hidden' | 'fit' | 'adaptive'): AgoraRtcVideoCanvas {
@@ -1089,98 +915,15 @@ export class RtcSessionService {
     };
   }
 
-  private getLocalViewId(): string {
-    return 'local';
-  }
-
-  private getRemoteViewId(uid: number): string {
-    return `remote:${uid}`;
-  }
-
-  private applyLocalVideoMirror(): void {
-    this.applyVideoNodeMirror({
-      node: this.options.getLocalVideoNode(),
-      viewId: this.getLocalViewId(),
-    });
-  }
-
-  private applyVideoNodeMirror(target: DisplayMirrorTarget): void {
-    const { node, viewId } = target;
-    if (!node) {
-      return;
-    }
-    const controller = this.textureViewController ?? this.getTextureViewController();
-    const baseScale = this.getMirrorBaseScale(viewId, node);
-    const nextScaleX = controller.getViewMirror(viewId) ? -baseScale.x : baseScale.x;
-    node.setScale(nextScaleX, baseScale.y, baseScale.z);
-  }
-
-  private getMirrorBaseScale(viewId: string, node: Node): DisplayMirrorScale {
-    const existingScale = this.mirrorBaseScales.get(viewId);
-    if (existingScale) {
-      return existingScale;
-    }
-    const scale = node.getScale();
-    const baseScale = { x: scale.x, y: scale.y, z: scale.z };
-    this.mirrorBaseScales.set(viewId, baseScale);
-    return baseScale;
-  }
-
-  private resetVideoNodeMirror(target: DisplayMirrorTarget): void {
-    const { node, viewId } = target;
-    const baseScale = this.mirrorBaseScales.get(viewId);
-    if (node && baseScale) {
-      node.setScale(baseScale.x, baseScale.y, baseScale.z);
-    }
-    this.mirrorBaseScales.delete(viewId);
-  }
-
   private clearLocalVideoRenderState(): void {
     this.previewStarted = false;
     this.localViewAttached = false;
-    this.localTextureSlotId = null;
-    this.textureViewController?.unregisterView(this.getLocalViewId());
-    this.resetVideoNodeMirror({
-      node: this.options.getLocalVideoNode(),
-      viewId: this.getLocalViewId(),
-    });
-    if (this.localVideoSpriteFrame) {
-      this.localVideoSpriteFrame.texture = null;
-    }
-    this.clearTextureBindRetriesByKind('local');
     this.options.onLocalVideoCleared();
   }
 
   private clearRemoteVideoRenderState(uids: number[] = [...this.remoteUserUids]): void {
     for (const uid of uids) {
-      const spriteFrame = this.remoteVideoSpriteFrames.get(uid);
-      if (spriteFrame) {
-        spriteFrame.texture = null;
-      }
-      this.textureViewController?.unregisterView(this.getRemoteViewId(uid));
-      this.resetVideoNodeMirror({
-        node: this.options.getRemoteVideoNode(uid),
-        viewId: this.getRemoteViewId(uid),
-      });
-      this.remoteTextureSlotIds.delete(uid);
-      this.remoteVideoSpriteFrames.delete(uid);
       this.options.onRemoteVideoCleared(uid);
-    }
-    if (uids.length === 0 || uids.length === this.remoteUserUids.size) {
-      this.clearTextureBindRetriesByKind('remote');
-      return;
-    }
-    for (const [key, timer] of this.textureBindRetryTimers.entries()) {
-      if (!key.startsWith('remote:')) {
-        continue;
-      }
-      const [, , uidToken] = key.split(':');
-      const retryUid = Number(uidToken);
-      if (!uids.includes(retryUid)) {
-        continue;
-      }
-      clearTimeout(timer);
-      this.textureBindRetryTimers.delete(key);
     }
   }
 
@@ -1225,7 +968,6 @@ export class RtcSessionService {
       ),
     );
     await this.getClient().switchCamera();
-    this.applyLocalVideoMirror();
     await this.callAndLogFailure('setBeautyEffectOptions', () =>
       this.getClient().setBeautyEffectOptions(true, config.beautyDemoOptions ?? { smoothnessLevel: 0.5 }),
     );

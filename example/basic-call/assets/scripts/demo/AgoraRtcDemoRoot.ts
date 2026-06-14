@@ -485,8 +485,6 @@ export class AgoraRtcDemoRoot extends Component {
       onLog: (line) => this.pushStatus(line),
       onStateChanged: () => this.refreshPanels(),
       onRemoteUsersChanged: (uids, activeUid) => this.videoStagePanel?.setRemoteUsers(uids, activeUid),
-      onLocalTextureReady: (texture, spriteFrame) => this.videoStagePanel?.bindLocalSpriteFrame(texture, spriteFrame),
-      onRemoteTextureReady: (uid, texture, spriteFrame) => this.videoStagePanel?.bindRemoteSpriteFrame(uid, texture, spriteFrame),
       onLocalVideoCleared: () => this.videoStagePanel?.clearLocalVideoFrame(),
       onRemoteVideoCleared: (uid) => this.videoStagePanel?.clearRemoteVideoFrame(uid),
     });
