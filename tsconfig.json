@@ -15,6 +15,9 @@
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true
   },
+  "files": [
+    "tests/types/cc/index.d.ts"
+  ],
   "include": [
     "sdk/agora-rtc/js/**/*.ts"
   ],
