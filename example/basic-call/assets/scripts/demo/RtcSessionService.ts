@@ -940,10 +940,10 @@ export class RtcSessionService {
       mirrorMode,
       sourceType,
     });
-    this.applyVideoNodeMirror({
-      node,
-      viewId: this.getRemoteViewId(uid),
-    });
+    // this.applyVideoNodeMirror({
+    //   node,
+    //   viewId: this.getRemoteViewId(uid),
+    // });
   }
 
   private bindNativeTextureSprite(
@@ -978,10 +978,10 @@ export class RtcSessionService {
       this.options.onLocalTextureReady(texture, spriteFrame);
     } else if (uid !== undefined) {
       this.remoteTextureSlotIds.set(uid, slotId);
-      this.applyVideoNodeMirror({
-        node: this.options.getRemoteVideoNode(uid),
-        viewId: this.getRemoteViewId(uid),
-      });
+      // this.applyVideoNodeMirror({
+      //   node: this.options.getRemoteVideoNode(uid),
+      //   viewId: this.getRemoteViewId(uid),
+      // });
       this.options.onRemoteTextureReady(uid, texture, spriteFrame);
     }
     this.log(`Bound ${kind} engine texture slot ${slotId}`);
