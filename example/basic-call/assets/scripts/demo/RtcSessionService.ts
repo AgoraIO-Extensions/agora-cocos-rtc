@@ -23,6 +23,7 @@ import type {
   VideoEncoderPresetName,
 } from './types.ts';
 
+const VIDEO_ENCODER_MIRROR_MODE_AUTO = 0;
 const VIDEO_ENCODER_MIRROR_MODE_ENABLED = 1;
 const VIDEO_ENCODER_MIRROR_MODE_DISABLED = 2;
 const VIDEO_ENCODER_PRESETS: Record<VideoEncoderPresetName, {
@@ -1061,7 +1062,7 @@ export class RtcSessionService {
     const facing = this.getTextureViewController().getLocalCameraFacing();
     return {
       ...base,
-      mirrorMode: base.mirrorMode ?? (facing === 'front' ? VIDEO_ENCODER_MIRROR_MODE_DISABLED : VIDEO_ENCODER_MIRROR_MODE_ENABLED),
+      mirrorMode: base.mirrorMode ?? (facing === 'front' ? 0 : VIDEO_ENCODER_MIRROR_MODE_ENABLED),
     };
   }
 
