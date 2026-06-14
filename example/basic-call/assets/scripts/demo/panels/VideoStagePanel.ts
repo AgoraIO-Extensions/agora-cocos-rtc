@@ -128,7 +128,8 @@ export class VideoStagePanel extends Component {
 
   getRemoteVideoNode(uid: number): Node | null {
     this.ensureBaseNodes();
-    return this.ensureRemoteUserPage(uid);
+    const sprite = this.remoteVideoSprites.get(uid);
+    return sprite?.node ?? this.ensureRemoteUserPage(uid);
   }
 
   bindLocalSpriteFrame(texture: Texture2D, spriteFrame: SpriteFrame): void {
