@@ -417,6 +417,18 @@ function returnNote(locale, returnType, name) {
     },
   };
 
+  if (name === 'on') {
+    return locale === 'en'
+      ? 'Returns a function that removes this listener.'
+      : '返回一个取消当前监听器的函数。';
+  }
+
+  if (name === 'off') {
+    return locale === 'en'
+      ? 'Removes the listener immediately.'
+      : '立即移除这个监听器。';
+  }
+
   if (name === 'joinChannel') {
     return locale === 'en'
       ? 'Returns a Promise. Actual join success is signaled through <a href="#event-joinChannelSuccess">joinChannelSuccess</a>.'
@@ -429,7 +441,7 @@ function returnNote(locale, returnType, name) {
       : '返回 Promise；最终统计信息通过 <a href="#event-leaveChannel">leaveChannel</a> 事件体现。';
   }
 
-  return table[locale][returnType] ?? (locale === 'en' ? `Returns ${escapeHtml(returnType)}.` : `返回 ${escapeHtml(returnType)}。`);
+  return table[locale][returnType] ?? (locale === 'en' ? `Return type: ${escapeHtml(returnType)}.` : `返回类型：${escapeHtml(returnType)}。`);
 }
 
 function describeParam(locale, name, methodName) {
@@ -536,13 +548,30 @@ function describeParam(locale, name, methodName) {
 
   const localeMap = overrides[locale];
   const entry = localeMap[name];
-  if (!entry) return locale === 'en' ? 'See the source type definition.' : '请结合源码类型定义理解。';
+  if (!entry) {
+    if (name === 'eventName') {
+      return locale === 'en'
+        ? 'Event name from <code>AgoraEventMap</code>.'
+        : '从 <code>AgoraEventMap</code> 中选择的事件名。';
+    }
+    if (name === 'listener') {
+      return locale === 'en'
+        ? 'Callback invoked when the event fires.'
+        : '事件触发时调用的回调函数。';
+    }
+    if (name === 'parameters') {
+      return locale === 'en'
+        ? 'JSON string or key-value object forwarded to the native bridge.'
+        : '透传给原生桥的 JSON 字符串或键值对象。';
+    }
+    return locale === 'en' ? 'See the related type definition.' : '请结合相关类型定义理解。';
+  }
   if (typeof entry === 'string') return entry;
   return entry[methodName] ?? entry.default;
 }
 
 function methodParamItems(locale, method) {
-  if (!method.params) return [locale === 'en' ? 'No parameters.' : '无参数。'];
+  if (!method.params) return [locale === 'en' ? 'This method takes no parameters.' : '这个方法没有参数。'];
 
   const params = [];
   let current = '';
@@ -726,8 +755,8 @@ function renderApiReference(locale) {
   const pageTitle = locale === 'zh' ? 'Agora Cocos RTC 文档' : 'Agora Cocos RTC Docs';
   const skip = locale === 'zh' ? '跳到正文' : 'Skip to main content';
   const hero = locale === 'zh'
-    ? '这一页是精确查阅入口。条目必须和当前公开导出保持一致，并给出稳定锚点。'
-    : 'This page is the exact lookup surface. Entries must stay aligned with the current public exports and expose stable anchors.';
+    ? '这里汇总当前公开导出的构造函数、客户端方法和关键事件，方便按名称精确查阅。'
+    : 'This page collects the current public exports, client methods, and key events for exact lookup.';
   const sections = {
     overview: 'Overview',
     quickstart: 'Quickstart',
