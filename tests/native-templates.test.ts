@@ -1540,7 +1540,7 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(bridgeContent, /applyProtectedParameters\(engine: engine, requestId: requestId, method: "initialize", params: params\)/);
   assert.match(bridgeContent, /clientParams\["rtc\.set_app_type"\] = 10/);
   assert.match(bridgeContent, /throw AgoraRtcBridgeParameterError\.invalidJsonObjectString/);
-  assert.match(bridgeContent, /dispatchInvalidArgumentError\(requestId: requestId, message: error\.localizedDescription, method: method, argumentName: "parameters", argumentValue: parameterValue\)/);
+  assert.match(bridgeContent, /dispatchInvalidArgumentError\(requestId: requestId, message: error\.localizedDescription, method: method, argumentName: "parameters", argumentValue: String\(describing: parameterValue \?\? ""\)\)/);
 
   const inspectModuleMatch = bridgeContent.match(
     /private func buildContentInspectModules[\s\S]*?private func intValue/,
@@ -1730,8 +1730,10 @@ test('ios bridge template rejects unsafe invalid arguments before calling the rt
   );
   assert.ok(setParametersMatch);
   assert.match(setParametersMatch[0], /Parameters are required\./);
+  assert.match(setParametersMatch[0], /let parameterValue = params\["parameters"\]/);
   assert.match(setParametersMatch[0], /let parameters = try mergeProtectedParameters\(parameterValue\)/);
   assert.match(setParametersMatch[0], /catch let error as AgoraRtcBridgeParameterError/);
+  assert.doesNotMatch(setParametersMatch[0], /String\(describing: params\["parameters"\]/);
   assert.match(bridgeContent, /clientParams\["rtc\.set_app_type"\] = 10/);
   assertPatternBefore(
     setParametersMatch[0],

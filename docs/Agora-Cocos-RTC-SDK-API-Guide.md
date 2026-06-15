@@ -596,10 +596,10 @@ const mediaOptions: AgoraChannelMediaOptions = {
 | --- | --- | --- | --- |
 | `module` | `number` | No | 单模块配置写法，对应一个内容审核模块类型。 |
 | `interval` | `number` | No | 审核采样间隔。 |
-| `position` | `number` | No | 审核位置参数。 |
+| `position` | `number` | No | 审核位置参数；仅 Android 内容审核模块位置有效，iOS 当前忽略该字段。 |
 | `extraInfo` | `string` | No | 业务附加信息。 |
 | `serverConfig` | `string` | No | 服务端审核配置字符串。 |
-| `modules` | `Array<{ type?: number; interval?: number; position?: number; }>` | No | 多模块配置写法，可同时声明多个审核模块。 |
+| `modules` | `Array<{ type?: number; interval?: number; position?: number; }>` | No | 多模块配置写法，可同时声明多个审核模块；其中每个模块的 `position` 也仅 Android 生效，iOS 当前忽略。 |
 
 补充说明：
 
