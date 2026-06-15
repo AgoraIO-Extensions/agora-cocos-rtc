@@ -1890,12 +1890,25 @@ test('ios plugin registrar attaches the js bridge wrapper and forwards responses
   assert.match(pluginContent, /#import "apple\/JsbBridge\.h"/);
   assert.match(pluginContent, /dispatchEventToScript:\(NSString \*\)eventName payload:\(NSString \*\)payload/);
   assert.match(pluginContent, /\[\[JsbBridge sharedInstance\] sendToScript:eventName arg1:payload\]/);
-  assert.match(pluginContent, /_bridgeCallback = \^\(NSString \*eventName, NSString \*arg\)/);
-  assert.match(pluginContent, /\[\[JsbBridge sharedInstance\] setCallback:_bridgeCallback\]/);
+  assert.doesNotMatch(pluginContent, /_bridgeCallback/);
+  assert.doesNotMatch(pluginContent, /\[\[JsbBridge sharedInstance\] setCallback:/);
   assert.match(bridgeContent, /dispatchToScript\(event:/);
   assert.match(bridgeContent, /dispatchEventToScript:payload:/);
   assert.match(bridgeContent, /agora:response/);
   assert.match(bridgeContent, /agora:event/);
+});
+
+test('ios demo permissions plugin dispatches async permission responses back on the main queue', async () => {
+  const pluginContent = await readFile(
+    path.join(repoRoot, 'example/basic-call/native/agora-rtc/ios/DemoPermissionsPlugin.mm'),
+    'utf8',
+  );
+
+  assert.match(pluginContent, /requestAccessForMediaType:AVMediaTypeVideo completionHandler:/);
+  assert.match(pluginContent, /requestRecordPermission:\^\(BOOL granted\)/);
+  assert.match(pluginContent, /dispatch_async\(dispatch_get_main_queue\(\), \^\{/);
+  assert.match(pluginContent, /\[self dispatchPermissionResult:granted requestId:requestId permission:@"camera"\];/);
+  assert.match(pluginContent, /\[self dispatchPermissionResult:granted requestId:requestId permission:@"microphone"\];/);
 });
 
 test('ios integration script registers all committed bridge templates in the exported project', async () => {
