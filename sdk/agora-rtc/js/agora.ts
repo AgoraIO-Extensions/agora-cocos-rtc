@@ -26,6 +26,15 @@ import {
   type CocosJsbBridgeTransport,
 } from './types.ts';
 import {
+  normalizeChannelMediaOptionsForBridge,
+  resolveVideoSourceTypeParam,
+  withMediaSourceTypeBridgeParams,
+  withVideoSourceTypeBridgeParams,
+  applyVideoSourceTypeBridgeFields,
+  type AgoraMediaSourceTypeValue,
+  type AgoraVideoSourceTypeValue,
+} from './source_types.ts';
+import {
   AgoraSdkError,
   createRequestId,
   resolveBridgeTransport,
@@ -127,6 +136,20 @@ export {
   isSupportedEngineTextureLocalSourceType,
   ENGINE_TEXTURE_PRIMARY_CAMERA_SOURCE_TYPE,
 } from './internal/engine_texture_mirror.ts';
+export {
+  AgoraVideoSourceType,
+  AgoraMediaSourceType,
+  resolveVideoSourceTypeParam,
+  resolveMediaSourceTypeParam,
+  normalizeChannelMediaOptionsForBridge,
+  applyVideoSourceTypeBridgeFields,
+  withVideoSourceTypeBridgeParams,
+  withMediaSourceTypeBridgeParams,
+} from './source_types.ts';
+export type {
+  AgoraVideoSourceTypeValue,
+  AgoraMediaSourceTypeValue,
+} from './source_types.ts';
 export {
   resolveEngineEncoderMirrorMode,
   VIDEO_ENCODER_MIRROR_MODE_AUTO,
@@ -262,7 +285,7 @@ export class AgoraRtcClient {
   ): Promise<void> {
     const params: Record<string, unknown> = { token, channelId, uid };
     if (options !== undefined) {
-      params.options = options;
+      params.options = normalizeChannelMediaOptionsForBridge(options);
     }
     return this.#invoke('joinChannel', params) as Promise<void>;
   }
@@ -275,7 +298,7 @@ export class AgoraRtcClient {
   ): Promise<void> {
     const params: Record<string, unknown> = { token, channelId, userAccount };
     if (options !== undefined) {
-      params.options = options;
+      params.options = normalizeChannelMediaOptionsForBridge(options);
     }
     return this.#invoke('joinChannelWithUserAccount', params) as Promise<void>;
   }
@@ -413,15 +436,21 @@ export class AgoraRtcClient {
     return this.#engineTextureViewManager;
   }
 
-  #stripDisplayNodeFromCanvas<T extends { displayNode?: AgoraCocosDisplayNode }>(
-    canvas: T,
-  ): Omit<T, 'displayNode'> {
+  #stripDisplayNodeFromCanvas(
+    canvas: AgoraRtcVideoCanvas,
+  ): Omit<AgoraRtcVideoCanvas, 'displayNode'> {
     const module = this.#engineTextureViewManagerModule;
-    if (module) {
-      return module.stripDisplayNodeFromCanvas(canvas);
-    }
-    const { displayNode: _displayNode, ...nativeCanvas } = canvas;
-    return nativeCanvas;
+    const stripped = module
+      ? module.stripDisplayNodeFromCanvas(canvas)
+      : (() => {
+        const { displayNode: _displayNode, ...nativeCanvas } = canvas;
+        return nativeCanvas;
+      })();
+    return applyVideoSourceTypeBridgeFields(stripped);
+  }
+
+  #resolveCanvasVideoSourceType(canvas: AgoraRtcVideoCanvas): number | undefined {
+    return resolveVideoSourceTypeParam(canvas);
   }
 
   #assertEngineTextureLocalSourceType(sourceType: number | undefined, method: string): void {
@@ -440,7 +469,8 @@ export class AgoraRtcClient {
   }
 
   async setupLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void> {
-    this.#assertEngineTextureLocalSourceType(canvas.sourceType, 'setupLocalVideoView');
+    const videoSourceType = this.#resolveCanvasVideoSourceType(canvas);
+    this.#assertEngineTextureLocalSourceType(videoSourceType, 'setupLocalVideoView');
     const manager = canvas.displayNode
       ? await this.#ensureEngineTextureViewManager()
       : null;
@@ -448,7 +478,7 @@ export class AgoraRtcClient {
       manager.registerLocalDisplay({
         displayNode: canvas.displayNode,
         mirrorMode: canvas.mirrorMode,
-        sourceType: canvas.sourceType,
+        sourceType: videoSourceType,
       });
     }
     await this.#invoke('setupLocalVideoView', this.#stripDisplayNodeFromCanvas(canvas)) as Promise<void>;
@@ -469,7 +499,7 @@ export class AgoraRtcClient {
       manager.registerRemoteDisplay(uid, {
         displayNode: canvas.displayNode,
         mirrorMode: canvas.mirrorMode,
-        sourceType: canvas.sourceType,
+        sourceType: this.#resolveCanvasVideoSourceType(canvas),
       });
     }
     if (!this.#isRemoteViewSetupCurrent(uid, generation)) {
@@ -491,7 +521,7 @@ export class AgoraRtcClient {
   }
 
   async updateLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void> {
-    this.#assertEngineTextureLocalSourceType(canvas.sourceType, 'updateLocalVideoView');
+    this.#assertEngineTextureLocalSourceType(this.#resolveCanvasVideoSourceType(canvas), 'updateLocalVideoView');
     const manager = canvas.displayNode
       ? await this.#ensureEngineTextureViewManager()
       : this.#engineTextureViewManager;
@@ -539,12 +569,18 @@ export class AgoraRtcClient {
     return this.#invoke('setNativeVideoOverlaySuspended', { suspended }) as Promise<void>;
   }
 
-  startPreview(sourceType?: number): Promise<void> {
-    return this.#invoke('startPreview', sourceType === undefined ? {} : { sourceType }) as Promise<void>;
+  startPreview(videoSourceType?: AgoraVideoSourceTypeValue): Promise<void> {
+    return this.#invoke(
+      'startPreview',
+      videoSourceType === undefined ? {} : withVideoSourceTypeBridgeParams(videoSourceType),
+    ) as Promise<void>;
   }
 
-  stopPreview(sourceType?: number): Promise<void> {
-    return this.#invoke('stopPreview', sourceType === undefined ? {} : { sourceType }) as Promise<void>;
+  stopPreview(videoSourceType?: AgoraVideoSourceTypeValue): Promise<void> {
+    return this.#invoke(
+      'stopPreview',
+      videoSourceType === undefined ? {} : withVideoSourceTypeBridgeParams(videoSourceType),
+    ) as Promise<void>;
   }
 
   async switchCamera(): Promise<void> {
@@ -555,10 +591,14 @@ export class AgoraRtcClient {
     }
   }
 
-  setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number): Promise<void> {
+  setBeautyEffectOptions(
+    enabled: boolean,
+    options: AgoraBeautyOptions,
+    mediaSourceType?: AgoraMediaSourceTypeValue,
+  ): Promise<void> {
     const params: Record<string, unknown> = { enabled, options };
-    if (sourceType !== undefined) {
-      params.sourceType = sourceType;
+    if (mediaSourceType !== undefined) {
+      Object.assign(params, withMediaSourceTypeBridgeParams(mediaSourceType));
     }
     return this.#invoke('setBeautyEffectOptions', params) as Promise<void>;
   }
