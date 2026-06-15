@@ -130,3 +130,35 @@ test('quickstart pages show the first-success path and concrete code snippets', 
     assert.match(content, /\.\/rendering\.html/);
   }
 });
+
+test('core api pages group methods by developer task instead of source file', async () => {
+  const zh = await readDoc('docs/zh/core-apis.html');
+  const en = await readDoc('docs/en/core-apis.html');
+
+  for (const content of [zh, en]) {
+    assert.match(content, /Engine &amp; Session|引擎与会话/);
+    assert.match(content, /Channel &amp; Identity|频道与身份/);
+    assert.match(content, /Audio|音频/);
+    assert.match(content, /Video &amp; Views|视频与视图/);
+    assert.match(content, /Rendering &amp; Visual Controls|渲染与视觉控制/);
+    assert.match(content, /Mixing, Effects &amp; Diagnostics|混音、音效与诊断/);
+    assert.match(content, /initialize/);
+    assert.match(content, /joinChannel/);
+    assert.match(content, /setVideoEncoderConfiguration/);
+  }
+});
+
+test('rendering pages explain current engine-texture behavior and compatibility limits', async () => {
+  const zh = await readDoc('docs/zh/rendering.html');
+  const en = await readDoc('docs/en/rendering.html');
+
+  for (const content of [zh, en]) {
+    assert.match(content, /engine-texture/);
+    assert.match(content, /displayNode/);
+    assert.match(content, /localVideoTextureReady/);
+    assert.match(content, /remoteVideoTextureReady/);
+    assert.match(content, /setNativeVideoOverlaySuspended/);
+    assert.match(content, /position semantics|position 语义/);
+    assert.match(content, /mirror/i);
+  }
+});
