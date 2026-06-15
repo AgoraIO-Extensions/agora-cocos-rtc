@@ -54,6 +54,8 @@ type TextureReadySlotCache = {
   height: number;
 };
 
+const PROTECTED_APP_TYPE_PARAMETERS = { 'rtc.set_app_type': 10 } as const;
+
 function isIosBridgeRuntime(runtime?: CocosBridgeRuntime): boolean {
   const platform = runtime?.sys?.platform;
   if (platform === undefined || platform === null) {
