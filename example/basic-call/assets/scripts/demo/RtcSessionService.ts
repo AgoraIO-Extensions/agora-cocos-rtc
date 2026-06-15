@@ -12,6 +12,7 @@ import {
 } from '../../../extensions/agora-rtc/js/agora.ts';
 import type { AgoraRtcVideoCanvas, AgoraVideoEncoderConfiguration } from '../../../extensions/agora-rtc/js/types.ts';
 import { resolveAudioEffectAssetPath } from './cases/AudioEffectMixingCase.ts';
+import { ensureCameraPermission, ensureMicrophonePermission } from './DemoPermissions.ts';
 import type {
   ChannelProfile,
   ClientRole,
@@ -171,6 +172,7 @@ export class RtcSessionService {
     if (!config.channelId.trim()) {
       throw new Error('Channel ID is empty.');
     }
+    await this.ensureJoinPermissions(config);
     const client = this.getClient();
     if (config.publishCameraTrack) {
       await this.setupLocalVideoView();
@@ -264,6 +266,7 @@ export class RtcSessionService {
       return;
     }
     const config = this.options.getConfig();
+    await ensureCameraPermission();
     await this.setupLocalVideoView();
     if (!config.deferVideoEncoderConfiguration) {
       await this.applyVideoEncoderMirrorConfiguration();
@@ -295,6 +298,15 @@ export class RtcSessionService {
       return;
     }
     await this.startLocalPreview();
+  }
+
+  private async ensureJoinPermissions(config: RuntimeConfigState): Promise<void> {
+    if (config.publishCameraTrack) {
+      await ensureCameraPermission();
+    }
+    if (config.publishMicrophoneTrack) {
+      await ensureMicrophonePermission();
+    }
   }
 
   async refreshRtcViews(): Promise<void> {
