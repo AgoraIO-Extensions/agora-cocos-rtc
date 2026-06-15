@@ -463,6 +463,7 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `appId` | `string` | Yes | Agora 项目的 App ID，初始化 RTC 引擎时必填。 |
+| `parameters` | `string \| Record<string, unknown>` | No | 附加参数，可传 JSON 字符串或 plain object；最终会与 `rtc.set_app_type` 合并。 |
 | `areaCode` | `number` | No | 区域码，用于限制 SDK 连接的区域范围。 |
 | `channelProfile` | `number` | No | 频道场景配置，通常由业务层按通信或直播场景封装。 |
 | `license` | `string` | No | 可选的 License 字符串，按项目授权要求传入。 |

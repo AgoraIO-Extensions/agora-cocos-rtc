@@ -219,7 +219,7 @@ export type AgoraChannelProfile =
 export interface AgoraRtcEngineConfig {
   /** Required Agora App ID. */
   appId: string;
-  parameters?: string;
+  parameters?: string | Record<string, unknown>;
   areaCode?: number;
   channelProfile?: number;
   license?: string;

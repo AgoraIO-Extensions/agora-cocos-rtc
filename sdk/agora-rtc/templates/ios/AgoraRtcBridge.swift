@@ -488,8 +488,17 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         case "setParameters":
             requireEngine(requestId: requestId) { engine in
                 let parameterValue = params["parameters"]
+                guard let parameterValue else {
+                    self.dispatchError(requestId: requestId, message: "Parameters are required.")
+                    return
+                }
+                if let stringValue = parameterValue as? String,
+                   stringValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    self.dispatchError(requestId: requestId, message: "Parameters are required.")
+                    return
+                }
                 do {
-                    let parameters = try mergeProtectedParameters(parameterValue)
+                    let parameters = try mergeProtectedParameters(parameterValue, allowEmpty: false)
                     guard !parameters.isEmpty else {
                         self.dispatchError(requestId: requestId, message: "Parameters are required.")
                         return
@@ -788,11 +797,14 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return true
     }
 
-    private func mergeProtectedParameters(_ parameterValue: Any?) throws -> String {
+    private func mergeProtectedParameters(_ parameterValue: Any?, allowEmpty: Bool = true) throws -> String {
         if let stringValue = parameterValue as? String {
             let trimmed = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else {
-                return protectedAppTypeParameters
+                if allowEmpty {
+                    return protectedAppTypeParameters
+                }
+                throw AgoraRtcBridgeParameterError.invalidJsonObjectString
             }
             guard let data = trimmed.data(using: .utf8),
                   var clientParams = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
@@ -807,7 +819,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         }
 
         guard parameterValue != nil else {
-            return protectedAppTypeParameters
+            if allowEmpty {
+                return protectedAppTypeParameters
+            }
+            throw AgoraRtcBridgeParameterError.invalidJsonObjectString
         }
 
         if JSONSerialization.isValidJSONObject(parameterValue as Any),
@@ -1124,6 +1139,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return [buildContentInspectModule([
             "type": params["module"] ?? 1,
             "interval": params["interval"] ?? 0,
+            "position": params["position"] ?? AgoraVideoModulePosition.preRenderer.rawValue,
         ])]
     }
 
@@ -1132,7 +1148,16 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         let typeValue = UInt(intValue(params["type"] ?? 1))
         module.type = AgoraContentInspectType(rawValue: typeValue) ?? AgoraContentInspectType(rawValue: 1)!
         module.interval = intValue(params["interval"] ?? 0)
+        applyContentInspectModulePosition(module, rawValue: params["position"] ?? AgoraVideoModulePosition.preRenderer.rawValue)
         return module
+    }
+
+    private func applyContentInspectModulePosition(_ module: AgoraContentInspectModule, rawValue: Any) {
+        let selector = NSSelectorFromString("setPosition:")
+        guard module.responds(to: selector) else {
+            return
+        }
+        module.setValue(NSNumber(value: intValue(rawValue)), forKey: "position")
     }
 
     private func intValue(_ rawValue: Any) -> Int {

@@ -1009,6 +1009,14 @@ test('client supports ios jsb bridge wrapper method names', async () => {
   await pending;
 });
 
+test('engine config documents object-form parameters support', () => {
+  assert.match(sdkTypesSource, /parameters\?: string \| Record<string, unknown>;/);
+  assert.match(
+    apiGuideSource,
+    /\| `parameters` \| `string \\| Record<string, unknown>` \| No \| .*附加参数，可传 JSON 字符串或 plain object；最终会与 `rtc\.set_app_type` 合并。\s*\|/,
+  );
+});
+
 test('client resolves the native bridge lazily when it becomes available after construction', async () => {
   const transport = new MockTransport();
   const originalJsb = globalThis.jsb;
@@ -1928,6 +1936,23 @@ test('setParameters rejects invalid json strings before dispatching the native r
   assert.equal(transport.sent.length, 0);
 });
 
+test('setParameters rejects empty strings before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  await assert.rejects(
+    client.setParameters(''),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'setParameters' &&
+      error.details.parameter === 'parameters',
+  );
+  assert.equal(transport.sent.length, 0);
+});
+
 test('initialize rejects non-plain parameter objects before dispatching the native request', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -1985,6 +2010,39 @@ test('setParameters rejects non-plain parameter objects before dispatching the n
   }
 
   assert.equal(transport.sent.length, 0);
+});
+
+test('setParameters omits undefined object properties before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.setParameters({
+    'rtc.debug': true,
+    optional: undefined,
+    nested: {
+      keep: 'value',
+      drop: undefined,
+    },
+  });
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'setParameters');
+  assert.deepEqual(request.params, {
+    parameters: '{"rtc.debug":true,"nested":{"keep":"value"},"rtc.set_app_type":10}',
+  });
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
 });
 
 test('api smoke flow resolves initialize -> join -> local toggles -> leave -> destroy in sequence', async () => {

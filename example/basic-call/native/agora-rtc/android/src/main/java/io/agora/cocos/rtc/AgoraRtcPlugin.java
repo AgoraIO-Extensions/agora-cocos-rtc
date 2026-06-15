@@ -1769,16 +1769,18 @@ public final class AgoraRtcPlugin {
             dispatchError(requestId, "RtcEngine is not initialized.");
             return;
         }
-        String parameterValue = params != null ? params.optString("parameters", "") : "";
+        String parameterValue = params != null && params.has("parameters") && !params.isNull("parameters")
+                ? params.optString("parameters", null)
+                : null;
+        if (parameterValue == null || parameterValue.trim().isEmpty()) {
+            dispatchError(requestId, "Parameters are required.");
+            return;
+        }
         String parameters;
         try {
             parameters = mergeProtectedParameters(parameterValue);
         } catch (IllegalArgumentException error) {
             dispatchInvalidArgumentError(requestId, error.getMessage(), "setParameters", "parameters", parameterValue);
-            return;
-        }
-        if (parameters == null || parameters.trim().isEmpty()) {
-            dispatchError(requestId, "Parameters are required.");
             return;
         }
         int result = rtcEngine.setParameters(parameters);
