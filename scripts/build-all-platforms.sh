@@ -304,6 +304,7 @@ if should_build_platform "ios"; then
     echo "Skipping Cocos iOS export because IOS_SKIP_COCOS_EXPORT=true."
   fi
   node ./scripts/sync-native-engine-texture-bridge.mjs >/dev/null
+  node ./scripts/sync-ios-demo-permissions-bridge.mjs >/dev/null
   IOS_BUNDLE_ID="$IOS_BUNDLE_ID" \
   IOS_DEVELOPMENT_TEAM="$BUILD_PROVISION_PROFILE_TEAMID" \
   IOS_PROVISIONING_PROFILE_SPECIFIER="$BUILD_PROVISION_PROFILE_NAME" \

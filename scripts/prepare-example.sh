@@ -29,6 +29,7 @@ ln -sfn "../../../sdk/agora-rtc" "$TARGET_LINK"
 cp "$ROOT_DIR/sdk/agora-rtc/cc_plugin.json" "$NATIVE_PLUGIN_DIR/cc_plugin.json"
 node "$ROOT_DIR/scripts/sync-customer-delivery-templates.mjs"
 node "$ROOT_DIR/scripts/sync-native-engine-texture-bridge.mjs"
+node "$ROOT_DIR/scripts/sync-ios-demo-permissions-bridge.mjs"
 node "$ROOT_DIR/scripts/sync-android-app-bridge.mjs"
 node "$ROOT_DIR/scripts/sync-example-sdk-config.mjs"
 
