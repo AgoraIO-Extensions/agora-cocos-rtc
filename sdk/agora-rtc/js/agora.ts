@@ -114,33 +114,125 @@ function createInvalidParametersError(method: ProtectedParameterMethod): AgoraSd
   );
 }
 
-function assertJsonObjectRecord(
+function createMissingParametersError(method: ProtectedParameterMethod): AgoraSdkError {
+  return new AgoraSdkError(
+    AgoraErrorCode.ProtocolError,
+    'Parameters are required.',
+    {
+      method,
+      parameter: 'parameters',
+    },
+  );
+}
+
+function isPlainJsonObjectRecord(value: unknown): value is Record<string, unknown> {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function normalizeJsonCompatibleValue(
+  value: unknown,
+  method: ProtectedParameterMethod,
+  insideObjectProperty = false,
+  recursionStack = new WeakSet<object>(),
+): unknown {
+  if (value == null || typeof value === 'string' || typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'undefined') {
+    return insideObjectProperty ? undefined : null;
+  }
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) {
+      return value;
+    }
+    throw createInvalidParametersError(method);
+  }
+  if (Array.isArray(value)) {
+    if (recursionStack.has(value)) {
+      throw createInvalidParametersError(method);
+    }
+    recursionStack.add(value);
+    try {
+      return value.map((entry) => {
+        const normalized = normalizeJsonCompatibleValue(entry, method, false, recursionStack);
+        return normalized === undefined ? null : normalized;
+      });
+    } finally {
+      recursionStack.delete(value);
+    }
+  }
+  if (isPlainJsonObjectRecord(value)) {
+    if (recursionStack.has(value)) {
+      throw createInvalidParametersError(method);
+    }
+    recursionStack.add(value);
+    try {
+      const normalizedEntries: Array<[string, unknown]> = [];
+      for (const [key, entry] of Object.entries(value)) {
+        const normalized = normalizeJsonCompatibleValue(entry, method, true, recursionStack);
+        if (normalized !== undefined) {
+          normalizedEntries.push([key, normalized]);
+        }
+      }
+      return Object.fromEntries(normalizedEntries);
+    } finally {
+      recursionStack.delete(value);
+    }
+  }
+  throw createInvalidParametersError(method);
+}
+
+function normalizeJsonObjectRecord(
   value: unknown,
   method: ProtectedParameterMethod,
 ): Record<string, unknown> {
-  if (value != null && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
+  if (!isPlainJsonObjectRecord(value)) {
+    throw createInvalidParametersError(method);
   }
-  throw createInvalidParametersError(method);
+  return normalizeJsonCompatibleValue(value, method) as Record<string, unknown>;
 }
 
 function mergeProtectedParameters(
   parameters?: string | Record<string, unknown> | null,
   method: ProtectedParameterMethod = 'setParameters',
 ): string {
-  if (parameters == null || parameters === '') {
+  if (parameters == null) {
+    if (method === 'initialize') {
+      return JSON.stringify(PROTECTED_APP_TYPE_PARAMETERS);
+    }
+    throw createMissingParametersError(method);
+  }
+
+  if (typeof parameters === 'string') {
+    if (parameters.trim() === '') {
+      if (method === 'initialize') {
+        return JSON.stringify(PROTECTED_APP_TYPE_PARAMETERS);
+      }
+      throw createMissingParametersError(method);
+    }
+  }
+
+  if (parameters === '') {
     return JSON.stringify(PROTECTED_APP_TYPE_PARAMETERS);
   }
 
   let clientParams: Record<string, unknown>;
   if (typeof parameters === 'string') {
     try {
-      clientParams = assertJsonObjectRecord(JSON.parse(parameters), method);
+      clientParams = normalizeJsonObjectRecord(JSON.parse(parameters), method);
     } catch {
       throw createInvalidParametersError(method);
     }
   } else {
-    clientParams = assertJsonObjectRecord(parameters, method);
+    clientParams = normalizeJsonObjectRecord(parameters, method);
+  }
+
+  if (method === 'setParameters' && Object.keys(clientParams).length === 0) {
+    throw createMissingParametersError(method);
   }
 
   try {
