@@ -77,6 +77,8 @@ export interface RuntimeConfigState {
   playbackVolume?: number;
   userPlaybackVolume?: number;
   videoEncoderConfiguration?: AgoraVideoEncoderConfiguration;
+  /** Skip auto setVideoEncoderConfiguration on preview/join (SetVideoEncoderConfiguration case). */
+  deferVideoEncoderConfiguration?: boolean;
   beautyDemoOptions?: AgoraBeautyOptions;
   contentInspectDemoConfig?: AgoraContentInspectConfig;
 }

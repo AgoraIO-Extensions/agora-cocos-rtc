@@ -3,6 +3,7 @@ import type {
   AgoraBeautyOptions,
   AgoraContentInspectConfig,
   AgoraRtcVideoCanvas,
+  AgoraVideoEncoderConfiguration,
 } from '../../../extensions/agora-rtc/js/types.ts';
 import {
   resolveAgoraExampleConfig,
@@ -24,6 +25,11 @@ import type {
 import { DemoHeaderPanel } from './panels/DemoHeaderPanel.ts';
 import { DemoActionPanel } from './panels/DemoActionPanel.ts';
 import { VideoStagePanel } from './panels/VideoStagePanel.ts';
+import {
+  DEMO_VIDEO_ENCODER_DEFAULTS,
+  mergeVideoEncoderConfiguration,
+  SET_VIDEO_ENCODER_CASE_NAME,
+} from './videoEncoderDemoConfig.ts';
 import { LogPanel } from './panels/LogPanel.ts';
 
 const { ccclass, property } = _decorator;
@@ -91,6 +97,10 @@ export class AgoraRtcDemoRoot extends Component {
 
   @property
   videoEncoderPresetName: VideoEncoderPresetName = '360p';
+
+  private videoEncoderConfiguration: AgoraVideoEncoderConfiguration = {
+    ...DEMO_VIDEO_ENCODER_DEFAULTS,
+  };
 
   @property(DemoHeaderPanel)
   headerPanel: DemoHeaderPanel | null = null;
@@ -224,8 +234,11 @@ export class AgoraRtcDemoRoot extends Component {
   }
 
   async applySelectedVideoEncoder(): Promise<void> {
+    const encoderConfig = this.actionPanel?.readVideoEncoderConfiguration()
+      ?? this.videoEncoderConfiguration;
+    this.videoEncoderConfiguration = mergeVideoEncoderConfiguration(encoderConfig);
     await this.runSessionAction('ApplyEncoder', (session) =>
-      session.applyVideoEncoderPreset(this.videoEncoderPresetName),
+      session.applyVideoEncoderConfiguration(this.videoEncoderConfiguration),
     );
   }
 
@@ -533,6 +546,9 @@ export class AgoraRtcDemoRoot extends Component {
     this.channelProfile = config.channelProfile ?? this.channelProfile;
     this.clientRole = config.clientRole ?? this.clientRole;
     this.videoEncoderPresetName = config.videoEncoderPresetName ?? this.videoEncoderPresetName;
+    if (config.videoEncoderConfiguration) {
+      this.videoEncoderConfiguration = mergeVideoEncoderConfiguration(config.videoEncoderConfiguration);
+    }
     this.previewSourceType = config.previewSourceType;
     this.localVideoCanvas = config.localVideoCanvas;
     this.remoteVideoCanvas = config.remoteVideoCanvas;
@@ -644,6 +660,9 @@ export class AgoraRtcDemoRoot extends Component {
     if (config.videoEncoderPresetName) {
       this.videoEncoderPresetName = config.videoEncoderPresetName;
       void this.session?.applyVideoEncoderPreset(config.videoEncoderPresetName);
+    }
+    if (config.videoEncoderConfiguration) {
+      this.videoEncoderConfiguration = mergeVideoEncoderConfiguration(config.videoEncoderConfiguration);
     }
     this.refreshPanels();
     this.pushStatus(`Config updated: channel ${this.channelId}, uid ${this.uid}`);
@@ -801,6 +820,8 @@ export class AgoraRtcDemoRoot extends Component {
       beautyEffectSourceType: this.beautyEffectSourceType,
       beautyOptions: this.beautyOptions,
       contentInspectConfig: this.contentInspectConfig,
+      videoEncoderConfiguration: this.videoEncoderConfiguration,
+      deferVideoEncoderConfiguration: this.selectedCaseName === SET_VIDEO_ENCODER_CASE_NAME,
     };
   }
 
