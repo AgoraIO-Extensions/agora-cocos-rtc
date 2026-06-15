@@ -15,6 +15,7 @@ import {
 import { resolveEngineEncoderMirrorMode } from '../sdk/agora-rtc/js/internal/engine_texture_encoder_mirror.ts';
 
 const sdkTypesSource = readFileSync('sdk/agora-rtc/js/types.ts', 'utf8');
+const apiGuideSource = readFileSync('docs/Agora-Cocos-RTC-SDK-API-Guide.md', 'utf8');
 
 function extractInterfaceContent(interfaceName: string): string {
   const match = sdkTypesSource.match(new RegExp(`export interface ${interfaceName} \\{([\\s\\S]*?)\\n\\}`));
@@ -307,6 +308,18 @@ test('video encoder configuration documents platform-specific fields', () => {
 test('content inspect config exposes module position in the top-level shorthand', () => {
   const contentInspectFields = extractInterfaceContent('AgoraContentInspectConfig');
   assert.match(contentInspectFields, /^\s{2}position\?: number;/m);
+  assert.match(
+    sdkTypesSource,
+    /\/\*\* Content inspection module position\. On iOS, forwarded only when the native SDK exposes this field; otherwise ignored\. \*\/\n\s+position\?: number;/,
+  );
+  assert.match(
+    sdkTypesSource,
+    /modules\?: Array<\{\n\s+type\?: number;\n\s+interval\?: number;\n\s+\/\*\* Content inspection module position\. On iOS, forwarded only when the native SDK exposes this field; otherwise ignored\. \*\/\n\s+position\?: number;/,
+  );
+  assert.match(
+    apiGuideSource,
+    /\| `position` \| `number` \| No \| .*iOS 仅在原生 SDK 暴露该字段时透传，否则忽略。\s*\|/,
+  );
 });
 
 test('leave channel options expose native rtc fields', () => {
@@ -994,6 +1007,14 @@ test('client supports ios jsb bridge wrapper method names', async () => {
   );
 
   await pending;
+});
+
+test('engine config documents object-form parameters support', () => {
+  assert.match(sdkTypesSource, /parameters\?: string \| Record<string, unknown>;/);
+  assert.match(
+    apiGuideSource,
+    /\| `parameters` \| `string \\| Record<string, unknown>` \| No \| .*附加参数，可传 JSON 字符串或 plain object；最终会与 `rtc\.set_app_type` 合并。\s*\|/,
+  );
 });
 
 test('client resolves the native bridge lazily when it becomes available after construction', async () => {
@@ -1907,6 +1928,192 @@ test('setParameters rejects invalid json strings before dispatching the native r
 
   await assert.rejects(
     client.setParameters('{"rtc.debug":true'),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'setParameters' &&
+      error.details.parameter === 'parameters',
+  );
+  assert.equal(transport.sent.length, 0);
+});
+
+test('setParameters rejects empty strings before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  await assert.rejects(
+    client.setParameters(''),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'setParameters' &&
+      error.details.parameter === 'parameters',
+  );
+  assert.equal(transport.sent.length, 0);
+});
+
+test('setParameters rejects empty object payloads before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  await assert.rejects(
+    client.setParameters({}),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'setParameters' &&
+      error.details.parameter === 'parameters',
+  );
+
+  await assert.rejects(
+    client.setParameters('{}'),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'setParameters' &&
+      error.details.parameter === 'parameters',
+  );
+
+  await assert.rejects(
+    client.setParameters({ optional: undefined }),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'setParameters' &&
+      error.details.parameter === 'parameters',
+  );
+
+  assert.equal(transport.sent.length, 0);
+});
+
+test('initialize rejects non-plain parameter objects before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  class ParameterCarrier {
+    readonly ['rtc.debug'] = true;
+  }
+
+  for (const parameters of [
+    new Map([['rtc.debug', true]]) as unknown,
+    new Date('2026-06-15T00:00:00.000Z') as unknown,
+    new ParameterCarrier() as unknown,
+  ]) {
+    await assert.rejects(
+      client.initialize({
+        appId: 'demo-app-id',
+        parameters: parameters as Record<string, unknown>,
+      }),
+      (error: { code: string; details: Record<string, unknown> }) =>
+        error.code === AgoraErrorCode.ProtocolError &&
+        error.details.method === 'initialize' &&
+        error.details.parameter === 'parameters',
+    );
+  }
+
+  assert.equal(transport.sent.length, 0);
+});
+
+test('setParameters rejects non-plain parameter objects before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  class ParameterCarrier {
+    readonly ['rtc.debug'] = true;
+  }
+
+  for (const parameters of [
+    new Map([['rtc.debug', true]]) as unknown,
+    new Date('2026-06-15T00:00:00.000Z') as unknown,
+    new ParameterCarrier() as unknown,
+  ]) {
+    await assert.rejects(
+      client.setParameters(parameters as Record<string, unknown>),
+      (error: { code: string; details: Record<string, unknown> }) =>
+        error.code === AgoraErrorCode.ProtocolError &&
+        error.details.method === 'setParameters' &&
+        error.details.parameter === 'parameters',
+    );
+  }
+
+  assert.equal(transport.sent.length, 0);
+});
+
+test('setParameters omits undefined object properties before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.setParameters({
+    'rtc.debug': true,
+    optional: undefined,
+    nested: {
+      keep: 'value',
+      drop: undefined,
+    },
+  });
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'setParameters');
+  assert.deepEqual(request.params, {
+    parameters: '{"rtc.debug":true,"nested":{"keep":"value"},"rtc.set_app_type":10}',
+  });
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+});
+
+test('initialize rejects circular parameter objects before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const parameters: Record<string, unknown> = {};
+  parameters.self = parameters;
+
+  await assert.rejects(
+    client.initialize({
+      appId: 'demo-app-id',
+      parameters,
+    }),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'initialize' &&
+      error.details.parameter === 'parameters',
+  );
+  assert.equal(transport.sent.length, 0);
+});
+
+test('setParameters rejects circular parameter objects before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const parameters: Record<string, unknown> = {};
+  parameters.self = parameters;
+
+  await assert.rejects(
+    client.setParameters(parameters),
     (error: { code: string; details: Record<string, unknown> }) =>
       error.code === AgoraErrorCode.ProtocolError &&
       error.details.method === 'setParameters' &&
