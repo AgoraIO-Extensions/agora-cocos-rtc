@@ -112,6 +112,23 @@ export class AgoraEngineTextureViewManager {
     sourceType?: number;
   }): void {
     if (canvas.displayNode) {
+      const displayNode = canvas.displayNode as Node;
+      const existing = this.#views.get(LOCAL_VIEW_ID);
+      if (existing && existing.displayNode === displayNode) {
+        if (canvas.mirrorMode !== undefined) {
+          existing.mirrorMode = canvas.mirrorMode;
+        }
+        if (canvas.sourceType !== undefined) {
+          existing.sourceType = canvas.sourceType;
+        }
+        this.#viewController.registerLocalView({
+          viewId: LOCAL_VIEW_ID,
+          mirrorMode: existing.mirrorMode ?? 0,
+          sourceType: existing.sourceType,
+        });
+        this.applyDisplayMirror(LOCAL_VIEW_ID);
+        return;
+      }
       this.registerLocalDisplay({
         displayNode: canvas.displayNode,
         mirrorMode: canvas.mirrorMode,
@@ -144,6 +161,24 @@ export class AgoraEngineTextureViewManager {
   }): void {
     const viewId = this.#remoteViewId(uid);
     if (canvas.displayNode) {
+      const displayNode = canvas.displayNode as Node;
+      const existing = this.#views.get(viewId);
+      if (existing && existing.displayNode === displayNode) {
+        if (canvas.mirrorMode !== undefined) {
+          existing.mirrorMode = canvas.mirrorMode;
+        }
+        if (canvas.sourceType !== undefined) {
+          existing.sourceType = canvas.sourceType;
+        }
+        this.#viewController.registerRemoteView({
+          viewId,
+          uid,
+          mirrorMode: existing.mirrorMode ?? DEFAULT_REMOTE_VIEW_MIRROR_MODE,
+          sourceType: existing.sourceType,
+        });
+        this.applyDisplayMirror(viewId);
+        return;
+      }
       this.registerRemoteDisplay(uid, {
         displayNode: canvas.displayNode,
         mirrorMode: canvas.mirrorMode,
@@ -186,6 +221,31 @@ export class AgoraEngineTextureViewManager {
     }
     view.slotId = cached.slotId;
     this.#bindTextureSlot(viewId, cached.slotId);
+  }
+
+  refreshLocalTextureBinding(): void {
+    const view = this.#views.get(LOCAL_VIEW_ID);
+    if (!view) {
+      return;
+    }
+    if (view.slotId !== null) {
+      this.#bindTextureSlot(LOCAL_VIEW_ID, view.slotId);
+      return;
+    }
+    this.applyCachedTextureSlot('local');
+  }
+
+  refreshRemoteTextureBinding(uid: number): void {
+    const viewId = this.#remoteViewId(uid);
+    const view = this.#views.get(viewId);
+    if (!view) {
+      return;
+    }
+    if (view.slotId !== null) {
+      this.#bindTextureSlot(viewId, view.slotId);
+      return;
+    }
+    this.applyCachedTextureSlot('remote', uid);
   }
 
   unregisterLocalDisplay(): void {

@@ -357,7 +357,7 @@ export class DemoActionPanel extends Component {
   private buildDiagnosticsSection(parent: Node): void {
     const title = ensureLabelNode(parent, 'SectionTitle', 360, 22, 'Diagnostics', 14, COLORS.textPrimary);
     title.node.setPosition(0, 32, 0);
-    this.buildButtonList(parent, ['RefreshViews', 'OpenLog'], 2, -6);
+    this.buildButtonList(parent, ['RefreshViews', 'CycleViewUpdate', 'OpenLog'], 3, -6);
     const advanced = ensureButtonNode(parent, 'AdvancedToggle', 118, 32, 'Advanced', 'ghost');
     advanced.node.setPosition(132, -6, 0);
     this.advancedToggleLabel = advanced.label;
@@ -447,7 +447,7 @@ export class DemoActionPanel extends Component {
   private buildCaseUtilitySection(parent: Node): void {
     const title = ensureLabelNode(parent, 'SectionTitle', 360, 22, 'Diagnostics', 14, COLORS.textPrimary);
     title.node.setPosition(0, 32, 0);
-    this.buildButtonList(parent, ['RefreshViews', 'OpenLog'], 2, -6);
+    this.buildButtonList(parent, ['RefreshViews', 'CycleViewUpdate', 'OpenLog'], 3, -6);
   }
 
   private buildButtonList(
