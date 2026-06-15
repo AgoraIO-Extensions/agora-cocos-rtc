@@ -162,3 +162,32 @@ test('rendering pages explain current engine-texture behavior and compatibility 
     assert.match(content, /mirror/i);
   }
 });
+
+test('example pages explain the QA console and grouped demo actions', async () => {
+  const zh = await readDoc('docs/zh/example.html');
+  const en = await readDoc('docs/en/example.html');
+
+  for (const content of [zh, en]) {
+    assert.match(content, /QA/);
+    assert.match(content, /Full Demo/);
+    assert.match(content, /Channel/);
+    assert.match(content, /Mixing/);
+    assert.match(content, /Effect/);
+    assert.match(content, /Diag/);
+    assert.match(content, /RtcSessionService/);
+  }
+});
+
+test('platform notes pages surface Android and iOS differences inline', async () => {
+  const zh = await readDoc('docs/zh/platform-notes.html');
+  const en = await readDoc('docs/en/platform-notes.html');
+
+  for (const content of [zh, en]) {
+    assert.match(content, /setDefaultAudioRouteToSpeakerphone/);
+    assert.match(content, /setAudioSessionOperationRestriction/);
+    assert.match(content, /publishThirdCameraTrack/);
+    assert.match(content, /publishFourthCameraTrack/);
+    assert.match(content, /playEffect\.gain/);
+    assert.match(content, /sourceType/);
+  }
+});

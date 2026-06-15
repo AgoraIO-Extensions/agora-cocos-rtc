@@ -32,8 +32,20 @@
       </nav>
       <main id="main-content" class="doc-main">
         <section class="hero">
-          <h1>Platform Notes 占位页</h1>
-          <p>Content coming next task.</p>
+          <h1>Platform Notes</h1>
+          <p>这一页集中解释 Android 和 iOS 的行为差异，但关键限制仍然要在相关 API 附近重复出现。</p>
+        </section>
+        <section class="card">
+          <h2 id="audio-routing">音频路由与会话限制</h2>
+          <p><code>setDefaultAudioRouteToSpeakerphone</code> 和 <code>setAudioSessionOperationRestriction</code> 在不同平台的行为不完全一致，文档需要明确说清楚，不要让开发者自己猜。</p>
+        </section>
+        <section class="card">
+          <h2 id="channel-options">频道选项差异</h2>
+          <p><code>publishThirdCameraTrack</code> 和 <code>publishFourthCameraTrack</code> 是 Android/C++ 侧字段，iOS 4.5.3 并不对等暴露。<code>sourceType</code> 也需要在 iOS 预览路径里单独解释。</p>
+        </section>
+        <section class="card">
+          <h2 id="effect-contracts">音效与参数约束</h2>
+          <p><code>playEffect.gain</code> 目前走整数桥接约定；这类契约必须写在平台说明和具体 API 两边。</p>
         </section>
       </main>
       <aside class="doc-toc" aria-label="On this page">
