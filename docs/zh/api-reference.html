@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="zh-CN" data-locale="zh" data-page="api-reference">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agora Cocos RTC 文档</title>
+    <link rel="stylesheet" href="../assets/app.css" />
+    <script src="../assets/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到正文</a>
+    <div class="doc-shell">
+      <header class="doc-header">
+        <div>
+          <div class="mono">Agora Cocos RTC</div>
+          <strong>Developer Docs</strong>
+        </div>
+        <div class="locale-switch" aria-label="Language switch">
+          <button type="button" aria-current="true" data-locale-target="zh">中文</button>
+          <button type="button" data-locale-target="en">English</button>
+          <button id="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+        </div>
+      </header>
+      <nav id="primary-nav" class="doc-nav" aria-label="Primary">
+        <a href="./index.html">Overview</a>
+        <a href="./quickstart.html">Quickstart</a>
+        <a href="./core-apis.html">Core APIs</a>
+        <a href="./rendering.html">Rendering</a>
+        <a href="./example.html">Example</a>
+        <a href="./platform-notes.html">Platform Notes</a>
+        <a href="./api-reference.html" aria-current="page">API Reference</a>
+      </nav>
+      <main id="main-content" class="doc-main">
+        <section class="hero">
+          <h1>API Reference</h1>
+          <p>这一页是精确查阅入口。条目必须和当前公开导出保持一致，并给出稳定锚点。</p>
+        </section>
+        <section class="card">
+          <h2 id="exports">Top-level exports</h2>
+          <article id="export-createAgoraRtcClient" data-signature="createAgoraRtcClient(options?: AgoraRtcClientOptions)">
+            <h3>createAgoraRtcClient</h3>
+            <p>创建 RTC 客户端实例，是大多数接入流程的入口。</p>
+            <code class="signature">createAgoraRtcClient(options?: AgoraRtcClientOptions): AgoraRtcClient</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>options.bridgeRuntime</code>：可选，自定义桥运行时。</li><li><code>options.timeoutMs</code>：可选，原生请求超时时间，默认 5000ms。</li><li><code>options.transport</code>：可选，直接传入桥传输对象。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回一个 <code>AgoraRtcClient</code> 实例，后续通过它调用 RTC API。</li></ul></div>
+          </article>
+          <article id="export-createAgoraEngineTextureViewManager" data-signature="createAgoraEngineTextureViewManager(client: AgoraRtcClient, bridgeRuntime?: CocosBridgeRuntime)">
+            <h3>createAgoraEngineTextureViewManager</h3>
+            <p>创建 engine-texture 视图管理器，用于处理纹理槽和显示节点绑定。</p>
+            <code class="signature">createAgoraEngineTextureViewManager(client: AgoraRtcClient, bridgeRuntime?: CocosBridgeRuntime): Promise&lt;AgoraEngineTextureViewManager&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>client</code>：必填，已经创建好的 RTC 客户端。</li><li><code>bridgeRuntime</code>：可选，自定义运行时桥上下文。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，resolve 为 <code>AgoraEngineTextureViewManager</code>。</li></ul></div>
+          </article>
+          <article id="export-createAgoraEngineTextureViewController" data-signature="createAgoraEngineTextureViewController(client: AgoraRtcClient)">
+            <h3>createAgoraEngineTextureViewController</h3>
+            <p>创建 engine-texture 视图控制器，适合封装本地/远端视图注册逻辑。</p>
+            <code class="signature">createAgoraEngineTextureViewController(client: AgoraRtcClient): AgoraEngineTextureViewController</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>client</code>：必填，RTC 客户端实例。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 <code>AgoraEngineTextureViewController</code> 实例。</li></ul></div>
+          </article>
+          <article id="export-getAgoraEngineTextureBridge" data-signature="getAgoraEngineTextureBridge(runtime?: CocosBridgeRuntime)">
+            <h3>getAgoraEngineTextureBridge</h3>
+            <p>读取当前运行时中可用的引擎纹理桥，适合排查纹理槽状态。</p>
+            <code class="signature">getAgoraEngineTextureBridge(runtime?: CocosBridgeRuntime): CocosEngineTextureBridge | null</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>runtime</code>：可选，显式传入运行时对象。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回桥对象；若当前环境没有桥，则返回 <code>null</code>。</li></ul></div>
+          </article>
+        </section>
+        <section class="card">
+          <h2 id="client-methods">AgoraRtcClient</h2>
+          <article id="method-on" data-signature="on(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void)">
+            <h3>on</h3>
+            <p>订阅 SDK 事件。</p>
+            <code class="signature">on(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void): () =&gt; void</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>eventName</code>：请结合源码类型定义理解。</li><li><code>listener</code>：请结合源码类型定义理解。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 () =&gt; void。</li></ul></div>
+          </article>
+          <article id="method-off" data-signature="off(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void)">
+            <h3>off</h3>
+            <p>取消订阅某个事件监听器。</p>
+            <code class="signature">off(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void): void</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>eventName</code>：请结合源码类型定义理解。</li><li><code>listener</code>：请结合源码类型定义理解。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 void。</li></ul></div>
+          </article>
+          <article id="method-setRenderBackend" data-signature="setRenderBackend(backend: AgoraRenderBackend)">
+            <h3>setRenderBackend</h3>
+            <p>设置渲染后端。当前公开支持的值只有 <code>engine-texture</code>。</p>
+            <code class="signature">setRenderBackend(backend: AgoraRenderBackend): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>backend</code>：必填，后端值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-initialize" data-signature="initialize(config: string | AgoraRtcEngineConfig)">
+            <h3>initialize</h3>
+            <p>初始化 RTC 引擎。可以只传 App ID，也可以传完整配置对象。</p>
+            <code class="signature">initialize(config: string | AgoraRtcEngineConfig): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>config</code>：必填，配置对象或 App ID 包装值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-getSdkVersion" data-signature="getSdkVersion()">
+            <h3>getSdkVersion</h3>
+            <p>读取当前原生 SDK 版本字符串。</p>
+            <code class="signature">getSdkVersion(): Promise&lt;string&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，resolve 为字符串结果。</li></ul></div>
+          </article>
+          <article id="method-getErrorDescription" data-signature="getErrorDescription(code: number)">
+            <h3>getErrorDescription</h3>
+            <p>把原生错误码转换为可读描述。</p>
+            <code class="signature">getErrorDescription(code: number): Promise&lt;string&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>code</code>：必填，数字错误码。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，resolve 为字符串结果。</li></ul></div>
+          </article>
+          <article id="method-setLogFilter" data-signature="setLogFilter(level: number)">
+            <h3>setLogFilter</h3>
+            <p>设置原生日志过滤级别。</p>
+            <code class="signature">setLogFilter(level: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>level</code>：必填，日志级别值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setLogFile" data-signature="setLogFile(path: string)">
+            <h3>setLogFile</h3>
+            <p>设置原生日志输出文件路径。</p>
+            <code class="signature">setLogFile(path: string): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>path</code>：必填，本地文件路径。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setChannelProfile" data-signature="setChannelProfile(profile: &#x27;communication&#x27; | &#x27;liveBroadcasting&#x27;)">
+            <h3>setChannelProfile</h3>
+            <p>在入会前设置频道 profile。</p>
+            <code class="signature">setChannelProfile(profile: &#x27;communication&#x27; | &#x27;liveBroadcasting&#x27;): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>profile</code>：必填，profile 值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setClientRole" data-signature="setClientRole(role: &#x27;broadcaster&#x27; | &#x27;audience&#x27;, options?: AgoraClientRoleOptions)">
+            <h3>setClientRole</h3>
+            <p>在直播场景中设置主播或观众角色。</p>
+            <code class="signature">setClientRole(role: &#x27;broadcaster&#x27; | &#x27;audience&#x27;, options?: AgoraClientRoleOptions): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>role</code>：必填，角色值。</li><li><code>options</code>：可选，角色附加选项，例如观众延迟级别。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-joinChannel" data-signature="joinChannel(token: string, channelId: string, uid: number, options?: AgoraChannelMediaOptions)">
+            <h3>joinChannel</h3>
+            <p>使用数字 UID 加入频道，是最常见的入会入口。</p>
+            <code class="signature">joinChannel(token: string, channelId: string, uid: number, options?: AgoraChannelMediaOptions): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>token</code>：必填，频道 token。</li><li><code>channelId</code>：必填，频道名。</li><li><code>uid</code>：必填，数字 UID。</li><li><code>options</code>：可选，发布/订阅行为，例如发布轨道或自动订阅标志。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise；真正入会成功信号通过 <a href="#event-joinChannelSuccess">joinChannelSuccess</a> 事件体现。</li></ul></div>
+          </article>
+          <article id="method-joinChannelWithUserAccount" data-signature="joinChannelWithUserAccount(token: string, channelId: string, userAccount: string, options?: AgoraChannelMediaOptions)">
+            <h3>joinChannelWithUserAccount</h3>
+            <p>使用字符串用户账号加入频道，适合业务层已有稳定账号体系的场景。</p>
+            <code class="signature">joinChannelWithUserAccount(token: string, channelId: string, userAccount: string, options?: AgoraChannelMediaOptions): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>token</code>：必填，频道 token。</li><li><code>channelId</code>：必填，频道名。</li><li><code>userAccount</code>：必填，字符串账号。</li><li><code>options</code>：可选，发布/订阅行为，例如发布轨道或自动订阅标志。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-getUserInfoByUserAccount" data-signature="getUserInfoByUserAccount(userAccount: string)">
+            <h3>getUserInfoByUserAccount</h3>
+            <p>根据字符串账号查询对应的 Agora 用户信息。</p>
+            <code class="signature">getUserInfoByUserAccount(userAccount: string): Promise&lt;AgoraUserInfo&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>userAccount</code>：必填，字符串账号。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，resolve 为 Agora 用户信息。</li></ul></div>
+          </article>
+          <article id="method-leaveChannel" data-signature="leaveChannel(options?: AgoraLeaveChannelOptions)">
+            <h3>leaveChannel</h3>
+            <p>离开当前频道。</p>
+            <code class="signature">leaveChannel(options?: AgoraLeaveChannelOptions): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>options</code>：可选，离会行为，例如停止混音或音效。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise；最终统计信息通过 <a href="#event-leaveChannel">leaveChannel</a> 事件体现。</li></ul></div>
+          </article>
+          <article id="method-renewToken" data-signature="renewToken(token: string)">
+            <h3>renewToken</h3>
+            <p>更新当前频道 token。</p>
+            <code class="signature">renewToken(token: string): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>token</code>：必填，频道 token。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-enableAudio" data-signature="enableAudio(enabled: boolean)">
+            <h3>enableAudio</h3>
+            <p>开启或关闭音频模块。</p>
+            <code class="signature">enableAudio(enabled: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>enabled</code>：必填，布尔开关。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-enableLocalAudio" data-signature="enableLocalAudio(enabled: boolean)">
+            <h3>enableLocalAudio</h3>
+            <p>开启或关闭本地音频采集。</p>
+            <code class="signature">enableLocalAudio(enabled: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>enabled</code>：必填，布尔开关。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-muteLocalAudioStream" data-signature="muteLocalAudioStream(muted: boolean)">
+            <h3>muteLocalAudioStream</h3>
+            <p>静音或取消静音本地发布音频流。</p>
+            <code class="signature">muteLocalAudioStream(muted: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>muted</code>：必填，静音状态。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-muteRemoteAudioStream" data-signature="muteRemoteAudioStream(uid: number, muted: boolean)">
+            <h3>muteRemoteAudioStream</h3>
+            <p>静音或取消静音指定远端音频流。</p>
+            <code class="signature">muteRemoteAudioStream(uid: number, muted: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>uid</code>：必填，数字 UID。</li><li><code>muted</code>：必填，静音状态。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-muteAllRemoteAudioStreams" data-signature="muteAllRemoteAudioStreams(muted: boolean)">
+            <h3>muteAllRemoteAudioStreams</h3>
+            <p>静音或取消静音全部远端音频流。</p>
+            <code class="signature">muteAllRemoteAudioStreams(muted: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>muted</code>：必填，静音状态。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setAudioProfile" data-signature="setAudioProfile(profile: number, scenario?: number)">
+            <h3>setAudioProfile</h3>
+            <p>设置音频 profile 和 scenario。</p>
+            <code class="signature">setAudioProfile(profile: number, scenario?: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>profile</code>：必填，profile 值。</li><li><code>scenario</code>：可选，scenario 值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-enableAudioVolumeIndication" data-signature="enableAudioVolumeIndication(interval: number, smooth?: number, reportVad?: boolean)">
+            <h3>enableAudioVolumeIndication</h3>
+            <p>开启周期性音量指示回调。</p>
+            <code class="signature">enableAudioVolumeIndication(interval: number, smooth?: number, reportVad?: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>interval</code>：必填，毫秒级间隔。</li><li><code>smooth</code>：可选，平滑系数。</li><li><code>reportVad</code>：可选，语音活动标志。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setDefaultAudioRouteToSpeakerphone" data-signature="setDefaultAudioRouteToSpeakerphone(enabled: boolean)">
+            <h3>setDefaultAudioRouteToSpeakerphone</h3>
+            <p>设置默认音频路由到扬声器。</p>
+            <code class="signature">setDefaultAudioRouteToSpeakerphone(enabled: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>enabled</code>：必填，布尔开关。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setEnableSpeakerphone" data-signature="setEnableSpeakerphone(enabled: boolean)">
+            <h3>setEnableSpeakerphone</h3>
+            <p>强制打开或关闭扬声器。</p>
+            <code class="signature">setEnableSpeakerphone(enabled: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>enabled</code>：必填，布尔开关。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-isSpeakerphoneEnabled" data-signature="isSpeakerphoneEnabled()">
+            <h3>isSpeakerphoneEnabled</h3>
+            <p>查询扬声器当前是否开启。</p>
+            <code class="signature">isSpeakerphoneEnabled(): Promise&lt;boolean&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，resolve 为布尔结果。</li></ul></div>
+          </article>
+          <article id="method-adjustPlaybackSignalVolume" data-signature="adjustPlaybackSignalVolume(volume: number)">
+            <h3>adjustPlaybackSignalVolume</h3>
+            <p>调整整体播放音量。</p>
+            <code class="signature">adjustPlaybackSignalVolume(volume: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>volume</code>：必填，音量值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-adjustUserPlaybackSignalVolume" data-signature="adjustUserPlaybackSignalVolume(uid: number, volume: number)">
+            <h3>adjustUserPlaybackSignalVolume</h3>
+            <p>调整指定远端用户播放音量。</p>
+            <code class="signature">adjustUserPlaybackSignalVolume(uid: number, volume: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>uid</code>：必填，数字 UID。</li><li><code>volume</code>：必填，音量值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setAudioSessionOperationRestriction" data-signature="setAudioSessionOperationRestriction(restriction: number)">
+            <h3>setAudioSessionOperationRestriction</h3>
+            <p>设置音频会话限制标志。</p>
+            <code class="signature">setAudioSessionOperationRestriction(restriction: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>restriction</code>：必填，限制值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-enableVideo" data-signature="enableVideo(enabled: boolean)">
+            <h3>enableVideo</h3>
+            <p>开启或关闭视频模块。</p>
+            <code class="signature">enableVideo(enabled: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>enabled</code>：必填，布尔开关。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-enableLocalVideo" data-signature="enableLocalVideo(enabled: boolean)">
+            <h3>enableLocalVideo</h3>
+            <p>开启或关闭本地视频采集。</p>
+            <code class="signature">enableLocalVideo(enabled: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>enabled</code>：必填，布尔开关。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-muteLocalVideoStream" data-signature="muteLocalVideoStream(muted: boolean)">
+            <h3>muteLocalVideoStream</h3>
+            <p>静音或取消静音本地发布视频流。</p>
+            <code class="signature">muteLocalVideoStream(muted: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>muted</code>：必填，静音状态。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-muteRemoteVideoStream" data-signature="muteRemoteVideoStream(uid: number, muted: boolean)">
+            <h3>muteRemoteVideoStream</h3>
+            <p>静音或取消静音指定远端视频流。</p>
+            <code class="signature">muteRemoteVideoStream(uid: number, muted: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>uid</code>：必填，数字 UID。</li><li><code>muted</code>：必填，静音状态。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-muteAllRemoteVideoStreams" data-signature="muteAllRemoteVideoStreams(muted: boolean)">
+            <h3>muteAllRemoteVideoStreams</h3>
+            <p>静音或取消静音全部远端视频流。</p>
+            <code class="signature">muteAllRemoteVideoStreams(muted: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>muted</code>：必填，静音状态。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setVideoEncoderConfiguration" data-signature="setVideoEncoderConfiguration(config: AgoraVideoEncoderConfiguration)">
+            <h3>setVideoEncoderConfiguration</h3>
+            <p>设置视频编码参数，影响分辨率、码率、帧率和镜像配置。</p>
+            <code class="signature">setVideoEncoderConfiguration(config: AgoraVideoEncoderConfiguration): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>config</code>：必填，编码配置对象。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-applyVideoEncoderMirrorConfiguration" data-signature="applyVideoEncoderMirrorConfiguration(config: Partial&lt;AgoraVideoEncoderConfiguration&gt; &amp; Pick&lt;AgoraVideoEncoderConfiguration, &#x27;width&#x27; | &#x27;height&#x27;&gt;)">
+            <h3>applyVideoEncoderMirrorConfiguration</h3>
+            <p>把推导出的镜像配置应用到编码设置。</p>
+            <code class="signature">applyVideoEncoderMirrorConfiguration(config: Partial&lt;AgoraVideoEncoderConfiguration&gt; &amp; Pick&lt;AgoraVideoEncoderConfiguration, &#x27;width&#x27; | &#x27;height&#x27;&gt;): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>config</code>：必填，带宽高字段的局部编码配置。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-getEngineTextureViewManager" data-signature="getEngineTextureViewManager()">
+            <h3>getEngineTextureViewManager</h3>
+            <p>读取缓存的 engine texture view manager。</p>
+            <code class="signature">getEngineTextureViewManager(): InstanceType&lt;AgoraEngineTextureViewManager&gt; | null</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回缓存的 manager 实例；未创建时返回 null。</li></ul></div>
+          </article>
+          <article id="method-takeCachedLocalTextureSlot" data-signature="takeCachedLocalTextureSlot()">
+            <h3>takeCachedLocalTextureSlot</h3>
+            <p>取出缓存的本地纹理槽摘要。</p>
+            <code class="signature">takeCachedLocalTextureSlot(): TextureReadySlotCache | null</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回缓存的纹理槽摘要；没有缓存时返回 null。</li></ul></div>
+          </article>
+          <article id="method-takeCachedRemoteTextureSlot" data-signature="takeCachedRemoteTextureSlot(uid: number)">
+            <h3>takeCachedRemoteTextureSlot</h3>
+            <p>取出指定远端用户的缓存纹理槽摘要。</p>
+            <code class="signature">takeCachedRemoteTextureSlot(uid: number): TextureReadySlotCache | null</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>uid</code>：必填，数字 UID。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回缓存的纹理槽摘要；没有缓存时返回 null。</li></ul></div>
+          </article>
+          <article id="method-setupLocalVideoView" data-signature="setupLocalVideoView(canvas: AgoraRtcVideoCanvas)">
+            <h3>setupLocalVideoView</h3>
+            <p>建立本地视频视图，通常和 <code>displayNode</code> 或纹理槽一起使用。</p>
+            <code class="signature">setupLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>canvas</code>：必填，本地视频画布配置。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setupRemoteVideoView" data-signature="setupRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas)">
+            <h3>setupRemoteVideoView</h3>
+            <p>建立远端视频视图。</p>
+            <code class="signature">setupRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>uid</code>：必填，数字 UID。</li><li><code>canvas</code>：必填，远端视频画布配置。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-updateLocalVideoView" data-signature="updateLocalVideoView(canvas: AgoraRtcVideoCanvas)">
+            <h3>updateLocalVideoView</h3>
+            <p>更新已有本地视频视图配置。</p>
+            <code class="signature">updateLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>canvas</code>：必填，更新后的本地画布配置。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-updateRemoteVideoView" data-signature="updateRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas)">
+            <h3>updateRemoteVideoView</h3>
+            <p>更新已有远端视频视图配置。</p>
+            <code class="signature">updateRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>uid</code>：必填，数字 UID。</li><li><code>canvas</code>：必填，更新后的远端画布配置。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-removeLocalVideoView" data-signature="removeLocalVideoView()">
+            <h3>removeLocalVideoView</h3>
+            <p>移除当前本地视频视图绑定。</p>
+            <code class="signature">removeLocalVideoView(): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-removeRemoteVideoView" data-signature="removeRemoteVideoView(uid: number)">
+            <h3>removeRemoteVideoView</h3>
+            <p>移除指定远端视频视图绑定。</p>
+            <code class="signature">removeRemoteVideoView(uid: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>uid</code>：必填，数字 UID。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setNativeVideoOverlaySuspended" data-signature="setNativeVideoOverlaySuspended(suspended: boolean)">
+            <h3>setNativeVideoOverlaySuspended</h3>
+            <p>暂停或恢复兼容性的原生覆盖层接口。</p>
+            <code class="signature">setNativeVideoOverlaySuspended(suspended: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>suspended</code>：必填，暂停状态。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-startPreview" data-signature="startPreview(sourceType?: number)">
+            <h3>startPreview</h3>
+            <p>开始本地预览。</p>
+            <code class="signature">startPreview(sourceType?: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>sourceType</code>：可选，源类型值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-stopPreview" data-signature="stopPreview(sourceType?: number)">
+            <h3>stopPreview</h3>
+            <p>停止本地预览。</p>
+            <code class="signature">stopPreview(sourceType?: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>sourceType</code>：可选，源类型值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-switchCamera" data-signature="switchCamera()">
+            <h3>switchCamera</h3>
+            <p>切换前后摄像头。</p>
+            <code class="signature">switchCamera(): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setBeautyEffectOptions" data-signature="setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number)">
+            <h3>setBeautyEffectOptions</h3>
+            <p>启用美颜并更新参数。</p>
+            <code class="signature">setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>enabled</code>：必填，布尔开关。</li><li><code>options</code>：可选，附加选项对象。</li><li><code>sourceType</code>：可选，源类型值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-enableContentInspect" data-signature="enableContentInspect(enabled: boolean, config?: AgoraContentInspectConfig)">
+            <h3>enableContentInspect</h3>
+            <p>启用或关闭内容审核。</p>
+            <code class="signature">enableContentInspect(enabled: boolean, config?: AgoraContentInspectConfig): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>enabled</code>：必填，布尔开关。</li><li><code>config</code>：可选，内容审核配置对象。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-startAudioMixing" data-signature="startAudioMixing(config: AgoraAudioMixingConfig)">
+            <h3>startAudioMixing</h3>
+            <p>开始音频混音，适合背景音乐或本地文件伴奏场景。</p>
+            <code class="signature">startAudioMixing(config: AgoraAudioMixingConfig): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>config</code>：必填，音频混音配置对象。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-pauseAudioMixing" data-signature="pauseAudioMixing()">
+            <h3>pauseAudioMixing</h3>
+            <p>暂停当前音频混音。</p>
+            <code class="signature">pauseAudioMixing(): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-resumeAudioMixing" data-signature="resumeAudioMixing()">
+            <h3>resumeAudioMixing</h3>
+            <p>恢复已暂停的音频混音。</p>
+            <code class="signature">resumeAudioMixing(): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-stopAudioMixing" data-signature="stopAudioMixing()">
+            <h3>stopAudioMixing</h3>
+            <p>停止当前音频混音。</p>
+            <code class="signature">stopAudioMixing(): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-getAudioMixingCurrentPosition" data-signature="getAudioMixingCurrentPosition()">
+            <h3>getAudioMixingCurrentPosition</h3>
+            <p>读取当前音频混音进度。</p>
+            <code class="signature">getAudioMixingCurrentPosition(): Promise&lt;number&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，resolve 为数字结果。</li></ul></div>
+          </article>
+          <article id="method-setAudioMixingPosition" data-signature="setAudioMixingPosition(positionMs: number)">
+            <h3>setAudioMixingPosition</h3>
+            <p>把音频混音跳转到新的位置。</p>
+            <code class="signature">setAudioMixingPosition(positionMs: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>positionMs</code>：必填，目标毫秒位置。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-adjustAudioMixingVolume" data-signature="adjustAudioMixingVolume(volume: number)">
+            <h3>adjustAudioMixingVolume</h3>
+            <p>调整整体混音音量。</p>
+            <code class="signature">adjustAudioMixingVolume(volume: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>volume</code>：必填，音量值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-preloadEffect" data-signature="preloadEffect(soundId: number, path: string, startPos?: number)">
+            <h3>preloadEffect</h3>
+            <p>预加载一个音效文件。</p>
+            <code class="signature">preloadEffect(soundId: number, path: string, startPos?: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>soundId</code>：必填，音效 ID。</li><li><code>path</code>：必填，本地文件路径。</li><li><code>startPos</code>：可选，起始毫秒位置。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-playEffect" data-signature="playEffect(config: AgoraPlayEffectConfig)">
+            <h3>playEffect</h3>
+            <p>播放音效。</p>
+            <code class="signature">playEffect(config: AgoraPlayEffectConfig): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>config</code>：必填，音效播放配置对象。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-pauseEffect" data-signature="pauseEffect(soundId: number)">
+            <h3>pauseEffect</h3>
+            <p>暂停正在播放的音效。</p>
+            <code class="signature">pauseEffect(soundId: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>soundId</code>：必填，音效 ID。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-resumeEffect" data-signature="resumeEffect(soundId: number)">
+            <h3>resumeEffect</h3>
+            <p>恢复已暂停的音效。</p>
+            <code class="signature">resumeEffect(soundId: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>soundId</code>：必填，音效 ID。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setEffectsVolume" data-signature="setEffectsVolume(volume: number)">
+            <h3>setEffectsVolume</h3>
+            <p>设置全局音效音量。</p>
+            <code class="signature">setEffectsVolume(volume: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>volume</code>：必填，音量值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-adjustAudioMixingPublishVolume" data-signature="adjustAudioMixingPublishVolume(volume: number)">
+            <h3>adjustAudioMixingPublishVolume</h3>
+            <p>调整发布出去的混音音量。</p>
+            <code class="signature">adjustAudioMixingPublishVolume(volume: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>volume</code>：必填，音量值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-adjustAudioMixingPlayoutVolume" data-signature="adjustAudioMixingPlayoutVolume(volume: number)">
+            <h3>adjustAudioMixingPlayoutVolume</h3>
+            <p>调整本地播放的混音音量。</p>
+            <code class="signature">adjustAudioMixingPlayoutVolume(volume: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>volume</code>：必填，音量值。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-stopEffect" data-signature="stopEffect(soundId: number)">
+            <h3>stopEffect</h3>
+            <p>停止正在播放的音效。</p>
+            <code class="signature">stopEffect(soundId: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>soundId</code>：必填，音效 ID。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-setParameters" data-signature="setParameters(parameters: string | Record&lt;string, unknown&gt;)">
+            <h3>setParameters</h3>
+            <p>设置扩展参数，适合透传私有能力或兼容性开关。</p>
+            <code class="signature">setParameters(parameters: string | Record&lt;string, unknown&gt;): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>parameters</code>：请结合源码类型定义理解。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+          <article id="method-getEngineTexture" data-signature="getEngineTexture(slotId: number)">
+            <h3>getEngineTexture</h3>
+            <p>读取缓存的引擎纹理对象。</p>
+            <code class="signature">getEngineTexture(slotId: number): unknown | null</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>slotId</code>：必填，纹理槽 ID。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回缓存值；不可用时返回 null。</li></ul></div>
+          </article>
+          <article id="method-isEngineTextureReady" data-signature="isEngineTextureReady(slotId: number)">
+            <h3>isEngineTextureReady</h3>
+            <p>判断纹理槽是否已经 ready。</p>
+            <code class="signature">isEngineTextureReady(slotId: number): boolean</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>slotId</code>：必填，纹理槽 ID。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>立即返回布尔状态值。</li></ul></div>
+          </article>
+          <article id="method-destroy" data-signature="destroy()">
+            <h3>destroy</h3>
+            <p>销毁客户端并清理事件与待处理请求。</p>
+            <code class="signature">destroy(): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
+          </article>
+        </section>
+        <section class="card">
+          <h2 id="events">Priority events</h2>
+          <article id="event-joinChannelSuccess">
+            <h3>joinChannelSuccess</h3>
+            <p>加入频道成功后触发。</p>
+            <code class="signature">on(&#x27;joinChannelSuccess&#x27;, (payload: AgoraEventMap[&#x27;joinChannelSuccess&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>channelId</code>：<code>string</code>，关联的频道名。</li><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>elapsed</code>：<code>number</code>，相关状态切换的耗时。</li></ul></div>
+          </article>
+          <article id="event-leaveChannel">
+            <h3>leaveChannel</h3>
+            <p>离开频道后的统计回调。</p>
+            <code class="signature">on(&#x27;leaveChannel&#x27;, (payload: AgoraEventMap[&#x27;leaveChannel&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>duration</code>：<code>number</code>，会话持续时长，单位秒。</li><li><code>txBytes?</code>：<code>number</code>，可选，总发送字节数。</li><li><code>rxBytes?</code>：<code>number</code>，可选，总接收字节数。</li><li><code>txKBitRate?</code>：<code>number</code>，可选，总发送码率，单位 Kbps。</li><li><code>rxKBitRate?</code>：<code>number</code>，可选，总接收码率，单位 Kbps。</li><li><code>txAudioBytes?</code>：<code>number</code>，可选，发送音频字节数。</li><li><code>rxAudioBytes?</code>：<code>number</code>，可选，接收音频字节数。</li><li><code>txVideoBytes?</code>：<code>number</code>，可选，发送视频字节数。</li><li><code>rxVideoBytes?</code>：<code>number</code>，可选，接收视频字节数。</li><li><code>txAudioKBitRate?</code>：<code>number</code>，可选，发送音频码率，单位 Kbps。</li><li><code>rxAudioKBitRate?</code>：<code>number</code>，可选，接收音频码率，单位 Kbps。</li><li><code>txVideoKBitRate?</code>：<code>number</code>，可选，发送视频码率，单位 Kbps。</li><li><code>rxVideoKBitRate?</code>：<code>number</code>，可选，接收视频码率，单位 Kbps。</li><li><code>lastmileDelay?</code>：<code>number</code>，可选，最后一公里网络时延。</li><li><code>cpuTotalUsage?</code>：<code>number</code>，可选，总 CPU 使用率。</li><li><code>gatewayRtt?</code>：<code>number</code>，可选，网关往返时延。</li><li><code>cpuAppUsage?</code>：<code>number</code>，可选，应用 CPU 使用率。</li><li><code>users?</code>：<code>number</code>，可选，当前统计样本中的用户数。</li><li><code>connectTimeMs?</code>：<code>number</code>，可选，建连耗时，单位毫秒。</li><li><code>txPacketLossRate?</code>：<code>number</code>，可选，发送丢包率。</li><li><code>rxPacketLossRate?</code>：<code>number</code>，可选，接收丢包率。</li><li><code>memoryAppUsageRatio?</code>：<code>number</code>，可选，应用内存使用率。</li><li><code>memoryTotalUsageRatio?</code>：<code>number</code>，可选，总内存使用率。</li><li><code>memoryAppUsageInKbytes?</code>：<code>number</code>，可选，应用内存占用，单位 KB。</li></ul></div>
+          </article>
+          <article id="event-rejoinChannelSuccess">
+            <h3>rejoinChannelSuccess</h3>
+            <p>重新加入频道成功时触发。</p>
+            <code class="signature">on(&#x27;rejoinChannelSuccess&#x27;, (payload: AgoraEventMap[&#x27;rejoinChannelSuccess&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>channelId</code>：<code>string</code>，关联的频道名。</li><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>elapsed</code>：<code>number</code>，相关状态切换的耗时。</li></ul></div>
+          </article>
+          <article id="event-connectionInterrupted">
+            <h3>connectionInterrupted</h3>
+            <p>连接中断时触发。</p>
+            <code class="signature">on(&#x27;connectionInterrupted&#x27;, (payload: AgoraEventMap[&#x27;connectionInterrupted&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li>无 payload 字段。</li></ul></div>
+          </article>
+          <article id="event-connectionStateChanged">
+            <h3>connectionStateChanged</h3>
+            <p>连接状态变化时触发。</p>
+            <code class="signature">on(&#x27;connectionStateChanged&#x27;, (payload: AgoraEventMap[&#x27;connectionStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>state</code>：<code>number</code>，原生 SDK 返回的状态值。</li><li><code>reason</code>：<code>number</code>，原生 SDK 返回的原因码。</li></ul></div>
+          </article>
+          <article id="event-localVideoTextureReady">
+            <h3>localVideoTextureReady</h3>
+            <p>本地纹理槽已准备完成时触发。</p>
+            <code class="signature">on(&#x27;localVideoTextureReady&#x27;, (payload: AgoraEventMap[&#x27;localVideoTextureReady&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>slotId</code>：<code>number</code>，engine-texture 纹理槽 ID。</li><li><code>width</code>：<code>number</code>，帧或纹理宽度。</li><li><code>height</code>：<code>number</code>，帧或纹理高度。</li></ul></div>
+          </article>
+          <article id="event-remoteVideoTextureReady">
+            <h3>remoteVideoTextureReady</h3>
+            <p>远端纹理槽已准备完成时触发。</p>
+            <code class="signature">on(&#x27;remoteVideoTextureReady&#x27;, (payload: AgoraEventMap[&#x27;remoteVideoTextureReady&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>slotId</code>：<code>number</code>，engine-texture 纹理槽 ID。</li><li><code>width</code>：<code>number</code>，帧或纹理宽度。</li><li><code>height</code>：<code>number</code>，帧或纹理高度。</li></ul></div>
+          </article>
+          <article id="event-localVideoTextureReleased">
+            <h3>localVideoTextureReleased</h3>
+            <p>本地纹理槽释放时触发。</p>
+            <code class="signature">on(&#x27;localVideoTextureReleased&#x27;, (payload: AgoraEventMap[&#x27;localVideoTextureReleased&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>slotId</code>：<code>number</code>，engine-texture 纹理槽 ID。</li></ul></div>
+          </article>
+          <article id="event-remoteVideoTextureReleased">
+            <h3>remoteVideoTextureReleased</h3>
+            <p>远端纹理槽释放时触发。</p>
+            <code class="signature">on(&#x27;remoteVideoTextureReleased&#x27;, (payload: AgoraEventMap[&#x27;remoteVideoTextureReleased&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>slotId</code>：<code>number</code>，engine-texture 纹理槽 ID。</li></ul></div>
+          </article>
+          <article id="event-renderBackendState">
+            <h3>renderBackendState</h3>
+            <p>渲染后端状态变化或回退时触发。</p>
+            <code class="signature">on(&#x27;renderBackendState&#x27;, (payload: AgoraEventMap[&#x27;renderBackendState&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>backend</code>：<code>string</code>，当前渲染后端名称。</li><li><code>phase</code>：<code>string</code>，后端状态阶段。</li><li><code>result</code>：<code>number</code>，原生结果码。</li><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>fallbackBackend?</code>：<code>string</code>，可选，回退后的后端名称。</li><li><code>platform?</code>：<code>string</code>，可选，平台标识。</li></ul></div>
+          </article>
+          <article id="event-userJoined">
+            <h3>userJoined</h3>
+            <p>远端用户加入时触发。</p>
+            <code class="signature">on(&#x27;userJoined&#x27;, (payload: AgoraEventMap[&#x27;userJoined&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>elapsed</code>：<code>number</code>，相关状态切换的耗时。</li></ul></div>
+          </article>
+          <article id="event-userOffline">
+            <h3>userOffline</h3>
+            <p>远端用户离线时触发。</p>
+            <code class="signature">on(&#x27;userOffline&#x27;, (payload: AgoraEventMap[&#x27;userOffline&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>reason?</code>：<code>number</code>，可选，离线原因码。</li></ul></div>
+          </article>
+          <article id="event-remoteVideoStateChanged">
+            <h3>remoteVideoStateChanged</h3>
+            <p>远端视频状态变化时触发。</p>
+            <code class="signature">on(&#x27;remoteVideoStateChanged&#x27;, (payload: AgoraEventMap[&#x27;remoteVideoStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>state</code>：<code>number</code>，原生 SDK 返回的状态值。</li><li><code>reason</code>：<code>number</code>，原生 SDK 返回的原因码。</li><li><code>elapsed</code>：<code>number</code>，相关状态切换的耗时。</li></ul></div>
+          </article>
+          <article id="event-localVideoStateChanged">
+            <h3>localVideoStateChanged</h3>
+            <p>本地视频状态变化时触发。</p>
+            <code class="signature">on(&#x27;localVideoStateChanged&#x27;, (payload: AgoraEventMap[&#x27;localVideoStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>sourceType</code>：<code>number</code>，视频源类型。</li><li><code>state</code>：<code>number</code>，原生 SDK 返回的状态值。</li><li><code>error</code>：<code>number</code>，本地视频状态变化时的错误码。</li></ul></div>
+          </article>
+          <article id="event-firstLocalAudioFramePublished">
+            <h3>firstLocalAudioFramePublished</h3>
+            <p>首帧本地音频发布时触发。</p>
+            <code class="signature">on(&#x27;firstLocalAudioFramePublished&#x27;, (payload: AgoraEventMap[&#x27;firstLocalAudioFramePublished&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>elapsed</code>：<code>number</code>，相关状态切换的耗时。</li></ul></div>
+          </article>
+          <article id="event-audioMixingFinished">
+            <h3>audioMixingFinished</h3>
+            <p>音频混音结束时触发。</p>
+            <code class="signature">on(&#x27;audioMixingFinished&#x27;, (payload: AgoraEventMap[&#x27;audioMixingFinished&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li>无 payload 字段。</li></ul></div>
+          </article>
+          <article id="event-audioMixingStateChanged">
+            <h3>audioMixingStateChanged</h3>
+            <p>音频混音状态变化时触发。</p>
+            <code class="signature">on(&#x27;audioMixingStateChanged&#x27;, (payload: AgoraEventMap[&#x27;audioMixingStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>state</code>：<code>number</code>，原生 SDK 返回的状态值。</li><li><code>reason</code>：<code>number</code>，原生 SDK 返回的原因码。</li></ul></div>
+          </article>
+          <article id="event-remoteAudioStateChanged">
+            <h3>remoteAudioStateChanged</h3>
+            <p>远端音频状态变化时触发。</p>
+            <code class="signature">on(&#x27;remoteAudioStateChanged&#x27;, (payload: AgoraEventMap[&#x27;remoteAudioStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>state</code>：<code>number</code>，原生 SDK 返回的状态值。</li><li><code>reason</code>：<code>number</code>，原生 SDK 返回的原因码。</li><li><code>elapsed</code>：<code>number</code>，相关状态切换的耗时。</li></ul></div>
+          </article>
+          <article id="event-volumeIndication">
+            <h3>volumeIndication</h3>
+            <p>周期性说话人音量指示回调。</p>
+            <code class="signature">on(&#x27;volumeIndication&#x27;, (payload: AgoraEventMap[&#x27;volumeIndication&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>speakers</code>：<code>Array&lt;{</code>，说话人数组，元素中包含 uid、volume、vad、voicePitch。</li><li><code>totalVolume</code>：<code>number</code>，聚合后的总音量值。</li></ul></div>
+          </article>
+          <article id="event-rtcStats">
+            <h3>rtcStats</h3>
+            <p>周期性 RTC 统计信息。</p>
+            <code class="signature">on(&#x27;rtcStats&#x27;, (payload: AgoraEventMap[&#x27;rtcStats&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>duration</code>：<code>number</code>，会话持续时长，单位秒。</li><li><code>txBytes?</code>：<code>number</code>，可选，总发送字节数。</li><li><code>rxBytes?</code>：<code>number</code>，可选，总接收字节数。</li><li><code>txKBitRate?</code>：<code>number</code>，可选，总发送码率，单位 Kbps。</li><li><code>rxKBitRate?</code>：<code>number</code>，可选，总接收码率，单位 Kbps。</li><li><code>txAudioBytes?</code>：<code>number</code>，可选，发送音频字节数。</li><li><code>rxAudioBytes?</code>：<code>number</code>，可选，接收音频字节数。</li><li><code>txVideoBytes?</code>：<code>number</code>，可选，发送视频字节数。</li><li><code>rxVideoBytes?</code>：<code>number</code>，可选，接收视频字节数。</li><li><code>txAudioKBitRate?</code>：<code>number</code>，可选，发送音频码率，单位 Kbps。</li><li><code>rxAudioKBitRate?</code>：<code>number</code>，可选，接收音频码率，单位 Kbps。</li><li><code>txVideoKBitRate?</code>：<code>number</code>，可选，发送视频码率，单位 Kbps。</li><li><code>rxVideoKBitRate?</code>：<code>number</code>，可选，接收视频码率，单位 Kbps。</li><li><code>lastmileDelay?</code>：<code>number</code>，可选，最后一公里网络时延。</li><li><code>cpuTotalUsage?</code>：<code>number</code>，可选，总 CPU 使用率。</li><li><code>gatewayRtt?</code>：<code>number</code>，可选，网关往返时延。</li><li><code>cpuAppUsage?</code>：<code>number</code>，可选，应用 CPU 使用率。</li><li><code>users?</code>：<code>number</code>，可选，当前统计样本中的用户数。</li><li><code>connectTimeMs?</code>：<code>number</code>，可选，建连耗时，单位毫秒。</li><li><code>txPacketLossRate?</code>：<code>number</code>，可选，发送丢包率。</li><li><code>rxPacketLossRate?</code>：<code>number</code>，可选，接收丢包率。</li><li><code>memoryAppUsageRatio?</code>：<code>number</code>，可选，应用内存使用率。</li><li><code>memoryTotalUsageRatio?</code>：<code>number</code>，可选，总内存使用率。</li><li><code>memoryAppUsageInKbytes?</code>：<code>number</code>，可选，应用内存占用，单位 KB。</li></ul></div>
+          </article>
+          <article id="event-contentInspectResult">
+            <h3>contentInspectResult</h3>
+            <p>内容审核返回结果时触发。</p>
+            <code class="signature">on(&#x27;contentInspectResult&#x27;, (payload: AgoraEventMap[&#x27;contentInspectResult&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>result</code>：<code>number</code>，原生结果码。</li></ul></div>
+          </article>
+          <article id="event-error">
+            <h3>error</h3>
+            <p>统一错误出口，用于桥异常、事件解析异常或监听器异常。</p>
+            <code class="signature">on(&#x27;error&#x27;, (payload: AgoraEventMap[&#x27;error&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>code?</code>：<code>number | string</code>，可选，数字或字符串错误码。</li><li><code>message</code>：<code>string</code>，错误消息文本。</li></ul></div>
+          </article>
+        </section>
+      </main>
+      <aside class="doc-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <div id="page-toc"></div>
+      </aside>
+    </div>
+  </body>
+</html>

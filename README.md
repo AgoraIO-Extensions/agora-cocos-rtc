@@ -48,6 +48,7 @@ This repository contains the Cocos extension package and native bridge templates
 For more information:
 
 - See [Agora RTC Cocos Plugin](sdk/agora-rtc/README.md) for the SDK package contents and API surface.
+- Browse the bilingual static developer docs at `docs/zh/index.html` or `docs/en/index.html`.
 - Run `npm test` or `npm run verify` for local validation.
 
 ## Appendix

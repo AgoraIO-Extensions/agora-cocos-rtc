@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en" data-locale="en" data-page="platform-notes">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agora Cocos RTC Docs</title>
+    <link rel="stylesheet" href="../assets/app.css" />
+    <script src="../assets/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="doc-shell">
+      <header class="doc-header">
+        <div>
+          <div class="mono">Agora Cocos RTC</div>
+          <strong>Developer Docs</strong>
+        </div>
+        <div class="locale-switch" aria-label="Language switch">
+          <button type="button" data-locale-target="zh">中文</button>
+          <button type="button" aria-current="true" data-locale-target="en">English</button>
+          <button id="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+        </div>
+      </header>
+      <nav id="primary-nav" class="doc-nav" aria-label="Primary">
+        <a href="./index.html">Overview</a>
+        <a href="./quickstart.html">Quickstart</a>
+        <a href="./core-apis.html">Core APIs</a>
+        <a href="./rendering.html">Rendering</a>
+        <a href="./example.html">Example</a>
+        <a href="./platform-notes.html" aria-current="page">Platform Notes</a>
+        <a href="./api-reference.html">API Reference</a>
+      </nav>
+      <main id="main-content" class="doc-main">
+        <section class="hero">
+          <h1>Platform Notes</h1>
+          <p>This page consolidates Android and iOS differences, but critical caveats should still appear near the related API and flow pages.</p>
+        </section>
+        <section class="card">
+          <h2 id="audio-routing">Audio routing and session restrictions</h2>
+          <p><code>setDefaultAudioRouteToSpeakerphone</code> and <code>setAudioSessionOperationRestriction</code> do not behave identically across platforms. The docs should say that explicitly instead of leaving developers to infer it.</p>
+        </section>
+        <section class="card">
+          <h2 id="channel-options">Channel option differences</h2>
+          <p><code>publishThirdCameraTrack</code> and <code>publishFourthCameraTrack</code> are Android/C++-side fields. iOS 4.5.3 does not expose equivalent fields directly. <code>sourceType</code> also needs explicit explanation in the iOS preview path.</p>
+        </section>
+        <section class="card">
+          <h2 id="effect-contracts">Effect and parameter contracts</h2>
+          <p><code>playEffect.gain</code> currently follows an integer bridge contract; constraints like this should appear both here and next to the affected API.</p>
+        </section>
+      </main>
+      <aside class="doc-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <div id="page-toc"></div>
+      </aside>
+    </div>
+  </body>
+</html>

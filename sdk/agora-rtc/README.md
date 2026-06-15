@@ -18,6 +18,8 @@ This package provides the JavaScript API wrapper, Cocos extension runtime, and n
 
 Customer applications pass the App ID from their own app configuration when initializing the RTC engine. The example project's `agora-config.json` is only for the demo app.
 
+For the full bilingual developer documentation experience, open `docs/zh/index.html` or `docs/en/index.html` from the repository root.
+
 ```ts
 import { createAgoraRtcClient } from '../../extensions/agora-rtc/js/agora.ts';
 
