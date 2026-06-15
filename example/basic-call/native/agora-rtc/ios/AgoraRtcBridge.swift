@@ -23,11 +23,14 @@ final class TextureSlotState: NSObject {
 
 private enum AgoraRtcBridgeParameterError: LocalizedError {
     case invalidJsonObjectString
+    case missingParameters
 
     var errorDescription: String? {
         switch self {
         case .invalidJsonObjectString:
             return "Parameters must be a valid JSON object string."
+        case .missingParameters:
+            return "Parameters must not be empty."
         }
     }
 }
