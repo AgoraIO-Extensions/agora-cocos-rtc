@@ -1683,19 +1683,16 @@ public final class AgoraRtcPlugin {
         String parameterValue = params != null && params.has("parameters") && !params.isNull("parameters")
                 ? params.optString("parameters", null)
                 : null;
-        if (
-                parameterValue == null ||
-                parameterValue.trim().isEmpty() ||
-                parameterValue.matches("\\{\\s*\\}")
-        ) {
+        String normalizedParameterValue = parameterValue != null ? parameterValue.trim() : null;
+        if (normalizedParameterValue == null || normalizedParameterValue.isEmpty()) {
             dispatchError(requestId, "Parameters are required.");
             return;
         }
         String parameters;
         try {
-            parameters = mergeProtectedParameters(parameterValue, false);
+            parameters = mergeProtectedParameters(normalizedParameterValue, false);
         } catch (IllegalArgumentException error) {
-            dispatchInvalidArgumentError(requestId, error.getMessage(), "setParameters", "parameters", parameterValue);
+            dispatchInvalidArgumentError(requestId, error.getMessage(), "setParameters", "parameters", normalizedParameterValue);
             return;
         }
         int result = rtcEngine.setParameters(parameters);
@@ -1732,8 +1729,9 @@ public final class AgoraRtcPlugin {
             return PROTECTED_APP_TYPE_PARAMETERS;
         }
         try {
-            JSONObject clientParams = new JSONObject(parameterValue);
-            if (!allowEmptyPayload && parameterValue.matches("\\{\\s*\\}")) {
+            String normalizedParameterValue = parameterValue.trim();
+            JSONObject clientParams = new JSONObject(normalizedParameterValue);
+            if (!allowEmptyPayload && normalizedParameterValue.matches("\\{\\s*\\}")) {
                 throw new IllegalArgumentException("Parameters are required.");
             }
             clientParams.put("rtc.set_app_type", 10);

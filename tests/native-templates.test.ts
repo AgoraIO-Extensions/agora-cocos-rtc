@@ -727,13 +727,15 @@ test('android bridge template rejects unsafe invalid arguments before calling th
   );
   assert.ok(handleSetParametersMatch);
   assert.match(handleSetParametersMatch[0], /Parameters are required\./);
-  assert.match(handleSetParametersMatch[0], /dispatchInvalidArgumentError\(requestId, error\.getMessage\(\), "setParameters", "parameters", parameterValue\);/);
+  assert.match(handleSetParametersMatch[0], /String normalizedParameterValue = parameterValue != null \? parameterValue\.trim\(\) : null;/);
+  assert.match(handleSetParametersMatch[0], /dispatchInvalidArgumentError\(requestId, error\.getMessage\(\), "setParameters", "parameters", normalizedParameterValue\);/);
   assertPatternBefore(
     handleSetParametersMatch[0],
-    /Parameters are required\./,
-    /rtcEngine\.setParameters/,
+    /normalizedParameterValue == null \|\| normalizedParameterValue\.isEmpty\(\)/,
+    /mergeProtectedParameters\(normalizedParameterValue, false\)/,
     'setParameters must reject an empty payload before invoking native sdk',
   );
+  assert.match(bridgeContent, /new JSONObject\(normalizedParameterValue\)/);
 });
 
 test('android bridge template resolves joinChannel after the sdk accepts the request', async () => {
