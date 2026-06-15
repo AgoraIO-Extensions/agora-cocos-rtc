@@ -4,7 +4,7 @@
   "author": "OpenAI Codex",
   "description": "Placeholder native plugin manifest for Agora RTC bridge templates.",
   "engine-version": ">=3.8.0",
-  "disabled": true,
+  "disabled": false,
   "modules": [
     {
       "target": "agora_rtc_glue"
