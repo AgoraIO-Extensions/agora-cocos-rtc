@@ -269,6 +269,23 @@ test('ios swift bridge template uses Swift-compatible Foundation and AVFoundatio
   assert.match(bridgeContent, /NSCoder\.string\(for: size\)/);
 });
 
+test('tracked ios bridge sources define missingParameters for protected parameter validation', async () => {
+  const bridgePaths = [
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    path.join(repoRoot, 'example/basic-call/native/agora-rtc/ios/AgoraRtcBridge.swift'),
+  ];
+
+  for (const bridgePath of bridgePaths) {
+    const bridgeContent = await readFile(bridgePath, 'utf8');
+
+    assert.match(
+      bridgeContent,
+      /private enum AgoraRtcBridgeParameterError: LocalizedError \{[\s\S]*case invalidJsonObjectString[\s\S]*case missingParameters/,
+      `${bridgePath} should define the missingParameters error case before throwing it.`,
+    );
+  }
+});
+
 test('engine-texture backend keeps template/runtime slot upload dimensions in sync', async () => {
   const templateLimits = await readEngineTextureLimits(engineTextureBackendTemplate);
   const runtimeLimits = await readEngineTextureLimits(engineTextureBackendRuntime);
