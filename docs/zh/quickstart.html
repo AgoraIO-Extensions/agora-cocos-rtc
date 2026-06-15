@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN" data-locale="zh" data-page="quickstart">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agora Cocos RTC 文档</title>
+    <link rel="stylesheet" href="../assets/app.css" />
+    <script src="../assets/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到正文</a>
+    <div class="doc-shell">
+      <header class="doc-header">
+        <div>
+          <div class="mono">Agora Cocos RTC</div>
+          <strong>Developer Docs</strong>
+        </div>
+        <div class="locale-switch" aria-label="Language switch">
+          <button type="button" aria-current="true" data-locale-target="zh">中文</button>
+          <button type="button" data-locale-target="en">English</button>
+          <button id="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+        </div>
+      </header>
+      <nav id="primary-nav" class="doc-nav" aria-label="Primary">
+        <a href="./index.html">Overview</a>
+        <a href="./quickstart.html" aria-current="page">Quickstart</a>
+        <a href="./core-apis.html">Core APIs</a>
+        <a href="./rendering.html">Rendering</a>
+        <a href="./example.html">Example</a>
+        <a href="./platform-notes.html">Platform Notes</a>
+        <a href="./api-reference.html">API Reference</a>
+      </nav>
+      <main id="main-content" class="doc-main">
+        <section class="hero">
+          <div class="section-kicker">Onboarding First</div>
+          <h1>Quickstart</h1>
+          <p class="lede">目标是在最短路径内完成准备示例、初始化引擎、加入频道、开始预览，并验证关键回调。</p>
+        </section>
+        <section class="card">
+          <h2 id="prepare-example">1. 准备示例工程</h2>
+          <pre class="code-block"><code>./scripts/prepare-example.sh</code></pre>
+          <p>然后用 Cocos Creator 3.8.8 打开 <code>example/basic-call</code>。</p>
+        </section>
+        <section class="card">
+          <h2 id="initialize-join">2. 初始化并加入频道</h2>
+          <pre class="code-block"><code>import { createAgoraRtcClient } from '../../extensions/agora-rtc/js/agora.ts';
+
+const client = createAgoraRtcClient();
+await client.initialize(appId);
+await client.joinChannel(token, channelId, uid);</code></pre>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#export-createAgoraRtcClient">createAgoraRtcClient</a>
+            <a class="api-link" href="./api-reference.html#method-initialize">initialize</a>
+            <a class="api-link" href="./api-reference.html#method-joinChannel">joinChannel</a>
+          </div>
+          <p>如果需要先看参数含义，跳到 <a href="./core-apis.html">Core APIs</a>。</p>
+        </section>
+        <section class="card">
+          <h2 id="verify-success">3. 验证成功信号</h2>
+          <ul>
+            <li><a class="api-link" href="./api-reference.html#event-joinChannelSuccess">joinChannelSuccess</a> 已触发</li>
+            <li>如果绑定纹理视图，观察到 <a class="api-link" href="./api-reference.html#event-localVideoTextureReady">localVideoTextureReady</a></li>
+            <li>示例状态区持续刷新 RTC 事件和统计信息</li>
+          </ul>
+          <p>如果你不理解纹理视图和镜像行为，继续读 <a href="./rendering.html">Rendering</a>。</p>
+        </section>
+      </main>
+      <aside class="doc-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <div id="page-toc"></div>
+      </aside>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN" data-locale="zh" data-page="core-apis">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agora Cocos RTC 文档</title>
+    <link rel="stylesheet" href="../assets/app.css" />
+    <script src="../assets/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到正文</a>
+    <div class="doc-shell">
+      <header class="doc-header">
+        <div>
+          <div class="mono">Agora Cocos RTC</div>
+          <strong>Developer Docs</strong>
+        </div>
+        <div class="locale-switch" aria-label="Language switch">
+          <button type="button" aria-current="true" data-locale-target="zh">中文</button>
+          <button type="button" data-locale-target="en">English</button>
+          <button id="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+        </div>
+      </header>
+      <nav id="primary-nav" class="doc-nav" aria-label="Primary">
+        <a href="./index.html">Overview</a>
+        <a href="./quickstart.html">Quickstart</a>
+        <a href="./core-apis.html" aria-current="page">Core APIs</a>
+        <a href="./rendering.html">Rendering</a>
+        <a href="./example.html">Example</a>
+        <a href="./platform-notes.html">Platform Notes</a>
+        <a href="./api-reference.html">API Reference</a>
+      </nav>
+      <main id="main-content" class="doc-main">
+        <section class="hero">
+          <div class="section-kicker">Capability Map</div>
+          <h1>Core APIs</h1>
+          <p class="lede">这里不按源码文件讲 API，而是按开发者在接入时会做的事情来分组。</p>
+        </section>
+        <section class="card">
+          <h2 id="engine-session">引擎与会话</h2>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#export-createAgoraRtcClient">createAgoraRtcClient</a>
+            <a class="api-link" href="./api-reference.html#method-initialize">initialize</a>
+            <a class="api-link" href="./api-reference.html#method-destroy">destroy</a>
+          </div>
+        </section>
+        <section class="card">
+          <h2 id="channel-identity">频道与身份</h2>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#method-setChannelProfile">setChannelProfile</a>
+            <a class="api-link" href="./api-reference.html#method-joinChannel">joinChannel</a>
+            <a class="api-link" href="./api-reference.html#method-joinChannelWithUserAccount">joinChannelWithUserAccount</a>
+            <a class="api-link" href="./api-reference.html#method-getUserInfoByUserAccount">getUserInfoByUserAccount</a>
+          </div>
+        </section>
+        <section class="card">
+          <h2 id="audio">音频</h2>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#method-startAudioMixing">startAudioMixing</a>
+            <a class="api-link" href="./api-reference.html#method-playEffect">playEffect</a>
+            <a class="api-link" href="./api-reference.html#method-setLogFile">setLogFile</a>
+          </div>
+        </section>
+        <section class="card">
+          <h2 id="video-views">视频与视图</h2>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#method-setVideoEncoderConfiguration">setVideoEncoderConfiguration</a>
+            <a class="api-link" href="./api-reference.html#method-setupLocalVideoView">setupLocalVideoView</a>
+            <a class="api-link" href="./api-reference.html#method-setupRemoteVideoView">setupRemoteVideoView</a>
+          </div>
+        </section>
+        <section class="card">
+          <h2 id="rendering-controls">渲染与视觉控制</h2>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#method-setRenderBackend">setRenderBackend</a>
+            <a class="api-link" href="./api-reference.html#method-setVideoEncoderConfiguration">setVideoEncoderConfiguration</a>
+          </div>
+        </section>
+        <section class="card">
+          <h2 id="mixing-diagnostics">混音、音效与诊断</h2>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#method-startAudioMixing">startAudioMixing</a>
+            <a class="api-link" href="./api-reference.html#method-playEffect">playEffect</a>
+            <a class="api-link" href="./api-reference.html#method-setLogFile">setLogFile</a>
+          </div>
+          <p>完整条目继续看 <a href="./api-reference.html">API Reference</a>。</p>
+        </section>
+      </main>
+      <aside class="doc-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <div id="page-toc"></div>
+      </aside>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,719 @@
+<!doctype html>
+<html lang="en" data-locale="en" data-page="api-reference">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agora Cocos RTC Docs</title>
+    <link rel="stylesheet" href="../assets/app.css" />
+    <script src="../assets/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="doc-shell">
+      <header class="doc-header">
+        <div>
+          <div class="mono">Agora Cocos RTC</div>
+          <strong>Developer Docs</strong>
+        </div>
+        <div class="locale-switch" aria-label="Language switch">
+          <button type="button" data-locale-target="zh">中文</button>
+          <button type="button" aria-current="true" data-locale-target="en">English</button>
+          <button id="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+        </div>
+      </header>
+      <nav id="primary-nav" class="doc-nav" aria-label="Primary">
+        <a href="./index.html">Overview</a>
+        <a href="./quickstart.html">Quickstart</a>
+        <a href="./core-apis.html">Core APIs</a>
+        <a href="./rendering.html">Rendering</a>
+        <a href="./example.html">Example</a>
+        <a href="./platform-notes.html">Platform Notes</a>
+        <a href="./api-reference.html" aria-current="page">API Reference</a>
+      </nav>
+      <main id="main-content" class="doc-main">
+        <section class="hero">
+          <h1>API Reference</h1>
+          <p>This page is the exact lookup surface. Entries must stay aligned with the current public exports and expose stable anchors.</p>
+        </section>
+        <section class="card">
+          <h2 id="exports">Top-level exports</h2>
+          <article id="export-createAgoraRtcClient" data-signature="createAgoraRtcClient(options?: AgoraRtcClientOptions)">
+            <h3>createAgoraRtcClient</h3>
+            <p>Create the main RTC client instance for almost every integration flow.</p>
+            <code class="signature">createAgoraRtcClient(options?: AgoraRtcClientOptions): AgoraRtcClient</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>options.bridgeRuntime</code>: optional custom bridge runtime.</li><li><code>options.timeoutMs</code>: optional native request timeout in milliseconds. Default is 5000.</li><li><code>options.transport</code>: optional explicit bridge transport.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns an <code>AgoraRtcClient</code> instance for later RTC calls.</li></ul></div>
+          </article>
+          <article id="export-createAgoraEngineTextureViewManager" data-signature="createAgoraEngineTextureViewManager(client: AgoraRtcClient, bridgeRuntime?: CocosBridgeRuntime)">
+            <h3>createAgoraEngineTextureViewManager</h3>
+            <p>Create an engine-texture view manager for texture slot and display-node binding workflows.</p>
+            <code class="signature">createAgoraEngineTextureViewManager(client: AgoraRtcClient, bridgeRuntime?: CocosBridgeRuntime): Promise&lt;AgoraEngineTextureViewManager&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>client</code>: required RTC client instance.</li><li><code>bridgeRuntime</code>: optional explicit bridge runtime context.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves to <code>AgoraEngineTextureViewManager</code>.</li></ul></div>
+          </article>
+          <article id="export-createAgoraEngineTextureViewController" data-signature="createAgoraEngineTextureViewController(client: AgoraRtcClient)">
+            <h3>createAgoraEngineTextureViewController</h3>
+            <p>Create an engine-texture view controller for local and remote view registration flows.</p>
+            <code class="signature">createAgoraEngineTextureViewController(client: AgoraRtcClient): AgoraEngineTextureViewController</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>client</code>: required RTC client instance.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns an <code>AgoraEngineTextureViewController</code> instance.</li></ul></div>
+          </article>
+          <article id="export-getAgoraEngineTextureBridge" data-signature="getAgoraEngineTextureBridge(runtime?: CocosBridgeRuntime)">
+            <h3>getAgoraEngineTextureBridge</h3>
+            <p>Read the active engine texture bridge from the current runtime.</p>
+            <code class="signature">getAgoraEngineTextureBridge(runtime?: CocosBridgeRuntime): CocosEngineTextureBridge | null</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>runtime</code>: optional explicit runtime object.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns the bridge object, or <code>null</code> when unavailable.</li></ul></div>
+          </article>
+        </section>
+        <section class="card">
+          <h2 id="client-methods">AgoraRtcClient</h2>
+          <article id="method-on" data-signature="on(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void)">
+            <h3>on</h3>
+            <p>Subscribe to SDK events.</p>
+            <code class="signature">on(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void): () =&gt; void</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>eventName</code>: See the source type definition.</li><li><code>listener</code>: See the source type definition.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns () =&gt; void.</li></ul></div>
+          </article>
+          <article id="method-off" data-signature="off(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void)">
+            <h3>off</h3>
+            <p>Remove an SDK event listener.</p>
+            <code class="signature">off(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void): void</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>eventName</code>: See the source type definition.</li><li><code>listener</code>: See the source type definition.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns void.</li></ul></div>
+          </article>
+          <article id="method-setRenderBackend" data-signature="setRenderBackend(backend: AgoraRenderBackend)">
+            <h3>setRenderBackend</h3>
+            <p>Set the render backend. The current public backend value is <code>engine-texture</code>.</p>
+            <code class="signature">setRenderBackend(backend: AgoraRenderBackend): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>backend</code>: required backend value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-initialize" data-signature="initialize(config: string | AgoraRtcEngineConfig)">
+            <h3>initialize</h3>
+            <p>Initialize the RTC engine. You can pass only the App ID or the full config object.</p>
+            <code class="signature">initialize(config: string | AgoraRtcEngineConfig): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>config</code>: required config object or App ID wrapper.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-getSdkVersion" data-signature="getSdkVersion()">
+            <h3>getSdkVersion</h3>
+            <p>Read the current native SDK version string.</p>
+            <code class="signature">getSdkVersion(): Promise&lt;string&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves to a string result.</li></ul></div>
+          </article>
+          <article id="method-getErrorDescription" data-signature="getErrorDescription(code: number)">
+            <h3>getErrorDescription</h3>
+            <p>Resolve a native error code into a readable description.</p>
+            <code class="signature">getErrorDescription(code: number): Promise&lt;string&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>code</code>: required numeric error code.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves to a string result.</li></ul></div>
+          </article>
+          <article id="method-setLogFilter" data-signature="setLogFilter(level: number)">
+            <h3>setLogFilter</h3>
+            <p>Set the native SDK log filter level.</p>
+            <code class="signature">setLogFilter(level: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>level</code>: required log filter value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setLogFile" data-signature="setLogFile(path: string)">
+            <h3>setLogFile</h3>
+            <p>Set the native SDK log output file path.</p>
+            <code class="signature">setLogFile(path: string): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>path</code>: required local file path.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setChannelProfile" data-signature="setChannelProfile(profile: &#x27;communication&#x27; | &#x27;liveBroadcasting&#x27;)">
+            <h3>setChannelProfile</h3>
+            <p>Set the channel profile before joining.</p>
+            <code class="signature">setChannelProfile(profile: &#x27;communication&#x27; | &#x27;liveBroadcasting&#x27;): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>profile</code>: required profile value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setClientRole" data-signature="setClientRole(role: &#x27;broadcaster&#x27; | &#x27;audience&#x27;, options?: AgoraClientRoleOptions)">
+            <h3>setClientRole</h3>
+            <p>Set broadcaster or audience role for live-broadcasting flows.</p>
+            <code class="signature">setClientRole(role: &#x27;broadcaster&#x27; | &#x27;audience&#x27;, options?: AgoraClientRoleOptions): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>role</code>: required client role.</li><li><code>options</code>: optional role options such as audience latency.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-joinChannel" data-signature="joinChannel(token: string, channelId: string, uid: number, options?: AgoraChannelMediaOptions)">
+            <h3>joinChannel</h3>
+            <p>Join with a numeric UID. This is the most common channel-entry method.</p>
+            <code class="signature">joinChannel(token: string, channelId: string, uid: number, options?: AgoraChannelMediaOptions): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>token</code>: required channel token.</li><li><code>channelId</code>: required channel name.</li><li><code>uid</code>: required numeric user ID.</li><li><code>options</code>: optional media behavior such as publish or subscribe flags.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise. Actual join success is signaled through <a href="#event-joinChannelSuccess">joinChannelSuccess</a>.</li></ul></div>
+          </article>
+          <article id="method-joinChannelWithUserAccount" data-signature="joinChannelWithUserAccount(token: string, channelId: string, userAccount: string, options?: AgoraChannelMediaOptions)">
+            <h3>joinChannelWithUserAccount</h3>
+            <p>Join with a string-based user account.</p>
+            <code class="signature">joinChannelWithUserAccount(token: string, channelId: string, userAccount: string, options?: AgoraChannelMediaOptions): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>token</code>: required channel token.</li><li><code>channelId</code>: required channel name.</li><li><code>userAccount</code>: required string user account.</li><li><code>options</code>: optional media behavior such as publish or subscribe flags.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-getUserInfoByUserAccount" data-signature="getUserInfoByUserAccount(userAccount: string)">
+            <h3>getUserInfoByUserAccount</h3>
+            <p>Resolve a string account into public Agora user info.</p>
+            <code class="signature">getUserInfoByUserAccount(userAccount: string): Promise&lt;AgoraUserInfo&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>userAccount</code>: required string user account.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves to Agora user info.</li></ul></div>
+          </article>
+          <article id="method-leaveChannel" data-signature="leaveChannel(options?: AgoraLeaveChannelOptions)">
+            <h3>leaveChannel</h3>
+            <p>Leave the current channel.</p>
+            <code class="signature">leaveChannel(options?: AgoraLeaveChannelOptions): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>options</code>: optional leave behavior such as stopping mixing or effects.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise. Final session stats are delivered through <a href="#event-leaveChannel">leaveChannel</a>.</li></ul></div>
+          </article>
+          <article id="method-renewToken" data-signature="renewToken(token: string)">
+            <h3>renewToken</h3>
+            <p>Renew the active channel token.</p>
+            <code class="signature">renewToken(token: string): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>token</code>: required channel token.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-enableAudio" data-signature="enableAudio(enabled: boolean)">
+            <h3>enableAudio</h3>
+            <p>Enable or disable the audio module.</p>
+            <code class="signature">enableAudio(enabled: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>enabled</code>: required boolean switch.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-enableLocalAudio" data-signature="enableLocalAudio(enabled: boolean)">
+            <h3>enableLocalAudio</h3>
+            <p>Enable or disable local audio capture.</p>
+            <code class="signature">enableLocalAudio(enabled: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>enabled</code>: required boolean switch.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-muteLocalAudioStream" data-signature="muteLocalAudioStream(muted: boolean)">
+            <h3>muteLocalAudioStream</h3>
+            <p>Mute or unmute the local published audio stream.</p>
+            <code class="signature">muteLocalAudioStream(muted: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>muted</code>: required mute state.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-muteRemoteAudioStream" data-signature="muteRemoteAudioStream(uid: number, muted: boolean)">
+            <h3>muteRemoteAudioStream</h3>
+            <p>Mute or unmute a specific remote audio stream.</p>
+            <code class="signature">muteRemoteAudioStream(uid: number, muted: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>uid</code>: required numeric user ID.</li><li><code>muted</code>: required mute state.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-muteAllRemoteAudioStreams" data-signature="muteAllRemoteAudioStreams(muted: boolean)">
+            <h3>muteAllRemoteAudioStreams</h3>
+            <p>Mute or unmute all remote audio streams.</p>
+            <code class="signature">muteAllRemoteAudioStreams(muted: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>muted</code>: required mute state.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setAudioProfile" data-signature="setAudioProfile(profile: number, scenario?: number)">
+            <h3>setAudioProfile</h3>
+            <p>Set audio profile and scenario.</p>
+            <code class="signature">setAudioProfile(profile: number, scenario?: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>profile</code>: required profile value.</li><li><code>scenario</code>: optional scenario value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-enableAudioVolumeIndication" data-signature="enableAudioVolumeIndication(interval: number, smooth?: number, reportVad?: boolean)">
+            <h3>enableAudioVolumeIndication</h3>
+            <p>Enable periodic volume indication callbacks.</p>
+            <code class="signature">enableAudioVolumeIndication(interval: number, smooth?: number, reportVad?: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>interval</code>: required interval in milliseconds.</li><li><code>smooth</code>: optional smoothing factor.</li><li><code>reportVad</code>: optional voice activity flag.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setDefaultAudioRouteToSpeakerphone" data-signature="setDefaultAudioRouteToSpeakerphone(enabled: boolean)">
+            <h3>setDefaultAudioRouteToSpeakerphone</h3>
+            <p>Set the default route to speakerphone.</p>
+            <code class="signature">setDefaultAudioRouteToSpeakerphone(enabled: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>enabled</code>: required boolean switch.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setEnableSpeakerphone" data-signature="setEnableSpeakerphone(enabled: boolean)">
+            <h3>setEnableSpeakerphone</h3>
+            <p>Force speakerphone on or off.</p>
+            <code class="signature">setEnableSpeakerphone(enabled: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>enabled</code>: required boolean switch.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-isSpeakerphoneEnabled" data-signature="isSpeakerphoneEnabled()">
+            <h3>isSpeakerphoneEnabled</h3>
+            <p>Query whether speakerphone is enabled.</p>
+            <code class="signature">isSpeakerphoneEnabled(): Promise&lt;boolean&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves to a boolean result.</li></ul></div>
+          </article>
+          <article id="method-adjustPlaybackSignalVolume" data-signature="adjustPlaybackSignalVolume(volume: number)">
+            <h3>adjustPlaybackSignalVolume</h3>
+            <p>Adjust overall playback signal volume.</p>
+            <code class="signature">adjustPlaybackSignalVolume(volume: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>volume</code>: required numeric volume value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-adjustUserPlaybackSignalVolume" data-signature="adjustUserPlaybackSignalVolume(uid: number, volume: number)">
+            <h3>adjustUserPlaybackSignalVolume</h3>
+            <p>Adjust playback volume for one remote user.</p>
+            <code class="signature">adjustUserPlaybackSignalVolume(uid: number, volume: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>uid</code>: required numeric user ID.</li><li><code>volume</code>: required numeric volume value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setAudioSessionOperationRestriction" data-signature="setAudioSessionOperationRestriction(restriction: number)">
+            <h3>setAudioSessionOperationRestriction</h3>
+            <p>Set audio session restriction flags.</p>
+            <code class="signature">setAudioSessionOperationRestriction(restriction: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>restriction</code>: required restriction value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-enableVideo" data-signature="enableVideo(enabled: boolean)">
+            <h3>enableVideo</h3>
+            <p>Enable or disable the video module.</p>
+            <code class="signature">enableVideo(enabled: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>enabled</code>: required boolean switch.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-enableLocalVideo" data-signature="enableLocalVideo(enabled: boolean)">
+            <h3>enableLocalVideo</h3>
+            <p>Enable or disable local video capture.</p>
+            <code class="signature">enableLocalVideo(enabled: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>enabled</code>: required boolean switch.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-muteLocalVideoStream" data-signature="muteLocalVideoStream(muted: boolean)">
+            <h3>muteLocalVideoStream</h3>
+            <p>Mute or unmute the local published video stream.</p>
+            <code class="signature">muteLocalVideoStream(muted: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>muted</code>: required mute state.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-muteRemoteVideoStream" data-signature="muteRemoteVideoStream(uid: number, muted: boolean)">
+            <h3>muteRemoteVideoStream</h3>
+            <p>Mute or unmute a specific remote video stream.</p>
+            <code class="signature">muteRemoteVideoStream(uid: number, muted: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>uid</code>: required numeric user ID.</li><li><code>muted</code>: required mute state.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-muteAllRemoteVideoStreams" data-signature="muteAllRemoteVideoStreams(muted: boolean)">
+            <h3>muteAllRemoteVideoStreams</h3>
+            <p>Mute or unmute all remote video streams.</p>
+            <code class="signature">muteAllRemoteVideoStreams(muted: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>muted</code>: required mute state.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setVideoEncoderConfiguration" data-signature="setVideoEncoderConfiguration(config: AgoraVideoEncoderConfiguration)">
+            <h3>setVideoEncoderConfiguration</h3>
+            <p>Set video encoder configuration including resolution, bitrate, frame rate, and mirror options.</p>
+            <code class="signature">setVideoEncoderConfiguration(config: AgoraVideoEncoderConfiguration): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>config</code>: required encoder config object.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-applyVideoEncoderMirrorConfiguration" data-signature="applyVideoEncoderMirrorConfiguration(config: Partial&lt;AgoraVideoEncoderConfiguration&gt; &amp; Pick&lt;AgoraVideoEncoderConfiguration, &#x27;width&#x27; | &#x27;height&#x27;&gt;)">
+            <h3>applyVideoEncoderMirrorConfiguration</h3>
+            <p>Apply derived mirror configuration to encoder settings.</p>
+            <code class="signature">applyVideoEncoderMirrorConfiguration(config: Partial&lt;AgoraVideoEncoderConfiguration&gt; &amp; Pick&lt;AgoraVideoEncoderConfiguration, &#x27;width&#x27; | &#x27;height&#x27;&gt;): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>config</code>: required partial video encoder config with width and height.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-getEngineTextureViewManager" data-signature="getEngineTextureViewManager()">
+            <h3>getEngineTextureViewManager</h3>
+            <p>Read the cached engine texture view manager instance.</p>
+            <code class="signature">getEngineTextureViewManager(): InstanceType&lt;AgoraEngineTextureViewManager&gt; | null</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns the cached manager instance or null when not created yet.</li></ul></div>
+          </article>
+          <article id="method-takeCachedLocalTextureSlot" data-signature="takeCachedLocalTextureSlot()">
+            <h3>takeCachedLocalTextureSlot</h3>
+            <p>Consume the cached local texture slot summary.</p>
+            <code class="signature">takeCachedLocalTextureSlot(): TextureReadySlotCache | null</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns the cached slot summary or null when no cached slot exists.</li></ul></div>
+          </article>
+          <article id="method-takeCachedRemoteTextureSlot" data-signature="takeCachedRemoteTextureSlot(uid: number)">
+            <h3>takeCachedRemoteTextureSlot</h3>
+            <p>Consume the cached remote texture slot summary for one remote user.</p>
+            <code class="signature">takeCachedRemoteTextureSlot(uid: number): TextureReadySlotCache | null</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>uid</code>: required numeric user ID.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns the cached slot summary or null when no cached slot exists.</li></ul></div>
+          </article>
+          <article id="method-setupLocalVideoView" data-signature="setupLocalVideoView(canvas: AgoraRtcVideoCanvas)">
+            <h3>setupLocalVideoView</h3>
+            <p>Bind a local video view, usually with <code>displayNode</code> or a texture slot.</p>
+            <code class="signature">setupLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>canvas</code>: required local video canvas config.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setupRemoteVideoView" data-signature="setupRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas)">
+            <h3>setupRemoteVideoView</h3>
+            <p>Bind a remote video view.</p>
+            <code class="signature">setupRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>uid</code>: required numeric user ID.</li><li><code>canvas</code>: required remote video canvas config.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-updateLocalVideoView" data-signature="updateLocalVideoView(canvas: AgoraRtcVideoCanvas)">
+            <h3>updateLocalVideoView</h3>
+            <p>Update the existing local video view configuration.</p>
+            <code class="signature">updateLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>canvas</code>: required updated local canvas config.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-updateRemoteVideoView" data-signature="updateRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas)">
+            <h3>updateRemoteVideoView</h3>
+            <p>Update the existing remote video view configuration.</p>
+            <code class="signature">updateRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>uid</code>: required numeric user ID.</li><li><code>canvas</code>: required updated remote canvas config.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-removeLocalVideoView" data-signature="removeLocalVideoView()">
+            <h3>removeLocalVideoView</h3>
+            <p>Remove the current local video view binding.</p>
+            <code class="signature">removeLocalVideoView(): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-removeRemoteVideoView" data-signature="removeRemoteVideoView(uid: number)">
+            <h3>removeRemoteVideoView</h3>
+            <p>Remove one remote video view binding.</p>
+            <code class="signature">removeRemoteVideoView(uid: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>uid</code>: required numeric user ID.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setNativeVideoOverlaySuspended" data-signature="setNativeVideoOverlaySuspended(suspended: boolean)">
+            <h3>setNativeVideoOverlaySuspended</h3>
+            <p>Suspend or resume the compatibility native overlay surface.</p>
+            <code class="signature">setNativeVideoOverlaySuspended(suspended: boolean): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>suspended</code>: required suspended state.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-startPreview" data-signature="startPreview(sourceType?: number)">
+            <h3>startPreview</h3>
+            <p>Start local preview.</p>
+            <code class="signature">startPreview(sourceType?: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>sourceType</code>: optional source type value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-stopPreview" data-signature="stopPreview(sourceType?: number)">
+            <h3>stopPreview</h3>
+            <p>Stop local preview.</p>
+            <code class="signature">stopPreview(sourceType?: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>sourceType</code>: optional source type value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-switchCamera" data-signature="switchCamera()">
+            <h3>switchCamera</h3>
+            <p>Switch the active camera between front and rear.</p>
+            <code class="signature">switchCamera(): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setBeautyEffectOptions" data-signature="setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number)">
+            <h3>setBeautyEffectOptions</h3>
+            <p>Enable beauty effects and update their options.</p>
+            <code class="signature">setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>enabled</code>: required boolean switch.</li><li><code>options</code>: optional options object.</li><li><code>sourceType</code>: optional source type value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-enableContentInspect" data-signature="enableContentInspect(enabled: boolean, config?: AgoraContentInspectConfig)">
+            <h3>enableContentInspect</h3>
+            <p>Enable or disable content inspection.</p>
+            <code class="signature">enableContentInspect(enabled: boolean, config?: AgoraContentInspectConfig): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>enabled</code>: required boolean switch.</li><li><code>config</code>: optional content inspection config object.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-startAudioMixing" data-signature="startAudioMixing(config: AgoraAudioMixingConfig)">
+            <h3>startAudioMixing</h3>
+            <p>Start audio mixing for background music or local-file accompaniment.</p>
+            <code class="signature">startAudioMixing(config: AgoraAudioMixingConfig): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>config</code>: required audio mixing config object.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-pauseAudioMixing" data-signature="pauseAudioMixing()">
+            <h3>pauseAudioMixing</h3>
+            <p>Pause the current audio mixing playback.</p>
+            <code class="signature">pauseAudioMixing(): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-resumeAudioMixing" data-signature="resumeAudioMixing()">
+            <h3>resumeAudioMixing</h3>
+            <p>Resume paused audio mixing.</p>
+            <code class="signature">resumeAudioMixing(): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-stopAudioMixing" data-signature="stopAudioMixing()">
+            <h3>stopAudioMixing</h3>
+            <p>Stop current audio mixing playback.</p>
+            <code class="signature">stopAudioMixing(): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-getAudioMixingCurrentPosition" data-signature="getAudioMixingCurrentPosition()">
+            <h3>getAudioMixingCurrentPosition</h3>
+            <p>Read the current audio mixing position.</p>
+            <code class="signature">getAudioMixingCurrentPosition(): Promise&lt;number&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves to a numeric result.</li></ul></div>
+          </article>
+          <article id="method-setAudioMixingPosition" data-signature="setAudioMixingPosition(positionMs: number)">
+            <h3>setAudioMixingPosition</h3>
+            <p>Seek audio mixing to a new position.</p>
+            <code class="signature">setAudioMixingPosition(positionMs: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>positionMs</code>: required target position in milliseconds.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-adjustAudioMixingVolume" data-signature="adjustAudioMixingVolume(volume: number)">
+            <h3>adjustAudioMixingVolume</h3>
+            <p>Adjust overall audio mixing volume.</p>
+            <code class="signature">adjustAudioMixingVolume(volume: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>volume</code>: required numeric volume value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-preloadEffect" data-signature="preloadEffect(soundId: number, path: string, startPos?: number)">
+            <h3>preloadEffect</h3>
+            <p>Preload an effect sound into memory.</p>
+            <code class="signature">preloadEffect(soundId: number, path: string, startPos?: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>soundId</code>: required effect ID.</li><li><code>path</code>: required local file path.</li><li><code>startPos</code>: optional start position in milliseconds.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-playEffect" data-signature="playEffect(config: AgoraPlayEffectConfig)">
+            <h3>playEffect</h3>
+            <p>Play a short effect sound.</p>
+            <code class="signature">playEffect(config: AgoraPlayEffectConfig): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>config</code>: required effect playback config object.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-pauseEffect" data-signature="pauseEffect(soundId: number)">
+            <h3>pauseEffect</h3>
+            <p>Pause a playing effect sound.</p>
+            <code class="signature">pauseEffect(soundId: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>soundId</code>: required effect ID.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-resumeEffect" data-signature="resumeEffect(soundId: number)">
+            <h3>resumeEffect</h3>
+            <p>Resume a paused effect sound.</p>
+            <code class="signature">resumeEffect(soundId: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>soundId</code>: required effect ID.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setEffectsVolume" data-signature="setEffectsVolume(volume: number)">
+            <h3>setEffectsVolume</h3>
+            <p>Set the global effects volume.</p>
+            <code class="signature">setEffectsVolume(volume: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>volume</code>: required numeric volume value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-adjustAudioMixingPublishVolume" data-signature="adjustAudioMixingPublishVolume(volume: number)">
+            <h3>adjustAudioMixingPublishVolume</h3>
+            <p>Adjust the published audio mixing volume.</p>
+            <code class="signature">adjustAudioMixingPublishVolume(volume: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>volume</code>: required numeric volume value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-adjustAudioMixingPlayoutVolume" data-signature="adjustAudioMixingPlayoutVolume(volume: number)">
+            <h3>adjustAudioMixingPlayoutVolume</h3>
+            <p>Adjust the local audio mixing playout volume.</p>
+            <code class="signature">adjustAudioMixingPlayoutVolume(volume: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>volume</code>: required numeric volume value.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-stopEffect" data-signature="stopEffect(soundId: number)">
+            <h3>stopEffect</h3>
+            <p>Stop a playing effect sound.</p>
+            <code class="signature">stopEffect(soundId: number): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>soundId</code>: required effect ID.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-setParameters" data-signature="setParameters(parameters: string | Record&lt;string, unknown&gt;)">
+            <h3>setParameters</h3>
+            <p>Set extended bridge parameters for private capabilities or compatibility flags.</p>
+            <code class="signature">setParameters(parameters: string | Record&lt;string, unknown&gt;): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>parameters</code>: See the source type definition.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+          <article id="method-getEngineTexture" data-signature="getEngineTexture(slotId: number)">
+            <h3>getEngineTexture</h3>
+            <p>Read a cached engine texture object.</p>
+            <code class="signature">getEngineTexture(slotId: number): unknown | null</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>slotId</code>: required texture slot ID.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns the cached value or null when unavailable.</li></ul></div>
+          </article>
+          <article id="method-isEngineTextureReady" data-signature="isEngineTextureReady(slotId: number)">
+            <h3>isEngineTextureReady</h3>
+            <p>Check whether a texture slot is ready.</p>
+            <code class="signature">isEngineTextureReady(slotId: number): boolean</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>slotId</code>: required texture slot ID.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a boolean status value immediately.</li></ul></div>
+          </article>
+          <article id="method-destroy" data-signature="destroy()">
+            <h3>destroy</h3>
+            <p>Destroy the client and tear down listeners and pending requests.</p>
+            <code class="signature">destroy(): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
+          </article>
+        </section>
+        <section class="card">
+          <h2 id="events">Priority events</h2>
+          <article id="event-joinChannelSuccess">
+            <h3>joinChannelSuccess</h3>
+            <p>Fires when the channel join succeeds.</p>
+            <code class="signature">on(&#x27;joinChannelSuccess&#x27;, (payload: AgoraEventMap[&#x27;joinChannelSuccess&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>channelId</code>: <code>string</code> — joined or affected channel name.</li><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>elapsed</code>: <code>number</code> — elapsed time for the related transition.</li></ul></div>
+          </article>
+          <article id="event-leaveChannel">
+            <h3>leaveChannel</h3>
+            <p>Stats callback after leaving the channel.</p>
+            <code class="signature">on(&#x27;leaveChannel&#x27;, (payload: AgoraEventMap[&#x27;leaveChannel&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>duration</code>: <code>number</code> — session duration in seconds.</li><li><code>txBytes?</code>: <code>number</code> — optional total transmitted bytes.</li><li><code>rxBytes?</code>: <code>number</code> — optional total received bytes.</li><li><code>txKBitRate?</code>: <code>number</code> — optional total transmit bitrate in Kbps.</li><li><code>rxKBitRate?</code>: <code>number</code> — optional total receive bitrate in Kbps.</li><li><code>txAudioBytes?</code>: <code>number</code> — optional transmitted audio bytes.</li><li><code>rxAudioBytes?</code>: <code>number</code> — optional received audio bytes.</li><li><code>txVideoBytes?</code>: <code>number</code> — optional transmitted video bytes.</li><li><code>rxVideoBytes?</code>: <code>number</code> — optional received video bytes.</li><li><code>txAudioKBitRate?</code>: <code>number</code> — optional transmit audio bitrate in Kbps.</li><li><code>rxAudioKBitRate?</code>: <code>number</code> — optional receive audio bitrate in Kbps.</li><li><code>txVideoKBitRate?</code>: <code>number</code> — optional transmit video bitrate in Kbps.</li><li><code>rxVideoKBitRate?</code>: <code>number</code> — optional receive video bitrate in Kbps.</li><li><code>lastmileDelay?</code>: <code>number</code> — optional last-mile network delay.</li><li><code>cpuTotalUsage?</code>: <code>number</code> — optional total CPU usage ratio.</li><li><code>gatewayRtt?</code>: <code>number</code> — optional gateway round-trip time.</li><li><code>cpuAppUsage?</code>: <code>number</code> — optional app CPU usage ratio.</li><li><code>users?</code>: <code>number</code> — optional user count in the stats sample.</li><li><code>connectTimeMs?</code>: <code>number</code> — optional connection establishment time in milliseconds.</li><li><code>txPacketLossRate?</code>: <code>number</code> — optional transmit packet loss rate.</li><li><code>rxPacketLossRate?</code>: <code>number</code> — optional receive packet loss rate.</li><li><code>memoryAppUsageRatio?</code>: <code>number</code> — optional app memory usage ratio.</li><li><code>memoryTotalUsageRatio?</code>: <code>number</code> — optional total memory usage ratio.</li><li><code>memoryAppUsageInKbytes?</code>: <code>number</code> — optional app memory usage in KB.</li></ul></div>
+          </article>
+          <article id="event-rejoinChannelSuccess">
+            <h3>rejoinChannelSuccess</h3>
+            <p>Fires when the client rejoins the channel successfully.</p>
+            <code class="signature">on(&#x27;rejoinChannelSuccess&#x27;, (payload: AgoraEventMap[&#x27;rejoinChannelSuccess&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>channelId</code>: <code>string</code> — joined or affected channel name.</li><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>elapsed</code>: <code>number</code> — elapsed time for the related transition.</li></ul></div>
+          </article>
+          <article id="event-connectionInterrupted">
+            <h3>connectionInterrupted</h3>
+            <p>Fires when connection interruption is detected.</p>
+            <code class="signature">on(&#x27;connectionInterrupted&#x27;, (payload: AgoraEventMap[&#x27;connectionInterrupted&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li>No payload fields.</li></ul></div>
+          </article>
+          <article id="event-connectionStateChanged">
+            <h3>connectionStateChanged</h3>
+            <p>Fires when connection state changes.</p>
+            <code class="signature">on(&#x27;connectionStateChanged&#x27;, (payload: AgoraEventMap[&#x27;connectionStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>state</code>: <code>number</code> — state value reported by the native SDK.</li><li><code>reason</code>: <code>number</code> — reason code reported by the native SDK.</li></ul></div>
+          </article>
+          <article id="event-localVideoTextureReady">
+            <h3>localVideoTextureReady</h3>
+            <p>Fires when the local texture slot becomes ready.</p>
+            <code class="signature">on(&#x27;localVideoTextureReady&#x27;, (payload: AgoraEventMap[&#x27;localVideoTextureReady&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>slotId</code>: <code>number</code> — engine-texture slot ID.</li><li><code>width</code>: <code>number</code> — frame or texture width.</li><li><code>height</code>: <code>number</code> — frame or texture height.</li></ul></div>
+          </article>
+          <article id="event-remoteVideoTextureReady">
+            <h3>remoteVideoTextureReady</h3>
+            <p>Fires when a remote texture slot becomes ready.</p>
+            <code class="signature">on(&#x27;remoteVideoTextureReady&#x27;, (payload: AgoraEventMap[&#x27;remoteVideoTextureReady&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>slotId</code>: <code>number</code> — engine-texture slot ID.</li><li><code>width</code>: <code>number</code> — frame or texture width.</li><li><code>height</code>: <code>number</code> — frame or texture height.</li></ul></div>
+          </article>
+          <article id="event-localVideoTextureReleased">
+            <h3>localVideoTextureReleased</h3>
+            <p>Fires when the local texture slot is released.</p>
+            <code class="signature">on(&#x27;localVideoTextureReleased&#x27;, (payload: AgoraEventMap[&#x27;localVideoTextureReleased&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>slotId</code>: <code>number</code> — engine-texture slot ID.</li></ul></div>
+          </article>
+          <article id="event-remoteVideoTextureReleased">
+            <h3>remoteVideoTextureReleased</h3>
+            <p>Fires when a remote texture slot is released.</p>
+            <code class="signature">on(&#x27;remoteVideoTextureReleased&#x27;, (payload: AgoraEventMap[&#x27;remoteVideoTextureReleased&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>slotId</code>: <code>number</code> — engine-texture slot ID.</li></ul></div>
+          </article>
+          <article id="event-renderBackendState">
+            <h3>renderBackendState</h3>
+            <p>Fires when backend state changes or a fallback occurs.</p>
+            <code class="signature">on(&#x27;renderBackendState&#x27;, (payload: AgoraEventMap[&#x27;renderBackendState&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>backend</code>: <code>string</code> — active render backend name.</li><li><code>phase</code>: <code>string</code> — backend state phase.</li><li><code>result</code>: <code>number</code> — native result code.</li><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>fallbackBackend?</code>: <code>string</code> — optional fallback backend name.</li><li><code>platform?</code>: <code>string</code> — optional platform identifier.</li></ul></div>
+          </article>
+          <article id="event-userJoined">
+            <h3>userJoined</h3>
+            <p>Fires when a remote user joins.</p>
+            <code class="signature">on(&#x27;userJoined&#x27;, (payload: AgoraEventMap[&#x27;userJoined&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>elapsed</code>: <code>number</code> — elapsed time for the related transition.</li></ul></div>
+          </article>
+          <article id="event-userOffline">
+            <h3>userOffline</h3>
+            <p>Fires when a remote user goes offline.</p>
+            <code class="signature">on(&#x27;userOffline&#x27;, (payload: AgoraEventMap[&#x27;userOffline&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>reason?</code>: <code>number</code> — optional offline reason code.</li></ul></div>
+          </article>
+          <article id="event-remoteVideoStateChanged">
+            <h3>remoteVideoStateChanged</h3>
+            <p>Fires when remote video state changes.</p>
+            <code class="signature">on(&#x27;remoteVideoStateChanged&#x27;, (payload: AgoraEventMap[&#x27;remoteVideoStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>state</code>: <code>number</code> — state value reported by the native SDK.</li><li><code>reason</code>: <code>number</code> — reason code reported by the native SDK.</li><li><code>elapsed</code>: <code>number</code> — elapsed time for the related transition.</li></ul></div>
+          </article>
+          <article id="event-localVideoStateChanged">
+            <h3>localVideoStateChanged</h3>
+            <p>Fires when local video state changes.</p>
+            <code class="signature">on(&#x27;localVideoStateChanged&#x27;, (payload: AgoraEventMap[&#x27;localVideoStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>sourceType</code>: <code>number</code> — video source type.</li><li><code>state</code>: <code>number</code> — state value reported by the native SDK.</li><li><code>error</code>: <code>number</code> — native error code for the local video state change.</li></ul></div>
+          </article>
+          <article id="event-firstLocalAudioFramePublished">
+            <h3>firstLocalAudioFramePublished</h3>
+            <p>Fires when the first local audio frame is published.</p>
+            <code class="signature">on(&#x27;firstLocalAudioFramePublished&#x27;, (payload: AgoraEventMap[&#x27;firstLocalAudioFramePublished&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>elapsed</code>: <code>number</code> — elapsed time for the related transition.</li></ul></div>
+          </article>
+          <article id="event-audioMixingFinished">
+            <h3>audioMixingFinished</h3>
+            <p>Fires when audio mixing finishes.</p>
+            <code class="signature">on(&#x27;audioMixingFinished&#x27;, (payload: AgoraEventMap[&#x27;audioMixingFinished&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li>No payload fields.</li></ul></div>
+          </article>
+          <article id="event-audioMixingStateChanged">
+            <h3>audioMixingStateChanged</h3>
+            <p>Fires when audio mixing state changes.</p>
+            <code class="signature">on(&#x27;audioMixingStateChanged&#x27;, (payload: AgoraEventMap[&#x27;audioMixingStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>state</code>: <code>number</code> — state value reported by the native SDK.</li><li><code>reason</code>: <code>number</code> — reason code reported by the native SDK.</li></ul></div>
+          </article>
+          <article id="event-remoteAudioStateChanged">
+            <h3>remoteAudioStateChanged</h3>
+            <p>Fires when remote audio state changes.</p>
+            <code class="signature">on(&#x27;remoteAudioStateChanged&#x27;, (payload: AgoraEventMap[&#x27;remoteAudioStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>state</code>: <code>number</code> — state value reported by the native SDK.</li><li><code>reason</code>: <code>number</code> — reason code reported by the native SDK.</li><li><code>elapsed</code>: <code>number</code> — elapsed time for the related transition.</li></ul></div>
+          </article>
+          <article id="event-volumeIndication">
+            <h3>volumeIndication</h3>
+            <p>Periodic speaker volume indication callback.</p>
+            <code class="signature">on(&#x27;volumeIndication&#x27;, (payload: AgoraEventMap[&#x27;volumeIndication&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>speakers</code>: <code>Array&lt;{</code> — array of speaker entries including uid, volume, vad, and voicePitch.</li><li><code>totalVolume</code>: <code>number</code> — aggregate total volume value.</li></ul></div>
+          </article>
+          <article id="event-rtcStats">
+            <h3>rtcStats</h3>
+            <p>Periodic RTC statistics payload.</p>
+            <code class="signature">on(&#x27;rtcStats&#x27;, (payload: AgoraEventMap[&#x27;rtcStats&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>duration</code>: <code>number</code> — session duration in seconds.</li><li><code>txBytes?</code>: <code>number</code> — optional total transmitted bytes.</li><li><code>rxBytes?</code>: <code>number</code> — optional total received bytes.</li><li><code>txKBitRate?</code>: <code>number</code> — optional total transmit bitrate in Kbps.</li><li><code>rxKBitRate?</code>: <code>number</code> — optional total receive bitrate in Kbps.</li><li><code>txAudioBytes?</code>: <code>number</code> — optional transmitted audio bytes.</li><li><code>rxAudioBytes?</code>: <code>number</code> — optional received audio bytes.</li><li><code>txVideoBytes?</code>: <code>number</code> — optional transmitted video bytes.</li><li><code>rxVideoBytes?</code>: <code>number</code> — optional received video bytes.</li><li><code>txAudioKBitRate?</code>: <code>number</code> — optional transmit audio bitrate in Kbps.</li><li><code>rxAudioKBitRate?</code>: <code>number</code> — optional receive audio bitrate in Kbps.</li><li><code>txVideoKBitRate?</code>: <code>number</code> — optional transmit video bitrate in Kbps.</li><li><code>rxVideoKBitRate?</code>: <code>number</code> — optional receive video bitrate in Kbps.</li><li><code>lastmileDelay?</code>: <code>number</code> — optional last-mile network delay.</li><li><code>cpuTotalUsage?</code>: <code>number</code> — optional total CPU usage ratio.</li><li><code>gatewayRtt?</code>: <code>number</code> — optional gateway round-trip time.</li><li><code>cpuAppUsage?</code>: <code>number</code> — optional app CPU usage ratio.</li><li><code>users?</code>: <code>number</code> — optional user count in the stats sample.</li><li><code>connectTimeMs?</code>: <code>number</code> — optional connection establishment time in milliseconds.</li><li><code>txPacketLossRate?</code>: <code>number</code> — optional transmit packet loss rate.</li><li><code>rxPacketLossRate?</code>: <code>number</code> — optional receive packet loss rate.</li><li><code>memoryAppUsageRatio?</code>: <code>number</code> — optional app memory usage ratio.</li><li><code>memoryTotalUsageRatio?</code>: <code>number</code> — optional total memory usage ratio.</li><li><code>memoryAppUsageInKbytes?</code>: <code>number</code> — optional app memory usage in KB.</li></ul></div>
+          </article>
+          <article id="event-contentInspectResult">
+            <h3>contentInspectResult</h3>
+            <p>Fires when content inspection returns a result.</p>
+            <code class="signature">on(&#x27;contentInspectResult&#x27;, (payload: AgoraEventMap[&#x27;contentInspectResult&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>result</code>: <code>number</code> — native result code.</li></ul></div>
+          </article>
+          <article id="event-error">
+            <h3>error</h3>
+            <p>Unified error outlet for bridge, event parsing, and listener failures.</p>
+            <code class="signature">on(&#x27;error&#x27;, (payload: AgoraEventMap[&#x27;error&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>code?</code>: <code>number | string</code> — optional numeric or string error code.</li><li><code>message</code>: <code>string</code> — error message text.</li></ul></div>
+          </article>
+        </section>
+      </main>
+      <aside class="doc-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <div id="page-toc"></div>
+      </aside>
+    </div>
+  </body>
+</html>

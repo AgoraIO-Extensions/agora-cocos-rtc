@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN" data-locale="zh" data-page="rendering">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agora Cocos RTC 文档</title>
+    <link rel="stylesheet" href="../assets/app.css" />
+    <script src="../assets/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">跳到正文</a>
+    <div class="doc-shell">
+      <header class="doc-header">
+        <div>
+          <div class="mono">Agora Cocos RTC</div>
+          <strong>Developer Docs</strong>
+        </div>
+        <div class="locale-switch" aria-label="Language switch">
+          <button type="button" aria-current="true" data-locale-target="zh">中文</button>
+          <button type="button" data-locale-target="en">English</button>
+          <button id="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+        </div>
+      </header>
+      <nav id="primary-nav" class="doc-nav" aria-label="Primary">
+        <a href="./index.html">Overview</a>
+        <a href="./quickstart.html">Quickstart</a>
+        <a href="./core-apis.html">Core APIs</a>
+        <a href="./rendering.html" aria-current="page">Rendering</a>
+        <a href="./example.html">Example</a>
+        <a href="./platform-notes.html">Platform Notes</a>
+        <a href="./api-reference.html">API Reference</a>
+      </nav>
+      <main id="main-content" class="doc-main">
+        <section class="hero">
+          <h1>Rendering</h1>
+          <p>这个仓库当前的真实渲染模型不是“任意视图任选”，而是以 <code>engine-texture</code> 为主的 Cocos 纹理上传链路。</p>
+        </section>
+        <section class="card">
+          <h2 id="backend">当前支持的后端</h2>
+          <p>当前主要支持的渲染后端是 <code>engine-texture</code>。文档必须把它当作默认路径解释，而不是把它埋在附录里。</p>
+        </section>
+        <section class="card warning">
+          <h2 id="display-node">displayNode 与纹理事件</h2>
+          <p>把 <code>displayNode</code> 传给视频画布后，SDK 会把引擎纹理绑定到对应节点。你还需要理解 <code>localVideoTextureReady</code> 和 <code>remoteVideoTextureReady</code> 这些事件何时出现。</p>
+        </section>
+        <section class="card">
+          <h2 id="mirror-position">镜像与 position 语义</h2>
+          <p>本页要解释镜像行为、观察者位置、以及 Android 在 <code>position</code> 语义上的限制，避免开发者把原生 SDK 的直觉直接套过来。</p>
+        </section>
+        <section class="card">
+          <h2 id="compatibility-noop">兼容接口</h2>
+          <p><code>setNativeVideoOverlaySuspended</code> 仍然需要保留说明，但要明确它在当前纹理上传模型里的定位是兼容接口，而不是实际可见的原生覆盖层开关。</p>
+        </section>
+      </main>
+      <aside class="doc-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <div id="page-toc"></div>
+      </aside>
+    </div>
+  </body>
+</html>

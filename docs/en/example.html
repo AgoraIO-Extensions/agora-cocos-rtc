@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en" data-locale="en" data-page="example">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Agora Cocos RTC Docs</title>
+    <link rel="stylesheet" href="../assets/app.css" />
+    <script src="../assets/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <div class="doc-shell">
+      <header class="doc-header">
+        <div>
+          <div class="mono">Agora Cocos RTC</div>
+          <strong>Developer Docs</strong>
+        </div>
+        <div class="locale-switch" aria-label="Language switch">
+          <button type="button" data-locale-target="zh">中文</button>
+          <button type="button" aria-current="true" data-locale-target="en">English</button>
+          <button id="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+        </div>
+      </header>
+      <nav id="primary-nav" class="doc-nav" aria-label="Primary">
+        <a href="./index.html">Overview</a>
+        <a href="./quickstart.html">Quickstart</a>
+        <a href="./core-apis.html">Core APIs</a>
+        <a href="./rendering.html">Rendering</a>
+        <a href="./example.html" aria-current="page">Example</a>
+        <a href="./platform-notes.html">Platform Notes</a>
+        <a href="./api-reference.html">API Reference</a>
+      </nav>
+      <main id="main-content" class="doc-main">
+        <section class="hero">
+          <h1>Example</h1>
+          <p><code>example/basic-call</code> is not a glossy visual demo. It is a QA console used to validate integration flow, observe events, and probe public APIs quickly.</p>
+        </section>
+        <section class="card">
+          <h2 id="qa-console">QA console role</h2>
+          <p>The action panels and status output are organized around <code>RtcSessionService</code> so UI actions map back to public APIs and observable runtime state.</p>
+        </section>
+        <section class="card">
+          <h2 id="grouped-actions">Grouped actions</h2>
+          <ul>
+            <li><code>Full Demo</code>: runs the grouped capability probes in sequence</li>
+            <li><code>Channel</code>: channel and role related probes</li>
+            <li><code>Mixing</code>: audio mixing probes</li>
+            <li><code>Effect</code>: audio effect probes</li>
+            <li><code>Diag</code>: logging and diagnostics probes</li>
+          </ul>
+        </section>
+      </main>
+      <aside class="doc-toc" aria-label="On this page">
+        <strong>On this page</strong>
+        <div id="page-toc"></div>
+      </aside>
+    </div>
+  </body>
+</html>

@@ -77,13 +77,24 @@ export type AgoraMethod =
   | 'stopEffect'
   | 'setParameters';
 
+/**
+ * Video canvas definition for local or remote rendering in the Cocos bridge.
+ *
+ * This type combines geometric placement, render hints, and Cocos-specific
+ * texture binding fields in one payload sent to the native layer.
+ */
 export interface AgoraRtcVideoCanvas {
   uid?: number;
   subviewUid?: number;
+  /** Left position of the target render region. */
   x: number;
+  /** Top position of the target render region. */
   y: number;
+  /** Width of the target render region. */
   width: number;
+  /** Height of the target render region. */
   height: number;
+  /** Optional render mode, for example hidden, fit, or adaptive. */
   renderMode?: 'hidden' | 'fit' | 'adaptive';
   mirrorMode?: number;
   setupMode?: number;
@@ -115,10 +126,20 @@ export type AgoraCocosDisplayNode = {
 
 export type AgoraVideoViewRect = AgoraRtcVideoCanvas;
 
+/**
+ * Video encoder configuration used by {@link AgoraRtcClient.setVideoEncoderConfiguration}.
+ *
+ * The available fields reflect the current cross-platform Cocos bridge surface
+ * rather than the full native SDK object on every platform.
+ */
 export interface AgoraVideoEncoderConfiguration {
+  /** Target encoded frame width. */
   width: number;
+  /** Target encoded frame height. */
   height: number;
+  /** Optional encoded frame rate. */
   frameRate?: number;
+  /** Optional target bitrate. */
   bitrate?: number;
   /** Android VideoEncoderConfiguration only. iOS ObjC 4.5.3 does not expose minFrameRate. */
   minFrameRate?: number;
@@ -142,6 +163,12 @@ export interface AgoraBeautyOptions {
   sharpnessLevel?: number;
 }
 
+/**
+ * Content inspection configuration forwarded to the native bridge.
+ *
+ * Use the shorthand top-level fields for a single inspection module, or use
+ * {@link modules} to configure multiple inspection entries explicitly.
+ */
 export interface AgoraContentInspectConfig {
   module?: number;
   interval?: number;
@@ -157,6 +184,9 @@ export interface AgoraContentInspectConfig {
 
 export type AgoraClientRole = 'broadcaster' | 'audience';
 
+/**
+ * Optional role settings used together with {@link AgoraRtcClient.setClientRole}.
+ */
 export interface AgoraClientRoleOptions {
   audienceLatencyLevel?: number;
 }
@@ -165,7 +195,14 @@ export type AgoraChannelProfile =
   | 'communication'
   | 'liveBroadcasting';
 
+/**
+ * Engine initialization config used by {@link AgoraRtcClient.initialize}.
+ *
+ * This object wraps App ID, log configuration, and advanced bridge/runtime
+ * flags that should be established before joining a channel.
+ */
 export interface AgoraRtcEngineConfig {
+  /** Required Agora App ID. */
   appId: string;
   parameters?: string;
   areaCode?: number;
@@ -184,6 +221,12 @@ export interface AgoraRtcEngineConfig {
   };
 }
 
+/**
+ * Channel media options used during channel join.
+ *
+ * This type mirrors the currently exposed bridge surface and includes fields
+ * that control publish, subscribe, preview, and track-selection behavior.
+ */
 export interface AgoraChannelMediaOptions {
   clientRoleType?: AgoraClientRole | number;
   channelProfile?: AgoraChannelProfile | number;
@@ -230,6 +273,9 @@ export interface AgoraChannelMediaOptions {
   parameters?: string;
 }
 
+/**
+ * Optional cleanup behavior applied when leaving a channel.
+ */
 export interface AgoraLeaveChannelOptions {
   stopAudioMixing?: boolean;
   stopAllEffect?: boolean;
@@ -237,15 +283,27 @@ export interface AgoraLeaveChannelOptions {
   stopMicrophoneRecording?: boolean;
 }
 
+/**
+ * Audio mixing configuration for local-file playback.
+ */
 export interface AgoraAudioMixingConfig {
+  /** Local audio file path. */
   path: string;
+  /** Whether to play only locally without publishing. */
   loopback?: boolean;
+  /** Optional loop count. */
   cycle?: number;
+  /** Optional start offset in milliseconds. */
   startPos?: number;
 }
 
+/**
+ * Effect playback configuration.
+ */
 export interface AgoraPlayEffectConfig {
+  /** Caller-defined effect ID. */
   soundId: number;
+  /** Local effect file path. */
   path: string;
   loopCount?: number;
   pitch?: number;
@@ -255,6 +313,9 @@ export interface AgoraPlayEffectConfig {
   startPos?: number;
 }
 
+/**
+ * User information returned from account lookup helpers.
+ */
 export interface AgoraUserInfo {
   uid?: number;
   userAccount?: string;
@@ -289,6 +350,12 @@ export interface AgoraBridgeEvent {
   payload?: unknown;
 }
 
+/**
+ * RTC statistics payload emitted by stats-related callbacks.
+ *
+ * These fields are reported by the native SDK and may be partially populated
+ * depending on platform state, publish state, and callback timing.
+ */
 export interface AgoraRtcStatsPayload {
   duration: number;
   txBytes?: number;
@@ -316,6 +383,12 @@ export interface AgoraRtcStatsPayload {
   memoryAppUsageInKbytes?: number;
 }
 
+/**
+ * Public event payload map consumed by {@link AgoraRtcClient.on}.
+ *
+ * Each key is an event name and each value is the payload shape delivered to
+ * the listener for that event.
+ */
 export interface AgoraEventMap {
   joinChannelSuccess: {
     channelId: string;
