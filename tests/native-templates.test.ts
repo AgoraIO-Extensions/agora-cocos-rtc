@@ -331,6 +331,15 @@ test('engine-texture backend emits texture slot lifecycle events instead of Base
   assert.doesNotMatch(runtimeContent, /dataBase64/);
   assert.match(templateContent, /localVideoTextureReady/);
   assert.match(templateContent, /remoteVideoTextureReady/);
+  assert.match(templateContent, /dispatchRemoteTextureReadyIfNeeded/);
+  const remoteEnsureBlock = templateContent.match(
+    /private void ensureRemoteTextureSlot\(int uid, JSONObject params\) \{([\s\S]*?\n    \})\n\n    private void dispatchRemoteTextureReadyIfNeeded/,
+  );
+  assert.ok(remoteEnsureBlock, 'ensureRemoteTextureSlot should precede dispatchRemoteTextureReadyIfNeeded');
+  assert.doesNotMatch(
+    remoteEnsureBlock![1],
+    /dispatchTextureReadyEvent\(\s*\n\s*"remoteVideoTextureReady"/,
+  );
   assert.match(templateContent, /localVideoTextureReleased/);
   assert.match(templateContent, /remoteVideoTextureReleased/);
   assert.match(templateContent, /\.put\("slotId", slotId\)/);

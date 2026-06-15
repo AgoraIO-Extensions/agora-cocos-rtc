@@ -115,6 +115,7 @@ export interface DemoSessionState {
   lastRemoteVideoStatsByUid: Record<number, string>;
   lastVolumeSummary: string;
   audioEffectMixing: AudioEffectMixingState;
+  joinLeaveLoopActive: boolean;
 }
 
 export interface VideoTextureBinding {

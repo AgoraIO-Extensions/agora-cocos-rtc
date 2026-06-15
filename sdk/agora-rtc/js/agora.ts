@@ -123,6 +123,7 @@ export class AgoraRtcClient {
     local: null,
     remote: new Map(),
   };
+  #remoteViewSetupGenerations = new Map<number, number>();
 
   constructor(options: AgoraRtcClientOptions = {}) {
     this.#timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
@@ -377,9 +378,13 @@ export class AgoraRtcClient {
   }
 
   async setupRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise<void> {
+    const generation = this.#bumpRemoteViewSetupGeneration(uid);
     const manager = canvas.displayNode
       ? await this.#ensureEngineTextureViewManager()
       : null;
+    if (!this.#isRemoteViewSetupCurrent(uid, generation)) {
+      return;
+    }
     if (canvas.displayNode && manager) {
       manager.registerRemoteDisplay(uid, {
         displayNode: canvas.displayNode,
@@ -387,10 +392,19 @@ export class AgoraRtcClient {
         sourceType: canvas.sourceType,
       });
     }
+    if (!this.#isRemoteViewSetupCurrent(uid, generation)) {
+      return;
+    }
     await this.#invoke(
       'setupRemoteVideoView',
       { ...this.#stripDisplayNodeFromCanvas(canvas), uid },
     ) as Promise<void>;
+    if (!this.#isRemoteViewSetupCurrent(uid, generation)) {
+      if (canvas.displayNode && manager) {
+        this.#engineTextureViewManager?.unregisterRemoteDisplay(uid);
+      }
+      return;
+    }
     if (canvas.displayNode && manager) {
       manager.applyCachedTextureSlot('remote', uid);
     }
@@ -412,6 +426,7 @@ export class AgoraRtcClient {
   }
 
   removeRemoteVideoView(uid: number): Promise<void> {
+    this.#bumpRemoteViewSetupGeneration(uid);
     if (this.#engineTextureViewManager) {
       this.#engineTextureViewManager.unregisterRemoteDisplay(uid);
     }
@@ -669,6 +684,16 @@ export class AgoraRtcClient {
     }
   }
 
+  #bumpRemoteViewSetupGeneration(uid: number): number {
+    const generation = (this.#remoteViewSetupGenerations.get(uid) ?? 0) + 1;
+    this.#remoteViewSetupGenerations.set(uid, generation);
+    return generation;
+  }
+
+  #isRemoteViewSetupCurrent(uid: number, generation: number): boolean {
+    return this.#remoteViewSetupGenerations.get(uid) === generation;
+  }
+
   #cacheTextureReadyEvent(event: AgoraBridgeEvent): void {
     const payload = event.payload as Record<string, unknown> | undefined;
     if (!payload || typeof payload.slotId !== 'number') {
@@ -700,6 +725,7 @@ export class AgoraRtcClient {
     this.#engineTextureViewManager?.release();
     this.#textureReadyCache.local = null;
     this.#textureReadyCache.remote.clear();
+    this.#remoteViewSetupGenerations.clear();
     if (this.#transportListenersAttached) {
       if (typeof this.#transport?.removeNativeEventListener === 'function') {
         this.#transport.removeNativeEventListener(

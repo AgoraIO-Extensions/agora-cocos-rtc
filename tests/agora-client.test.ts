@@ -1399,6 +1399,48 @@ test('setupRemoteVideoView dispatches AgoraRtcVideoCanvas fields to native', asy
   await pending;
 });
 
+test('removeRemoteVideoView invalidates in-flight setupRemoteVideoView', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const setupPending = client.setupRemoteVideoView(42, {
+    uid: 42,
+    width: 320,
+    height: 180,
+    renderMode: 'fit',
+  });
+  const setupRequest = JSON.parse(transport.sent[0].payload);
+  assert.equal(setupRequest.method, 'setupRemoteVideoView');
+
+  const removePending = client.removeRemoteVideoView(42);
+  const removeRequest = JSON.parse(transport.sent[1].payload);
+  assert.equal(removeRequest.method, 'removeRemoteVideoView');
+  assert.deepEqual(removeRequest.params, { uid: 42 });
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: removeRequest.requestId,
+      ok: true,
+    }),
+  );
+  await removePending;
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: setupRequest.requestId,
+      ok: true,
+    }),
+  );
+  await setupPending;
+
+  assert.equal(transport.sent.length, 2);
+});
+
 test('startPreview and switchCamera dispatch the expected native requests', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
