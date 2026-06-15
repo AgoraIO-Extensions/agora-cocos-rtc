@@ -1989,7 +1989,7 @@ test('ios integration script removes stale Swift package products for the same r
 
   assert.match(scriptContent, /remove_stale_swift_package_products/);
   assert.match(scriptContent, /dependency\.package == package_ref/);
-  assert.match(scriptContent, /dependency\.product_name != package_product_name/);
+  assert.match(scriptContent, /!allowed\.include\?\(dependency\.product_name\)/);
   assert.match(scriptContent, /frameworks_phase\.files/);
   assert.match(scriptContent, /target\.package_product_dependencies\.delete\(dependency\)/);
   assert.match(scriptContent, /dependency\.remove_from_project/);
