@@ -16,8 +16,11 @@ const IOS_APP_DELEGATE_FORWARD_DECLARATION = `@interface AgoraRtcPlugin : NSObje
 - (void)attachBridge;
 @end`;
 const IOS_APP_DELEGATE_ATTACH_CALL = '    [[AgoraRtcPlugin sharedInstance] attachBridge];';
+const ANDROID_DEMO_PERMISSIONS_IMPORT = 'import io.agora.cocos.demo.DemoPermissionsPlugin;';
 const ANDROID_APP_ACTIVITY_IMPORT = 'import io.agora.cocos.rtc.AgoraRtcPlugin;';
+const ANDROID_DEMO_PERMISSIONS_ATTACH_CALL = '        DemoPermissionsPlugin.getInstance().attachBridge();';
 const ANDROID_APP_ACTIVITY_ATTACH_CALL = '        AgoraRtcPlugin.getInstance().attachBridge();';
+const ANDROID_DEMO_PERMISSIONS_RESULT_FORWARD = '        DemoPermissionsPlugin.getInstance().onRequestPermissionsResult(requestCode, permissions, grantResults);';
 const ANDROID_RTC_PERMISSIONS = [
   'android.permission.CAMERA',
   'android.permission.RECORD_AUDIO',
@@ -1161,12 +1164,65 @@ function patchAndroidAppActivityBridgeAttachment(content) {
     }
   }
 
+  if (!next.includes(ANDROID_DEMO_PERMISSIONS_IMPORT)) {
+    if (next.includes(ANDROID_APP_ACTIVITY_IMPORT)) {
+      next = next.replace(
+        ANDROID_APP_ACTIVITY_IMPORT,
+        `${ANDROID_DEMO_PERMISSIONS_IMPORT}\n${ANDROID_APP_ACTIVITY_IMPORT}`,
+      );
+    } else {
+      const packageMatch = next.match(/^(package\s+[\w.]+;\s*)$/m);
+      if (packageMatch) {
+        next = next.replace(packageMatch[0], `${packageMatch[0]}\n${ANDROID_DEMO_PERMISSIONS_IMPORT}`);
+      } else {
+        next = `${ANDROID_DEMO_PERMISSIONS_IMPORT}\n\n${next}`;
+      }
+    }
+  }
+
   if (!next.includes('AgoraRtcPlugin.getInstance().attachBridge()')) {
     const launchAnchor = 'SDKWrapper.shared().init(this);';
     if (!next.includes(launchAnchor)) {
       throw new Error('Unable to patch Android AppActivity: SDKWrapper init anchor not found.');
     }
     next = next.replace(launchAnchor, `${launchAnchor}\n${ANDROID_APP_ACTIVITY_ATTACH_CALL}`);
+  }
+
+  if (!next.includes('DemoPermissionsPlugin.getInstance().attachBridge()')) {
+    if (!next.includes(ANDROID_APP_ACTIVITY_ATTACH_CALL)) {
+      throw new Error('Unable to patch Android AppActivity: Agora bridge attach anchor not found.');
+    }
+    next = next.replace(
+      ANDROID_APP_ACTIVITY_ATTACH_CALL,
+      `${ANDROID_APP_ACTIVITY_ATTACH_CALL}\n${ANDROID_DEMO_PERMISSIONS_ATTACH_CALL}`,
+    );
+  }
+
+  const permissionsCallbackSignature = 'public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults)';
+  if (next.includes(permissionsCallbackSignature)) {
+    if (!next.includes(ANDROID_DEMO_PERMISSIONS_RESULT_FORWARD)) {
+      const superPermissionsAnchor = '        super.onRequestPermissionsResult(requestCode, permissions, grantResults);';
+      if (!next.includes(superPermissionsAnchor)) {
+        throw new Error('Unable to patch Android AppActivity: permissions callback super anchor not found.');
+      }
+      next = next.replace(
+        superPermissionsAnchor,
+        `${superPermissionsAnchor}\n${ANDROID_DEMO_PERMISSIONS_RESULT_FORWARD}`,
+      );
+    }
+  } else {
+    const classEndIndex = next.lastIndexOf('\n}');
+    if (classEndIndex < 0) {
+      throw new Error('Unable to patch Android AppActivity: class end anchor not found.');
+    }
+    const permissionsCallbackBlock = `
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+${ANDROID_DEMO_PERMISSIONS_RESULT_FORWARD}
+    }`;
+    next = `${next.slice(0, classEndIndex)}${permissionsCallbackBlock}${next.slice(classEndIndex)}`;
   }
 
   return next;

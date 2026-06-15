@@ -1936,6 +1936,19 @@ test('ios integration script registers all committed bridge templates in the exp
   assert.match(scriptContent, /NSMicrophoneUsageDescription/);
 });
 
+test('ios integration script stages the demo-owned permissions bridge into exported native sources', async () => {
+  const scriptContent = await readFile(
+    path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
+    'utf8',
+  );
+
+  assert.match(scriptContent, /require 'fileutils'/);
+  assert.match(scriptContent, /DEMO_PERMISSIONS_SOURCE_PATH/);
+  assert.match(scriptContent, /DEMO_PERMISSIONS_DESTINATION_PATH/);
+  assert.match(scriptContent, /FileUtils\.mkdir_p\(File\.dirname\(DEMO_PERMISSIONS_DESTINATION_PATH\)\)/);
+  assert.match(scriptContent, /FileUtils\.cp\(DEMO_PERMISSIONS_SOURCE_PATH, DEMO_PERMISSIONS_DESTINATION_PATH\)/);
+});
+
 test('ios integration keeps Swift bridge registration in Xcode rather than CMake', async () => {
   const integrationScript = await readFile(
     path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
