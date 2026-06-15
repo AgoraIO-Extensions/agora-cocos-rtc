@@ -975,11 +975,7 @@ public final class AgoraRtcPlugin {
         if (source == null) {
             return 0;
         }
-        switch (source) {
-            case VIDEO_SOURCE_CAMERA_PRIMARY:
-            default:
-                return 0;
-        }
+        return Constants.VideoSourceType.getValue(source);
     }
 
     private boolean isSupportedLocalTextureSourceType(JSONObject params) {
