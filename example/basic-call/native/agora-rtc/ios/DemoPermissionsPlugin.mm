@@ -32,9 +32,9 @@
 - (instancetype)init {
     self = [super init];
     if (self) {
-        __weak typeof(self) weakSelf = self;
+        DemoPermissionsPlugin *plugin = self;
         _listener = ^(NSString *payload) {
-            [weakSelf handleScriptRequest:payload];
+            [plugin handleScriptRequest:payload];
         };
         _listener = [_listener copy];
     }
