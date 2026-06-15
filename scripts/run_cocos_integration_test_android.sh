@@ -8,8 +8,6 @@ COCOS_PROJECT_DIR="$ROOT_DIR/example/basic-call"
 COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/android-debug.json"
 ANDROID_COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/local/android-debug.ci.json"
 ANDROID_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-android/android/proj"
-ANDROID_RUNTIME_PLUGIN_DIR="$ROOT_DIR/example/basic-call/native/agora-rtc/android/src/main/java/io/agora/cocos/rtc"
-ANDROID_EXPORTED_PLUGIN_DIR="$ANDROID_PROJECT_DIR/app/src/main/java/io/agora/cocos/rtc"
 APK_PATH="$ANDROID_PROJECT_DIR/build/agora-cocos-basic-call/outputs/apk/debug/agora-cocos-basic-call-debug.apk"
 PACKAGE_NAME="io.agora.cocos.example"
 ACTIVITY_NAME="com.cocos.game.AppActivity"
@@ -243,10 +241,6 @@ write_android_cocos_build_config
 run_cocos_build "$ANDROID_COCOS_BUILD_CONFIG" "Android"
 node ./scripts/sync-native-engine-texture-bridge.mjs >/dev/null
 node ./scripts/sync-android-app-bridge.mjs >/dev/null
-if [[ -d "$ANDROID_RUNTIME_PLUGIN_DIR" ]]; then
-  mkdir -p "$ANDROID_EXPORTED_PLUGIN_DIR"
-  cp -R "$ANDROID_RUNTIME_PLUGIN_DIR/." "$ANDROID_EXPORTED_PLUGIN_DIR/"
-fi
 
 log_step "Build Android debug APK"
 cd "$ANDROID_PROJECT_DIR"

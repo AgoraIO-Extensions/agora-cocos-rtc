@@ -19,7 +19,6 @@
 @implementation AgoraRtcPlugin {
     id _bridge;
     OnScriptEventListener _listener;
-    ICallback _bridgeCallback;
 }
 
 + (Class)resolveBridgeClass {
@@ -48,7 +47,7 @@
 }
 
 + (void)dispatchEventToScript:(NSString *)eventName payload:(NSString *)payload {
-    [[JsbBridge sharedInstance] sendToScript:eventName arg1:payload];
+    [[JsbBridgeWrapper sharedInstance] dispatchEventToScript:eventName arg:payload];
 }
 
 - (instancetype)init {
@@ -67,16 +66,6 @@
             }
         };
         _listener = [_listener copy];
-        _bridgeCallback = ^(NSString *eventName, NSString *arg) {
-            NSLog(@"[agora-rtc-native] bridge callback event=%@ arg=%@", eventName, arg);
-            if (![eventName isEqualToString:@"agora:request"]) {
-                return;
-            }
-            if (_bridge && [_bridge respondsToSelector:@selector(handleScriptRequest:)]) {
-                [_bridge handleScriptRequest:arg];
-            }
-        };
-        _bridgeCallback = [_bridgeCallback copy];
     }
     return self;
 }
@@ -84,7 +73,6 @@
 - (void)attachBridge {
     NSLog(@"[agora-rtc-native] attachBridge bridge=%@", _bridge);
     [[JsbBridgeWrapper sharedInstance] addScriptEventListener:@"agora:request" listener:_listener];
-    [[JsbBridge sharedInstance] setCallback:_bridgeCallback];
 }
 
 - (void)handleScriptRequest:(NSString *)payload {

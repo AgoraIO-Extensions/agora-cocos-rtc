@@ -8,8 +8,6 @@ COCOS_PROJECT_DIR="$ROOT_DIR/example/basic-call"
 ANDROID_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/android-debug.json"
 ANDROID_COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-android/android-debug.local.json"
 ANDROID_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-android/android/proj"
-ANDROID_RUNTIME_PLUGIN_DIR="$ROOT_DIR/example/basic-call/native/agora-rtc/android/src/main/java/io/agora/cocos/rtc"
-ANDROID_EXPORTED_PLUGIN_DIR="$ANDROID_PROJECT_DIR/app/src/main/java/io/agora/cocos/rtc"
 APK_PATH="$ANDROID_PROJECT_DIR/build/agora-cocos-basic-call/outputs/apk/debug/agora-cocos-basic-call-debug.apk"
 PACKAGE_NAME="io.agora.cocos.example"
 ACTIVITY_NAME="com.cocos.game.AppActivity"
@@ -118,11 +116,6 @@ if [[ ! -f "$ROOT_DIR/example/basic-call/build-android/android/data/assets/main/
 fi
 
 node ./scripts/sync-android-app-bridge.mjs >/dev/null
-
-if [[ -d "$ANDROID_RUNTIME_PLUGIN_DIR" ]]; then
-  mkdir -p "$ANDROID_EXPORTED_PLUGIN_DIR"
-  cp -R "$ANDROID_RUNTIME_PLUGIN_DIR/." "$ANDROID_EXPORTED_PLUGIN_DIR/"
-fi
 
 cd "$ANDROID_PROJECT_DIR"
 ./gradlew --offline :agora-cocos-basic-call:assembleDebug
