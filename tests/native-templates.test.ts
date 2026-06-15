@@ -741,8 +741,8 @@ test('android bridge template rejects unsafe invalid arguments before calling th
   );
   assertPatternBefore(
     handleSetParametersMatch[0],
-    /parameterValue == null \|\| parameterValue\.trim\(\)\.isEmpty\(\)/,
-    /mergeProtectedParameters\(parameterValue\)/,
+    /String parameterValue =[\s\S]*?dispatchError\(requestId, "Parameters are required\."\);[\s\S]*?return;/,
+    /mergeProtectedParameters\(parameterValue, false\)/,
     'setParameters must reject missing or blank parameters before merging protected defaults',
   );
   assert.match(handleSetParametersMatch[0], /dispatchInvalidArgumentError\(requestId, error\.getMessage\(\), "setParameters", "parameters", parameterValue\);/);
@@ -1577,7 +1577,8 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.doesNotMatch(bridgeContent, /module\.position =/);
   assert.match(bridgeContent, /private func applyContentInspectModulePosition\(_ module: AgoraContentInspectModule, rawValue: Any\)/);
   assert.match(bridgeContent, /NSSelectorFromString\("setPosition:"\)/);
-  assert.match(bridgeContent, /module\.setValue\(NSNumber\(value: intValue\(rawValue\)\), forKey: "position"\)/);
+  assert.match(bridgeContent, /private func parseContentInspectModulePosition\(_ rawValue: Any\) -> AgoraVideoModulePosition/);
+  assert.match(bridgeContent, /module\.setValue\(NSNumber\(value: parseContentInspectModulePosition\(rawValue\)\.rawValue\), forKey: "position"\)/);
   assert.match(bridgeContent, /applyProtectedParameters\(engine: engine, requestId: requestId, method: "initialize", params: params\)/);
   assert.match(bridgeContent, /clientParams\["rtc\.set_app_type"\] = 10/);
   assert.match(bridgeContent, /throw AgoraRtcBridgeParameterError\.invalidJsonObjectString/);
@@ -1922,6 +1923,7 @@ test('ios content inspect module boundary matches the installed rtc objects head
   assert.match(moduleMatch[0], /AgoraContentInspectType type/);
   assert.match(moduleMatch[0], /NSInteger interval/);
   assert.match(bridgeContent, /private func applyContentInspectModulePosition\(_ module: AgoraContentInspectModule, rawValue: Any\)/);
+  assert.match(bridgeContent, /private func parseContentInspectModulePosition\(_ rawValue: Any\) -> AgoraVideoModulePosition/);
   assert.doesNotMatch(bridgeContent, /module\.position =/);
 });
 

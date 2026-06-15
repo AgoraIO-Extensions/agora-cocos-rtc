@@ -1772,13 +1772,17 @@ public final class AgoraRtcPlugin {
         String parameterValue = params != null && params.has("parameters") && !params.isNull("parameters")
                 ? params.optString("parameters", null)
                 : null;
-        if (parameterValue == null || parameterValue.trim().isEmpty()) {
+        if (
+                parameterValue == null ||
+                parameterValue.trim().isEmpty() ||
+                parameterValue.matches("\\{\\s*\\}")
+        ) {
             dispatchError(requestId, "Parameters are required.");
             return;
         }
         String parameters;
         try {
-            parameters = mergeProtectedParameters(parameterValue);
+            parameters = mergeProtectedParameters(parameterValue, false);
         } catch (IllegalArgumentException error) {
             dispatchInvalidArgumentError(requestId, error.getMessage(), "setParameters", "parameters", parameterValue);
             return;
@@ -1795,7 +1799,7 @@ public final class AgoraRtcPlugin {
         String parameterValue = params != null ? params.optString("parameters", "") : "";
         String parameters;
         try {
-            parameters = mergeProtectedParameters(parameterValue);
+            parameters = mergeProtectedParameters(parameterValue, true);
         } catch (IllegalArgumentException error) {
             dispatchInvalidArgumentError(requestId, error.getMessage(), method, "parameters", parameterValue);
             return false;
@@ -1812,7 +1816,7 @@ public final class AgoraRtcPlugin {
         return true;
     }
 
-    private String mergeProtectedParameters(String parameterValue) {
+    private String mergeProtectedParameters(String parameterValue, boolean allowEmptyPayload) {
         if (parameterValue == null || parameterValue.trim().isEmpty()) {
             return PROTECTED_APP_TYPE_PARAMETERS;
         }
