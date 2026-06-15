@@ -20,6 +20,7 @@ test('gitignore keeps docs root committable and ignores only internal artifacts'
 
 test('docs site scaffolding files exist for both locales', async () => {
   const expectedFiles = [
+    'docs/index.html',
     'docs/assets/app.css',
     'docs/assets/app.js',
     'docs/zh/index.html',
@@ -88,6 +89,17 @@ test('shared app.js handles locale switch, mobile nav, and toc activation', asyn
   assert.match(content, /nav-toggle/);
   assert.match(content, /IntersectionObserver/);
   assert.match(content, /page-toc/);
+});
+
+test('docs root entry page routes readers into zh and en doc trees', async () => {
+  const content = await readDoc('docs/index.html');
+
+  assert.match(content, /Agora Cocos RTC/);
+  assert.match(content, /Developer Docs/);
+  assert.match(content, /href="\.\/zh\/index\.html"/);
+  assert.match(content, /href="\.\/en\/index\.html"/);
+  assert.match(content, /中文/);
+  assert.match(content, /English/);
 });
 
 test('shared app.css defines desktop and mobile docs layout', async () => {
@@ -348,6 +360,20 @@ test('readmes point users to the new static docs entry pages', async () => {
   assert.match(rootReadme, /docs\/en\/index\.html/);
   assert.match(sdkReadme, /docs\/zh\/index\.html/);
   assert.match(sdkReadme, /docs\/en\/index\.html/);
+});
+
+test('github pages workflow publishes the docs directory', async () => {
+  const workflow = await readFile(path.join(repoRoot, '.github/workflows/deploy-pages.yml'), 'utf8');
+
+  assert.match(workflow, /name:\s*['"]?Deploy Docs to GitHub Pages['"]?/);
+  assert.match(workflow, /on:\s*\n\s*workflow_dispatch:/);
+  assert.match(workflow, /on:\s*[\s\S]*\n\s*push:\s*[\s\S]*\n\s*branches:\s*\n\s*-\s*main/);
+  assert.match(workflow, /permissions:\s*[\s\S]*pages:\s*write/);
+  assert.match(workflow, /permissions:\s*[\s\S]*id-token:\s*write/);
+  assert.match(workflow, /actions\/configure-pages@v5/);
+  assert.match(workflow, /actions\/upload-pages-artifact@v3/);
+  assert.match(workflow, /path:\s*\.\/docs/);
+  assert.match(workflow, /actions\/deploy-pages@v4/);
 });
 
 const sourceSurfaceSnapshot = JSON.parse(execFileSync('python3', ['-c', `
