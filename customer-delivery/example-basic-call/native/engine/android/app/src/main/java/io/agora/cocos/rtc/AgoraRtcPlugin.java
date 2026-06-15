@@ -59,7 +59,7 @@ public final class AgoraRtcPlugin {
     private boolean attached;
     private boolean permissionRequestInFlight;
     private final Queue<PendingPermissionAction> pendingPermissionActions = new ArrayDeque<>();
-    private String renderBackendType = "surface-view";
+    private String renderBackendType = "engine-texture";
     private AgoraRenderBackend renderBackend = AgoraRenderBackendFactory.create(
             renderBackendType,
             this::dispatchEvent
@@ -415,7 +415,7 @@ public final class AgoraRtcPlugin {
     }
 
     private void handleSetRenderBackend(String requestId, JSONObject params) {
-        String backend = params != null ? params.optString("backend", "surface-view") : "surface-view";
+        String backend = params != null ? params.optString("backend", "engine-texture") : "engine-texture";
         if (backend == null || backend.trim().isEmpty()) {
             dispatchError(requestId, "Render backend is required.");
             return;
@@ -560,7 +560,7 @@ public final class AgoraRtcPlugin {
                 @Override
                 public void onLocalVideoStateChanged(Constants.VideoSourceType source, int state, int error) {
                     dispatchEvent("localVideoStateChanged", jsonObject(
-                            "sourceType", source != null ? source.ordinal() : 0,
+                            "sourceType", mapLocalVideoSourceType(source),
                             "state", state,
                             "error", error
                     ));
@@ -606,7 +606,7 @@ public final class AgoraRtcPlugin {
                 dispatchError(requestId, "RtcEngine.create returned null.");
                 return;
             }
-            if (!applyProtectedParameters(rtcEngine, requestId, "initialize")) {
+            if (!applyProtectedParameters(rtcEngine, requestId, "initialize", params)) {
                 rtcEngine = null;
                 return;
             }
@@ -971,9 +971,31 @@ public final class AgoraRtcPlugin {
         ));
     }
 
+    private int mapLocalVideoSourceType(Constants.VideoSourceType source) {
+        if (source == null) {
+            return 0;
+        }
+        return Constants.VideoSourceType.getValue(source);
+    }
+
+    private boolean isSupportedLocalTextureSourceType(JSONObject params) {
+        int sourceType = params != null ? params.optInt("sourceType", 0) : 0;
+        return sourceType == 0;
+    }
+
     private void handleSetupLocalVideoView(String requestId, JSONObject params) {
         Activity activity = requireActivity(requestId);
         if (activity == null) {
+            return;
+        }
+        if (!isSupportedLocalTextureSourceType(params)) {
+            dispatchInvalidArgumentError(
+                    requestId,
+                    "engine-texture local rendering supports only the primary camera source.",
+                    "setupLocalVideoView",
+                    "sourceType",
+                    String.valueOf(params != null ? params.optInt("sourceType", 0) : 0)
+            );
             return;
         }
         renderBackend.setupLocalVideoView(activity, params, requestCallback(requestId));
@@ -988,6 +1010,16 @@ public final class AgoraRtcPlugin {
     }
 
     private void handleUpdateLocalVideoView(String requestId, JSONObject params) {
+        if (!isSupportedLocalTextureSourceType(params)) {
+            dispatchInvalidArgumentError(
+                    requestId,
+                    "engine-texture local rendering supports only the primary camera source.",
+                    "updateLocalVideoView",
+                    "sourceType",
+                    String.valueOf(params != null ? params.optInt("sourceType", 0) : 0)
+            );
+            return;
+        }
         renderBackend.updateLocalVideoView(params, requestCallback(requestId));
     }
 
@@ -1036,14 +1068,13 @@ public final class AgoraRtcPlugin {
 
     private void handleLeaveChannel(String requestId, JSONObject params) {
         if (rtcEngine != null) {
-            if (hasLeaveChannelOptions(params)) {
-                int result = rtcEngine.leaveChannel(buildLeaveChannelOptions(params));
-                if (result < 0) {
-                    dispatchAgoraError(requestId, "leaveChannel", result);
-                    return;
-                }
-            } else {
-                rtcEngine.leaveChannel();
+            LeaveChannelOptions options = hasLeaveChannelOptions(params)
+                    ? buildLeaveChannelOptions(params)
+                    : new LeaveChannelOptions();
+            int result = rtcEngine.leaveChannel(options);
+            if (result < 0) {
+                dispatchAgoraError(requestId, "leaveChannel", result);
+                return;
             }
         }
         dispatchOk(requestId);
@@ -1738,8 +1769,13 @@ public final class AgoraRtcPlugin {
         dispatchOk(requestId);
     }
 
-    private boolean applyProtectedParameters(RtcEngine engine, String requestId, String method) {
-        int result = engine.setParameters(PROTECTED_APP_TYPE_PARAMETERS);
+    private boolean applyProtectedParameters(RtcEngine engine, String requestId, String method, JSONObject params) {
+        String parameters = mergeProtectedParameters(params != null ? params.optString("parameters", "") : "");
+        if (parameters == null || parameters.trim().isEmpty()) {
+            dispatchError(requestId, "Parameters are required.");
+            return false;
+        }
+        int result = engine.setParameters(parameters);
         if (result < 0) {
             dispatchAgoraError(requestId, method, result);
             return false;
@@ -1855,9 +1891,7 @@ public final class AgoraRtcPlugin {
     }
 
     private boolean isSupportedRenderBackend(String backend) {
-        return "surface-view".equals(backend)
-                || "texture-view".equals(backend)
-                || "engine-texture".equals(backend);
+        return "engine-texture".equals(backend);
     }
 
     private String extractRequestId(String payload) {

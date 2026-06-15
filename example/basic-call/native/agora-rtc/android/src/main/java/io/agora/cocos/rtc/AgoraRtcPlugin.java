@@ -1068,14 +1068,13 @@ public final class AgoraRtcPlugin {
 
     private void handleLeaveChannel(String requestId, JSONObject params) {
         if (rtcEngine != null) {
-            if (hasLeaveChannelOptions(params)) {
-                int result = rtcEngine.leaveChannel(buildLeaveChannelOptions(params));
-                if (result < 0) {
-                    dispatchAgoraError(requestId, "leaveChannel", result);
-                    return;
-                }
-            } else {
-                rtcEngine.leaveChannel();
+            LeaveChannelOptions options = hasLeaveChannelOptions(params)
+                    ? buildLeaveChannelOptions(params)
+                    : new LeaveChannelOptions();
+            int result = rtcEngine.leaveChannel(options);
+            if (result < 0) {
+                dispatchAgoraError(requestId, "leaveChannel", result);
+                return;
             }
         }
         dispatchOk(requestId);
