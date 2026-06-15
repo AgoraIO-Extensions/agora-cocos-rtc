@@ -1338,6 +1338,29 @@ test('setupLocalVideoView dispatches the expected native request', async () => {
   await pending;
 });
 
+test('setupLocalVideoView rejects non-primary camera sourceType before bridge dispatch', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  await assert.rejects(
+    client.setupLocalVideoView({
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      sourceType: 2,
+    }),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'setupLocalVideoView' &&
+      error.details.parameter === 'sourceType',
+  );
+  assert.equal(transport.sent.length, 0);
+});
+
 test('setupRemoteVideoView dispatches AgoraRtcVideoCanvas fields to native', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -1399,25 +1422,18 @@ test('setupRemoteVideoView dispatches AgoraRtcVideoCanvas fields to native', asy
   await pending;
 });
 
-test('updateLocalVideoView strips displayNode before native dispatch', async () => {
+test('updateLocalVideoView dispatches stripped canvas fields to native', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
     transport,
     timeoutMs: 50,
   });
-  const displayNode = {
-    setScale() {},
-    getScale() {
-      return { x: 1, y: 1, z: 1 };
-    },
-  };
 
   const pending = client.updateLocalVideoView({
     x: 36,
     y: 0,
     width: 100,
     height: 100,
-    displayNode,
     mirrorMode: 1,
     sourceType: 0,
   });
@@ -1432,7 +1448,7 @@ test('updateLocalVideoView strips displayNode before native dispatch', async () 
     mirrorMode: 1,
     sourceType: 0,
   });
-  assertFixtureCoversInterfaceFields('AgoraRtcVideoCanvas', request.params, ['displayNode']);
+  assert.equal(request.params.displayNode, undefined);
 
   transport.emit(
     'agora:response',
@@ -1445,25 +1461,18 @@ test('updateLocalVideoView strips displayNode before native dispatch', async () 
   await pending;
 });
 
-test('updateRemoteVideoView strips displayNode before native dispatch', async () => {
+test('updateRemoteVideoView dispatches stripped canvas fields to native', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
     transport,
     timeoutMs: 50,
   });
-  const displayNode = {
-    setScale() {},
-    getScale() {
-      return { x: 1, y: 1, z: 1 };
-    },
-  };
 
   const pending = client.updateRemoteVideoView(123, {
     x: 48,
     y: 0,
     width: 100,
     height: 100,
-    displayNode,
     mirrorMode: 2,
     sourceType: 0,
   });
@@ -1479,7 +1488,7 @@ test('updateRemoteVideoView strips displayNode before native dispatch', async ()
     mirrorMode: 2,
     sourceType: 0,
   });
-  assertFixtureCoversInterfaceFields('AgoraRtcVideoCanvas', request.params, ['displayNode']);
+  assert.equal(request.params.displayNode, undefined);
 
   transport.emit(
     'agora:response',
