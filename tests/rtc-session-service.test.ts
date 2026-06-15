@@ -13,6 +13,11 @@ type SentRequest = {
   params: Record<string, unknown>;
 };
 
+type PermissionRequest = {
+  requestId: string;
+  permission: 'camera' | 'microphone';
+};
+
 const repoRoot = process.cwd();
 
 const CC_STUB_SOURCE = `
@@ -111,6 +116,10 @@ const TRANSPILE_TARGETS = [
     outputPath: 'example/basic-call/assets/scripts/demo/RtcSessionService.ts',
   },
   {
+    sourcePath: 'example/basic-call/assets/scripts/demo/DemoPermissions.ts',
+    outputPath: 'example/basic-call/assets/scripts/demo/DemoPermissions.ts',
+  },
+  {
     sourcePath: 'example/basic-call/assets/scripts/demo/cases/AudioEffectMixingCase.ts',
     outputPath: 'example/basic-call/assets/scripts/demo/cases/AudioEffectMixingCase.ts',
   },
@@ -154,18 +163,37 @@ const TRANSPILE_TARGETS = [
 
 class AutoResponseTransport {
   sent: SentRequest[] = [];
+  permissionRequests: PermissionRequest[] = [];
+  dispatches: Array<{ eventName: string; payload: Record<string, unknown> }> = [];
   listeners = new Map<string, Array<(payload: string) => void>>();
 
-  dispatchEventToNative(_eventName: string, payload: string) {
-    const request = JSON.parse(payload) as SentRequest;
-    this.sent.push(request);
-    queueMicrotask(() => {
-      this.emit('agora:response', JSON.stringify({
-        requestId: request.requestId,
-        ok: true,
-        result: null,
-      }));
-    });
+  dispatchEventToNative(eventName: string, payload: string) {
+    const request = JSON.parse(payload) as Record<string, unknown>;
+    this.dispatches.push({ eventName, payload: request });
+
+    if (eventName === 'agora:request') {
+      const agoraRequest = request as SentRequest;
+      this.sent.push(agoraRequest);
+      queueMicrotask(() => {
+        this.emit('agora:response', JSON.stringify({
+          requestId: agoraRequest.requestId,
+          ok: true,
+          result: null,
+        }));
+      });
+      return;
+    }
+
+    if (eventName === 'demo:permissions:request') {
+      const permissionRequest = request as PermissionRequest;
+      this.permissionRequests.push(permissionRequest);
+      queueMicrotask(() => {
+        this.emit('demo:permissions:response', JSON.stringify({
+          requestId: permissionRequest.requestId,
+          ok: true,
+        }));
+      });
+    }
   }
 
   addNativeEventListener(eventName: string, listener: (payload: string) => void) {
@@ -299,6 +327,51 @@ test('joinRtcChannel skips encoder config when deferVideoEncoderConfiguration is
   assert.equal(joinRequests.length, 1);
 });
 
+test('joinRtcChannel requests demo-owned camera and microphone permissions before publisher join', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      publishCameraTrack: true,
+      publishMicrophoneTrack: true,
+    })),
+  );
+
+  await service.joinRtcChannel();
+
+  assert.deepEqual(
+    transport.permissionRequests.map((request) => request.permission),
+    ['camera', 'microphone'],
+  );
+  assert.equal(pickRequests(transport, 'joinChannel').length, 1);
+  assert.ok(
+    transport.dispatches.findIndex((dispatch) => dispatch.eventName === 'demo:permissions:request')
+      < transport.dispatches.findIndex((dispatch) => dispatch.eventName === 'agora:request' && dispatch.payload.method === 'joinChannel'),
+  );
+});
+
+test('joinRtcChannel skips demo-owned permission requests for subscriber-only join', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      clientRole: 'audience',
+      publishCameraTrack: false,
+      publishMicrophoneTrack: false,
+    })),
+  );
+
+  await service.applyClientRole('audience');
+  await service.joinRtcChannel();
+
+  assert.equal(transport.permissionRequests.length, 0);
+  assert.equal(pickRequests(transport, 'joinChannel').length, 1);
+});
+
 test('startLocalPreview skips encoder config when deferVideoEncoderConfiguration is set', async () => {
   const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
   const transport = new AutoResponseTransport();
@@ -312,6 +385,28 @@ test('startLocalPreview skips encoder config when deferVideoEncoderConfiguration
 
   const encoderRequests = pickRequests(transport, 'setVideoEncoderConfiguration');
   assert.equal(encoderRequests.length, 0);
+});
+
+test('startLocalPreview requests demo-owned camera permission before preview', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig()),
+  );
+
+  await service.startLocalPreview();
+
+  assert.deepEqual(
+    transport.permissionRequests.map((request) => request.permission),
+    ['camera'],
+  );
+  assert.equal(pickRequests(transport, 'startPreview').length, 1);
+  assert.ok(
+    transport.dispatches.findIndex((dispatch) => dispatch.eventName === 'demo:permissions:request')
+      < transport.dispatches.findIndex((dispatch) => dispatch.eventName === 'agora:request' && dispatch.payload.method === 'startPreview'),
+  );
 });
 
 test('applyVideoEncoderConfiguration forwards width height frameRate and bitrate', async () => {
