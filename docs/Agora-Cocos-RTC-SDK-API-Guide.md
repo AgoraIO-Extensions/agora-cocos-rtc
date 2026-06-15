@@ -463,6 +463,7 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | `appId` | `string` | Yes | Agora 项目的 App ID，初始化 RTC 引擎时必填。 |
+| `parameters` | `string \| Record<string, unknown>` | No | 附加参数，可传 JSON 字符串或 plain object；最终会与 `rtc.set_app_type` 合并。 |
 | `areaCode` | `number` | No | 区域码，用于限制 SDK 连接的区域范围。 |
 | `channelProfile` | `number` | No | 频道场景配置，通常由业务层按通信或直播场景封装。 |
 | `license` | `string` | No | 可选的 License 字符串，按项目授权要求传入。 |
@@ -596,10 +597,10 @@ const mediaOptions: AgoraChannelMediaOptions = {
 | --- | --- | --- | --- |
 | `module` | `number` | No | 单模块配置写法，对应一个内容审核模块类型。 |
 | `interval` | `number` | No | 审核采样间隔。 |
-| `position` | `number` | No | 审核位置参数；仅 Android 内容审核模块位置有效，iOS 当前忽略该字段。 |
+| `position` | `number` | No | 审核位置参数；iOS 仅在原生 SDK 暴露该字段时透传，否则忽略。 |
 | `extraInfo` | `string` | No | 业务附加信息。 |
 | `serverConfig` | `string` | No | 服务端审核配置字符串。 |
-| `modules` | `Array<{ type?: number; interval?: number; position?: number; }>` | No | 多模块配置写法，可同时声明多个审核模块；其中每个模块的 `position` 也仅 Android 生效，iOS 当前忽略。 |
+| `modules` | `Array<{ type?: number; interval?: number; position?: number; }>` | No | 多模块配置写法，可同时声明多个审核模块；其中每个模块的 `position` 在 iOS 上也仅会在原生 SDK 暴露该字段时透传。 |
 
 补充说明：
 

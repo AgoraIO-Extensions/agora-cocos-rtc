@@ -1,13 +1,20 @@
 package io.agora.cocos.rtc;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.Build;
 
 import org.json.JSONException;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Queue;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.cocos.lib.CocosHelper;
@@ -32,18 +39,26 @@ import io.agora.rtc2.video.VideoEncoderConfiguration;
 
 /**
  * Template bridge for the initial integration.
- * The exported Android project should call attachBridge() during app startup.
+ * The exported Android project should call attachBridge() during app startup
+ * and forward Activity permission results into onRequestPermissionsResult().
  */
 public final class AgoraRtcPlugin {
     private static final String RESPONSE_EVENT = "agora:response";
     private static final String CALLBACK_EVENT = "agora:event";
     private static final String REQUEST_EVENT = "agora:request";
     private static final String PROTECTED_APP_TYPE_PARAMETERS = "{\"rtc.set_app_type\":10}";
+    private static final int RTC_PERMISSION_REQUEST_CODE = 9108;
     private static final long NATIVE_QUERY_TIMEOUT_MS = 5000L;
+    private static final String[] RTC_RUNTIME_PERMISSIONS = new String[] {
+            Manifest.permission.CAMERA,
+            Manifest.permission.RECORD_AUDIO
+    };
     private static final AgoraRtcPlugin INSTANCE = new AgoraRtcPlugin();
 
     private RtcEngine rtcEngine;
     private boolean attached;
+    private boolean permissionRequestInFlight;
+    private final Queue<PendingPermissionAction> pendingPermissionActions = new ArrayDeque<>();
     private String renderBackendType = "engine-texture";
     private AgoraRenderBackend renderBackend = AgoraRenderBackendFactory.create(
             renderBackendType,
@@ -70,6 +85,55 @@ public final class AgoraRtcPlugin {
                 dispatchNativeExceptionError(requestId, error);
             }
         });
+    }
+
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode != RTC_PERMISSION_REQUEST_CODE) {
+            return;
+        }
+
+        permissionRequestInFlight = false;
+        Set<String> deniedPermissions = new HashSet<>();
+        if (grantResults == null || grantResults.length == 0) {
+            addAllRtcRuntimePermissions(deniedPermissions);
+        } else if (permissions == null || permissions.length == 0) {
+            addAllRtcRuntimePermissions(deniedPermissions);
+        } else {
+            for (int index = 0; index < grantResults.length && index < permissions.length; index += 1) {
+                if (grantResults[index] != PackageManager.PERMISSION_GRANTED) {
+                    deniedPermissions.add(permissions[index]);
+                }
+            }
+        }
+
+        resumePendingPermissionActions(deniedPermissions);
+    }
+
+    private void resumePendingPermissionActions(Set<String> deniedPermissions) {
+        while (!pendingPermissionActions.isEmpty() && !permissionRequestInFlight) {
+            PendingPermissionAction pendingAction = pendingPermissionActions.poll();
+            if (requiresDeniedRtcPermission(pendingAction, deniedPermissions)) {
+                dispatchError(pendingAction.requestId, "Camera and microphone permissions are required.");
+                continue;
+            }
+            ensureRtcPermissions(
+                    pendingAction.requestId,
+                    pendingAction.requiresCamera,
+                    pendingAction.requiresMicrophone,
+                    pendingAction.action
+            );
+        }
+    }
+
+    private boolean requiresDeniedRtcPermission(PendingPermissionAction pendingAction, Set<String> deniedPermissions) {
+        return (pendingAction.requiresCamera && deniedPermissions.contains(Manifest.permission.CAMERA))
+                || (pendingAction.requiresMicrophone && deniedPermissions.contains(Manifest.permission.RECORD_AUDIO));
+    }
+
+    private void addAllRtcRuntimePermissions(Set<String> permissions) {
+        for (String permission : RTC_RUNTIME_PERMISSIONS) {
+            permissions.add(permission);
+        }
     }
 
     public void handleScriptRequest(String payload) throws JSONException {
@@ -622,7 +686,15 @@ public final class AgoraRtcPlugin {
         }
 
         JSONObject mediaOptions = params != null ? params.optJSONObject("options") : null;
-        continueJoinChannel(requestId, token, channelId, uid, mediaOptions);
+        boolean requiresCameraPermission = requiresCameraPermission(mediaOptions);
+        boolean requiresMicrophonePermission = requiresMicrophonePermission(mediaOptions);
+
+        ensureRtcPermissions(
+                requestId,
+                requiresCameraPermission,
+                requiresMicrophonePermission,
+                () -> continueJoinChannel(requestId, token, channelId, uid, mediaOptions)
+        );
     }
 
     private void continueJoinChannel(String requestId, String token, String channelId, int uid, JSONObject mediaOptions) {
@@ -776,6 +848,23 @@ public final class AgoraRtcPlugin {
         return object.optInt(key);
     }
 
+    private boolean mediaOptionBoolean(JSONObject object, String key, boolean defaultValue) {
+        Boolean value = optNullableBoolean(object, key);
+        return value != null ? value : defaultValue;
+    }
+
+    private boolean requiresCameraPermission(JSONObject mediaOptions) {
+        return mediaOptionBoolean(mediaOptions, "publishCameraTrack", true)
+                || mediaOptionBoolean(mediaOptions, "startPreview", false)
+                || mediaOptionBoolean(mediaOptions, "publishSecondaryCameraTrack", false)
+                || mediaOptionBoolean(mediaOptions, "publishThirdCameraTrack", false)
+                || mediaOptionBoolean(mediaOptions, "publishFourthCameraTrack", false);
+    }
+
+    private boolean requiresMicrophonePermission(JSONObject mediaOptions) {
+        return mediaOptionBoolean(mediaOptions, "publishMicrophoneTrack", true);
+    }
+
     private int parseClientRoleType(Object rawValue) {
         if (rawValue instanceof Number) {
             return ((Number) rawValue).intValue();
@@ -798,14 +887,6 @@ public final class AgoraRtcPlugin {
         return Constants.CHANNEL_PROFILE_LIVE_BROADCASTING;
     }
 
-    private Activity requireActivity(String requestId) {
-        Activity activity = GlobalObject.getActivity();
-        if (activity == null) {
-            dispatchError(requestId, "Android activity is unavailable.");
-        }
-        return activity;
-    }
-
     private void handleJoinChannelWithUserAccount(String requestId, JSONObject params) {
         String token = params != null ? params.optString("token") : "";
         String channelId = params != null ? params.optString("channelId") : "";
@@ -825,7 +906,15 @@ public final class AgoraRtcPlugin {
         }
 
         JSONObject mediaOptions = params != null ? params.optJSONObject("options") : null;
-        continueJoinChannelWithUserAccount(requestId, token, channelId, userAccount, mediaOptions);
+        boolean requiresCameraPermission = requiresCameraPermission(mediaOptions);
+        boolean requiresMicrophonePermission = requiresMicrophonePermission(mediaOptions);
+
+        ensureRtcPermissions(
+                requestId,
+                requiresCameraPermission,
+                requiresMicrophonePermission,
+                () -> continueJoinChannelWithUserAccount(requestId, token, channelId, userAccount, mediaOptions)
+        );
     }
 
     private void continueJoinChannelWithUserAccount(String requestId, String token, String channelId, String userAccount, JSONObject mediaOptions) {
@@ -970,7 +1059,7 @@ public final class AgoraRtcPlugin {
             return;
         }
 
-        continueStartPreview(requestId, params);
+        ensureRtcPermissions(requestId, true, false, () -> continueStartPreview(requestId, params));
     }
 
     private void continueStartPreview(String requestId, JSONObject params) {
@@ -1680,16 +1769,22 @@ public final class AgoraRtcPlugin {
             dispatchError(requestId, "RtcEngine is not initialized.");
             return;
         }
-        String parameterValue = params != null ? params.optString("parameters", "") : "";
-        String parameters;
-        try {
-            parameters = mergeProtectedParameters(parameterValue);
-        } catch (IllegalArgumentException error) {
-            dispatchInvalidArgumentError(requestId, error.getMessage(), "setParameters", "parameters", parameterValue);
+        String parameterValue = params != null && params.has("parameters") && !params.isNull("parameters")
+                ? params.optString("parameters", null)
+                : null;
+        if (
+                parameterValue == null ||
+                parameterValue.trim().isEmpty() ||
+                parameterValue.matches("\\{\\s*\\}")
+        ) {
+            dispatchError(requestId, "Parameters are required.");
             return;
         }
-        if (parameters == null || parameters.trim().isEmpty()) {
-            dispatchError(requestId, "Parameters are required.");
+        String parameters;
+        try {
+            parameters = mergeProtectedParameters(parameterValue, false);
+        } catch (IllegalArgumentException error) {
+            dispatchInvalidArgumentError(requestId, error.getMessage(), "setParameters", "parameters", parameterValue);
             return;
         }
         int result = rtcEngine.setParameters(parameters);
@@ -1704,7 +1799,7 @@ public final class AgoraRtcPlugin {
         String parameterValue = params != null ? params.optString("parameters", "") : "";
         String parameters;
         try {
-            parameters = mergeProtectedParameters(parameterValue);
+            parameters = mergeProtectedParameters(parameterValue, true);
         } catch (IllegalArgumentException error) {
             dispatchInvalidArgumentError(requestId, error.getMessage(), method, "parameters", parameterValue);
             return false;
@@ -1721,7 +1816,7 @@ public final class AgoraRtcPlugin {
         return true;
     }
 
-    private String mergeProtectedParameters(String parameterValue) {
+    private String mergeProtectedParameters(String parameterValue, boolean allowEmptyPayload) {
         if (parameterValue == null || parameterValue.trim().isEmpty()) {
             return PROTECTED_APP_TYPE_PARAMETERS;
         }
@@ -1732,6 +1827,86 @@ public final class AgoraRtcPlugin {
         } catch (JSONException error) {
             throw new IllegalArgumentException("Parameters must be a valid JSON object string.");
         }
+    }
+
+    private Activity requireActivity(String requestId) {
+        Activity activity = GlobalObject.getActivity();
+        if (activity == null) {
+            dispatchError(requestId, "Android activity is unavailable.");
+        }
+        return activity;
+    }
+
+    private void ensureRtcPermissions(String requestId, Runnable action) {
+        ensureRtcPermissions(requestId, true, true, action);
+    }
+
+    private void ensureRtcPermissions(
+            String requestId,
+            boolean requiresCamera,
+            boolean requiresMicrophone,
+            Runnable action
+    ) {
+        if (!requiresCamera && !requiresMicrophone) {
+            action.run();
+            return;
+        }
+
+        Activity activity = requireActivity(requestId);
+        if (activity == null) {
+            return;
+        }
+
+        if (hasRtcPermissions(activity, requiresCamera, requiresMicrophone)) {
+            action.run();
+            return;
+        }
+
+        pendingPermissionActions.add(new PendingPermissionAction(requestId, requiresCamera, requiresMicrophone, action));
+        if (permissionRequestInFlight) {
+            return;
+        }
+
+        permissionRequestInFlight = true;
+        activity.runOnUiThread(() ->
+                activity.requestPermissions(
+                        missingRtcPermissions(activity, requiresCamera, requiresMicrophone),
+                        RTC_PERMISSION_REQUEST_CODE
+                )
+        );
+    }
+
+    private boolean hasRtcPermissions(Activity activity) {
+        return hasRtcPermissions(activity, true, true);
+    }
+
+    private boolean hasRtcPermissions(Activity activity, boolean requiresCamera, boolean requiresMicrophone) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return true;
+        }
+        return missingRtcPermissions(activity, requiresCamera, requiresMicrophone).length == 0;
+    }
+
+    private String[] missingRtcPermissions(Activity activity) {
+        return missingRtcPermissions(activity, true, true);
+    }
+
+    private String[] missingRtcPermissions(Activity activity, boolean requiresCamera, boolean requiresMicrophone) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return new String[0];
+        }
+
+        ArrayList<String> missingPermissions = new ArrayList<>();
+        if (requiresCamera && activity.checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            missingPermissions.add(Manifest.permission.CAMERA);
+        }
+        if (
+                requiresMicrophone &&
+                activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+        ) {
+            missingPermissions.add(Manifest.permission.RECORD_AUDIO);
+        }
+        return missingPermissions.toArray(new String[0]);
     }
 
     private AgoraRenderResultCallback requestCallback(String requestId) {
@@ -2066,4 +2241,22 @@ public final class AgoraRtcPlugin {
         return array;
     }
 
+    private static final class PendingPermissionAction {
+        private final String requestId;
+        private final boolean requiresCamera;
+        private final boolean requiresMicrophone;
+        private final Runnable action;
+
+        private PendingPermissionAction(
+                String requestId,
+                boolean requiresCamera,
+                boolean requiresMicrophone,
+                Runnable action
+        ) {
+            this.requestId = requestId;
+            this.requiresCamera = requiresCamera;
+            this.requiresMicrophone = requiresMicrophone;
+            this.action = action;
+        }
+    }
 }
