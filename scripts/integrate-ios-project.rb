@@ -85,8 +85,14 @@ APP_DELEGATE_FORWARD_DECLARATION = <<~OBJC.strip
   + (instancetype)sharedInstance;
   - (void)attachBridge;
   @end
+
+  @interface DemoPermissionsPlugin : NSObject
+  + (instancetype)sharedInstance;
+  - (void)attachBridge;
+  @end
 OBJC
 APP_DELEGATE_ATTACH_CALL = '    [[AgoraRtcPlugin sharedInstance] attachBridge];'
+DEMO_PERMISSIONS_ATTACH_CALL = '    [[DemoPermissionsPlugin sharedInstance] attachBridge];'
 IOS_RTC_USAGE_DESCRIPTIONS = {
   'NSCameraUsageDescription' => 'Agora RTC needs camera access for local video preview and calls.',
   'NSMicrophoneUsageDescription' => 'Agora RTC needs microphone access for voice calls.'
@@ -112,6 +118,13 @@ def ensure_app_delegate_attaches_bridge(path)
     raise 'Unable to patch iOS AppDelegate: launch anchor not found.' unless patched.include?(launch_anchor)
 
     patched = patched.sub(launch_anchor, "#{launch_anchor}\n#{APP_DELEGATE_ATTACH_CALL}")
+  end
+
+  unless patched.include?('[[DemoPermissionsPlugin sharedInstance] attachBridge]')
+    agora_attach_anchor = APP_DELEGATE_ATTACH_CALL
+    raise 'Unable to patch iOS AppDelegate: Agora attach anchor not found.' unless patched.include?(agora_attach_anchor)
+
+    patched = patched.sub(agora_attach_anchor, "#{agora_attach_anchor}\n#{DEMO_PERMISSIONS_ATTACH_CALL}")
   end
 
   File.write(path, patched) if patched != content
@@ -257,7 +270,7 @@ group = project.main_group.find_subpath(GROUP_NAME, true)
 group.set_source_tree('<group>')
 group.path = GROUP_NAME
 
-['AgoraRtcBridge.swift', 'AgoraRtcPlugin.mm', 'AgoraEngineTextureSlotBridge.h', 'AgoraEngineTextureSlotBridge.mm'].each do |filename|
+['AgoraRtcBridge.swift', 'AgoraRtcPlugin.mm', 'DemoPermissionsPlugin.mm', 'AgoraEngineTextureSlotBridge.h', 'AgoraEngineTextureSlotBridge.mm'].each do |filename|
   file_ref = group.files.find { |file| file.path == filename } || group.new_file(filename)
   target.add_file_references([file_ref])
 end

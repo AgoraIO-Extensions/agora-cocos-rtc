@@ -18,13 +18,6 @@ const IOS_APP_DELEGATE_FORWARD_DECLARATION = `@interface AgoraRtcPlugin : NSObje
 const IOS_APP_DELEGATE_ATTACH_CALL = '    [[AgoraRtcPlugin sharedInstance] attachBridge];';
 const ANDROID_APP_ACTIVITY_IMPORT = 'import io.agora.cocos.rtc.AgoraRtcPlugin;';
 const ANDROID_APP_ACTIVITY_ATTACH_CALL = '        AgoraRtcPlugin.getInstance().attachBridge();';
-const ANDROID_APP_ACTIVITY_PERMISSION_FORWARDER = `    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        AgoraRtcPlugin.getInstance().onRequestPermissionsResult(requestCode, permissions, grantResults);
-    }
-`;
-const ANDROID_APP_ACTIVITY_PERMISSION_FORWARD_CALL = '        AgoraRtcPlugin.getInstance().onRequestPermissionsResult(requestCode, permissions, grantResults);';
 const ANDROID_RTC_PERMISSIONS = [
   'android.permission.CAMERA',
   'android.permission.RECORD_AUDIO',
@@ -1174,27 +1167,6 @@ function patchAndroidAppActivityBridgeAttachment(content) {
       throw new Error('Unable to patch Android AppActivity: SDKWrapper init anchor not found.');
     }
     next = next.replace(launchAnchor, `${launchAnchor}\n${ANDROID_APP_ACTIVITY_ATTACH_CALL}`);
-  }
-
-  if (!next.includes('AgoraRtcPlugin.getInstance().onRequestPermissionsResult')) {
-    const permissionCallbackMatch = next.match(
-      /public\s+void\s+onRequestPermissionsResult\s*\(\s*int\s+requestCode\s*,\s*String\[\]\s+permissions\s*,\s*int\[\]\s+grantResults\s*\)\s*\{/,
-    );
-    if (permissionCallbackMatch) {
-      const superCall = 'super.onRequestPermissionsResult(requestCode, permissions, grantResults);';
-      next = next.includes(superCall)
-        ? next.replace(superCall, `${superCall}\n${ANDROID_APP_ACTIVITY_PERMISSION_FORWARD_CALL}`)
-        : next.replace(
-          permissionCallbackMatch[0],
-          `${permissionCallbackMatch[0]}\n${ANDROID_APP_ACTIVITY_PERMISSION_FORWARD_CALL}`,
-        );
-    } else {
-      const classEndIndex = next.lastIndexOf('}');
-      if (classEndIndex < 0) {
-        throw new Error('Unable to patch Android AppActivity: class closing brace not found.');
-      }
-      next = `${next.slice(0, classEndIndex).trimEnd()}\n\n${ANDROID_APP_ACTIVITY_PERMISSION_FORWARDER}${next.slice(classEndIndex)}`;
-    }
   }
 
   return next;
