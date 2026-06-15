@@ -32,8 +32,47 @@
       </nav>
       <main id="main-content" class="doc-main">
         <section class="hero">
-          <h1>API Reference Placeholder</h1>
-          <p>Content coming next task.</p>
+          <h1>API Reference</h1>
+          <p>This page is the exact lookup surface. Entries must stay aligned with the current public exports and expose stable anchors.</p>
+        </section>
+        <section class="card">
+          <h2 id="exports">Top-level exports</h2>
+          <article id="export-createAgoraRtcClient"><h3>createAgoraRtcClient</h3><p>Create an RTC client instance.</p></article>
+          <article id="export-createAgoraEngineTextureViewManager"><h3>createAgoraEngineTextureViewManager</h3><p>Create an engine-texture view manager.</p></article>
+          <article id="export-createAgoraEngineTextureViewController"><h3>createAgoraEngineTextureViewController</h3><p>Create an engine-texture view controller.</p></article>
+          <article id="export-getAgoraEngineTextureBridge"><h3>getAgoraEngineTextureBridge</h3><p>Read the active engine texture bridge from runtime.</p></article>
+        </section>
+        <section class="card">
+          <h2 id="client-methods">AgoraRtcClient</h2>
+          <article id="method-on"><h3>on</h3><p>Subscribe to SDK events.</p></article>
+          <article id="method-off"><h3>off</h3><p>Remove an SDK event listener.</p></article>
+          <article id="method-initialize"><h3>initialize</h3><p>Initialize the RTC engine.</p></article>
+          <article id="method-joinChannel"><h3>joinChannel</h3><p>Join with a numeric UID.</p></article>
+          <article id="method-joinChannelWithUserAccount"><h3>joinChannelWithUserAccount</h3><p>Join with a string user account.</p></article>
+          <article id="method-getUserInfoByUserAccount"><h3>getUserInfoByUserAccount</h3><p>Resolve a user account into public user info.</p></article>
+          <article id="method-setRenderBackend"><h3>setRenderBackend</h3><p>Set the render backend.</p></article>
+          <article id="method-setVideoEncoderConfiguration"><h3>setVideoEncoderConfiguration</h3><p>Set video encoder configuration.</p></article>
+          <article id="method-setupLocalVideoView"><h3>setupLocalVideoView</h3><p>Bind a local video view.</p></article>
+          <article id="method-setupRemoteVideoView"><h3>setupRemoteVideoView</h3><p>Bind a remote video view.</p></article>
+          <article id="method-startPreview"><h3>startPreview</h3><p>Start local preview.</p></article>
+          <article id="method-stopPreview"><h3>stopPreview</h3><p>Stop local preview.</p></article>
+          <article id="method-switchCamera"><h3>switchCamera</h3><p>Switch the active camera.</p></article>
+          <article id="method-startAudioMixing"><h3>startAudioMixing</h3><p>Start audio mixing.</p></article>
+          <article id="method-playEffect"><h3>playEffect</h3><p>Play an effect sound.</p></article>
+          <article id="method-setParameters"><h3>setParameters</h3><p>Set extended bridge parameters.</p></article>
+          <article id="method-getEngineTexture"><h3>getEngineTexture</h3><p>Read a cached engine texture object.</p></article>
+          <article id="method-isEngineTextureReady"><h3>isEngineTextureReady</h3><p>Check whether a texture slot is ready.</p></article>
+          <article id="method-destroy"><h3>destroy</h3><p>Destroy the client and tear down listeners and pending requests.</p></article>
+        </section>
+        <section class="card">
+          <h2 id="events">Priority events</h2>
+          <article id="event-joinChannelSuccess"><h3>joinChannelSuccess</h3><p>Join success callback.</p></article>
+          <article id="event-leaveChannel"><h3>leaveChannel</h3><p>Leave-channel stats callback.</p></article>
+          <article id="event-rtcStats"><h3>rtcStats</h3><p>RTC statistics payload.</p></article>
+          <article id="event-localVideoTextureReady"><h3>localVideoTextureReady</h3><p>Local texture became ready.</p></article>
+          <article id="event-remoteVideoTextureReady"><h3>remoteVideoTextureReady</h3><p>Remote texture became ready.</p></article>
+          <article id="event-renderBackendState"><h3>renderBackendState</h3><p>Render backend state transition.</p></article>
+          <article id="event-error"><h3>error</h3><p>Unified error outlet.</p></article>
         </section>
       </main>
       <aside class="doc-toc" aria-label="On this page">

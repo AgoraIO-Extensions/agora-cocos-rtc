@@ -191,3 +191,56 @@ test('platform notes pages surface Android and iOS differences inline', async ()
     assert.match(content, /sourceType/);
   }
 });
+
+const expectedReferenceAnchors = [
+  'export-createAgoraRtcClient',
+  'export-createAgoraEngineTextureViewManager',
+  'export-createAgoraEngineTextureViewController',
+  'export-getAgoraEngineTextureBridge',
+  'method-on',
+  'method-off',
+  'method-initialize',
+  'method-joinChannel',
+  'method-joinChannelWithUserAccount',
+  'method-getUserInfoByUserAccount',
+  'method-setRenderBackend',
+  'method-setVideoEncoderConfiguration',
+  'method-setupLocalVideoView',
+  'method-setupRemoteVideoView',
+  'method-startPreview',
+  'method-stopPreview',
+  'method-switchCamera',
+  'method-startAudioMixing',
+  'method-playEffect',
+  'method-setParameters',
+  'method-getEngineTexture',
+  'method-isEngineTextureReady',
+  'method-destroy',
+  'event-joinChannelSuccess',
+  'event-leaveChannel',
+  'event-rtcStats',
+  'event-localVideoTextureReady',
+  'event-remoteVideoTextureReady',
+  'event-renderBackendState',
+  'event-error',
+];
+
+test('api reference pages expose stable anchors for public exports, methods, and events', async () => {
+  const zh = await readDoc('docs/zh/api-reference.html');
+  const en = await readDoc('docs/en/api-reference.html');
+
+  for (const anchor of expectedReferenceAnchors) {
+    assert.match(zh, new RegExp(`id="${anchor}"`));
+    assert.match(en, new RegExp(`id="${anchor}"`));
+  }
+});
+
+test('readmes point users to the new static docs entry pages', async () => {
+  const rootReadme = await readFile(path.join(repoRoot, 'README.md'), 'utf8');
+  const sdkReadme = await readFile(path.join(repoRoot, 'sdk/agora-rtc/README.md'), 'utf8');
+
+  assert.match(rootReadme, /docs\/zh\/index\.html/);
+  assert.match(rootReadme, /docs\/en\/index\.html/);
+  assert.match(sdkReadme, /docs\/zh\/index\.html/);
+  assert.match(sdkReadme, /docs\/en\/index\.html/);
+});

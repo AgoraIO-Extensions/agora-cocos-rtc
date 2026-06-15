@@ -32,8 +32,47 @@
       </nav>
       <main id="main-content" class="doc-main">
         <section class="hero">
-          <h1>API Reference 占位页</h1>
-          <p>Content coming next task.</p>
+          <h1>API Reference</h1>
+          <p>这一页是精确查阅入口。条目必须和当前公开导出保持一致，并给出稳定锚点。</p>
+        </section>
+        <section class="card">
+          <h2 id="exports">Top-level exports</h2>
+          <article id="export-createAgoraRtcClient"><h3>createAgoraRtcClient</h3><p>创建 RTC 客户端实例。</p></article>
+          <article id="export-createAgoraEngineTextureViewManager"><h3>createAgoraEngineTextureViewManager</h3><p>创建 engine-texture 视图管理器。</p></article>
+          <article id="export-createAgoraEngineTextureViewController"><h3>createAgoraEngineTextureViewController</h3><p>创建 engine-texture 视图控制器。</p></article>
+          <article id="export-getAgoraEngineTextureBridge"><h3>getAgoraEngineTextureBridge</h3><p>读取当前运行时的引擎纹理桥。</p></article>
+        </section>
+        <section class="card">
+          <h2 id="client-methods">AgoraRtcClient</h2>
+          <article id="method-on"><h3>on</h3><p>订阅事件。</p></article>
+          <article id="method-off"><h3>off</h3><p>取消订阅事件。</p></article>
+          <article id="method-initialize"><h3>initialize</h3><p>初始化 RTC 引擎。</p></article>
+          <article id="method-joinChannel"><h3>joinChannel</h3><p>使用数字 UID 加入频道。</p></article>
+          <article id="method-joinChannelWithUserAccount"><h3>joinChannelWithUserAccount</h3><p>使用字符串账号加入频道。</p></article>
+          <article id="method-getUserInfoByUserAccount"><h3>getUserInfoByUserAccount</h3><p>查询字符串账号对应的用户信息。</p></article>
+          <article id="method-setRenderBackend"><h3>setRenderBackend</h3><p>设置渲染后端。</p></article>
+          <article id="method-setVideoEncoderConfiguration"><h3>setVideoEncoderConfiguration</h3><p>设置编码参数。</p></article>
+          <article id="method-setupLocalVideoView"><h3>setupLocalVideoView</h3><p>建立本地视频视图。</p></article>
+          <article id="method-setupRemoteVideoView"><h3>setupRemoteVideoView</h3><p>建立远端视频视图。</p></article>
+          <article id="method-startPreview"><h3>startPreview</h3><p>开始本地预览。</p></article>
+          <article id="method-stopPreview"><h3>stopPreview</h3><p>停止本地预览。</p></article>
+          <article id="method-switchCamera"><h3>switchCamera</h3><p>切换摄像头。</p></article>
+          <article id="method-startAudioMixing"><h3>startAudioMixing</h3><p>开始音频混音。</p></article>
+          <article id="method-playEffect"><h3>playEffect</h3><p>播放音效。</p></article>
+          <article id="method-setParameters"><h3>setParameters</h3><p>设置扩展参数。</p></article>
+          <article id="method-getEngineTexture"><h3>getEngineTexture</h3><p>读取缓存的引擎纹理对象。</p></article>
+          <article id="method-isEngineTextureReady"><h3>isEngineTextureReady</h3><p>判断纹理槽是否已经 ready。</p></article>
+          <article id="method-destroy"><h3>destroy</h3><p>销毁客户端并清理事件与待处理请求。</p></article>
+        </section>
+        <section class="card">
+          <h2 id="events">Priority events</h2>
+          <article id="event-joinChannelSuccess"><h3>joinChannelSuccess</h3><p>加入频道成功。</p></article>
+          <article id="event-leaveChannel"><h3>leaveChannel</h3><p>离开频道后的统计回调。</p></article>
+          <article id="event-rtcStats"><h3>rtcStats</h3><p>RTC 统计信息。</p></article>
+          <article id="event-localVideoTextureReady"><h3>localVideoTextureReady</h3><p>本地纹理已准备就绪。</p></article>
+          <article id="event-remoteVideoTextureReady"><h3>remoteVideoTextureReady</h3><p>远端纹理已准备就绪。</p></article>
+          <article id="event-renderBackendState"><h3>renderBackendState</h3><p>渲染后端状态变化。</p></article>
+          <article id="event-error"><h3>error</h3><p>统一错误出口。</p></article>
         </section>
       </main>
       <aside class="doc-toc" aria-label="On this page">
