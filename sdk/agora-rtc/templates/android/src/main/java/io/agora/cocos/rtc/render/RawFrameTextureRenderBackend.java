@@ -442,9 +442,13 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
     }
 
     protected Constants.VideoSourceType resolvePreviewVideoSourceType(JSONObject params) {
-      Constants.VideoSourceType sourceType = Constants.VideoSourceType.fromInt(
-          params != null ? params.optInt("sourceType", 0) : 0
-      );
+      int sourceValue = 0;
+      if (params != null && params.has("videoSourceType") && !params.isNull("videoSourceType")) {
+        sourceValue = params.optInt("videoSourceType", 0);
+      } else if (params != null) {
+        sourceValue = params.optInt("sourceType", 0);
+      }
+      Constants.VideoSourceType sourceType = Constants.VideoSourceType.fromInt(sourceValue);
       return sourceType != null ? sourceType : Constants.VideoSourceType.VIDEO_SOURCE_CAMERA_PRIMARY;
     }
 

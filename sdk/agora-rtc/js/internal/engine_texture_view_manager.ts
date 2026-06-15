@@ -9,9 +9,11 @@ import type { AgoraRtcClient } from '../agora.ts';
 import type {
   AgoraCocosDisplayNode,
   AgoraEngineTextureCameraFacing,
+  AgoraRtcVideoCanvas,
   AgoraVideoEncoderConfiguration,
   CocosBridgeRuntime,
 } from '../types.ts';
+import { applyVideoSourceTypeBridgeFields, resolveVideoSourceTypeParam } from '../source_types.ts';
 import { resolveEngineTextureBridge } from './bridge.ts';
 import { resolveEngineEncoderMirrorMode } from './engine_texture_encoder_mirror.ts';
 import { AgoraEngineTextureViewController } from './engine_texture_view.ts';
@@ -106,11 +108,8 @@ export class AgoraEngineTextureViewManager {
     this.applyCachedTextureSlot('remote', uid);
   }
 
-  syncLocalDisplayFromCanvas(canvas: {
-    displayNode?: AgoraCocosDisplayNode;
-    mirrorMode?: number;
-    sourceType?: number;
-  }): void {
+  syncLocalDisplayFromCanvas(canvas: Pick<AgoraRtcVideoCanvas, 'displayNode' | 'mirrorMode' | 'sourceType' | 'videoSourceType'>): void {
+    const resolvedSourceType = resolveVideoSourceTypeParam(canvas);
     if (canvas.displayNode) {
       const displayNode = canvas.displayNode as Node;
       const existing = this.#views.get(LOCAL_VIEW_ID);
@@ -118,8 +117,8 @@ export class AgoraEngineTextureViewManager {
         if (canvas.mirrorMode !== undefined) {
           existing.mirrorMode = canvas.mirrorMode;
         }
-        if (canvas.sourceType !== undefined) {
-          existing.sourceType = canvas.sourceType;
+        if (resolvedSourceType !== undefined) {
+          existing.sourceType = resolvedSourceType;
         }
         this.#viewController.registerLocalView({
           viewId: LOCAL_VIEW_ID,
@@ -132,7 +131,7 @@ export class AgoraEngineTextureViewManager {
       this.registerLocalDisplay({
         displayNode: canvas.displayNode,
         mirrorMode: canvas.mirrorMode,
-        sourceType: canvas.sourceType,
+        sourceType: resolvedSourceType,
       });
       return;
     }
@@ -143,8 +142,8 @@ export class AgoraEngineTextureViewManager {
     if (canvas.mirrorMode !== undefined) {
       view.mirrorMode = canvas.mirrorMode;
     }
-    if (canvas.sourceType !== undefined) {
-      view.sourceType = canvas.sourceType;
+    if (resolvedSourceType !== undefined) {
+      view.sourceType = resolvedSourceType;
     }
     this.#viewController.registerLocalView({
       viewId: LOCAL_VIEW_ID,
@@ -154,11 +153,8 @@ export class AgoraEngineTextureViewManager {
     this.applyDisplayMirror(LOCAL_VIEW_ID);
   }
 
-  syncRemoteDisplayFromCanvas(uid: number, canvas: {
-    displayNode?: AgoraCocosDisplayNode;
-    mirrorMode?: number;
-    sourceType?: number;
-  }): void {
+  syncRemoteDisplayFromCanvas(uid: number, canvas: Pick<AgoraRtcVideoCanvas, 'displayNode' | 'mirrorMode' | 'sourceType' | 'videoSourceType'>): void {
+    const resolvedSourceType = resolveVideoSourceTypeParam(canvas);
     const viewId = this.#remoteViewId(uid);
     if (canvas.displayNode) {
       const displayNode = canvas.displayNode as Node;
@@ -167,8 +163,8 @@ export class AgoraEngineTextureViewManager {
         if (canvas.mirrorMode !== undefined) {
           existing.mirrorMode = canvas.mirrorMode;
         }
-        if (canvas.sourceType !== undefined) {
-          existing.sourceType = canvas.sourceType;
+        if (resolvedSourceType !== undefined) {
+          existing.sourceType = resolvedSourceType;
         }
         this.#viewController.registerRemoteView({
           viewId,
@@ -182,7 +178,7 @@ export class AgoraEngineTextureViewManager {
       this.registerRemoteDisplay(uid, {
         displayNode: canvas.displayNode,
         mirrorMode: canvas.mirrorMode,
-        sourceType: canvas.sourceType,
+        sourceType: resolvedSourceType,
       });
       return;
     }
@@ -193,8 +189,8 @@ export class AgoraEngineTextureViewManager {
     if (canvas.mirrorMode !== undefined) {
       view.mirrorMode = canvas.mirrorMode;
     }
-    if (canvas.sourceType !== undefined) {
-      view.sourceType = canvas.sourceType;
+    if (resolvedSourceType !== undefined) {
+      view.sourceType = resolvedSourceType;
     }
     this.#viewController.registerRemoteView({
       viewId,
@@ -504,9 +500,9 @@ export class AgoraEngineTextureViewManager {
   }
 }
 
-export function stripDisplayNodeFromCanvas<T extends { displayNode?: AgoraCocosDisplayNode }>(
-  canvas: T,
-): Omit<T, 'displayNode'> {
+export function stripDisplayNodeFromCanvas(
+  canvas: AgoraRtcVideoCanvas,
+): Omit<AgoraRtcVideoCanvas, 'displayNode'> {
   const { displayNode: _displayNode, ...nativeCanvas } = canvas;
-  return nativeCanvas;
+  return applyVideoSourceTypeBridgeFields(nativeCanvas);
 }

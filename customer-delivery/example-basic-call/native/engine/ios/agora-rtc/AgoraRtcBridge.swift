@@ -29,11 +29,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     private let protectedAppTypeParameters = "{\"rtc.set_app_type\":10}"
 
     private var rtcEngine: AgoraRtcEngineKit?
-    private var renderBackend = "surface-view"
-    private var localCanvasView: UIView?
-    private var localCanvas: AgoraRtcVideoCanvas?
-    private var remoteCanvasViews: [UInt: UIView] = [:]
-    private var remoteCanvases: [UInt: AgoraRtcVideoCanvas] = [:]
+    private var renderBackend = "engine-texture"
     private var localTextureRequested = false
     private var localTextureSlot: TextureSlotState?
     private var remoteTextureUids = Set<UInt>()
@@ -250,19 +246,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 )
                 return
             }
-            if requestedBackend == "texture-view" {
-                renderBackend = "surface-view"
-                dispatchEvent(name: "renderBackendState", payload: [
-                    "backend": requestedBackend,
-                    "phase": "fallback",
-                    "result": 0,
-                    "uid": 0,
-                    "fallbackBackend": renderBackend,
-                    "platform": "ios",
-                ])
-            } else {
-                renderBackend = requestedBackend
-            }
+            renderBackend = requestedBackend
             dispatchResponse([
                 "requestId": requestId,
                 "ok": true,
@@ -334,7 +318,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "muteRemoteAudioStream":
             requireEngine(requestId: requestId) { engine in
-                let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+                let uid = uintValue(params["uid"] ?? 0)
                 let muted = params["muted"] as? Bool ?? false
                 let result = engine.muteRemoteAudioStream(uid, mute: muted)
                 dispatchResult(requestId: requestId, method: method, result: result)
@@ -365,7 +349,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "muteRemoteVideoStream":
             requireEngine(requestId: requestId) { engine in
-                let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+                let uid = uintValue(params["uid"] ?? 0)
                 let muted = params["muted"] as? Bool ?? false
                 let result = engine.muteRemoteVideoStream(uid, mute: muted)
                 dispatchResult(requestId: requestId, method: method, result: result)
@@ -407,7 +391,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "adjustUserPlaybackSignalVolume":
             requireEngine(requestId: requestId) { engine in
-                let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+                let uid = uintValue(params["uid"] ?? 0)
                 let volume = params["volume"] as? Int ?? 100
                 let result = engine.adjustUserPlaybackSignalVolume(uid, volume: Int32(volume))
                 dispatchResult(requestId: requestId, method: method, result: result)
@@ -492,7 +476,9 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "setParameters":
             requireEngine(requestId: requestId) { engine in
-                guard let parameters = mergeProtectedParameters(params["parameters"]), !parameters.isEmpty else {
+                let parameterValue = params["parameters"]
+                let parameters = mergeProtectedParameters(parameterValue)
+                guard let parameters, !parameters.isEmpty else {
                     self.dispatchError(requestId: requestId, message: "Parameters are required.")
                     return
                 }
@@ -590,10 +576,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 let loopCount = params["loopCount"] as? Int ?? 1
                 let pitch = params["pitch"] as? Double ?? 1.0
                 let pan = params["pan"] as? Double ?? 0.0
-                let gain = params["gain"] as? Double ?? 100.0
+                let gain = params["gain"] as? Int ?? 100
                 let publish = params["publish"] as? Bool ?? false
                 let startPos = params["startPos"] as? Int ?? 0
-                let result = engine.playEffect(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: Int(gain), publish: publish, startPos: Int32(startPos))
+                let result = engine.playEffect(soundId, filePath: path, loopCount: loopCount, pitch: pitch, pan: pan, gain: gain, publish: publish, startPos: Int32(startPos))
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "pauseEffect":
@@ -661,7 +647,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             let shouldDestroyEngine = rtcEngine != nil
             _ = rtcEngine?.setVideoFrameDelegate(nil)
             rtcEngine = nil
-            clearAllVideoViews()
             releaseAllTextureSlots()
             dispatchResponse([
                 "requestId": requestId,
@@ -685,17 +670,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         case "removeRemoteVideoView":
             handleRemoveRemoteVideoView(requestId: requestId, params: params)
         case "setNativeVideoOverlaySuspended":
-            let suspended = params["suspended"] as? Bool ?? true
-            DispatchQueue.main.async {
-                self.localCanvasView?.isHidden = suspended
-                for view in self.remoteCanvasViews.values {
-                    view.isHidden = suspended
-                }
-                self.dispatchResponse([
-                    "requestId": requestId,
-                    "ok": true,
-                ])
-            }
+            dispatchResponse([
+                "requestId": requestId,
+                "ok": true,
+            ])
         default:
             dispatchUnsupported(requestId: requestId, method: method)
         }
@@ -755,7 +733,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
             return
         }
-        guard applyProtectedParameters(engine: engine, requestId: requestId, method: "initialize") else {
+        guard applyProtectedParameters(engine: engine, requestId: requestId, method: "initialize", params: params) else {
             rtcEngine = nil
             return
         }
@@ -766,8 +744,9 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         ])
     }
 
-    private func applyProtectedParameters(engine: AgoraRtcEngineKit, requestId: String, method: String) -> Bool {
-        let result = engine.setParameters(protectedAppTypeParameters)
+    private func applyProtectedParameters(engine: AgoraRtcEngineKit, requestId: String, method: String, params: [String: Any]) -> Bool {
+        let parameters = mergeProtectedParameters(params["parameters"]) ?? protectedAppTypeParameters
+        let result = engine.setParameters(parameters)
         if result < 0 {
             dispatchAgoraError(requestId: requestId, method: method, result: result)
             return false
@@ -821,7 +800,8 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         ) else {
             return
         }
-        let uid = params["uid"] as? UInt ?? UInt(params["uid"] as? Int ?? 0)
+        let uid = uintValue(params["uid"] ?? 0)
+        NSLog("[agora-rtc-native] handleJoinChannel requestId=%@ channel=%@ uid=%u options=%@", requestId, channelId, uid, String(describing: params["options"]))
 
         if let mediaOptionParams = params["options"] as? [String: Any] {
             let mediaOptions = buildChannelMediaOptions(mediaOptionParams)
@@ -835,12 +815,14 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 requiresCamera: requiresCameraPermission,
                 requiresMicrophone: requiresMicrophonePermission
             ) {
+                NSLog("[agora-rtc-native] handleJoinChannel permissions granted requestId=%@", requestId)
                 guard let engine = self.rtcEngine else {
                     self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                     return
                 }
                 if mediaOptionBool(mediaOptionParams, key: "startPreview", defaultValue: false) {
                     let previewResult = engine.startPreview(self.videoSourceType(from: mediaOptionParams))
+                    NSLog("[agora-rtc-native] handleJoinChannel startPreview result=%d requestId=%@", previewResult, requestId)
                     guard previewResult >= 0 else {
                         self.dispatchResult(requestId: requestId, method: "startPreview", result: previewResult)
                         return
@@ -853,10 +835,12 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     mediaOptions: mediaOptions,
                     joinSuccess: nil
                 )
+                NSLog("[agora-rtc-native] handleJoinChannel joinChannel result=%d requestId=%@", result, requestId)
                 self.dispatchResult(requestId: requestId, method: "joinChannel", result: result)
             }
         } else {
             ensureRtcPermissions(requestId: requestId) {
+                NSLog("[agora-rtc-native] handleJoinChannel permissions granted requestId=%@", requestId)
                 guard let engine = self.rtcEngine else {
                     self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                     return
@@ -868,6 +852,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     uid: uid,
                     joinSuccess: nil
                 )
+                NSLog("[agora-rtc-native] handleJoinChannel joinChannel result=%d requestId=%@", result, requestId)
                 self.dispatchResult(requestId: requestId, method: "joinChannel", result: result)
             }
         }
@@ -1189,7 +1174,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 self.dispatchResult(requestId: requestId, method: "joinChannelWithUserAccount", result: result)
             }
         } else {
-            ensureRtcPermissions(requestId: requestId) {
+            ensureRtcPermissions(
+                requestId: requestId,
+                requiresCamera: false,
+                requiresMicrophone: false
+            ) {
                 guard let engine = self.rtcEngine else {
                     self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                     return
@@ -1266,15 +1255,19 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         }
         guard requiresCamera else {
-            continueWithMicrophone()
+            DispatchQueue.main.async {
+                continueWithMicrophone()
+            }
             return
         }
-        ensureCameraPermission { cameraGranted in
-            guard cameraGranted else {
-                self.dispatchError(requestId: requestId, message: "Camera permission is required.")
-                return
+        DispatchQueue.main.async {
+            self.ensureCameraPermission { cameraGranted in
+                guard cameraGranted else {
+                    self.dispatchError(requestId: requestId, message: "Camera permission is required.")
+                    return
+                }
+                continueWithMicrophone()
             }
-            continueWithMicrophone()
         }
     }
 
@@ -1322,217 +1315,92 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return value
     }
 
-    private func isSupportedRenderBackend(_ backend: String) -> Bool {
-        backend == "surface-view" || backend == "texture-view" || backend == "engine-texture"
+    private func isSupportedRenderBackend(_ backend: String) -> Bool { backend == "engine-texture" }
+
+    private func isSupportedLocalTextureSourceType(_ sourceType: AgoraVideoSourceType) -> Bool {
+        return sourceType == .camera
+    }
+
+    private func validateLocalTextureSourceType(requestId: String, params: [String: Any]) -> Bool {
+        let sourceType = videoSourceType(from: params)
+        guard isSupportedLocalTextureSourceType(sourceType) else {
+            dispatchInvalidArgumentError(
+                requestId: requestId,
+                message: "engine-texture local rendering supports only the primary camera source.",
+                method: "setupLocalVideoView",
+                argumentName: "sourceType",
+                argumentValue: "\(sourceType.rawValue)"
+            )
+            return false
+        }
+        return true
     }
 
     private func handleSetupLocalVideoView(requestId: String, params: [String: Any]) {
-        requireEngine(requestId: requestId) { engine in
-            if self.renderBackend == "engine-texture" {
-                self.localTextureRequested = true
-                self.ensureLocalTextureSlot(params)
-                self.dispatchResponse([
-                    "requestId": requestId,
-                    "ok": true,
-                ])
+        requireEngine(requestId: requestId) { _ in
+            guard self.validateLocalTextureSourceType(requestId: requestId, params: params) else {
                 return
             }
-            DispatchQueue.main.async {
-                let view = self.localCanvasView ?? UIView(frame: self.rect(from: params))
-                self.attachToRootView(view)
-                view.frame = self.rect(from: params)
-                self.localCanvasView = view
-                if let rootView = UIApplication.shared.delegate?.window??.rootViewController?.view {
-                    NSLog("[agora-rtc-native] setupLocalVideoView frame=%@ rootBounds=%@", NSCoder.string(for: view.frame), NSCoder.string(for: rootView.bounds))
-                }
-
-                let canvas = self.localCanvas ?? AgoraRtcVideoCanvas()
-                canvas.view = view
-                self.applyVideoCanvasParams(canvas, params: params, fallbackUid: 0)
-                let result = engine.setupLocalVideo(canvas)
-                if result == 0 {
-                    self.localCanvas = canvas
-                    _ = engine.setLocalRenderMode(self.renderMode(from: params), mirror: self.mirrorMode(from: params))
-                    self.dispatchResponse([
-                        "requestId": requestId,
-                        "ok": true,
-                    ])
-                } else {
-                    self.dispatchResult(requestId: requestId, method: "setupLocalVideoView", result: result)
-                }
-            }
+            self.localTextureRequested = true
+            self.ensureLocalTextureSlot(params)
+            self.dispatchResponse([
+                "requestId": requestId,
+                "ok": true,
+            ])
         }
     }
 
     private func handleSetupRemoteVideoView(requestId: String, params: [String: Any]) {
-        requireEngine(requestId: requestId) { engine in
+        requireEngine(requestId: requestId) { _ in
             let uid = uintValue(params["uid"] ?? 0)
-            if self.renderBackend == "engine-texture" {
-                self.remoteTextureUids.insert(uid)
-                self.ensureRemoteTextureSlot(uid, params: params)
-                self.dispatchResponse([
-                    "requestId": requestId,
-                    "ok": true,
-                ])
-                return
-            }
-            DispatchQueue.main.async {
-                let view = self.remoteCanvasViews[uid] ?? UIView(frame: self.rect(from: params))
-                self.attachToRootView(view)
-                view.frame = self.rect(from: params)
-                self.remoteCanvasViews[uid] = view
-                if let rootView = UIApplication.shared.delegate?.window??.rootViewController?.view {
-                    NSLog("[agora-rtc-native] setupRemoteVideoView uid=%u frame=%@ rootBounds=%@", uid, NSCoder.string(for: view.frame), NSCoder.string(for: rootView.bounds))
-                }
-
-                let canvas = self.remoteCanvases[uid] ?? AgoraRtcVideoCanvas()
-                canvas.view = view
-                self.applyVideoCanvasParams(canvas, params: params, fallbackUid: uid)
-                let result = engine.setupRemoteVideo(canvas)
-                if result == 0 {
-                    self.remoteCanvases[uid] = canvas
-                    _ = engine.setRemoteRenderMode(uid, mode: self.renderMode(from: params), mirror: self.mirrorMode(from: params))
-                    self.dispatchResponse([
-                        "requestId": requestId,
-                        "ok": true,
-                    ])
-                } else {
-                    self.dispatchResult(requestId: requestId, method: "setupRemoteVideoView", result: result)
-                }
-            }
+            self.remoteTextureUids.insert(uid)
+            self.ensureRemoteTextureSlot(uid, params: params)
+            self.dispatchResponse([
+                "requestId": requestId,
+                "ok": true,
+            ])
         }
     }
 
     private func handleUpdateLocalVideoView(requestId: String, params: [String: Any]) {
-        if renderBackend == "engine-texture" {
-            localTextureRequested = true
-            ensureLocalTextureSlot(params)
-            dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
+        guard validateLocalTextureSourceType(requestId: requestId, params: params) else {
             return
         }
-        DispatchQueue.main.async {
-            guard let view = self.localCanvasView else {
-                self.dispatchError(requestId: requestId, message: "Local video view is not attached.")
-                return
-            }
-            view.frame = self.rect(from: params)
-            if let engine = self.rtcEngine {
-                let canvas = self.localCanvas ?? AgoraRtcVideoCanvas()
-                canvas.view = view
-                self.applyVideoCanvasParams(canvas, params: params, fallbackUid: 0)
-                self.localCanvas = canvas
-                _ = engine.setupLocalVideo(canvas)
-                _ = engine.setLocalRenderMode(self.renderMode(from: params), mirror: self.mirrorMode(from: params))
-            }
-            self.dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-        }
+        localTextureRequested = true
+        ensureLocalTextureSlot(params)
+        dispatchResponse([
+            "requestId": requestId,
+            "ok": true,
+        ])
     }
 
     private func handleUpdateRemoteVideoView(requestId: String, params: [String: Any]) {
         let uid = uintValue(params["uid"] ?? 0)
-        if renderBackend == "engine-texture" {
-            remoteTextureUids.insert(uid)
-            ensureRemoteTextureSlot(uid, params: params)
-            dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-            return
-        }
-        DispatchQueue.main.async {
-            guard let view = self.remoteCanvasViews[uid] else {
-                self.dispatchError(requestId: requestId, message: "Remote video view is not attached.")
-                return
-            }
-            view.frame = self.rect(from: params)
-            if let engine = self.rtcEngine {
-                let canvas = self.remoteCanvases[uid] ?? AgoraRtcVideoCanvas()
-                canvas.view = view
-                self.applyVideoCanvasParams(canvas, params: params, fallbackUid: uid)
-                self.remoteCanvases[uid] = canvas
-                _ = engine.setupRemoteVideo(canvas)
-                _ = engine.setRemoteRenderMode(uid, mode: self.renderMode(from: params), mirror: self.mirrorMode(from: params))
-            }
-            self.dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-        }
+        remoteTextureUids.insert(uid)
+        ensureRemoteTextureSlot(uid, params: params)
+        dispatchResponse([
+            "requestId": requestId,
+            "ok": true,
+        ])
     }
 
     private func handleRemoveLocalVideoView(requestId: String) {
-        if renderBackend == "engine-texture" {
-            localTextureRequested = false
-            releaseLocalTextureSlot()
-            dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-            return
-        }
-        DispatchQueue.main.async {
-            self.localCanvas?.view = nil
-            self.localCanvasView?.removeFromSuperview()
-            self.localCanvas = nil
-            self.localCanvasView = nil
-            self.dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-        }
+        localTextureRequested = false
+        releaseLocalTextureSlot()
+        dispatchResponse([
+            "requestId": requestId,
+            "ok": true,
+        ])
     }
 
     private func handleRemoveRemoteVideoView(requestId: String, params: [String: Any]) {
         let uid = uintValue(params["uid"] ?? 0)
-        if renderBackend == "engine-texture" {
-            remoteTextureUids.remove(uid)
-            releaseRemoteTextureSlot(uid)
-            dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-            return
-        }
-        DispatchQueue.main.async {
-            self.remoteCanvases[uid]?.view = nil
-            self.remoteCanvasViews[uid]?.removeFromSuperview()
-            self.remoteCanvases.removeValue(forKey: uid)
-            self.remoteCanvasViews.removeValue(forKey: uid)
-            self.dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-        }
-    }
-
-    private func attachToRootView(_ view: UIView) {
-        guard let rootView = UIApplication.shared.delegate?.window??.rootViewController?.view else {
-            return
-        }
-        if view.superview !== rootView {
-            rootView.addSubview(view)
-        }
-    }
-
-    private func clearAllVideoViews() {
-        localCanvas?.view = nil
-        localCanvasView?.removeFromSuperview()
-        localCanvas = nil
-        localCanvasView = nil
-        for (_, canvas) in remoteCanvases {
-            canvas.view = nil
-        }
-        for (_, view) in remoteCanvasViews {
-            view.removeFromSuperview()
-        }
-        remoteCanvases.removeAll()
-        remoteCanvasViews.removeAll()
+        remoteTextureUids.remove(uid)
+        releaseRemoteTextureSlot(uid)
+        dispatchResponse([
+            "requestId": requestId,
+            "ok": true,
+        ])
     }
 
     private func ensureLocalTextureSlot(_ params: [String: Any]) {
@@ -1548,7 +1416,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
            localTextureSlot.width == width,
            localTextureSlot.height == height,
            localTextureSlot.renderMode == renderMode,
-           localTextureSlot.observerPosition == observerPosition {
+            localTextureSlot.observerPosition == observerPosition {
             refreshObservedFramePosition()
             return
         }
@@ -1580,7 +1448,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
            slot.width == width,
            slot.height == height,
            slot.renderMode == renderMode,
-           slot.observerPosition == observerPosition {
+            slot.observerPosition == observerPosition {
             refreshObservedFramePosition()
             return
         }
@@ -1718,12 +1586,22 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     private func videoSourceType(from params: [String: Any]) -> AgoraVideoSourceType {
-        let value = intValue(params["sourceType"] ?? AgoraVideoSourceType.camera.rawValue)
+        let value: Int
+        if params["videoSourceType"] != nil {
+            value = intValue(params["videoSourceType"]!)
+        } else {
+            value = intValue(params["sourceType"] ?? AgoraVideoSourceType.camera.rawValue)
+        }
         return AgoraVideoSourceType(rawValue: value) ?? .camera
     }
 
     private func mediaSourceType(from params: [String: Any]) -> AgoraMediaSourceType {
-        let value = intValue(params["sourceType"] ?? AgoraMediaSourceType.primaryCamera.rawValue)
+        let value: Int
+        if params["mediaSourceType"] != nil {
+            value = intValue(params["mediaSourceType"]!)
+        } else {
+            value = intValue(params["sourceType"] ?? AgoraMediaSourceType.primaryCamera.rawValue)
+        }
         return AgoraMediaSourceType(rawValue: value) ?? .primaryCamera
     }
 
@@ -1991,6 +1869,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, didJoinChannel channel: String, withUid uid: UInt, elapsed: Int) {
+        NSLog("[agora-rtc-native] didJoinChannel channel=%@ uid=%u elapsed=%d", channel, uid, elapsed)
         dispatchEvent(name: "joinChannelSuccess", payload: [
             "channelId": channel,
             "uid": uid,
@@ -2043,12 +1922,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, firstRemoteVideoDecodedOfUid uid: UInt, size: CGSize, elapsed: Int) {
         NSLog("[agora-rtc-native] firstRemoteVideoDecoded uid=%u size=%@ elapsed=%d", uid, NSCoder.string(for: size), elapsed)
-        dispatchEvent(name: "remoteVideoStateChanged", payload: [
-            "uid": uid,
-            "state": 2,
-            "reason": 0,
-            "elapsed": elapsed,
-        ])
     }
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, firstRemoteVideoFrameOfUid uid: UInt, size: CGSize, elapsed: Int) {
@@ -2075,6 +1948,8 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, didOfflineOfUid uid: UInt, reason: AgoraUserOfflineReason) {
+        remoteTextureUids.remove(uid)
+        releaseRemoteTextureSlot(uid)
         dispatchEvent(name: "userOffline", payload: [
             "uid": uid,
             "reason": reason.rawValue,

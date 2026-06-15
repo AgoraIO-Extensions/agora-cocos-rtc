@@ -1,3 +1,8 @@
+import type {
+  AgoraMediaSourceTypeValue,
+  AgoraVideoSourceTypeValue,
+} from './source_types.ts';
+
 export const BRIDGE_REQUEST_EVENT = 'agora:request';
 export const BRIDGE_RESPONSE_EVENT = 'agora:response';
 export const BRIDGE_CALLBACK_EVENT = 'agora:event';
@@ -98,8 +103,16 @@ export interface AgoraRtcVideoCanvas {
   renderMode?: 'hidden' | 'fit' | 'adaptive';
   mirrorMode?: number;
   setupMode?: number;
-  /** Primary camera (`0`) only for local engine-texture rendering. */
-  sourceType?: number;
+  /**
+   * Video source for preview/local canvas paths (`AgoraVideoSourceType`).
+   *
+   * Local engine-texture rendering supports {@link AgoraVideoSourceType.Camera} only.
+   */
+  videoSourceType?: AgoraVideoSourceTypeValue;
+  /**
+   * @deprecated Use {@link videoSourceType}. Kept for compatibility with the native bridge field name.
+   */
+  sourceType?: AgoraVideoSourceTypeValue;
   mediaPlayerId?: number;
   cropArea?: {
     x: number;
@@ -258,8 +271,16 @@ export interface AgoraChannelMediaOptions {
   mediaPlayerAudioDelayMs?: number;
   /** Android ChannelMediaOptions field. On iOS the bridge uses this to call startPreview before join. */
   startPreview?: boolean;
-  /** iOS bridge helper for startPreview when startPreview is true. Android ChannelMediaOptions does not expose this field. */
-  sourceType?: number;
+  /**
+   * Video source for join+startPreview (`AgoraVideoSourceType`).
+   *
+   * iOS bridge helper when {@link startPreview} is true. Android ChannelMediaOptions does not expose this field.
+   */
+  videoSourceType?: AgoraVideoSourceTypeValue;
+  /**
+   * @deprecated Use {@link videoSourceType}. Kept for compatibility with the native bridge field name.
+   */
+  sourceType?: AgoraVideoSourceTypeValue;
   enableBuiltInMediaEncryption?: boolean;
   publishRhythmPlayerTrack?: boolean;
   isInteractiveAudience?: boolean;

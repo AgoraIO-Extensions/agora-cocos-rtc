@@ -318,7 +318,7 @@ test('android engine-texture backend builds texture slots from JS canvas payload
   assert.match(engineTextureBackendContent, /rtcEngine\.startPreview\(resolvePreviewVideoSourceType\(params\)\)/);
   assert.match(engineTextureBackendContent, /public void stopPreview\(JSONObject params, AgoraRenderResultCallback callback\)/);
   assert.match(engineTextureBackendContent, /rtcEngine\.stopPreview\(resolvePreviewVideoSourceType\(params\)\)/);
-  assert.match(engineTextureBackendContent, /protected Constants\.VideoSourceType resolvePreviewVideoSourceType\(JSONObject params\)/);
+  assert.match(engineTextureBackendContent, /params\.has\("videoSourceType"\)/);
 });
 
 test('engine-texture backend emits texture slot lifecycle events instead of Base64 frame payloads', async () => {
@@ -902,8 +902,10 @@ test('android bridge template requests rtc runtime permissions before camera and
   );
   assert.ok(handleLeaveChannelMatch);
   assert.match(handleLeaveChannelMatch[0], /hasLeaveChannelOptions\(params\)/);
-  assert.match(handleLeaveChannelMatch[0], /rtcEngine\.leaveChannel\(buildLeaveChannelOptions\(params\)\)/);
-  assert.match(handleLeaveChannelMatch[0], /rtcEngine\.leaveChannel\(\)/);
+  assert.match(handleLeaveChannelMatch[0], /LeaveChannelOptions options = hasLeaveChannelOptions\(params\)/);
+  assert.match(handleLeaveChannelMatch[0], /new LeaveChannelOptions\(\)/);
+  assert.match(handleLeaveChannelMatch[0], /int result = rtcEngine\.leaveChannel\(options\)/);
+  assert.doesNotMatch(handleLeaveChannelMatch[0], /rtcEngine\.leaveChannel\(\)/);
   assert.match(bridgeContent, /private LeaveChannelOptions buildLeaveChannelOptions\(JSONObject params\)/);
   assert.match(bridgeContent, /options\.stopAudioMixing = params\.optBoolean\("stopAudioMixing"\)/);
   assert.match(bridgeContent, /options\.stopAllEffect = params\.optBoolean\("stopAllEffect"\)/);
@@ -928,6 +930,8 @@ test('android bridge template narrows local engine-texture source validation and
   );
 
   assert.match(bridgeContent, /private boolean isSupportedLocalTextureSourceType\(JSONObject params\)/);
+  assert.match(bridgeContent, /private int resolveVideoSourceTypeValue\(JSONObject params\)/);
+  assert.match(bridgeContent, /private int resolveMediaSourceTypeValue\(JSONObject params\)/);
   assert.match(
     bridgeContent,
     /private void handleSetupLocalVideoView\(String requestId, JSONObject params\) \{[\s\S]*?if \(!isSupportedLocalTextureSourceType\(params\)\)[\s\S]*?dispatchInvalidArgumentError/,
@@ -1122,7 +1126,7 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.match(beautyMatch[0], /options\.optDouble\("smoothnessLevel", 0\.0\)/);
   assert.match(beautyMatch[0], /options\.optDouble\("rednessLevel", 0\.0\)/);
   assert.match(beautyMatch[0], /options\.optDouble\("sharpnessLevel", 0\.0\)/);
-  assert.match(beautyMatch[0], /Constants\.MediaSourceType sourceType = mapMediaSourceType\(params != null \? params\.optInt\("sourceType", 2\) : 2\)/);
+  assert.match(beautyMatch[0], /Constants\.MediaSourceType sourceType = mapMediaSourceType\(resolveMediaSourceTypeValue\(params\)\)/);
   assert.match(beautyMatch[0], /rtcEngine\.setBeautyEffectOptions\(enabled, beautyOptions, sourceType\)/);
 
   const inspectMatch = bridgeContent.match(
@@ -1804,6 +1808,8 @@ test('ios bridge template explicitly requests rtc permissions before camera and 
   assert.ok(stopPreviewMatch);
   assert.match(stopPreviewMatch[0], /let sourceType = videoSourceType\(from: params\)/);
   assert.match(stopPreviewMatch[0], /engine\.stopPreview\(sourceType\)/);
+  assert.match(bridgeContent, /params\["videoSourceType"\]/);
+  assert.match(bridgeContent, /params\["mediaSourceType"\]/);
 
   const handleJoinChannelMatch = bridgeContent.match(
     /private func handleJoinChannel[\s\S]*?private func requireEngine/,
