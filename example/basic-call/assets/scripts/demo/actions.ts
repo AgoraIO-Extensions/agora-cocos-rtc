@@ -6,6 +6,7 @@ export const BASIC_VIDEO_ACTIONS = [
   { name: 'MuteAllRemoteVideo', handler: 'toggleMuteAllRemoteVideo' },
   { name: 'ApplyEncoder', handler: 'applySelectedVideoEncoder' },
   { name: 'RefreshViews', handler: 'refreshRtcViews' },
+  { name: 'CycleViewUpdate', handler: 'cycleVideoViewUpdateProbe' },
   { name: 'OpenLog', handler: 'openStatusLogPage' },
   { name: 'JoinLeaveLoop', handler: 'toggleJoinLeaveLoop' },
 ] as const;
@@ -67,7 +68,7 @@ export const BUTTON_SECTION_LAYOUT = [
   { title: 'Connection', buttons: ['JoinChannel'] },
   { title: 'Preview and camera', buttons: ['StartPreview', 'SwitchCamera', 'MuteLocalVideo', 'MuteAllRemoteVideo'] },
   { title: 'Render and encoder', buttons: ['ApplyEncoder'] },
-  { title: 'Diagnostics', buttons: ['RefreshViews', 'OpenLog'] },
+  { title: 'Diagnostics', buttons: ['RefreshViews', 'CycleViewUpdate', 'OpenLog'] },
   { title: 'Advanced', buttons: ADVANCED_ACTIONS.map((action) => action.name) },
 ] as const;
 
@@ -81,6 +82,7 @@ export const ACTION_LABELS: Record<string, string> = {
   MuteAllRemoteVideo: 'Remote Video On',
   ApplyEncoder: 'Apply Encoder',
   RefreshViews: 'Refresh Views',
+  CycleViewUpdate: 'Cycle View Update',
   OpenLog: 'Log',
   JoinLeaveLoop: 'Join/Leave Loop (2s)',
   Initialize: 'Initialize',

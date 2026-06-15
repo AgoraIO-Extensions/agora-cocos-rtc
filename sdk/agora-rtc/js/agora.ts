@@ -475,8 +475,8 @@ export class AgoraRtcClient {
       manager.syncLocalDisplayFromCanvas(canvas);
     }
     await this.#invoke('updateLocalVideoView', this.#stripDisplayNodeFromCanvas(canvas)) as Promise<void>;
-    if (canvas.displayNode && manager) {
-      manager.applyCachedTextureSlot('local');
+    if (manager) {
+      manager.refreshLocalTextureBinding();
     }
   }
 
@@ -491,8 +491,8 @@ export class AgoraRtcClient {
       'updateRemoteVideoView',
       { ...this.#stripDisplayNodeFromCanvas(canvas), uid },
     ) as Promise<void>;
-    if (canvas.displayNode && manager) {
-      manager.applyCachedTextureSlot('remote', uid);
+    if (manager) {
+      manager.refreshRemoteTextureBinding(uid);
     }
   }
 

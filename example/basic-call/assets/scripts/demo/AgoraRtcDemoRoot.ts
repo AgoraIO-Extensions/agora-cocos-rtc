@@ -241,6 +241,10 @@ export class AgoraRtcDemoRoot extends Component {
     await this.runSessionAction('RefreshViews', (session) => session.refreshRtcViews());
   }
 
+  async cycleVideoViewUpdateProbe(): Promise<void> {
+    await this.runSessionAction('CycleViewUpdate', (session) => session.cycleVideoViewUpdateProbe());
+  }
+
   async toggleSpeakerphone(): Promise<void> {
     await this.runSessionAction('Speaker', (session) => session.toggleSpeakerphone());
   }

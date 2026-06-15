@@ -7,6 +7,7 @@ import {
 
 import {
   createAgoraRtcClient,
+  resolveEngineTextureMirror,
   type AgoraRtcClient,
 } from '../../../extensions/agora-rtc/js/agora.ts';
 import type { AgoraRtcVideoCanvas, AgoraVideoEncoderConfiguration } from '../../../extensions/agora-rtc/js/types.ts';
@@ -91,6 +92,7 @@ export class RtcSessionService {
   private audioMixingPositionMs = 1000;
   private remoteAudioStateSummary = '-';
   private readonly audioEffectSoundId = 1;
+  private videoViewUpdateProbeIndex = 0;
 
   constructor(private readonly options: RtcSessionServiceOptions) {}
 
@@ -295,6 +297,80 @@ export class RtcSessionService {
     await this.setupLocalVideoView();
     await Promise.all([...this.remoteUserUids].map((uid) => this.setupRemoteVideoView(uid)));
     this.log('Video views refreshed');
+  }
+
+  async cycleVideoViewUpdateProbe(): Promise<void> {
+    if (!this.localViewAttached) {
+      this.log('[ViewUpdate] need preview/join first');
+      return;
+    }
+
+    const mirrorPresets: Array<{ label: string; mirrorMode: number }> = [
+      { label: 'auto', mirrorMode: 0 },
+      { label: 'on', mirrorMode: 1 },
+      { label: 'off', mirrorMode: 2 },
+    ];
+    const preset = mirrorPresets[this.videoViewUpdateProbeIndex % mirrorPresets.length];
+    this.videoViewUpdateProbeIndex += 1;
+
+    const config = this.options.getConfig();
+    const sourceType = config.localVideoCanvas?.sourceType ?? 0;
+    const localNode = this.options.getLocalVideoNode();
+    const client = this.getClient();
+    const baseRect = this.resolveNodeRect(localNode, 'hidden');
+
+    const localCanvas: AgoraRtcVideoCanvas = {
+      ...baseRect,
+      ...config.localVideoCanvas,
+      displayNode: localNode ?? undefined,
+      uid: 0,
+      mirrorMode: preset.mirrorMode,
+      setupMode: 0,
+      sourceType,
+      renderMode: 'hidden',
+    };
+
+    await client.updateLocalVideoView(localCanvas);
+    const localScale = localNode?.getScale();
+    const localExpectedMirror = resolveEngineTextureMirror({
+      mirrorMode: preset.mirrorMode,
+      sourceType,
+    });
+    const localActualMirror = (localScale?.x ?? 0) < 0;
+    this.log(
+      `[ViewUpdate] local mirror=${preset.label} scaleX=${localScale?.x.toFixed(2)} expect=${localExpectedMirror} actual=${localActualMirror}`,
+    );
+
+    const activeRemoteUid = this.activeRemoteUid;
+    if (activeRemoteUid !== null) {
+      const remoteNode = this.options.getRemoteVideoNode(activeRemoteUid);
+      const remoteMirrorMode = preset.mirrorMode;
+      const remoteSourceType = config.remoteVideoCanvas?.sourceType ?? 0;
+      const remoteCanvas: AgoraRtcVideoCanvas = {
+        ...this.resolveNodeRect(remoteNode, 'fit'),
+        ...config.remoteVideoCanvas,
+        displayNode: remoteNode ?? undefined,
+        uid: activeRemoteUid,
+        mirrorMode: remoteMirrorMode,
+        setupMode: 0,
+        sourceType: remoteSourceType,
+        renderMode: 'fit',
+      };
+      await client.updateRemoteVideoView(activeRemoteUid, remoteCanvas);
+      const remoteScale = remoteNode?.getScale();
+      const remoteExpectedMirror = resolveEngineTextureMirror({
+        mirrorMode: remoteMirrorMode,
+        sourceType: remoteSourceType,
+      });
+      const remoteActualMirror = (remoteScale?.x ?? 0) < 0;
+      this.log(
+        `[ViewUpdate] remote ${activeRemoteUid} mirror=${preset.label} scaleX=${remoteScale?.x.toFixed(2)} expect=${remoteExpectedMirror} actual=${remoteActualMirror}`,
+      );
+    } else {
+      this.log('[ViewUpdate] remote skipped (no active uid)');
+    }
+
+    this.emitState();
   }
 
   async toggleSpeakerphone(): Promise<void> {

@@ -44,6 +44,7 @@ export const DEMO_CASES = [
       'MuteLocalVideo',
       'MuteAllRemoteVideo',
       'RefreshViews',
+      'CycleViewUpdate',
       'Leave',
     ],
   },

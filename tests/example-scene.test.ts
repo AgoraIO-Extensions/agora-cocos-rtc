@@ -969,7 +969,7 @@ test('example detail pages keep an in-panel log action without overlapping heade
   );
 
   assert.match(panel, /buildCaseUtilitySection/);
-  assert.match(panel, /this\.buildButtonList\(parent, \['RefreshViews', 'OpenLog'\], 2, -6\)/);
+  assert.match(panel, /this\.buildButtonList\(parent, \['RefreshViews', 'CycleViewUpdate', 'OpenLog'\], 3, -6\)/);
   assert.match(panel, /ACTION_LABELS\[name\] \?\? name/);
   assert.doesNotMatch(panel, /ensureGlobalLogButton/);
   assert.doesNotMatch(panel, /GlobalLogButton/);
