@@ -1912,12 +1912,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, firstRemoteVideoDecodedOfUid uid: UInt, size: CGSize, elapsed: Int) {
         NSLog("[agora-rtc-native] firstRemoteVideoDecoded uid=%u size=%@ elapsed=%d", uid, NSCoder.string(for: size), elapsed)
-        dispatchEvent(name: "remoteVideoStateChanged", payload: [
-            "uid": uid,
-            "state": 2,
-            "reason": 0,
-            "elapsed": elapsed,
-        ])
     }
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, firstRemoteVideoFrameOfUid uid: UInt, size: CGSize, elapsed: Int) {
