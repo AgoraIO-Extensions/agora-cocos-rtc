@@ -19,11 +19,9 @@ test('dev-android script exports current source with Cocos CLI instead of old ru
   assert.match(content, /sdkPath/);
   assert.match(content, /ndkPath/);
   assert.match(content, /--build "configPath=\$ANDROID_COCOS_BUILD_CONFIG"/);
-  assert.match(content, /ANDROID_RUNTIME_PLUGIN_DIR=/);
-  assert.match(content, /native\/agora-rtc\/android\/src\/main\/java\/io\/agora\/cocos\/rtc/);
-  assert.match(content, /ANDROID_EXPORTED_PLUGIN_DIR=/);
-  assert.match(content, /cp -R "\$ANDROID_RUNTIME_PLUGIN_DIR\/\." "\$ANDROID_EXPORTED_PLUGIN_DIR\/"/);
   assert.match(content, /sync-android-app-bridge\.mjs/);
+  assert.doesNotMatch(content, /ANDROID_RUNTIME_JAVA_DIR=/);
+  assert.doesNotMatch(content, /cp -R "\$ANDROID_RUNTIME/);
   assert.match(content, /ANDROID_SDK_ROOT_DEFAULT=/);
   assert.match(content, /PACKAGE_NAME="io\.agora\.cocos\.example"/);
   assert.match(content, /ADB_BIN=/);
