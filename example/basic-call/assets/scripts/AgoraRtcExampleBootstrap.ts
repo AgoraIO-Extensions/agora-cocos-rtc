@@ -37,7 +37,6 @@ function ensureDemoRootMounted(): boolean {
     demoRoot.addComponent(AgoraRtcDemoRoot);
     console.log('[agora-rtc] bootstrap demo root component added');
   }
-
   return true;
 }
 
