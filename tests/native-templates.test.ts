@@ -2826,10 +2826,20 @@ public class Constants {
     public static final int CLIENT_ROLE_AUDIENCE = 2;
 
     public enum VideoSourceType {
-        VIDEO_SOURCE_CAMERA_PRIMARY;
+        VIDEO_SOURCE_CAMERA_PRIMARY(0);
+
+        private final int value;
+
+        VideoSourceType(int value) {
+            this.value = value;
+        }
 
         public static VideoSourceType fromInt(int value) {
             return VIDEO_SOURCE_CAMERA_PRIMARY;
+        }
+
+        public static int getValue(VideoSourceType sourceType) {
+            return sourceType == null ? 0 : sourceType.value;
         }
     }
 
