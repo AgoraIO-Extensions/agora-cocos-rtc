@@ -46,7 +46,7 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /Alternatively pass APP_ID or TEST_APP_ID/);
   assert.match(content, /ANDROID_BUILD_CONFIG=.*build-configs\/android-release\.json/);
   assert.match(content, /ANDROID_COCOS_BUILD_CONFIG=/);
-  assert.match(content, /native\/agora-rtc\/android\/src\/main\/java\/io\/agora\/cocos\/rtc/);
+  assert.doesNotMatch(content, /cp -R "\$.*native\/agora-rtc\/android\/src\/main\/java\/io\/agora\/cocos\/rtc/);
   assert.match(content, /ANDROID_NDK_HOME=/);
   assert.match(content, /resolve_android_ndk_path\(\)/);
   assert.match(content, /write_android_cocos_build_config\(\)/);

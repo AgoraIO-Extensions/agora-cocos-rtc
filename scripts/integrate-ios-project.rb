@@ -51,6 +51,7 @@ ENV['GEM_PATH'] ||= [ENV['GEM_HOME'], default_gem_paths].compact.reject(&:empty?
 
 require 'rubygems'
 Gem.use_paths(ENV['GEM_HOME'], ENV['GEM_PATH'].split(':')) if ENV['GEM_HOME'] && !ENV['GEM_HOME'].empty?
+require 'fileutils'
 require 'json'
 require 'xcodeproj'
 
@@ -62,6 +63,8 @@ PROJECT_PATH = File.join(REPO_ROOT, 'example/basic-call/build-ios/ios/proj/agora
 APP_DELEGATE_PATH = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/AppDelegate.mm')
 INFO_PLIST_PATH = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/Info.plist')
 COMMON_ENGINE_TEXTURE_BRIDGE_DIR = File.join(REPO_ROOT, 'example/basic-call/native/engine/common/Classes/agora')
+IOS_RUNTIME_PLUGIN_DIR = File.join(REPO_ROOT, 'example/basic-call/native/agora-rtc/ios')
+IOS_NATIVE_PLUGIN_DIR = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/agora-rtc')
 GROUP_NAME = 'agora-rtc'
 COMMON_GROUP_NAME = 'agora-engine-texture'
 PACKAGE_URL = SDK_CONFIG.fetch('ios').fetch('packageUrl')
@@ -80,17 +83,19 @@ IOS_DEVELOPMENT_TEAM = ENV['IOS_DEVELOPMENT_TEAM']
 IOS_PROVISIONING_PROFILE_SPECIFIER = ENV['IOS_PROVISIONING_PROFILE_SPECIFIER']
 IOS_CODE_SIGN_IDENTITY = ENV['IOS_CODE_SIGN_IDENTITY']
 
-APP_DELEGATE_FORWARD_DECLARATION = <<~OBJC.strip
+AGORA_FORWARD_DECLARATION = <<~OBJC.strip
   @interface AgoraRtcPlugin : NSObject
   + (instancetype)sharedInstance;
   - (void)attachBridge;
   @end
-
+OBJC
+DEMO_PERMISSIONS_FORWARD_DECLARATION = <<~OBJC.strip
   @interface DemoPermissionsPlugin : NSObject
   + (instancetype)sharedInstance;
   - (void)attachBridge;
   @end
 OBJC
+APP_DELEGATE_FORWARD_DECLARATION = "#{AGORA_FORWARD_DECLARATION}\n\n#{DEMO_PERMISSIONS_FORWARD_DECLARATION}"
 APP_DELEGATE_ATTACH_CALL = '    [[AgoraRtcPlugin sharedInstance] attachBridge];'
 DEMO_PERMISSIONS_ATTACH_CALL = '    [[DemoPermissionsPlugin sharedInstance] attachBridge];'
 IOS_RTC_USAGE_DESCRIPTIONS = {
@@ -111,6 +116,13 @@ def ensure_app_delegate_attaches_bridge(path)
               else
                 "#{APP_DELEGATE_FORWARD_DECLARATION}\n\n#{patched}"
               end
+  end
+
+  unless patched.include?('@interface DemoPermissionsPlugin : NSObject')
+    impl_anchor = '@implementation AppDelegate'
+    raise 'Unable to patch iOS AppDelegate: @implementation AppDelegate anchor not found.' unless patched.include?(impl_anchor)
+
+    patched = patched.sub(impl_anchor, "#{DEMO_PERMISSIONS_FORWARD_DECLARATION}\n\n#{impl_anchor}")
   end
 
   unless patched.include?('[[AgoraRtcPlugin sharedInstance] attachBridge]')
@@ -262,6 +274,14 @@ def ensure_info_plist_usage_descriptions(path)
   File.write(path, patched) if patched != content
 end
 
+def ensure_demo_permissions_plugin_copied
+  source = File.join(IOS_RUNTIME_PLUGIN_DIR, 'DemoPermissionsPlugin.mm')
+  return unless File.exist?(source)
+
+  FileUtils.mkdir_p(IOS_NATIVE_PLUGIN_DIR)
+  FileUtils.cp(source, File.join(IOS_NATIVE_PLUGIN_DIR, 'DemoPermissionsPlugin.mm'))
+end
+
 project = Xcodeproj::Project.open(PROJECT_PATH)
 target = project.targets.find { |candidate| candidate.name == TARGET_NAME }
 raise "Target not found: #{TARGET_NAME}" unless target
@@ -269,6 +289,8 @@ raise "Target not found: #{TARGET_NAME}" unless target
 group = project.main_group.find_subpath(GROUP_NAME, true)
 group.set_source_tree('<group>')
 group.path = GROUP_NAME
+
+ensure_demo_permissions_plugin_copied
 
 ['AgoraRtcBridge.swift', 'AgoraRtcPlugin.mm', 'DemoPermissionsPlugin.mm', 'AgoraEngineTextureSlotBridge.h', 'AgoraEngineTextureSlotBridge.mm'].each do |filename|
   file_ref = group.files.find { |file| file.path == filename } || group.new_file(filename)
