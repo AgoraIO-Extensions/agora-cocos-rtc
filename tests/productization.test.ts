@@ -288,7 +288,7 @@ test('gitignore keeps generated cocos output and local docs out of commits', asy
   assert.match(gitignore, /example\/basic-call\/build-ios\//);
   assert.match(gitignore, /example\/basic-call\/native\/engine\//);
   assert.match(gitignore, /example\/basic-call\/extensions\/agora-rtc/);
-  assert.match(gitignore, /^docs\/superpowers\/reports\/$/m);
+  assert.match(gitignore, /^docs\/superpowers\/$/m);
 });
 
 test('gitignore behavior matches the intended commit boundary', async () => {
@@ -306,6 +306,7 @@ test('gitignore behavior matches the intended commit boundary', async () => {
     'sdk/agora-rtc/.DS_Store',
     'example/basic-call/assets/.DS_Store',
     'docs/superpowers/reports/example.md',
+    'docs/superpowers/specs/example.md',
     'dist/agora-rtc-cocos-plugin.zip',
     'node_modules/release-it',
   ];

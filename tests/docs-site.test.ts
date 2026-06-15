@@ -14,7 +14,7 @@ test('gitignore keeps docs root committable and ignores only internal artifacts'
   const gitignore = await readFile(path.join(repoRoot, '.gitignore'), 'utf8');
 
   assert.doesNotMatch(gitignore, /^docs\/$/m);
-  assert.match(gitignore, /^docs\/superpowers\/reports\/$/m);
+  assert.match(gitignore, /^docs\/superpowers\/$/m);
   assert.match(gitignore, /^\.superpowers\/$/m);
 });
 
