@@ -73,17 +73,13 @@ test('prepare-example default scene template writes the prefab-style demo root',
   assert.match(content, /"_visibility": 1853882369/);
 });
 
-test('ios demo permission bridge sync keeps the demo-owned source mirrored into engine ios', async () => {
-  const sourcePath = `${repoRoot}/example/basic-call/native/agora-rtc/ios/DemoPermissionsPlugin.mm`;
-  const mirroredPath = `${repoRoot}/example/basic-call/native/engine/ios/agora-rtc/DemoPermissionsPlugin.mm`;
-  const sourceContent = await readFile(sourcePath, 'utf8');
+test('prepare-example does not precreate ignored ios native engine overrides', async () => {
+  const content = await readFile(
+    `${repoRoot}/scripts/prepare-example.sh`,
+    'utf8',
+  );
 
-  await execFileAsync('node', ['./scripts/sync-ios-demo-permissions-bridge.mjs'], {
-    cwd: repoRoot,
-  });
-
-  const mirroredContent = await readFile(mirroredPath, 'utf8');
-  assert.equal(mirroredContent, sourceContent);
+  assert.doesNotMatch(content, /sync-ios-demo-permissions-bridge\.mjs/);
 });
 
 test('example bootstrap no longer mounts the monolithic controller at runtime', async () => {

@@ -56,11 +56,11 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.match(content, /IOS_SKIP_COCOS_EXPORT="\$\{IOS_SKIP_COCOS_EXPORT:-false\}"/);
   assert.match(content, /fetch-agora-maven\.mjs/);
   assert.match(content, /sync-native-engine-texture-bridge\.mjs/);
-  assert.match(content, /sync-ios-demo-permissions-bridge\.mjs/);
   assert.match(content, /sync-android-app-bridge\.mjs/);
   assert.match(prepareContent, /sync-native-engine-texture-bridge\.mjs/);
-  assert.match(prepareContent, /sync-ios-demo-permissions-bridge\.mjs/);
   assert.match(prepareContent, /sync-android-app-bridge\.mjs/);
+  assert.doesNotMatch(content, /sync-ios-demo-permissions-bridge\.mjs/);
+  assert.doesNotMatch(prepareContent, /sync-ios-demo-permissions-bridge\.mjs/);
   assert.match(prepareContent, /if \[ -d "\$TARGET_LINK" \] && \[ ! -L "\$TARGET_LINK" \]; then/);
   assert.match(prepareContent, /rm -rf "\$TARGET_LINK"/);
   assert.doesNotMatch(content, /generate-ios-podfile\.mjs/);
@@ -78,11 +78,6 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
     content.indexOf('run_cocos_build "$IOS_BUILD_CONFIG" "iOS"') <
       content.indexOf('\n  validate_ios_signing'),
     'iOS project should be exported before signing validation so it can be opened in Xcode',
-  );
-  assert.ok(
-    content.indexOf('sync-ios-demo-permissions-bridge.mjs') <
-      content.indexOf('integrate-ios-project.rb --with-package'),
-    'demo-owned iOS permission bridge should be synced before xcode project integration',
   );
   assert.match(content, /IOS_EXPORT_METHOD/);
   assert.match(content, /-configuration Release/);
