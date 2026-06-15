@@ -26,7 +26,7 @@
 }
 
 + (void)dispatchEventToScript:(NSString *)eventName payload:(NSString *)payload {
-    [[JsbBridge sharedInstance] sendToScript:eventName arg1:payload];
+    [[JsbBridgeWrapper sharedInstance] dispatchEventToScript:eventName arg:payload];
 }
 
 - (instancetype)init {
