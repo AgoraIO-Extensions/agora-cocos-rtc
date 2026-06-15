@@ -288,7 +288,7 @@ test('gitignore keeps generated cocos output and local docs out of commits', asy
   assert.match(gitignore, /example\/basic-call\/build-ios\//);
   assert.match(gitignore, /example\/basic-call\/native\/engine\//);
   assert.match(gitignore, /example\/basic-call\/extensions\/agora-rtc/);
-  assert.match(gitignore, /^docs\/$/m);
+  assert.match(gitignore, /^docs\/superpowers\/reports\/$/m);
 });
 
 test('gitignore behavior matches the intended commit boundary', async () => {
@@ -302,18 +302,23 @@ test('gitignore behavior matches the intended commit boundary', async () => {
     'example/basic-call/extensions/agora-rtc',
     'example/basic-call/native/engine/android/app/build.gradle',
     '.DS_Store',
-    'docs/architecture.md',
     'docs/.DS_Store',
     'sdk/agora-rtc/.DS_Store',
     'example/basic-call/assets/.DS_Store',
-    'docs/superpowers/plans/example.md',
-    'docs/PROJECT_HANDOFF.md',
+    'docs/superpowers/reports/example.md',
     'dist/agora-rtc-cocos-plugin.zip',
     'node_modules/release-it',
   ];
   const committedPaths = [
     'sdk/agora-rtc/package.json',
     'docs/customer-integration.md',
+    'docs/Agora-Cocos-RTC-SDK-API-Guide.md',
+    'docs/customer-architecture-note.md',
+    'docs/customer-delivery-note.md',
+    'docs/zh/index.html',
+    'docs/en/index.html',
+    'docs/assets/app.css',
+    'docs/assets/app.js',
     'example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts',
     'example/basic-call/assets/scripts/demo/RtcSessionService.ts',
     'example/basic-call/assets/scripts/demo/actions.ts',
