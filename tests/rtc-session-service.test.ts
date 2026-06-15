@@ -91,6 +91,18 @@ export class SpriteFrame {
     this.texture = null;
   }
 }
+
+export class AudioClip {
+  constructor() {
+    this.nativeUrl = '/tmp/Agora.io-Interactions.mp3';
+  }
+}
+
+export const resources = {
+  load(_path, _type, callback) {
+    callback(null, new AudioClip());
+  },
+};
 `;
 
 const TRANSPILE_TARGETS = [
