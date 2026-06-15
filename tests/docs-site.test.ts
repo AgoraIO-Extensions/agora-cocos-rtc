@@ -308,6 +308,14 @@ test('priority event entries include payload field documentation', async () => {
   assert.match(en, /Payload fields/);
 });
 
+test('event docs do not fall back to source-type placeholders', async () => {
+  const zh = await readDoc('docs/zh/api-reference.html');
+  const en = await readDoc('docs/en/api-reference.html');
+
+  assert.doesNotMatch(zh, /见源码事件 payload 类型定义/);
+  assert.doesNotMatch(en, /See source event payload type/);
+});
+
 test('narrative docs link related api names to deep reference anchors', async () => {
   const zhQuickstart = await readDoc('docs/zh/quickstart.html');
   const enQuickstart = await readDoc('docs/en/quickstart.html');

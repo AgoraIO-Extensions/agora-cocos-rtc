@@ -60,8 +60,8 @@ function parseStatsFields() {
     .split('export interface AgoraEventMap {')[0];
   const fields = [];
   for (const line of block.split('\n')) {
-    const match = line.match(/^\s{2}([A-Za-z0-9_?]+):/);
-    if (match) fields.push(match[1]);
+    const match = line.match(/^\s{2}([A-Za-z0-9_?]+):\s*([^;]+);/);
+    if (match) fields.push({ name: match[1], type: match[2].trim() });
   }
   return fields;
 }
@@ -104,8 +104,8 @@ function parseEvents() {
         const line = lines[i];
         depth += (line.match(/\{/g) ?? []).length;
         depth -= (line.match(/\}/g) ?? []).length;
-        const match = line.match(/^\s{4}([A-Za-z0-9_?]+):/);
-        if (match && depth >= 1) fields.push(match[1]);
+        const match = line.match(/^\s{4}([A-Za-z0-9_?]+):\s*([^;{]+(?:\{[^}]+\})?[^;]*);?/);
+        if (match && depth >= 1) fields.push({ name: match[1], type: match[2].trim() });
         i += 1;
       }
       events.push({ name, fields });
@@ -206,6 +206,7 @@ const methodDescriptions = {
     setLogFile: 'Set the native SDK log output file path.',
     setChannelProfile: 'Set the channel profile before joining.',
     setClientRole: 'Set broadcaster or audience role for live-broadcasting flows.',
+    setRenderBackend: 'Set the render backend. The current public backend value is <code>engine-texture</code>.',
     joinChannel: 'Join with a numeric UID. This is the most common channel-entry method.',
     joinChannelWithUserAccount: 'Join with a string-based user account.',
     getUserInfoByUserAccount: 'Resolve a string account into public Agora user info.',
@@ -276,6 +277,7 @@ const methodDescriptions = {
     setLogFile: '设置原生日志输出文件路径。',
     setChannelProfile: '在入会前设置频道 profile。',
     setClientRole: '在直播场景中设置主播或观众角色。',
+    setRenderBackend: '设置渲染后端。当前公开支持的值只有 <code>engine-texture</code>。',
     joinChannel: '使用数字 UID 加入频道，是最常见的入会入口。',
     joinChannelWithUserAccount: '使用字符串用户账号加入频道，适合业务层已有稳定账号体系的场景。',
     getUserInfoByUserAccount: '根据字符串账号查询对应的 Agora 用户信息。',
@@ -579,7 +581,7 @@ function renderMethodArticle(locale, method) {
   const returnTitle = locale === 'en' ? 'Returns' : '返回值';
   const items = methodParamItems(locale, method).map((item) => `<li>${item}</li>`).join('');
   const description = methodDescriptions[locale][method.name]
-    ?? (locale === 'en' ? `Document ${humanize(method.name)}.` : `补充 ${method.name} 文档。`);
+    ?? (locale === 'en' ? `${humanize(method.name)} API reference entry.` : `${method.name} API 参考条目。`);
 
   return `          <article id="method-${method.name}" data-signature="${escapeHtml(signature)}">
             <h3>${method.name}</h3>
@@ -591,6 +593,7 @@ function renderMethodArticle(locale, method) {
 }
 
 function describeEventField(locale, eventName, field) {
+  const fieldName = typeof field === 'string' ? field : field.name;
   const details = {
     en: {
       channelId: 'joined or affected channel name.',
@@ -642,20 +645,28 @@ function describeEventField(locale, eventName, field) {
     },
   };
 
-  return details[locale][field] ?? (locale === 'en' ? 'See source event payload type.' : '见源码事件 payload 类型定义。');
+  return details[locale][fieldName] ?? (locale === 'en' ? 'Field meaning depends on the native callback contract.' : '字段含义取决于原生回调约定。');
 }
 
 function renderEventArticle(locale, event) {
   const title = locale === 'en' ? 'Payload fields' : 'payload 字段';
+  const listenerTitle = locale === 'en' ? 'Listener signature' : '监听签名';
+  const listenerText = `on('${event.name}', (payload: AgoraEventMap['${event.name}']) => void)`;
   const items = (event.fields.length === 0
     ? [locale === 'en' ? 'No payload fields.' : '无 payload 字段。']
-    : event.fields.map((field) => `<code>${escapeHtml(field)}</code>${locale === 'en' ? ': ' : '：'}${describeEventField(locale, event.name, field)}`))
+    : event.fields.map((field) => {
+      const fieldName = typeof field === 'string' ? field : field.name;
+      const fieldType = typeof field === 'string' ? 'unknown' : field.type;
+      return `<code>${escapeHtml(fieldName)}</code>${locale === 'en' ? ': ' : '：'}<code>${escapeHtml(fieldType)}</code>${locale === 'en' ? ' — ' : '，'}${describeEventField(locale, event.name, field)}`;
+    }))
     .map((item) => `<li>${item}</li>`)
     .join('');
 
   return `          <article id="event-${event.name}">
             <h3>${event.name}</h3>
             <p>${eventDescriptions[locale][event.name]}</p>
+            <code class="signature">${escapeHtml(listenerText)}</code>
+            <div class="return-note"><strong>${listenerTitle}</strong><ul><li>${locale === 'en' ? 'Register this event through the client listener API.' : '通过客户端事件监听接口订阅这个事件。'}</li></ul></div>
             <div class="param-list"><strong>${title}</strong><ul>${items}</ul></div>
           </article>`;
 }

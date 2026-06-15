@@ -84,7 +84,7 @@
           </article>
           <article id="method-setRenderBackend" data-signature="setRenderBackend(backend: AgoraRenderBackend)">
             <h3>setRenderBackend</h3>
-            <p>补充 setRenderBackend 文档。</p>
+            <p>设置渲染后端。当前公开支持的值只有 <code>engine-texture</code>。</p>
             <code class="signature">setRenderBackend(backend: AgoraRenderBackend): Promise&lt;void&gt;</code>
             <div class="param-list"><strong>参数说明</strong><ul><li><code>backend</code>：必填，后端值。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
@@ -557,112 +557,156 @@
           <article id="event-joinChannelSuccess">
             <h3>joinChannelSuccess</h3>
             <p>加入频道成功后触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>channelId</code>：关联的频道名。</li><li><code>uid</code>：数字用户 UID。</li><li><code>elapsed</code>：相关状态切换的耗时。</li></ul></div>
+            <code class="signature">on(&#x27;joinChannelSuccess&#x27;, (payload: AgoraEventMap[&#x27;joinChannelSuccess&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>channelId</code>：<code>string</code>，关联的频道名。</li><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>elapsed</code>：<code>number</code>，相关状态切换的耗时。</li></ul></div>
           </article>
           <article id="event-leaveChannel">
             <h3>leaveChannel</h3>
             <p>离开频道后的统计回调。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>duration</code>：见源码事件 payload 类型定义。</li><li><code>txBytes?</code>：见源码事件 payload 类型定义。</li><li><code>rxBytes?</code>：见源码事件 payload 类型定义。</li><li><code>txKBitRate?</code>：见源码事件 payload 类型定义。</li><li><code>rxKBitRate?</code>：见源码事件 payload 类型定义。</li><li><code>txAudioBytes?</code>：见源码事件 payload 类型定义。</li><li><code>rxAudioBytes?</code>：见源码事件 payload 类型定义。</li><li><code>txVideoBytes?</code>：见源码事件 payload 类型定义。</li><li><code>rxVideoBytes?</code>：见源码事件 payload 类型定义。</li><li><code>txAudioKBitRate?</code>：见源码事件 payload 类型定义。</li><li><code>rxAudioKBitRate?</code>：见源码事件 payload 类型定义。</li><li><code>txVideoKBitRate?</code>：见源码事件 payload 类型定义。</li><li><code>rxVideoKBitRate?</code>：见源码事件 payload 类型定义。</li><li><code>lastmileDelay?</code>：见源码事件 payload 类型定义。</li><li><code>cpuTotalUsage?</code>：见源码事件 payload 类型定义。</li><li><code>gatewayRtt?</code>：见源码事件 payload 类型定义。</li><li><code>cpuAppUsage?</code>：见源码事件 payload 类型定义。</li><li><code>users?</code>：见源码事件 payload 类型定义。</li><li><code>connectTimeMs?</code>：见源码事件 payload 类型定义。</li><li><code>txPacketLossRate?</code>：见源码事件 payload 类型定义。</li><li><code>rxPacketLossRate?</code>：见源码事件 payload 类型定义。</li><li><code>memoryAppUsageRatio?</code>：见源码事件 payload 类型定义。</li><li><code>memoryTotalUsageRatio?</code>：见源码事件 payload 类型定义。</li><li><code>memoryAppUsageInKbytes?</code>：见源码事件 payload 类型定义。</li></ul></div>
+            <code class="signature">on(&#x27;leaveChannel&#x27;, (payload: AgoraEventMap[&#x27;leaveChannel&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>duration</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txBytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxBytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txKBitRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxKBitRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txAudioBytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxAudioBytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txVideoBytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxVideoBytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txAudioKBitRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxAudioKBitRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txVideoKBitRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxVideoKBitRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>lastmileDelay?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>cpuTotalUsage?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>gatewayRtt?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>cpuAppUsage?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>users?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>connectTimeMs?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txPacketLossRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxPacketLossRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>memoryAppUsageRatio?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>memoryTotalUsageRatio?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>memoryAppUsageInKbytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li></ul></div>
           </article>
           <article id="event-rejoinChannelSuccess">
             <h3>rejoinChannelSuccess</h3>
             <p>重新加入频道成功时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>channelId</code>：关联的频道名。</li><li><code>uid</code>：数字用户 UID。</li><li><code>elapsed</code>：相关状态切换的耗时。</li></ul></div>
+            <code class="signature">on(&#x27;rejoinChannelSuccess&#x27;, (payload: AgoraEventMap[&#x27;rejoinChannelSuccess&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>channelId</code>：<code>string</code>，关联的频道名。</li><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>elapsed</code>：<code>number</code>，相关状态切换的耗时。</li></ul></div>
           </article>
           <article id="event-connectionInterrupted">
             <h3>connectionInterrupted</h3>
             <p>连接中断时触发。</p>
+            <code class="signature">on(&#x27;connectionInterrupted&#x27;, (payload: AgoraEventMap[&#x27;connectionInterrupted&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
             <div class="param-list"><strong>payload 字段</strong><ul><li>无 payload 字段。</li></ul></div>
           </article>
           <article id="event-connectionStateChanged">
             <h3>connectionStateChanged</h3>
             <p>连接状态变化时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>state</code>：原生 SDK 返回的状态值。</li><li><code>reason</code>：原生 SDK 返回的原因码。</li></ul></div>
+            <code class="signature">on(&#x27;connectionStateChanged&#x27;, (payload: AgoraEventMap[&#x27;connectionStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>state</code>：<code>number</code>，原生 SDK 返回的状态值。</li><li><code>reason</code>：<code>number</code>，原生 SDK 返回的原因码。</li></ul></div>
           </article>
           <article id="event-localVideoTextureReady">
             <h3>localVideoTextureReady</h3>
             <p>本地纹理槽已准备完成时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>slotId</code>：engine-texture 纹理槽 ID。</li><li><code>width</code>：帧或纹理宽度。</li><li><code>height</code>：帧或纹理高度。</li></ul></div>
+            <code class="signature">on(&#x27;localVideoTextureReady&#x27;, (payload: AgoraEventMap[&#x27;localVideoTextureReady&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>slotId</code>：<code>number</code>，engine-texture 纹理槽 ID。</li><li><code>width</code>：<code>number</code>，帧或纹理宽度。</li><li><code>height</code>：<code>number</code>，帧或纹理高度。</li></ul></div>
           </article>
           <article id="event-remoteVideoTextureReady">
             <h3>remoteVideoTextureReady</h3>
             <p>远端纹理槽已准备完成时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：数字用户 UID。</li><li><code>slotId</code>：engine-texture 纹理槽 ID。</li><li><code>width</code>：帧或纹理宽度。</li><li><code>height</code>：帧或纹理高度。</li></ul></div>
+            <code class="signature">on(&#x27;remoteVideoTextureReady&#x27;, (payload: AgoraEventMap[&#x27;remoteVideoTextureReady&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>slotId</code>：<code>number</code>，engine-texture 纹理槽 ID。</li><li><code>width</code>：<code>number</code>，帧或纹理宽度。</li><li><code>height</code>：<code>number</code>，帧或纹理高度。</li></ul></div>
           </article>
           <article id="event-localVideoTextureReleased">
             <h3>localVideoTextureReleased</h3>
             <p>本地纹理槽释放时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>slotId</code>：engine-texture 纹理槽 ID。</li></ul></div>
+            <code class="signature">on(&#x27;localVideoTextureReleased&#x27;, (payload: AgoraEventMap[&#x27;localVideoTextureReleased&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>slotId</code>：<code>number</code>，engine-texture 纹理槽 ID。</li></ul></div>
           </article>
           <article id="event-remoteVideoTextureReleased">
             <h3>remoteVideoTextureReleased</h3>
             <p>远端纹理槽释放时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：数字用户 UID。</li><li><code>slotId</code>：engine-texture 纹理槽 ID。</li></ul></div>
+            <code class="signature">on(&#x27;remoteVideoTextureReleased&#x27;, (payload: AgoraEventMap[&#x27;remoteVideoTextureReleased&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>slotId</code>：<code>number</code>，engine-texture 纹理槽 ID。</li></ul></div>
           </article>
           <article id="event-renderBackendState">
             <h3>renderBackendState</h3>
             <p>渲染后端状态变化或回退时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>backend</code>：当前渲染后端名称。</li><li><code>phase</code>：后端状态阶段。</li><li><code>result</code>：原生结果码。</li><li><code>uid</code>：数字用户 UID。</li><li><code>fallbackBackend?</code>：可选，回退后的后端名称。</li><li><code>platform?</code>：可选，平台标识。</li></ul></div>
+            <code class="signature">on(&#x27;renderBackendState&#x27;, (payload: AgoraEventMap[&#x27;renderBackendState&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>backend</code>：<code>string</code>，当前渲染后端名称。</li><li><code>phase</code>：<code>string</code>，后端状态阶段。</li><li><code>result</code>：<code>number</code>，原生结果码。</li><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>fallbackBackend?</code>：<code>string</code>，可选，回退后的后端名称。</li><li><code>platform?</code>：<code>string</code>，可选，平台标识。</li></ul></div>
           </article>
           <article id="event-userJoined">
             <h3>userJoined</h3>
             <p>远端用户加入时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：数字用户 UID。</li><li><code>elapsed</code>：相关状态切换的耗时。</li></ul></div>
+            <code class="signature">on(&#x27;userJoined&#x27;, (payload: AgoraEventMap[&#x27;userJoined&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>elapsed</code>：<code>number</code>，相关状态切换的耗时。</li></ul></div>
           </article>
           <article id="event-userOffline">
             <h3>userOffline</h3>
             <p>远端用户离线时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：数字用户 UID。</li><li><code>reason?</code>：可选，离线原因码。</li></ul></div>
+            <code class="signature">on(&#x27;userOffline&#x27;, (payload: AgoraEventMap[&#x27;userOffline&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>reason?</code>：<code>number</code>，可选，离线原因码。</li></ul></div>
           </article>
           <article id="event-remoteVideoStateChanged">
             <h3>remoteVideoStateChanged</h3>
             <p>远端视频状态变化时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：数字用户 UID。</li><li><code>state</code>：原生 SDK 返回的状态值。</li><li><code>reason</code>：原生 SDK 返回的原因码。</li><li><code>elapsed</code>：相关状态切换的耗时。</li></ul></div>
+            <code class="signature">on(&#x27;remoteVideoStateChanged&#x27;, (payload: AgoraEventMap[&#x27;remoteVideoStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>state</code>：<code>number</code>，原生 SDK 返回的状态值。</li><li><code>reason</code>：<code>number</code>，原生 SDK 返回的原因码。</li><li><code>elapsed</code>：<code>number</code>，相关状态切换的耗时。</li></ul></div>
           </article>
           <article id="event-localVideoStateChanged">
             <h3>localVideoStateChanged</h3>
             <p>本地视频状态变化时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>sourceType</code>：视频源类型。</li><li><code>state</code>：原生 SDK 返回的状态值。</li><li><code>error</code>：本地视频状态变化时的错误码。</li></ul></div>
+            <code class="signature">on(&#x27;localVideoStateChanged&#x27;, (payload: AgoraEventMap[&#x27;localVideoStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>sourceType</code>：<code>number</code>，视频源类型。</li><li><code>state</code>：<code>number</code>，原生 SDK 返回的状态值。</li><li><code>error</code>：<code>number</code>，本地视频状态变化时的错误码。</li></ul></div>
           </article>
           <article id="event-firstLocalAudioFramePublished">
             <h3>firstLocalAudioFramePublished</h3>
             <p>首帧本地音频发布时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>elapsed</code>：相关状态切换的耗时。</li></ul></div>
+            <code class="signature">on(&#x27;firstLocalAudioFramePublished&#x27;, (payload: AgoraEventMap[&#x27;firstLocalAudioFramePublished&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>elapsed</code>：<code>number</code>，相关状态切换的耗时。</li></ul></div>
           </article>
           <article id="event-audioMixingFinished">
             <h3>audioMixingFinished</h3>
             <p>音频混音结束时触发。</p>
+            <code class="signature">on(&#x27;audioMixingFinished&#x27;, (payload: AgoraEventMap[&#x27;audioMixingFinished&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
             <div class="param-list"><strong>payload 字段</strong><ul><li>无 payload 字段。</li></ul></div>
           </article>
           <article id="event-audioMixingStateChanged">
             <h3>audioMixingStateChanged</h3>
             <p>音频混音状态变化时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>state</code>：原生 SDK 返回的状态值。</li><li><code>reason</code>：原生 SDK 返回的原因码。</li></ul></div>
+            <code class="signature">on(&#x27;audioMixingStateChanged&#x27;, (payload: AgoraEventMap[&#x27;audioMixingStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>state</code>：<code>number</code>，原生 SDK 返回的状态值。</li><li><code>reason</code>：<code>number</code>，原生 SDK 返回的原因码。</li></ul></div>
           </article>
           <article id="event-remoteAudioStateChanged">
             <h3>remoteAudioStateChanged</h3>
             <p>远端音频状态变化时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：数字用户 UID。</li><li><code>state</code>：原生 SDK 返回的状态值。</li><li><code>reason</code>：原生 SDK 返回的原因码。</li><li><code>elapsed</code>：相关状态切换的耗时。</li></ul></div>
+            <code class="signature">on(&#x27;remoteAudioStateChanged&#x27;, (payload: AgoraEventMap[&#x27;remoteAudioStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>uid</code>：<code>number</code>，数字用户 UID。</li><li><code>state</code>：<code>number</code>，原生 SDK 返回的状态值。</li><li><code>reason</code>：<code>number</code>，原生 SDK 返回的原因码。</li><li><code>elapsed</code>：<code>number</code>，相关状态切换的耗时。</li></ul></div>
           </article>
           <article id="event-volumeIndication">
             <h3>volumeIndication</h3>
             <p>周期性说话人音量指示回调。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>speakers</code>：说话人数组，元素中包含 uid、volume、vad、voicePitch。</li><li><code>totalVolume</code>：聚合后的总音量值。</li></ul></div>
+            <code class="signature">on(&#x27;volumeIndication&#x27;, (payload: AgoraEventMap[&#x27;volumeIndication&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>speakers</code>：<code>Array&lt;{</code>，说话人数组，元素中包含 uid、volume、vad、voicePitch。</li><li><code>totalVolume</code>：<code>number</code>，聚合后的总音量值。</li></ul></div>
           </article>
           <article id="event-rtcStats">
             <h3>rtcStats</h3>
             <p>周期性 RTC 统计信息。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>duration</code>：见源码事件 payload 类型定义。</li><li><code>txBytes?</code>：见源码事件 payload 类型定义。</li><li><code>rxBytes?</code>：见源码事件 payload 类型定义。</li><li><code>txKBitRate?</code>：见源码事件 payload 类型定义。</li><li><code>rxKBitRate?</code>：见源码事件 payload 类型定义。</li><li><code>txAudioBytes?</code>：见源码事件 payload 类型定义。</li><li><code>rxAudioBytes?</code>：见源码事件 payload 类型定义。</li><li><code>txVideoBytes?</code>：见源码事件 payload 类型定义。</li><li><code>rxVideoBytes?</code>：见源码事件 payload 类型定义。</li><li><code>txAudioKBitRate?</code>：见源码事件 payload 类型定义。</li><li><code>rxAudioKBitRate?</code>：见源码事件 payload 类型定义。</li><li><code>txVideoKBitRate?</code>：见源码事件 payload 类型定义。</li><li><code>rxVideoKBitRate?</code>：见源码事件 payload 类型定义。</li><li><code>lastmileDelay?</code>：见源码事件 payload 类型定义。</li><li><code>cpuTotalUsage?</code>：见源码事件 payload 类型定义。</li><li><code>gatewayRtt?</code>：见源码事件 payload 类型定义。</li><li><code>cpuAppUsage?</code>：见源码事件 payload 类型定义。</li><li><code>users?</code>：见源码事件 payload 类型定义。</li><li><code>connectTimeMs?</code>：见源码事件 payload 类型定义。</li><li><code>txPacketLossRate?</code>：见源码事件 payload 类型定义。</li><li><code>rxPacketLossRate?</code>：见源码事件 payload 类型定义。</li><li><code>memoryAppUsageRatio?</code>：见源码事件 payload 类型定义。</li><li><code>memoryTotalUsageRatio?</code>：见源码事件 payload 类型定义。</li><li><code>memoryAppUsageInKbytes?</code>：见源码事件 payload 类型定义。</li></ul></div>
+            <code class="signature">on(&#x27;rtcStats&#x27;, (payload: AgoraEventMap[&#x27;rtcStats&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>duration</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txBytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxBytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txKBitRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxKBitRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txAudioBytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxAudioBytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txVideoBytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxVideoBytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txAudioKBitRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxAudioKBitRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txVideoKBitRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxVideoKBitRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>lastmileDelay?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>cpuTotalUsage?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>gatewayRtt?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>cpuAppUsage?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>users?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>connectTimeMs?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>txPacketLossRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>rxPacketLossRate?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>memoryAppUsageRatio?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>memoryTotalUsageRatio?</code>：<code>number</code>，字段含义取决于原生回调约定。</li><li><code>memoryAppUsageInKbytes?</code>：<code>number</code>，字段含义取决于原生回调约定。</li></ul></div>
           </article>
           <article id="event-contentInspectResult">
             <h3>contentInspectResult</h3>
             <p>内容审核返回结果时触发。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>result</code>：原生结果码。</li></ul></div>
+            <code class="signature">on(&#x27;contentInspectResult&#x27;, (payload: AgoraEventMap[&#x27;contentInspectResult&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>result</code>：<code>number</code>，原生结果码。</li></ul></div>
           </article>
           <article id="event-error">
             <h3>error</h3>
             <p>统一错误出口，用于桥异常、事件解析异常或监听器异常。</p>
-            <div class="param-list"><strong>payload 字段</strong><ul><li><code>code?</code>：可选，数字或字符串错误码。</li><li><code>message</code>：错误消息文本。</li></ul></div>
+            <code class="signature">on(&#x27;error&#x27;, (payload: AgoraEventMap[&#x27;error&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>code?</code>：<code>number | string</code>，可选，数字或字符串错误码。</li><li><code>message</code>：<code>string</code>，错误消息文本。</li></ul></div>
           </article>
         </section>
       </main>

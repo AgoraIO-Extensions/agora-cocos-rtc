@@ -84,7 +84,7 @@
           </article>
           <article id="method-setRenderBackend" data-signature="setRenderBackend(backend: AgoraRenderBackend)">
             <h3>setRenderBackend</h3>
-            <p>Document Set Render Backend.</p>
+            <p>Set the render backend. The current public backend value is <code>engine-texture</code>.</p>
             <code class="signature">setRenderBackend(backend: AgoraRenderBackend): Promise&lt;void&gt;</code>
             <div class="param-list"><strong>Parameters</strong><ul><li><code>backend</code>: required backend value.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
@@ -557,112 +557,156 @@
           <article id="event-joinChannelSuccess">
             <h3>joinChannelSuccess</h3>
             <p>Fires when the channel join succeeds.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>channelId</code>: joined or affected channel name.</li><li><code>uid</code>: numeric user ID.</li><li><code>elapsed</code>: elapsed time for the related transition.</li></ul></div>
+            <code class="signature">on(&#x27;joinChannelSuccess&#x27;, (payload: AgoraEventMap[&#x27;joinChannelSuccess&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>channelId</code>: <code>string</code> — joined or affected channel name.</li><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>elapsed</code>: <code>number</code> — elapsed time for the related transition.</li></ul></div>
           </article>
           <article id="event-leaveChannel">
             <h3>leaveChannel</h3>
             <p>Stats callback after leaving the channel.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>duration</code>: See source event payload type.</li><li><code>txBytes?</code>: See source event payload type.</li><li><code>rxBytes?</code>: See source event payload type.</li><li><code>txKBitRate?</code>: See source event payload type.</li><li><code>rxKBitRate?</code>: See source event payload type.</li><li><code>txAudioBytes?</code>: See source event payload type.</li><li><code>rxAudioBytes?</code>: See source event payload type.</li><li><code>txVideoBytes?</code>: See source event payload type.</li><li><code>rxVideoBytes?</code>: See source event payload type.</li><li><code>txAudioKBitRate?</code>: See source event payload type.</li><li><code>rxAudioKBitRate?</code>: See source event payload type.</li><li><code>txVideoKBitRate?</code>: See source event payload type.</li><li><code>rxVideoKBitRate?</code>: See source event payload type.</li><li><code>lastmileDelay?</code>: See source event payload type.</li><li><code>cpuTotalUsage?</code>: See source event payload type.</li><li><code>gatewayRtt?</code>: See source event payload type.</li><li><code>cpuAppUsage?</code>: See source event payload type.</li><li><code>users?</code>: See source event payload type.</li><li><code>connectTimeMs?</code>: See source event payload type.</li><li><code>txPacketLossRate?</code>: See source event payload type.</li><li><code>rxPacketLossRate?</code>: See source event payload type.</li><li><code>memoryAppUsageRatio?</code>: See source event payload type.</li><li><code>memoryTotalUsageRatio?</code>: See source event payload type.</li><li><code>memoryAppUsageInKbytes?</code>: See source event payload type.</li></ul></div>
+            <code class="signature">on(&#x27;leaveChannel&#x27;, (payload: AgoraEventMap[&#x27;leaveChannel&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>duration</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txBytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxBytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txKBitRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxKBitRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txAudioBytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxAudioBytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txVideoBytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxVideoBytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txAudioKBitRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxAudioKBitRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txVideoKBitRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxVideoKBitRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>lastmileDelay?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>cpuTotalUsage?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>gatewayRtt?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>cpuAppUsage?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>users?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>connectTimeMs?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txPacketLossRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxPacketLossRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>memoryAppUsageRatio?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>memoryTotalUsageRatio?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>memoryAppUsageInKbytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li></ul></div>
           </article>
           <article id="event-rejoinChannelSuccess">
             <h3>rejoinChannelSuccess</h3>
             <p>Fires when the client rejoins the channel successfully.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>channelId</code>: joined or affected channel name.</li><li><code>uid</code>: numeric user ID.</li><li><code>elapsed</code>: elapsed time for the related transition.</li></ul></div>
+            <code class="signature">on(&#x27;rejoinChannelSuccess&#x27;, (payload: AgoraEventMap[&#x27;rejoinChannelSuccess&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>channelId</code>: <code>string</code> — joined or affected channel name.</li><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>elapsed</code>: <code>number</code> — elapsed time for the related transition.</li></ul></div>
           </article>
           <article id="event-connectionInterrupted">
             <h3>connectionInterrupted</h3>
             <p>Fires when connection interruption is detected.</p>
+            <code class="signature">on(&#x27;connectionInterrupted&#x27;, (payload: AgoraEventMap[&#x27;connectionInterrupted&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
             <div class="param-list"><strong>Payload fields</strong><ul><li>No payload fields.</li></ul></div>
           </article>
           <article id="event-connectionStateChanged">
             <h3>connectionStateChanged</h3>
             <p>Fires when connection state changes.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>state</code>: state value reported by the native SDK.</li><li><code>reason</code>: reason code reported by the native SDK.</li></ul></div>
+            <code class="signature">on(&#x27;connectionStateChanged&#x27;, (payload: AgoraEventMap[&#x27;connectionStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>state</code>: <code>number</code> — state value reported by the native SDK.</li><li><code>reason</code>: <code>number</code> — reason code reported by the native SDK.</li></ul></div>
           </article>
           <article id="event-localVideoTextureReady">
             <h3>localVideoTextureReady</h3>
             <p>Fires when the local texture slot becomes ready.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>slotId</code>: engine-texture slot ID.</li><li><code>width</code>: frame or texture width.</li><li><code>height</code>: frame or texture height.</li></ul></div>
+            <code class="signature">on(&#x27;localVideoTextureReady&#x27;, (payload: AgoraEventMap[&#x27;localVideoTextureReady&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>slotId</code>: <code>number</code> — engine-texture slot ID.</li><li><code>width</code>: <code>number</code> — frame or texture width.</li><li><code>height</code>: <code>number</code> — frame or texture height.</li></ul></div>
           </article>
           <article id="event-remoteVideoTextureReady">
             <h3>remoteVideoTextureReady</h3>
             <p>Fires when a remote texture slot becomes ready.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: numeric user ID.</li><li><code>slotId</code>: engine-texture slot ID.</li><li><code>width</code>: frame or texture width.</li><li><code>height</code>: frame or texture height.</li></ul></div>
+            <code class="signature">on(&#x27;remoteVideoTextureReady&#x27;, (payload: AgoraEventMap[&#x27;remoteVideoTextureReady&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>slotId</code>: <code>number</code> — engine-texture slot ID.</li><li><code>width</code>: <code>number</code> — frame or texture width.</li><li><code>height</code>: <code>number</code> — frame or texture height.</li></ul></div>
           </article>
           <article id="event-localVideoTextureReleased">
             <h3>localVideoTextureReleased</h3>
             <p>Fires when the local texture slot is released.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>slotId</code>: engine-texture slot ID.</li></ul></div>
+            <code class="signature">on(&#x27;localVideoTextureReleased&#x27;, (payload: AgoraEventMap[&#x27;localVideoTextureReleased&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>slotId</code>: <code>number</code> — engine-texture slot ID.</li></ul></div>
           </article>
           <article id="event-remoteVideoTextureReleased">
             <h3>remoteVideoTextureReleased</h3>
             <p>Fires when a remote texture slot is released.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: numeric user ID.</li><li><code>slotId</code>: engine-texture slot ID.</li></ul></div>
+            <code class="signature">on(&#x27;remoteVideoTextureReleased&#x27;, (payload: AgoraEventMap[&#x27;remoteVideoTextureReleased&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>slotId</code>: <code>number</code> — engine-texture slot ID.</li></ul></div>
           </article>
           <article id="event-renderBackendState">
             <h3>renderBackendState</h3>
             <p>Fires when backend state changes or a fallback occurs.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>backend</code>: active render backend name.</li><li><code>phase</code>: backend state phase.</li><li><code>result</code>: native result code.</li><li><code>uid</code>: numeric user ID.</li><li><code>fallbackBackend?</code>: optional fallback backend name.</li><li><code>platform?</code>: optional platform identifier.</li></ul></div>
+            <code class="signature">on(&#x27;renderBackendState&#x27;, (payload: AgoraEventMap[&#x27;renderBackendState&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>backend</code>: <code>string</code> — active render backend name.</li><li><code>phase</code>: <code>string</code> — backend state phase.</li><li><code>result</code>: <code>number</code> — native result code.</li><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>fallbackBackend?</code>: <code>string</code> — optional fallback backend name.</li><li><code>platform?</code>: <code>string</code> — optional platform identifier.</li></ul></div>
           </article>
           <article id="event-userJoined">
             <h3>userJoined</h3>
             <p>Fires when a remote user joins.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: numeric user ID.</li><li><code>elapsed</code>: elapsed time for the related transition.</li></ul></div>
+            <code class="signature">on(&#x27;userJoined&#x27;, (payload: AgoraEventMap[&#x27;userJoined&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>elapsed</code>: <code>number</code> — elapsed time for the related transition.</li></ul></div>
           </article>
           <article id="event-userOffline">
             <h3>userOffline</h3>
             <p>Fires when a remote user goes offline.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: numeric user ID.</li><li><code>reason?</code>: optional offline reason code.</li></ul></div>
+            <code class="signature">on(&#x27;userOffline&#x27;, (payload: AgoraEventMap[&#x27;userOffline&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>reason?</code>: <code>number</code> — optional offline reason code.</li></ul></div>
           </article>
           <article id="event-remoteVideoStateChanged">
             <h3>remoteVideoStateChanged</h3>
             <p>Fires when remote video state changes.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: numeric user ID.</li><li><code>state</code>: state value reported by the native SDK.</li><li><code>reason</code>: reason code reported by the native SDK.</li><li><code>elapsed</code>: elapsed time for the related transition.</li></ul></div>
+            <code class="signature">on(&#x27;remoteVideoStateChanged&#x27;, (payload: AgoraEventMap[&#x27;remoteVideoStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>state</code>: <code>number</code> — state value reported by the native SDK.</li><li><code>reason</code>: <code>number</code> — reason code reported by the native SDK.</li><li><code>elapsed</code>: <code>number</code> — elapsed time for the related transition.</li></ul></div>
           </article>
           <article id="event-localVideoStateChanged">
             <h3>localVideoStateChanged</h3>
             <p>Fires when local video state changes.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>sourceType</code>: video source type.</li><li><code>state</code>: state value reported by the native SDK.</li><li><code>error</code>: native error code for the local video state change.</li></ul></div>
+            <code class="signature">on(&#x27;localVideoStateChanged&#x27;, (payload: AgoraEventMap[&#x27;localVideoStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>sourceType</code>: <code>number</code> — video source type.</li><li><code>state</code>: <code>number</code> — state value reported by the native SDK.</li><li><code>error</code>: <code>number</code> — native error code for the local video state change.</li></ul></div>
           </article>
           <article id="event-firstLocalAudioFramePublished">
             <h3>firstLocalAudioFramePublished</h3>
             <p>Fires when the first local audio frame is published.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>elapsed</code>: elapsed time for the related transition.</li></ul></div>
+            <code class="signature">on(&#x27;firstLocalAudioFramePublished&#x27;, (payload: AgoraEventMap[&#x27;firstLocalAudioFramePublished&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>elapsed</code>: <code>number</code> — elapsed time for the related transition.</li></ul></div>
           </article>
           <article id="event-audioMixingFinished">
             <h3>audioMixingFinished</h3>
             <p>Fires when audio mixing finishes.</p>
+            <code class="signature">on(&#x27;audioMixingFinished&#x27;, (payload: AgoraEventMap[&#x27;audioMixingFinished&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
             <div class="param-list"><strong>Payload fields</strong><ul><li>No payload fields.</li></ul></div>
           </article>
           <article id="event-audioMixingStateChanged">
             <h3>audioMixingStateChanged</h3>
             <p>Fires when audio mixing state changes.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>state</code>: state value reported by the native SDK.</li><li><code>reason</code>: reason code reported by the native SDK.</li></ul></div>
+            <code class="signature">on(&#x27;audioMixingStateChanged&#x27;, (payload: AgoraEventMap[&#x27;audioMixingStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>state</code>: <code>number</code> — state value reported by the native SDK.</li><li><code>reason</code>: <code>number</code> — reason code reported by the native SDK.</li></ul></div>
           </article>
           <article id="event-remoteAudioStateChanged">
             <h3>remoteAudioStateChanged</h3>
             <p>Fires when remote audio state changes.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: numeric user ID.</li><li><code>state</code>: state value reported by the native SDK.</li><li><code>reason</code>: reason code reported by the native SDK.</li><li><code>elapsed</code>: elapsed time for the related transition.</li></ul></div>
+            <code class="signature">on(&#x27;remoteAudioStateChanged&#x27;, (payload: AgoraEventMap[&#x27;remoteAudioStateChanged&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>uid</code>: <code>number</code> — numeric user ID.</li><li><code>state</code>: <code>number</code> — state value reported by the native SDK.</li><li><code>reason</code>: <code>number</code> — reason code reported by the native SDK.</li><li><code>elapsed</code>: <code>number</code> — elapsed time for the related transition.</li></ul></div>
           </article>
           <article id="event-volumeIndication">
             <h3>volumeIndication</h3>
             <p>Periodic speaker volume indication callback.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>speakers</code>: array of speaker entries including uid, volume, vad, and voicePitch.</li><li><code>totalVolume</code>: aggregate total volume value.</li></ul></div>
+            <code class="signature">on(&#x27;volumeIndication&#x27;, (payload: AgoraEventMap[&#x27;volumeIndication&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>speakers</code>: <code>Array&lt;{</code> — array of speaker entries including uid, volume, vad, and voicePitch.</li><li><code>totalVolume</code>: <code>number</code> — aggregate total volume value.</li></ul></div>
           </article>
           <article id="event-rtcStats">
             <h3>rtcStats</h3>
             <p>Periodic RTC statistics payload.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>duration</code>: See source event payload type.</li><li><code>txBytes?</code>: See source event payload type.</li><li><code>rxBytes?</code>: See source event payload type.</li><li><code>txKBitRate?</code>: See source event payload type.</li><li><code>rxKBitRate?</code>: See source event payload type.</li><li><code>txAudioBytes?</code>: See source event payload type.</li><li><code>rxAudioBytes?</code>: See source event payload type.</li><li><code>txVideoBytes?</code>: See source event payload type.</li><li><code>rxVideoBytes?</code>: See source event payload type.</li><li><code>txAudioKBitRate?</code>: See source event payload type.</li><li><code>rxAudioKBitRate?</code>: See source event payload type.</li><li><code>txVideoKBitRate?</code>: See source event payload type.</li><li><code>rxVideoKBitRate?</code>: See source event payload type.</li><li><code>lastmileDelay?</code>: See source event payload type.</li><li><code>cpuTotalUsage?</code>: See source event payload type.</li><li><code>gatewayRtt?</code>: See source event payload type.</li><li><code>cpuAppUsage?</code>: See source event payload type.</li><li><code>users?</code>: See source event payload type.</li><li><code>connectTimeMs?</code>: See source event payload type.</li><li><code>txPacketLossRate?</code>: See source event payload type.</li><li><code>rxPacketLossRate?</code>: See source event payload type.</li><li><code>memoryAppUsageRatio?</code>: See source event payload type.</li><li><code>memoryTotalUsageRatio?</code>: See source event payload type.</li><li><code>memoryAppUsageInKbytes?</code>: See source event payload type.</li></ul></div>
+            <code class="signature">on(&#x27;rtcStats&#x27;, (payload: AgoraEventMap[&#x27;rtcStats&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>duration</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txBytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxBytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txKBitRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxKBitRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txAudioBytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxAudioBytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txVideoBytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxVideoBytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txAudioKBitRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxAudioKBitRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txVideoKBitRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxVideoKBitRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>lastmileDelay?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>cpuTotalUsage?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>gatewayRtt?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>cpuAppUsage?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>users?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>connectTimeMs?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>txPacketLossRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>rxPacketLossRate?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>memoryAppUsageRatio?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>memoryTotalUsageRatio?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li><li><code>memoryAppUsageInKbytes?</code>: <code>number</code> — Field meaning depends on the native callback contract.</li></ul></div>
           </article>
           <article id="event-contentInspectResult">
             <h3>contentInspectResult</h3>
             <p>Fires when content inspection returns a result.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>result</code>: native result code.</li></ul></div>
+            <code class="signature">on(&#x27;contentInspectResult&#x27;, (payload: AgoraEventMap[&#x27;contentInspectResult&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>result</code>: <code>number</code> — native result code.</li></ul></div>
           </article>
           <article id="event-error">
             <h3>error</h3>
             <p>Unified error outlet for bridge, event parsing, and listener failures.</p>
-            <div class="param-list"><strong>Payload fields</strong><ul><li><code>code?</code>: optional numeric or string error code.</li><li><code>message</code>: error message text.</li></ul></div>
+            <code class="signature">on(&#x27;error&#x27;, (payload: AgoraEventMap[&#x27;error&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>code?</code>: <code>number | string</code> — optional numeric or string error code.</li><li><code>message</code>: <code>string</code> — error message text.</li></ul></div>
           </article>
         </section>
       </main>
