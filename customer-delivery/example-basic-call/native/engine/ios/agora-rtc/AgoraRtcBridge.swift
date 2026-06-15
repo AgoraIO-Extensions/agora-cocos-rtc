@@ -487,7 +487,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "setParameters":
             requireEngine(requestId: requestId) { engine in
-                let parameterValue = String(describing: params["parameters"] ?? "")
+                let parameterValue = params["parameters"]
                 do {
                     let parameters = try mergeProtectedParameters(parameterValue)
                     guard !parameters.isEmpty else {
@@ -502,7 +502,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                         message: error.localizedDescription,
                         method: method,
                         argumentName: "parameters",
-                        argumentValue: parameterValue
+                        argumentValue: String(describing: parameterValue ?? "")
                     )
                 } catch {
                     self.dispatchError(requestId: requestId, message: error.localizedDescription)
@@ -769,12 +769,12 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     private func applyProtectedParameters(engine: AgoraRtcEngineKit, requestId: String, method: String, params: [String: Any]) -> Bool {
-        let parameterValue = String(describing: params["parameters"] ?? "")
+        let parameterValue = params["parameters"]
         let parameters: String
         do {
             parameters = try mergeProtectedParameters(parameterValue)
         } catch let error as AgoraRtcBridgeParameterError {
-            dispatchInvalidArgumentError(requestId: requestId, message: error.localizedDescription, method: method, argumentName: "parameters", argumentValue: parameterValue)
+            dispatchInvalidArgumentError(requestId: requestId, message: error.localizedDescription, method: method, argumentName: "parameters", argumentValue: String(describing: parameterValue ?? ""))
             return false
         } catch {
             dispatchError(requestId: requestId, message: error.localizedDescription)

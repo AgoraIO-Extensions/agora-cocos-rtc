@@ -114,14 +114,51 @@ function createInvalidParametersError(method: ProtectedParameterMethod): AgoraSd
   );
 }
 
+function isPlainJsonObjectRecord(value: unknown): value is Record<string, unknown> {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
+}
+
+function assertJsonCompatibleValue(
+  value: unknown,
+  method: ProtectedParameterMethod,
+): void {
+  if (value == null || typeof value === 'string' || typeof value === 'boolean') {
+    return;
+  }
+  if (typeof value === 'number') {
+    if (Number.isFinite(value)) {
+      return;
+    }
+    throw createInvalidParametersError(method);
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      assertJsonCompatibleValue(entry, method);
+    }
+    return;
+  }
+  if (isPlainJsonObjectRecord(value)) {
+    for (const entry of Object.values(value)) {
+      assertJsonCompatibleValue(entry, method);
+    }
+    return;
+  }
+  throw createInvalidParametersError(method);
+}
+
 function assertJsonObjectRecord(
   value: unknown,
   method: ProtectedParameterMethod,
 ): Record<string, unknown> {
-  if (value != null && typeof value === 'object' && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
+  if (!isPlainJsonObjectRecord(value)) {
+    throw createInvalidParametersError(method);
   }
-  throw createInvalidParametersError(method);
+  assertJsonCompatibleValue(value, method);
+  return value;
 }
 
 function mergeProtectedParameters(
