@@ -99,3 +99,34 @@ test('shared app.css defines desktop and mobile docs layout', async () => {
   assert.match(content, /\.doc-toc/);
   assert.match(content, /@media \(max-width: 960px\)/);
 });
+
+test('overview pages explain package contents, support matrix, and reading paths', async () => {
+  const zh = await readDoc('docs/zh/index.html');
+  const en = await readDoc('docs/en/index.html');
+
+  for (const content of [zh, en]) {
+    assert.match(content, /sdk\/agora-rtc/);
+    assert.match(content, /example\/basic-call/);
+    assert.match(content, /Cocos Creator 3\.8\.8/);
+    assert.match(content, /Android/);
+    assert.match(content, /iOS/);
+    assert.match(content, /Quickstart/);
+    assert.match(content, /API Reference/);
+  }
+});
+
+test('quickstart pages show the first-success path and concrete code snippets', async () => {
+  const zh = await readDoc('docs/zh/quickstart.html');
+  const en = await readDoc('docs/en/quickstart.html');
+
+  for (const content of [zh, en]) {
+    assert.match(content, /\.\/scripts\/prepare-example\.sh/);
+    assert.match(content, /createAgoraRtcClient/);
+    assert.match(content, /await client\.initialize\(appId\)/);
+    assert.match(content, /await client\.joinChannel\(token, channelId, uid\)/);
+    assert.match(content, /joinChannelSuccess/);
+    assert.match(content, /localVideoTextureReady/);
+    assert.match(content, /\.\/core-apis\.html/);
+    assert.match(content, /\.\/rendering\.html/);
+  }
+});

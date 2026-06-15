@@ -32,8 +32,31 @@
       </nav>
       <main id="main-content" class="doc-main">
         <section class="hero">
-          <h1>Quickstart Placeholder</h1>
-          <p>Content coming next task.</p>
+          <h1>Quickstart</h1>
+          <p>The goal is to prepare the example, initialize the engine, join a channel, start preview, and verify the key callbacks in the shortest path.</p>
+        </section>
+        <section class="card">
+          <h2 id="prepare-example">1. Prepare the example project</h2>
+          <pre class="code-block"><code>./scripts/prepare-example.sh</code></pre>
+          <p>Then open <code>example/basic-call</code> in Cocos Creator 3.8.8.</p>
+        </section>
+        <section class="card">
+          <h2 id="initialize-join">2. Initialize and join the channel</h2>
+          <pre class="code-block"><code>import { createAgoraRtcClient } from '../../extensions/agora-rtc/js/agora.ts';
+
+const client = createAgoraRtcClient();
+await client.initialize(appId);
+await client.joinChannel(token, channelId, uid);</code></pre>
+          <p>If you want the grouped capability view first, jump to <a href="./core-apis.html">Core APIs</a>.</p>
+        </section>
+        <section class="card">
+          <h2 id="verify-success">3. Verify success signals</h2>
+          <ul>
+            <li><code>joinChannelSuccess</code> has fired</li>
+            <li>If you bind texture views, you can observe <code>localVideoTextureReady</code></li>
+            <li>The example status area keeps updating RTC events and summaries</li>
+          </ul>
+          <p>If texture views or mirror behavior are confusing, continue with <a href="./rendering.html">Rendering</a>.</p>
         </section>
       </main>
       <aside class="doc-toc" aria-label="On this page">
