@@ -53,7 +53,42 @@ type TextureReadySlotCache = {
   height: number;
 };
 
-const PROTECTED_APP_TYPE_PARAMETERS = { 'rtc.set_app_type': 10 } as const;
+function isIosBridgeRuntime(runtime?: CocosBridgeRuntime): boolean {
+  const platform = runtime?.sys?.platform;
+  if (platform === undefined || platform === null) {
+    return false;
+  }
+  if (typeof platform === 'string') {
+    return platform.toUpperCase() === 'IOS';
+  }
+  return platform === 2;
+}
+
+function normalizePlayEffectConfig(
+  config: AgoraPlayEffectConfig,
+  runtime?: CocosBridgeRuntime,
+): AgoraPlayEffectConfig {
+  if (config.gain === undefined) {
+    return config;
+  }
+  if (!Number.isFinite(config.gain)) {
+    throw new AgoraSdkError(
+      AgoraErrorCode.ProtocolError,
+      'playEffect.gain must be a finite number.',
+      {
+        method: 'playEffect',
+        parameter: 'gain',
+      },
+    );
+  }
+  if (isIosBridgeRuntime(runtime)) {
+    return {
+      ...config,
+      gain: Math.round(config.gain),
+    };
+  }
+  return config;
+}
 
 function mergeProtectedParameters(
   parameters?: string | Record<string, unknown> | null,
@@ -502,22 +537,8 @@ export class AgoraRtcClient {
   }
 
   playEffect(config: AgoraPlayEffectConfig): Promise<void> {
-    if (
-      config.gain !== undefined &&
-      (!Number.isFinite(config.gain) || !Number.isInteger(config.gain))
-    ) {
-      return Promise.reject(
-        new AgoraSdkError(
-          AgoraErrorCode.ProtocolError,
-          'playEffect.gain must be an integer volume value for the current native bridge.',
-          {
-            method: 'playEffect',
-            parameter: 'gain',
-          },
-        ),
-      );
-    }
-    return this.#invoke('playEffect', { ...config }) as Promise<void>;
+    const normalized = normalizePlayEffectConfig(config, this.#bridgeRuntime);
+    return this.#invoke('playEffect', { ...normalized }) as Promise<void>;
   }
 
   pauseEffect(soundId: number): Promise<void> {

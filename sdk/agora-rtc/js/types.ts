@@ -431,5 +431,6 @@ export interface CocosBridgeRuntime {
   };
   sys?: {
     isNative?: boolean;
+    platform?: string | number;
   };
 }

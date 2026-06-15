@@ -1987,7 +1987,75 @@ test('client dispatches expected native requests for all expanded public APIs', 
   await testApi('renewToken', () => client.renewToken('token123'), { token: 'token123' });
 });
 
-test('playEffect rejects non-integer gain values before bridge dispatch', async () => {
+test('playEffect forwards fractional gain when bridge platform is not iOS', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+    bridgeRuntime: {
+      sys: {
+        isNative: true,
+        platform: 'ANDROID',
+      },
+    },
+  });
+
+  const pending = client.playEffect({
+    soundId: 1,
+    path: '/path',
+    gain: 12.5,
+  });
+
+  const request = JSON.parse(transport.sent[0].payload);
+  assert.equal(request.method, 'playEffect');
+  assert.equal(request.params.gain, 12.5);
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+});
+
+test('playEffect rounds gain on iOS before bridge dispatch', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+    bridgeRuntime: {
+      sys: {
+        isNative: true,
+        platform: 'IOS',
+      },
+    },
+  });
+
+  const pending = client.playEffect({
+    soundId: 1,
+    path: '/path',
+    gain: 12.5,
+  });
+
+  const request = JSON.parse(transport.sent[0].payload);
+  assert.equal(request.method, 'playEffect');
+  assert.equal(request.params.gain, 13);
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+});
+
+test('playEffect rejects non-finite gain values before bridge dispatch', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
     transport,
@@ -1998,7 +2066,7 @@ test('playEffect rejects non-integer gain values before bridge dispatch', async 
     client.playEffect({
       soundId: 1,
       path: '/path',
-      gain: 12.5,
+      gain: Number.NaN,
     } as any),
     (error: { code: string; details: Record<string, unknown> }) =>
       error.code === AgoraErrorCode.ProtocolError &&
