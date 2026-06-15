@@ -15,6 +15,7 @@ import {
 import { resolveEngineEncoderMirrorMode } from '../sdk/agora-rtc/js/internal/engine_texture_encoder_mirror.ts';
 
 const sdkTypesSource = readFileSync('sdk/agora-rtc/js/types.ts', 'utf8');
+const apiGuideSource = readFileSync('docs/Agora-Cocos-RTC-SDK-API-Guide.md', 'utf8');
 
 function extractInterfaceContent(interfaceName: string): string {
   const match = sdkTypesSource.match(new RegExp(`export interface ${interfaceName} \\{([\\s\\S]*?)\\n\\}`));
@@ -307,6 +308,18 @@ test('video encoder configuration documents platform-specific fields', () => {
 test('content inspect config exposes module position in the top-level shorthand', () => {
   const contentInspectFields = extractInterfaceContent('AgoraContentInspectConfig');
   assert.match(contentInspectFields, /^\s{2}position\?: number;/m);
+  assert.match(
+    sdkTypesSource,
+    /\/\*\* Android-only content inspection module position\. Ignored on iOS\. \*\/\n\s+position\?: number;/,
+  );
+  assert.match(
+    sdkTypesSource,
+    /modules\?: Array<\{\n\s+type\?: number;\n\s+interval\?: number;\n\s+\/\*\* Android-only content inspection module position\. Ignored on iOS\. \*\/\n\s+position\?: number;/,
+  );
+  assert.match(
+    apiGuideSource,
+    /\| `position` \| `number` \| No \| .*仅 Android 内容审核模块位置有效，iOS 当前忽略该字段。\s*\|/,
+  );
 });
 
 test('leave channel options expose native rtc fields', () => {
@@ -1912,6 +1925,65 @@ test('setParameters rejects invalid json strings before dispatching the native r
       error.details.method === 'setParameters' &&
       error.details.parameter === 'parameters',
   );
+  assert.equal(transport.sent.length, 0);
+});
+
+test('initialize rejects non-plain parameter objects before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  class ParameterCarrier {
+    readonly ['rtc.debug'] = true;
+  }
+
+  for (const parameters of [
+    new Map([['rtc.debug', true]]) as unknown,
+    new Date('2026-06-15T00:00:00.000Z') as unknown,
+    new ParameterCarrier() as unknown,
+  ]) {
+    await assert.rejects(
+      client.initialize({
+        appId: 'demo-app-id',
+        parameters: parameters as Record<string, unknown>,
+      }),
+      (error: { code: string; details: Record<string, unknown> }) =>
+        error.code === AgoraErrorCode.ProtocolError &&
+        error.details.method === 'initialize' &&
+        error.details.parameter === 'parameters',
+    );
+  }
+
+  assert.equal(transport.sent.length, 0);
+});
+
+test('setParameters rejects non-plain parameter objects before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  class ParameterCarrier {
+    readonly ['rtc.debug'] = true;
+  }
+
+  for (const parameters of [
+    new Map([['rtc.debug', true]]) as unknown,
+    new Date('2026-06-15T00:00:00.000Z') as unknown,
+    new ParameterCarrier() as unknown,
+  ]) {
+    await assert.rejects(
+      client.setParameters(parameters as Record<string, unknown>),
+      (error: { code: string; details: Record<string, unknown> }) =>
+        error.code === AgoraErrorCode.ProtocolError &&
+        error.details.method === 'setParameters' &&
+        error.details.parameter === 'parameters',
+    );
+  }
+
   assert.equal(transport.sent.length, 0);
 });
 
