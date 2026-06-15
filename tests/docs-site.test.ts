@@ -235,6 +235,30 @@ test('api reference pages expose stable anchors for public exports, methods, and
   }
 });
 
+test('narrative docs link related api names to deep reference anchors', async () => {
+  const zhQuickstart = await readDoc('docs/zh/quickstart.html');
+  const enQuickstart = await readDoc('docs/en/quickstart.html');
+  const zhCoreApis = await readDoc('docs/zh/core-apis.html');
+  const enCoreApis = await readDoc('docs/en/core-apis.html');
+
+  for (const content of [zhQuickstart, enQuickstart]) {
+    assert.match(content, /href="\.\/api-reference\.html#export-createAgoraRtcClient"/);
+    assert.match(content, /href="\.\/api-reference\.html#method-initialize"/);
+    assert.match(content, /href="\.\/api-reference\.html#method-joinChannel"/);
+    assert.match(content, /href="\.\/api-reference\.html#event-joinChannelSuccess"/);
+    assert.match(content, /href="\.\/api-reference\.html#event-localVideoTextureReady"/);
+  }
+
+  for (const content of [zhCoreApis, enCoreApis]) {
+    assert.match(content, /href="\.\/api-reference\.html#method-setChannelProfile"/);
+    assert.match(content, /href="\.\/api-reference\.html#method-joinChannelWithUserAccount"/);
+    assert.match(content, /href="\.\/api-reference\.html#method-setVideoEncoderConfiguration"/);
+    assert.match(content, /href="\.\/api-reference\.html#method-setRenderBackend"/);
+    assert.match(content, /href="\.\/api-reference\.html#method-startAudioMixing"/);
+    assert.match(content, /href="\.\/api-reference\.html#method-setLogFile"/);
+  }
+});
+
 test('readmes point users to the new static docs entry pages', async () => {
   const rootReadme = await readFile(path.join(repoRoot, 'README.md'), 'utf8');
   const sdkReadme = await readFile(path.join(repoRoot, 'sdk/agora-rtc/README.md'), 'utf8');

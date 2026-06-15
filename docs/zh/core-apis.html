@@ -32,32 +32,57 @@
       </nav>
       <main id="main-content" class="doc-main">
         <section class="hero">
+          <div class="section-kicker">Capability Map</div>
           <h1>Core APIs</h1>
-          <p>这里不按源码文件讲 API，而是按开发者在接入时会做的事情来分组。</p>
+          <p class="lede">这里不按源码文件讲 API，而是按开发者在接入时会做的事情来分组。</p>
         </section>
         <section class="card">
           <h2 id="engine-session">引擎与会话</h2>
-          <p><code>createAgoraRtcClient</code>、<code>initialize</code>、<code>destroy</code>、<code>getSdkVersion</code>、<code>getErrorDescription</code>、<code>setParameters</code></p>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#export-createAgoraRtcClient">createAgoraRtcClient</a>
+            <a class="api-link" href="./api-reference.html#method-initialize">initialize</a>
+            <a class="api-link" href="./api-reference.html#method-destroy">destroy</a>
+          </div>
         </section>
         <section class="card">
           <h2 id="channel-identity">频道与身份</h2>
-          <p><code>setChannelProfile</code>、<code>setClientRole</code>、<code>joinChannel</code>、<code>joinChannelWithUserAccount</code>、<code>getUserInfoByUserAccount</code>、<code>leaveChannel</code>、<code>renewToken</code></p>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#method-setChannelProfile">setChannelProfile</a>
+            <a class="api-link" href="./api-reference.html#method-joinChannel">joinChannel</a>
+            <a class="api-link" href="./api-reference.html#method-joinChannelWithUserAccount">joinChannelWithUserAccount</a>
+            <a class="api-link" href="./api-reference.html#method-getUserInfoByUserAccount">getUserInfoByUserAccount</a>
+          </div>
         </section>
         <section class="card">
           <h2 id="audio">音频</h2>
-          <p><code>enableAudio</code>、<code>enableLocalAudio</code>、<code>muteLocalAudioStream</code>、<code>muteRemoteAudioStream</code>、<code>muteAllRemoteAudioStreams</code>、<code>enableAudioVolumeIndication</code></p>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#method-startAudioMixing">startAudioMixing</a>
+            <a class="api-link" href="./api-reference.html#method-playEffect">playEffect</a>
+            <a class="api-link" href="./api-reference.html#method-setLogFile">setLogFile</a>
+          </div>
         </section>
         <section class="card">
           <h2 id="video-views">视频与视图</h2>
-          <p><code>enableVideo</code>、<code>enableLocalVideo</code>、<code>setVideoEncoderConfiguration</code>、<code>setupLocalVideoView</code>、<code>setupRemoteVideoView</code>、<code>startPreview</code>、<code>stopPreview</code>、<code>switchCamera</code></p>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#method-setVideoEncoderConfiguration">setVideoEncoderConfiguration</a>
+            <a class="api-link" href="./api-reference.html#method-setupLocalVideoView">setupLocalVideoView</a>
+            <a class="api-link" href="./api-reference.html#method-setupRemoteVideoView">setupRemoteVideoView</a>
+          </div>
         </section>
         <section class="card">
           <h2 id="rendering-controls">渲染与视觉控制</h2>
-          <p><code>setRenderBackend</code>、<code>setNativeVideoOverlaySuspended</code>、<code>setBeautyEffectOptions</code>、<code>enableContentInspect</code></p>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#method-setRenderBackend">setRenderBackend</a>
+            <a class="api-link" href="./api-reference.html#method-setVideoEncoderConfiguration">setVideoEncoderConfiguration</a>
+          </div>
         </section>
         <section class="card">
           <h2 id="mixing-diagnostics">混音、音效与诊断</h2>
-          <p><code>startAudioMixing</code>、<code>playEffect</code>、<code>setLogFilter</code>、<code>setLogFile</code></p>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#method-startAudioMixing">startAudioMixing</a>
+            <a class="api-link" href="./api-reference.html#method-playEffect">playEffect</a>
+            <a class="api-link" href="./api-reference.html#method-setLogFile">setLogFile</a>
+          </div>
           <p>完整条目继续看 <a href="./api-reference.html">API Reference</a>。</p>
         </section>
       </main>

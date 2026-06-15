@@ -32,8 +32,9 @@
       </nav>
       <main id="main-content" class="doc-main">
         <section class="hero">
+          <div class="section-kicker">Onboarding First</div>
           <h1>Quickstart</h1>
-          <p>The goal is to prepare the example, initialize the engine, join a channel, start preview, and verify the key callbacks in the shortest path.</p>
+          <p class="lede">The goal is to prepare the example, initialize the engine, join a channel, start preview, and verify the key callbacks in the shortest path.</p>
         </section>
         <section class="card">
           <h2 id="prepare-example">1. Prepare the example project</h2>
@@ -47,13 +48,18 @@
 const client = createAgoraRtcClient();
 await client.initialize(appId);
 await client.joinChannel(token, channelId, uid);</code></pre>
+          <div class="api-link-group">
+            <a class="api-link" href="./api-reference.html#export-createAgoraRtcClient">createAgoraRtcClient</a>
+            <a class="api-link" href="./api-reference.html#method-initialize">initialize</a>
+            <a class="api-link" href="./api-reference.html#method-joinChannel">joinChannel</a>
+          </div>
           <p>If you want the grouped capability view first, jump to <a href="./core-apis.html">Core APIs</a>.</p>
         </section>
         <section class="card">
           <h2 id="verify-success">3. Verify success signals</h2>
           <ul>
-            <li><code>joinChannelSuccess</code> has fired</li>
-            <li>If you bind texture views, you can observe <code>localVideoTextureReady</code></li>
+            <li><a class="api-link" href="./api-reference.html#event-joinChannelSuccess">joinChannelSuccess</a> has fired</li>
+            <li>If you bind texture views, you can observe <a class="api-link" href="./api-reference.html#event-localVideoTextureReady">localVideoTextureReady</a></li>
             <li>The example status area keeps updating RTC events and summaries</li>
           </ul>
           <p>If texture views or mirror behavior are confusing, continue with <a href="./rendering.html">Rendering</a>.</p>
