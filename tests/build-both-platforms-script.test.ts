@@ -133,6 +133,7 @@ test('example build config writer accepts command-line environment credentials',
     assert.equal(buildConfig.appId, 'test-app-id');
     assert.equal(buildConfig.channelId, 'testapi');
     assert.equal(buildConfig.token, '');
+    assert.deepEqual(Object.keys(buildConfig).sort(), ['appId', 'channelId', 'token']);
     const buildConfigMeta = JSON.parse(await readFile(buildConfigMetaPath, 'utf8'));
     assert.equal(buildConfigMeta.importer, 'json');
   } finally {
@@ -177,6 +178,8 @@ test('example build config writer accepts smoke media options', async () => {
     assert.equal(buildConfig.channelProfile, 'liveBroadcasting');
     assert.equal(buildConfig.clientRole, 'audience');
     assert.equal(buildConfig.videoEncoderPresetName, '720p');
+    assert.ok(!('renderBackend' in buildConfig));
+    assert.ok(!('localVideoCanvas' in buildConfig));
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
@@ -228,6 +231,8 @@ test('example build config writer can apply smoke flags to an edited base config
     assert.equal(buildConfig.channelProfile, 'communication');
     assert.equal(buildConfig.clientRole, 'broadcaster');
     assert.equal(buildConfig.videoEncoderPresetName, '540p');
+    assert.ok(!('renderBackend' in buildConfig));
+    assert.ok(!('localVideoCanvas' in buildConfig));
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }

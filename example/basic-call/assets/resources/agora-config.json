@@ -3,15 +3,5 @@
   "token": "",
   "channelId": "<YOUR_CHANNEL_ID>",
   "uid": 0,
-  "renderBackend": "engine-texture",
-  "autoPreview": false,
-  "autoJoin": false,
-  "publishCameraTrack": true,
-  "publishMicrophoneTrack": true,
-  "autoSubscribeAudio": true,
-  "autoSubscribeVideo": true,
-  "localVideoCanvas": {
-    "mirrorMode": 0,
-    "sourceType": 0
-  }
+  "renderBackend": "engine-texture"
 }

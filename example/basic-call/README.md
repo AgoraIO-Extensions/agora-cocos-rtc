@@ -11,6 +11,8 @@ This is a Cocos Creator 3.8.x example project for the Agora RTC Cocos plugin.
    - Edit `assets/resources/agora-config.json` locally.
    - Pass build-time values when exporting from scripts, for example:
      `APP_ID=<YOUR_APP_ID> CHANNEL_ID=testapi npm run build:all-platforms -- android`.
+   - `agora-config.json` is the checked-in base template for minimal runtime values.
+   - `scripts/write-example-build-config.mjs` generates `assets/resources/agora-config.build.json` as a temporary build/smoke override file; the demo loads it after `agora-config.json`.
 4. Export to Android or iOS.
 5. Use the built-in QA panel to initialize the engine, join a channel, test audio/video controls, and inspect runtime events.
 

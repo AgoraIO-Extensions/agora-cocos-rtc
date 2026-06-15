@@ -61,6 +61,39 @@ export type AgoraExampleRuntimeConfig = {
   contentInspectDemoConfig?: AgoraContentInspectConfig;
 };
 
+const BUILD_ONLY_CONFIG_KEYS = new Set<keyof AgoraExampleRuntimeConfig>([
+  'autoPreview',
+  'autoJoin',
+  'publishCameraTrack',
+  'publishMicrophoneTrack',
+  'autoSubscribeAudio',
+  'autoSubscribeVideo',
+  'channelProfile',
+  'clientRole',
+  'videoEncoderPresetName',
+  'previewSourceType',
+  'localVideoCanvas',
+  'remoteVideoCanvas',
+  'beautyEffectSourceType',
+  'beautyOptions',
+  'contentInspectConfig',
+  'audioVolumeIndication',
+  'audioProfile',
+  'audioMixing',
+  'audioMixingSeekPositionMs',
+  'audioMixingVolume',
+  'preloadEffect',
+  'playEffect',
+  'logFilter',
+  'logFilePath',
+  'debugParameters',
+  'playbackVolume',
+  'userPlaybackVolume',
+  'videoEncoderConfiguration',
+  'beautyDemoOptions',
+  'contentInspectDemoConfig',
+]);
+
 export const keyAppId = 'TEST_APP_ID';
 export const keyChannelId = 'TEST_CHANNEL_ID';
 export const keyToken = 'TEST_TOKEN';
@@ -258,4 +291,27 @@ export function resolveAgoraExampleConfig(
     beautyDemoOptions,
     contentInspectDemoConfig,
   };
+}
+
+export function createAgoraExampleBuildConfig(
+  baseConfig: AgoraExampleRuntimeConfig,
+  overrides: AgoraExampleRuntimeConfig,
+): AgoraExampleRuntimeConfig {
+  const buildConfig: AgoraExampleRuntimeConfig = {};
+  buildConfig.appId = overrides.appId ?? baseConfig.appId;
+  buildConfig.channelId = overrides.channelId ?? baseConfig.channelId;
+  buildConfig.token = overrides.token ?? baseConfig.token;
+
+  if (typeof overrides.uid === 'number') {
+    buildConfig.uid = overrides.uid;
+  }
+
+  for (const key of BUILD_ONLY_CONFIG_KEYS) {
+    const value = overrides[key];
+    if (value !== undefined) {
+      buildConfig[key] = value;
+    }
+  }
+
+  return buildConfig;
 }
