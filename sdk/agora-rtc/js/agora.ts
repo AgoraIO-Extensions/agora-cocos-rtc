@@ -35,6 +35,7 @@ import {
   AgoraEngineTextureViewController,
 } from './internal/engine_texture_view.ts';
 import { resolveEngineEncoderMirrorMode } from './internal/engine_texture_encoder_mirror.ts';
+import { isSupportedEngineTextureLocalSourceType } from './internal/engine_texture_mirror.ts';
 
 type EngineTextureViewManagerModule = typeof import('./internal/engine_texture_view_manager.ts');
 type AgoraEngineTextureViewManager = EngineTextureViewManagerModule['AgoraEngineTextureViewManager'];
@@ -121,6 +122,8 @@ export type { AgoraEngineTextureViewManager } from './internal/engine_texture_vi
 export {
   resolveEngineTextureMirror,
   isScreenLikeVideoSource,
+  isSupportedEngineTextureLocalSourceType,
+  ENGINE_TEXTURE_PRIMARY_CAMERA_SOURCE_TYPE,
 } from './internal/engine_texture_mirror.ts';
 export {
   resolveEngineEncoderMirrorMode,
@@ -395,7 +398,23 @@ export class AgoraRtcClient {
     return nativeCanvas;
   }
 
+  #assertEngineTextureLocalSourceType(sourceType: number | undefined, method: string): void {
+    if (isSupportedEngineTextureLocalSourceType(sourceType)) {
+      return;
+    }
+    throw new AgoraSdkError(
+      AgoraErrorCode.ProtocolError,
+      'engine-texture local rendering supports only the primary camera source.',
+      {
+        method,
+        parameter: 'sourceType',
+        value: sourceType,
+      },
+    );
+  }
+
   async setupLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void> {
+    this.#assertEngineTextureLocalSourceType(canvas.sourceType, 'setupLocalVideoView');
     const manager = canvas.displayNode
       ? await this.#ensureEngineTextureViewManager()
       : null;
@@ -446,6 +465,7 @@ export class AgoraRtcClient {
   }
 
   async updateLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void> {
+    this.#assertEngineTextureLocalSourceType(canvas.sourceType, 'updateLocalVideoView');
     const manager = canvas.displayNode
       ? await this.#ensureEngineTextureViewManager()
       : this.#engineTextureViewManager;

@@ -3,6 +3,9 @@ export type EngineTextureMirrorInput = {
   sourceType?: number;
 };
 
+/** Agora VideoSourceType primary camera — the only supported local engine-texture source. */
+export const ENGINE_TEXTURE_PRIMARY_CAMERA_SOURCE_TYPE = 0;
+
 const MIRROR_MODE_AUTO = 0;
 const MIRROR_MODE_DISABLED = 2;
 const SCREEN_SOURCE_PRIMARY = 2;
@@ -13,6 +16,11 @@ export function isScreenLikeVideoSource(sourceType?: number): boolean {
   return sourceType === SCREEN_SOURCE_PRIMARY
     || sourceType === SCREEN_SOURCE_SECONDARY
     || sourceType === TRANSCODED_SOURCE;
+}
+
+export function isSupportedEngineTextureLocalSourceType(sourceType?: number): boolean {
+  return sourceType === undefined
+    || sourceType === ENGINE_TEXTURE_PRIMARY_CAMERA_SOURCE_TYPE;
 }
 
 /**

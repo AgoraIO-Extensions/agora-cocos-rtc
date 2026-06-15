@@ -87,6 +87,7 @@ export interface AgoraRtcVideoCanvas {
   renderMode?: 'hidden' | 'fit' | 'adaptive';
   mirrorMode?: number;
   setupMode?: number;
+  /** Primary camera (`0`) only for local engine-texture rendering. */
   sourceType?: number;
   mediaPlayerId?: number;
   cropArea?: {
