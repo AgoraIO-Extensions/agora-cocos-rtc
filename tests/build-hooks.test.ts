@@ -695,16 +695,12 @@ public class AppActivity extends CocosActivity {
 
   assert.match(once, /import io\.agora\.cocos\.rtc\.AgoraRtcPlugin;/);
   assert.match(once, /SDKWrapper\.shared\(\)\.init\(this\);\n        AgoraRtcPlugin\.getInstance\(\)\.attachBridge\(\);/);
-  assert.match(once, /onRequestPermissionsResult/);
-  assert.match(once, /AgoraRtcPlugin\.getInstance\(\)\.onRequestPermissionsResult\(requestCode, permissions, grantResults\)/);
   assert.equal(
     [...once.matchAll(/AgoraRtcPlugin\.getInstance\(\)\.attachBridge\(\);/g)].length,
     1,
   );
-  assert.equal(
-    [...once.matchAll(/AgoraRtcPlugin\.getInstance\(\)\.onRequestPermissionsResult/g)].length,
-    1,
-  );
+  assert.doesNotMatch(once, /onRequestPermissionsResult/);
+  assert.doesNotMatch(once, /AgoraRtcPlugin\.getInstance\(\)\.onRequestPermissionsResult\(requestCode, permissions, grantResults\)/);
   assert.equal(once, twice);
 });
 
@@ -736,7 +732,7 @@ public class AppActivity extends CocosActivity {
 
   assert.match(content, /import io\.agora\.cocos\.rtc\.AgoraRtcPlugin;/);
   assert.match(content, /AgoraRtcPlugin\.getInstance\(\)\.attachBridge\(\);/);
-  assert.match(content, /AgoraRtcPlugin\.getInstance\(\)\.onRequestPermissionsResult\(requestCode, permissions, grantResults\)/);
+  assert.doesNotMatch(content, /AgoraRtcPlugin\.getInstance\(\)\.onRequestPermissionsResult\(requestCode, permissions, grantResults\)/);
 });
 
 test('ensureAndroidAppActivityBridgeAttachment skips exports without AppActivity.java', async () => {

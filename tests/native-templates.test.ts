@@ -265,14 +265,6 @@ test('ios swift bridge template uses Swift-compatible Foundation and AVFoundatio
     bridgeContent,
     /try\? JSONSerialization\.jsonObject\(with: data\) as\? \[String: Any\]/,
   );
-  assert.match(
-    bridgeContent,
-    /switch AVAudioSession\.sharedInstance\(\)\.recordPermission \{/,
-  );
-  assert.doesNotMatch(
-    bridgeContent,
-    /AVAudioSession\.sharedInstance\(\)\.recordPermission\(\)/,
-  );
   assert.doesNotMatch(bridgeContent, /NSStringFromCGRect|NSStringFromCGSize/);
   assert.match(bridgeContent, /NSCoder\.string\(for: size\)/);
 });
@@ -731,7 +723,7 @@ test('android bridge template rejects unsafe invalid arguments before calling th
   );
 
   const handleSetParametersMatch = bridgeContent.match(
-    /private void handleSetParameters[\s\S]*?private Activity requireActivity/,
+    /private void handleSetParameters[\s\S]*?private boolean applyProtectedParameters/,
   );
   assert.ok(handleSetParametersMatch);
   assert.match(handleSetParametersMatch[0], /Parameters are required\./);
@@ -783,8 +775,6 @@ test('android bridge template maps joinChannel media options from request payloa
   const handleJoinChannel = handleJoinChannelMatch[0];
 
   assert.match(handleJoinChannel, /JSONObject mediaOptions = params != null \? params\.optJSONObject\("options"\) : null/);
-  assert.match(handleJoinChannel, /mediaOptionBoolean\(mediaOptions, "publishCameraTrack", true\)/);
-  assert.match(handleJoinChannel, /mediaOptionBoolean\(mediaOptions, "publishMicrophoneTrack", true\)/);
   assert.match(handleJoinChannel, /continueJoinChannel\(requestId, token, channelId, uid, mediaOptions\)/);
   assert.match(handleJoinChannel, /applyChannelMediaOptions\(options, mediaOptions\)/);
   assert.doesNotMatch(handleJoinChannel, /options\.clientRoleType\s*=\s*Constants\.CLIENT_ROLE_BROADCASTER/);
@@ -852,7 +842,7 @@ test('android bridge template wires string uid account APIs to the native sdk', 
   assert.match(bridgeContent, /userAccount/);
 });
 
-test('android bridge template requests rtc runtime permissions before camera and microphone use', async () => {
+test('android bridge template leaves runtime permission ownership to callers', async () => {
   const bridgeContent = await readFile(
     path.join(
       repoRoot,
@@ -861,41 +851,24 @@ test('android bridge template requests rtc runtime permissions before camera and
     'utf8',
   );
 
-  assert.match(bridgeContent, /RTC_PERMISSION_REQUEST_CODE/);
-  assert.match(bridgeContent, /Manifest\.permission\.CAMERA/);
-  assert.match(bridgeContent, /Manifest\.permission\.RECORD_AUDIO/);
-  assert.match(bridgeContent, /requestPermissions\(/);
-  assert.match(bridgeContent, /pendingPermissionActions/);
-  assert.match(bridgeContent, /onRequestPermissionsResult/);
-  assert.match(bridgeContent, /requiresCamera/);
-  assert.match(bridgeContent, /requiresMicrophone/);
-  assert.match(bridgeContent, /private boolean requiresCameraPermission\(JSONObject mediaOptions\)/);
-  assert.match(bridgeContent, /mediaOptionBoolean\(mediaOptions, "startPreview", false\)/);
-  assert.match(bridgeContent, /mediaOptionBoolean\(mediaOptions, "publishSecondaryCameraTrack", false\)/);
-  assert.match(bridgeContent, /mediaOptionBoolean\(mediaOptions, "publishThirdCameraTrack", false\)/);
-  assert.match(bridgeContent, /mediaOptionBoolean\(mediaOptions, "publishFourthCameraTrack", false\)/);
+  assert.doesNotMatch(bridgeContent, /RTC_PERMISSION_REQUEST_CODE/);
+  assert.doesNotMatch(bridgeContent, /requestPermissions\(/);
+  assert.doesNotMatch(bridgeContent, /pendingPermissionActions/);
+  assert.doesNotMatch(bridgeContent, /onRequestPermissionsResult/);
+  assert.doesNotMatch(bridgeContent, /private boolean requiresCameraPermission\(JSONObject mediaOptions\)/);
+  assert.doesNotMatch(bridgeContent, /private boolean requiresMicrophonePermission\(JSONObject mediaOptions\)/);
 
   const handleJoinChannelMatch = bridgeContent.match(
     /private void handleJoinChannel[\s\S]*?private void handleGetErrorDescription/,
   );
   assert.ok(handleJoinChannelMatch);
-  assertPatternBefore(
-    handleJoinChannelMatch[0],
-    /ensureRtcPermissions\([\s\S]*requestId,[\s\S]*requiresCameraPermission,[\s\S]*requiresMicrophonePermission,[\s\S]*continueJoinChannel/,
-    /rtcEngine\.joinChannel/,
-    'joinChannel must request camera and microphone permissions before invoking native sdk',
-  );
+  assert.doesNotMatch(handleJoinChannelMatch[0], /ensureRtcPermissions\(/);
 
   const handleStartPreviewMatch = bridgeContent.match(
     /private void handleStartPreview[\s\S]*?private void handleStopPreview/,
   );
   assert.ok(handleStartPreviewMatch);
-  assertPatternBefore(
-    handleStartPreviewMatch[0],
-    /ensureRtcPermissions\(\s*requestId,\s*true,\s*false,[\s\S]*continueStartPreview/,
-    /renderBackend\.startPreview/,
-    'startPreview must request only camera permission before invoking native sdk',
-  );
+  assert.doesNotMatch(handleStartPreviewMatch[0], /ensureRtcPermissions\(/);
 
   const handleLeaveChannelMatch = bridgeContent.match(
     /private void handleLeaveChannel[\s\S]*?private void handleRenewToken/,
@@ -1409,8 +1382,6 @@ test('ios bridge template maps joinChannel media options from request payload', 
 
   assert.match(handleJoinChannel, /if let mediaOptionParams = params\["options"\] as\? \[String: Any\]/);
   assert.match(handleJoinChannel, /let mediaOptions = buildChannelMediaOptions\(mediaOptionParams\)/);
-  assert.match(handleJoinChannel, /let requiresCameraPermission = requiresCameraPermission\(mediaOptionParams\)/);
-  assert.match(handleJoinChannel, /let requiresMicrophonePermission = requiresMicrophonePermission\(mediaOptionParams\)/);
   assert.match(handleJoinChannel, /uid: uid,\s*mediaOptions: mediaOptions,\s*joinSuccess: nil/);
   assert.match(
     handleJoinChannel,
@@ -1560,8 +1531,8 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(inspectMatch[0], /config\.extraInfo = extraInfo/);
   assert.match(inspectMatch[0], /config\.serverConfig = serverConfig/);
   assert.match(inspectMatch[0], /config\.modules = buildContentInspectModules/);
-  assert.match(bridgeContent, /module\.position = parseContentInspectModulePosition/);
-  assert.match(bridgeContent, /private func parseContentInspectModulePosition/);
+  assert.doesNotMatch(bridgeContent, /module\.position = parseContentInspectModulePosition/);
+  assert.doesNotMatch(bridgeContent, /private func parseContentInspectModulePosition/);
   assert.match(bridgeContent, /applyProtectedParameters\(engine: engine, requestId: requestId, method: "initialize", params: params\)/);
   assert.match(bridgeContent, /clientParams\["rtc\.set_app_type"\] = 10/);
   assert.match(bridgeContent, /return protectedAppTypeParameters/);
@@ -1572,6 +1543,7 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.ok(inspectModuleMatch);
   assert.match(inspectModuleMatch[0], /"type": params\["module"\] \?\? 1/);
   assert.match(inspectModuleMatch[0], /"interval": params\["interval"\] \?\? 0/);
+  assert.doesNotMatch(inspectModuleMatch[0], /"position": params\["position"\]/);
   assert.match(inspectModuleMatch[0], /module\.type = AgoraContentInspectType\(rawValue: typeValue\)/);
   assert.match(inspectModuleMatch[0], /module\.interval = intValue\(params\["interval"\] \?\? 0\)/);
 
@@ -1773,32 +1745,23 @@ test('ios bridge template rejects unsafe invalid arguments before calling the rt
   );
 });
 
-test('ios bridge template explicitly requests rtc permissions before camera and microphone use', async () => {
+test('ios bridge template leaves runtime permission ownership to callers', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
     'utf8',
   );
 
-  assert.match(bridgeContent, /import AVFoundation/);
-  assert.match(bridgeContent, /AVCaptureDevice\.requestAccess\(for: \.video/);
-  assert.match(bridgeContent, /AVAudioSession\.sharedInstance\(\)\.requestRecordPermission/);
-  assert.match(bridgeContent, /ensureRtcPermissions/);
-  assert.match(bridgeContent, /private func requiresCameraPermission\(_ mediaOptions: \[String: Any\]\?\) -> Bool/);
-  assert.match(bridgeContent, /mediaOptionBool\(mediaOptions, key: "startPreview", defaultValue: false\)/);
-  assert.match(bridgeContent, /mediaOptionBool\(mediaOptions, key: "publishSecondaryCameraTrack", defaultValue: false\)/);
-  assert.doesNotMatch(bridgeContent, /mediaOptionBool\(mediaOptions, key: "publishThirdCameraTrack", defaultValue: false\)/);
-  assert.doesNotMatch(bridgeContent, /mediaOptionBool\(mediaOptions, key: "publishFourthCameraTrack", defaultValue: false\)/);
+  assert.doesNotMatch(bridgeContent, /AVCaptureDevice\.requestAccess\(for: \.video/);
+  assert.doesNotMatch(bridgeContent, /AVAudioSession\.sharedInstance\(\)\.requestRecordPermission/);
+  assert.doesNotMatch(bridgeContent, /ensureRtcPermissions/);
+  assert.doesNotMatch(bridgeContent, /private func requiresCameraPermission\(_ mediaOptions: \[String: Any\]\?\) -> Bool/);
+  assert.doesNotMatch(bridgeContent, /private func requiresMicrophonePermission\(_ mediaOptions: \[String: Any\]\?\) -> Bool/);
 
   const startPreviewMatch = bridgeContent.match(
     /case "startPreview":[\s\S]*?case "stopPreview":/,
   );
   assert.ok(startPreviewMatch);
-  assertPatternBefore(
-    startPreviewMatch[0],
-    /ensureRtcPermissions\(\s*requestId: requestId,\s*requiresCamera: true,\s*requiresMicrophone: false/,
-    /engine\.startPreview/,
-    'startPreview must request only iOS camera permission before invoking native sdk',
-  );
+  assert.doesNotMatch(startPreviewMatch[0], /ensureRtcPermissions\(/);
   assert.match(startPreviewMatch[0], /let sourceType = videoSourceType\(from: params\)/);
   assert.match(startPreviewMatch[0], /engine\.startPreview\(sourceType\)/);
 
@@ -1815,26 +1778,13 @@ test('ios bridge template explicitly requests rtc permissions before camera and 
     /private func handleJoinChannel[\s\S]*?private func requireEngine/,
   );
   assert.ok(handleJoinChannelMatch);
-  assertPatternBefore(
-    handleJoinChannelMatch[0],
-    /ensureRtcPermissions\([\s\S]*requestId: requestId,[\s\S]*requiresCamera: requiresCameraPermission,[\s\S]*requiresMicrophone: requiresMicrophonePermission/,
-    /engine\.joinChannel/,
-    'joinChannel must request required iOS permissions before invoking native sdk',
-  );
-
-  assert.match(
-    handleJoinChannelMatch[0],
-    /else\s*\{[\s\S]*?ensureRtcPermissions\(\s*requestId: requestId,\s*requiresCamera: false,\s*requiresMicrophone: false/,
-  );
+  assert.doesNotMatch(handleJoinChannelMatch[0], /ensureRtcPermissions\(/);
 
   const handleJoinChannelWithUserAccountMatch = bridgeContent.match(
     /private func handleJoinChannelWithUserAccount[\s\S]*?private func handleGetUserInfoByUserAccount/,
   );
   assert.ok(handleJoinChannelWithUserAccountMatch);
-  assert.match(
-    handleJoinChannelWithUserAccountMatch[0],
-    /else\s*\{[\s\S]*?ensureRtcPermissions\(\s*requestId: requestId,\s*requiresCamera: false,\s*requiresMicrophone: false/,
-  );
+  assert.doesNotMatch(handleJoinChannelWithUserAccountMatch[0], /ensureRtcPermissions\(/);
 });
 
 test('ios bridge template routes bridged uid parsing through uintValue helper for native uint calls', async () => {
@@ -1892,8 +1842,8 @@ test('ios content inspect module boundary matches the installed rtc objects head
   assert.ok(moduleMatch);
   assert.match(moduleMatch[0], /AgoraContentInspectType type/);
   assert.match(moduleMatch[0], /NSInteger interval/);
-  assert.match(moduleMatch[0], /AgoraVideoModulePosition position/);
-  assert.match(bridgeContent, /module\.position = parseContentInspectModulePosition/);
+  assert.doesNotMatch(moduleMatch[0], /AgoraVideoModulePosition position/);
+  assert.doesNotMatch(bridgeContent, /module\.position = parseContentInspectModulePosition/);
 });
 
 test('ios plugin registrar attaches the js bridge wrapper and forwards responses back to script', async () => {
@@ -1935,6 +1885,7 @@ test('ios integration script registers all committed bridge templates in the exp
 
   assert.match(scriptContent, /AgoraRtcBridge\.swift/);
   assert.match(scriptContent, /AgoraRtcPlugin\.mm/);
+  assert.match(scriptContent, /DemoPermissionsPlugin\.mm/);
   assert.match(scriptContent, /AgoraEngineTextureSlotBridge\.h/);
   assert.match(scriptContent, /AgoraEngineTextureSlotBridge\.mm/);
   assert.match(scriptContent, /APP_DELEGATE_PATH/);
@@ -1942,6 +1893,7 @@ test('ios integration script registers all committed bridge templates in the exp
   assert.match(scriptContent, /ensure_app_delegate_attaches_bridge/);
   assert.match(scriptContent, /ensure_info_plist_usage_descriptions/);
   assert.match(scriptContent, /\[\[AgoraRtcPlugin sharedInstance\] attachBridge\]/);
+  assert.match(scriptContent, /\[\[DemoPermissionsPlugin sharedInstance\] attachBridge\]/);
   assert.match(scriptContent, /NSCameraUsageDescription/);
   assert.match(scriptContent, /NSMicrophoneUsageDescription/);
 });
@@ -3331,122 +3283,6 @@ final class AgoraEngineTextureSlotBridge {
   ];
 
   await execFileAsync('/usr/bin/javac', ['-d', classesRoot, ...javaFiles]);
-
-  const permissionQueueTestFile = path.join(srcRoot, 'PermissionQueueTest.java');
-  await writeFile(
-    permissionQueueTestFile,
-    `import android.Manifest;
-import android.app.Activity;
-import android.content.pm.PackageManager;
-import com.cocos.lib.GlobalObject;
-import io.agora.cocos.rtc.AgoraRtcPlugin;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Queue;
-
-public class PermissionQueueTest {
-    public static void main(String[] args) throws Exception {
-        Activity activity = new Activity();
-        GlobalObject.setActivity(activity);
-        AgoraRtcPlugin plugin = AgoraRtcPlugin.getInstance();
-        Class<?> pluginClass = plugin.getClass();
-
-        Field pendingActionsField = pluginClass.getDeclaredField("pendingPermissionActions");
-        pendingActionsField.setAccessible(true);
-        ((Queue<?>) pendingActionsField.get(plugin)).clear();
-        Field requestInFlightField = pluginClass.getDeclaredField("permissionRequestInFlight");
-        requestInFlightField.setAccessible(true);
-        requestInFlightField.setBoolean(plugin, false);
-        Field requestCodeField = pluginClass.getDeclaredField("RTC_PERMISSION_REQUEST_CODE");
-        requestCodeField.setAccessible(true);
-        int requestCode = requestCodeField.getInt(null);
-
-        Method ensurePermissions = pluginClass.getDeclaredMethod(
-            "ensureRtcPermissions",
-            String.class,
-            boolean.class,
-            boolean.class,
-            Runnable.class
-        );
-        ensurePermissions.setAccessible(true);
-
-        List<String> ranActions = new ArrayList<>();
-        ensurePermissions.invoke(plugin, "mic-only", false, true, (Runnable) () -> ranActions.add("mic-only"));
-        ensurePermissions.invoke(plugin, "camera-mic", true, true, (Runnable) () -> ranActions.add("camera-mic"));
-
-        assertEquals(1, activity.permissionRequests.size(), "first action should request microphone");
-        assertPermissions(activity.permissionRequests.get(0), Manifest.permission.RECORD_AUDIO);
-
-        activity.grantPermission(Manifest.permission.RECORD_AUDIO);
-        plugin.onRequestPermissionsResult(
-            requestCode,
-            new String[] { Manifest.permission.RECORD_AUDIO },
-            new int[] { PackageManager.PERMISSION_GRANTED }
-        );
-
-        assertEquals(1, ranActions.size(), "only the microphone action should run after microphone grant");
-        assertEquals("mic-only", ranActions.get(0), "microphone action should run first");
-        assertEquals(2, activity.permissionRequests.size(), "camera action should request the missing camera permission");
-        assertPermissions(activity.permissionRequests.get(1), Manifest.permission.CAMERA);
-
-        activity.grantPermission(Manifest.permission.CAMERA);
-        plugin.onRequestPermissionsResult(
-            requestCode,
-            new String[] { Manifest.permission.CAMERA },
-            new int[] { PackageManager.PERMISSION_GRANTED }
-        );
-
-        assertEquals(2, ranActions.size(), "queued camera action should run after camera grant");
-        assertEquals("camera-mic", ranActions.get(1), "camera action should run second");
-
-        Activity partialDenialActivity = new Activity();
-        GlobalObject.setActivity(partialDenialActivity);
-        ((Queue<?>) pendingActionsField.get(plugin)).clear();
-        requestInFlightField.setBoolean(plugin, false);
-
-        List<String> partialDenialActions = new ArrayList<>();
-        ensurePermissions.invoke(plugin, "camera-mic-denied", true, true, (Runnable) () -> partialDenialActions.add("camera-mic-denied"));
-        ensurePermissions.invoke(plugin, "mic-only-granted", false, true, (Runnable) () -> partialDenialActions.add("mic-only-granted"));
-
-        assertEquals(1, partialDenialActivity.permissionRequests.size(), "mixed queue should request camera and microphone");
-        assertPermissions(
-            partialDenialActivity.permissionRequests.get(0),
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO
-        );
-
-        partialDenialActivity.grantPermission(Manifest.permission.RECORD_AUDIO);
-        plugin.onRequestPermissionsResult(
-            requestCode,
-            new String[] { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO },
-            new int[] { -1, PackageManager.PERMISSION_GRANTED }
-        );
-
-        assertEquals(1, partialDenialActions.size(), "mic-only action should run when camera is denied but microphone is granted");
-        assertEquals("mic-only-granted", partialDenialActions.get(0), "mic-only action should not be failed by camera denial");
-        assertEquals(1, partialDenialActivity.permissionRequests.size(), "camera denial should not trigger another permission request");
-    }
-
-    private static void assertPermissions(String[] actual, String... expected) {
-        assertEquals(expected.length, actual.length, "permission count");
-        for (int index = 0; index < expected.length; index += 1) {
-            assertEquals(expected[index], actual[index], "permission at index " + index);
-        }
-    }
-
-    private static void assertEquals(Object expected, Object actual, String message) {
-        if (!expected.equals(actual)) {
-            throw new AssertionError(message + ": expected " + expected + " but got " + actual);
-        }
-    }
-}
-`,
-    'utf8',
-  );
-  await execFileAsync('/usr/bin/javac', ['-cp', classesRoot, '-d', classesRoot, permissionQueueTestFile]);
-  await execFileAsync('/usr/bin/java', ['-cp', classesRoot, 'PermissionQueueTest']);
 
   const observerTransitionTestFile = path.join(srcRoot, 'ObserverTransitionTest.java');
   await writeFile(
