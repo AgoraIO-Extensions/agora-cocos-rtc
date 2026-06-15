@@ -445,12 +445,33 @@ export class AgoraRtcClient {
     }
   }
 
-  updateLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void> {
-    return this.#invoke('updateLocalVideoView', { ...canvas }) as Promise<void>;
+  async updateLocalVideoView(canvas: AgoraRtcVideoCanvas): Promise<void> {
+    const manager = canvas.displayNode
+      ? await this.#ensureEngineTextureViewManager()
+      : this.#engineTextureViewManager;
+    if (manager) {
+      manager.syncLocalDisplayFromCanvas(canvas);
+    }
+    await this.#invoke('updateLocalVideoView', this.#stripDisplayNodeFromCanvas(canvas)) as Promise<void>;
+    if (canvas.displayNode && manager) {
+      manager.applyCachedTextureSlot('local');
+    }
   }
 
-  updateRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise<void> {
-    return this.#invoke('updateRemoteVideoView', { ...canvas, uid }) as Promise<void>;
+  async updateRemoteVideoView(uid: number, canvas: AgoraRtcVideoCanvas): Promise<void> {
+    const manager = canvas.displayNode
+      ? await this.#ensureEngineTextureViewManager()
+      : this.#engineTextureViewManager;
+    if (manager) {
+      manager.syncRemoteDisplayFromCanvas(uid, canvas);
+    }
+    await this.#invoke(
+      'updateRemoteVideoView',
+      { ...this.#stripDisplayNodeFromCanvas(canvas), uid },
+    ) as Promise<void>;
+    if (canvas.displayNode && manager) {
+      manager.applyCachedTextureSlot('remote', uid);
+    }
   }
 
   removeLocalVideoView(): Promise<void> {

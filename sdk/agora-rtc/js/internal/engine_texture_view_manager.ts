@@ -106,6 +106,70 @@ export class AgoraEngineTextureViewManager {
     this.applyCachedTextureSlot('remote', uid);
   }
 
+  syncLocalDisplayFromCanvas(canvas: {
+    displayNode?: AgoraCocosDisplayNode;
+    mirrorMode?: number;
+    sourceType?: number;
+  }): void {
+    if (canvas.displayNode) {
+      this.registerLocalDisplay({
+        displayNode: canvas.displayNode,
+        mirrorMode: canvas.mirrorMode,
+        sourceType: canvas.sourceType,
+      });
+      return;
+    }
+    const view = this.#views.get(LOCAL_VIEW_ID);
+    if (!view) {
+      return;
+    }
+    if (canvas.mirrorMode !== undefined) {
+      view.mirrorMode = canvas.mirrorMode;
+    }
+    if (canvas.sourceType !== undefined) {
+      view.sourceType = canvas.sourceType;
+    }
+    this.#viewController.registerLocalView({
+      viewId: LOCAL_VIEW_ID,
+      mirrorMode: view.mirrorMode ?? 0,
+      sourceType: view.sourceType,
+    });
+    this.applyDisplayMirror(LOCAL_VIEW_ID);
+  }
+
+  syncRemoteDisplayFromCanvas(uid: number, canvas: {
+    displayNode?: AgoraCocosDisplayNode;
+    mirrorMode?: number;
+    sourceType?: number;
+  }): void {
+    const viewId = this.#remoteViewId(uid);
+    if (canvas.displayNode) {
+      this.registerRemoteDisplay(uid, {
+        displayNode: canvas.displayNode,
+        mirrorMode: canvas.mirrorMode,
+        sourceType: canvas.sourceType,
+      });
+      return;
+    }
+    const view = this.#views.get(viewId);
+    if (!view) {
+      return;
+    }
+    if (canvas.mirrorMode !== undefined) {
+      view.mirrorMode = canvas.mirrorMode;
+    }
+    if (canvas.sourceType !== undefined) {
+      view.sourceType = canvas.sourceType;
+    }
+    this.#viewController.registerRemoteView({
+      viewId,
+      uid,
+      mirrorMode: view.mirrorMode ?? DEFAULT_REMOTE_VIEW_MIRROR_MODE,
+      sourceType: view.sourceType,
+    });
+    this.applyDisplayMirror(viewId);
+  }
+
   applyCachedTextureSlot(kind: 'local' | 'remote', uid?: number): void {
     const cached = kind === 'local'
       ? this.#client.takeCachedLocalTextureSlot()

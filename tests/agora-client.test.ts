@@ -1399,6 +1399,99 @@ test('setupRemoteVideoView dispatches AgoraRtcVideoCanvas fields to native', asy
   await pending;
 });
 
+test('updateLocalVideoView strips displayNode before native dispatch', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+  const displayNode = {
+    setScale() {},
+    getScale() {
+      return { x: 1, y: 1, z: 1 };
+    },
+  };
+
+  const pending = client.updateLocalVideoView({
+    x: 36,
+    y: 0,
+    width: 100,
+    height: 100,
+    displayNode,
+    mirrorMode: 1,
+    sourceType: 0,
+  });
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'updateLocalVideoView');
+  assert.deepEqual(request.params, {
+    x: 36,
+    y: 0,
+    width: 100,
+    height: 100,
+    mirrorMode: 1,
+    sourceType: 0,
+  });
+  assertFixtureCoversInterfaceFields('AgoraRtcVideoCanvas', request.params, ['displayNode']);
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+});
+
+test('updateRemoteVideoView strips displayNode before native dispatch', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+  const displayNode = {
+    setScale() {},
+    getScale() {
+      return { x: 1, y: 1, z: 1 };
+    },
+  };
+
+  const pending = client.updateRemoteVideoView(123, {
+    x: 48,
+    y: 0,
+    width: 100,
+    height: 100,
+    displayNode,
+    mirrorMode: 2,
+    sourceType: 0,
+  });
+  const request = JSON.parse(transport.sent[0].payload);
+
+  assert.equal(request.method, 'updateRemoteVideoView');
+  assert.deepEqual(request.params, {
+    uid: 123,
+    x: 48,
+    y: 0,
+    width: 100,
+    height: 100,
+    mirrorMode: 2,
+    sourceType: 0,
+  });
+  assertFixtureCoversInterfaceFields('AgoraRtcVideoCanvas', request.params, ['displayNode']);
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+});
+
 test('removeRemoteVideoView invalidates in-flight setupRemoteVideoView', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
