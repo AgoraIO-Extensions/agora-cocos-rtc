@@ -902,8 +902,10 @@ test('android bridge template requests rtc runtime permissions before camera and
   );
   assert.ok(handleLeaveChannelMatch);
   assert.match(handleLeaveChannelMatch[0], /hasLeaveChannelOptions\(params\)/);
-  assert.match(handleLeaveChannelMatch[0], /rtcEngine\.leaveChannel\(buildLeaveChannelOptions\(params\)\)/);
-  assert.match(handleLeaveChannelMatch[0], /rtcEngine\.leaveChannel\(\)/);
+  assert.match(handleLeaveChannelMatch[0], /LeaveChannelOptions options = hasLeaveChannelOptions\(params\)/);
+  assert.match(handleLeaveChannelMatch[0], /new LeaveChannelOptions\(\)/);
+  assert.match(handleLeaveChannelMatch[0], /int result = rtcEngine\.leaveChannel\(options\)/);
+  assert.doesNotMatch(handleLeaveChannelMatch[0], /rtcEngine\.leaveChannel\(\)/);
   assert.match(bridgeContent, /private LeaveChannelOptions buildLeaveChannelOptions\(JSONObject params\)/);
   assert.match(bridgeContent, /options\.stopAudioMixing = params\.optBoolean\("stopAudioMixing"\)/);
   assert.match(bridgeContent, /options\.stopAllEffect = params\.optBoolean\("stopAllEffect"\)/);
