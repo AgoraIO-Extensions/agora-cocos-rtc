@@ -127,6 +127,10 @@ const TRANSPILE_TARGETS = [
     outputPath: 'example/basic-call/extensions/agora-rtc/js/types.ts',
   },
   {
+    sourcePath: 'sdk/agora-rtc/js/source_types.ts',
+    outputPath: 'example/basic-call/extensions/agora-rtc/js/source_types.ts',
+  },
+  {
     sourcePath: 'sdk/agora-rtc/js/internal/bridge.ts',
     outputPath: 'example/basic-call/extensions/agora-rtc/js/internal/bridge.ts',
   },

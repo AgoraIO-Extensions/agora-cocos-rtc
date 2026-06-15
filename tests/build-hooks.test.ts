@@ -522,6 +522,7 @@ test('patchIosXcodeProjectBuildSettingsForSwiftPackage clears legacy build locat
   assert.match(once, /DEVELOPMENT_TEAM = ABCDE12345;/);
   assert.match(once, /PROVISIONING_PROFILE_SPECIFIER = "Agora Dev Profile";/);
   assert.match(once, /PRODUCT_BUNDLE_IDENTIFIER = io\.agora\.cocosbasiccall;/);
+  assert.match(once, /SWIFT_VERSION = 5\.0;/);
   assert.equal(once, twice);
 });
 
@@ -642,6 +643,34 @@ test('onBeforeMake patches generated iOS Xcode project before native compilation
   assert.doesNotMatch(content, /^\s*SYMROOT = /m);
   assert.match(content, /@executable_path\/Frameworks/);
   assert.match(userWorkspaceSettings, /<key>BuildLocationStyle<\/key>\s*<string>Unique<\/string>/);
+});
+
+test('onBeforeMake patches generated iOS Info.plist usage descriptions before native compilation', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-before-make-plist-'));
+  const pbxprojPath = path.join(root, 'agora-cocos-basic-call.xcodeproj/project.pbxproj');
+  const infoPlistPath = path.join(root, 'CMakeFiles/agora-cocos-basic-call-mobile.dir/Info.plist');
+  await mkdir(path.dirname(pbxprojPath), { recursive: true });
+  await mkdir(path.dirname(infoPlistPath), { recursive: true });
+  await writeFile(pbxprojPath, createIosPbxprojFixture(), 'utf8');
+  await writeFile(
+    infoPlistPath,
+    `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Agora Cocos RTC</string>
+</dict>
+</plist>
+`,
+    'utf8',
+  );
+
+  await onBeforeMake(root, { platform: 'ios' });
+  const content = await readFile(infoPlistPath, 'utf8');
+
+  assert.match(content, /NSCameraUsageDescription/);
+  assert.match(content, /NSMicrophoneUsageDescription/);
 });
 
 test('patchAndroidAppActivityBridgeAttachment attaches the native bridge after SDK init once', () => {
@@ -791,6 +820,35 @@ test('ensureIosRtcUsageDescriptions patches exported Info.plist with camera and 
     'iOS usage descriptions must be top-level Info.plist entries before </dict>',
   );
   assert.equal(once, twice);
+});
+
+test('ensureIosRtcUsageDescriptions patches generated CMakeFiles Info.plist when it exists', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-generated-plist-'));
+  const infoPlistPath = path.join(
+    root,
+    'proj/CMakeFiles/agora-cocos-basic-call-mobile.dir/Info.plist',
+  );
+  await mkdir(path.dirname(infoPlistPath), { recursive: true });
+  await writeFile(
+    infoPlistPath,
+    `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleName</key>
+	<string>Agora Cocos RTC</string>
+</dict>
+</plist>
+`,
+    'utf8',
+  );
+
+  const patchedPath = await ensureIosRtcUsageDescriptions(root);
+  const content = await readFile(infoPlistPath, 'utf8');
+
+  assert.equal(patchedPath, infoPlistPath);
+  assert.match(content, /NSCameraUsageDescription/);
+  assert.match(content, /NSMicrophoneUsageDescription/);
 });
 
 test('cocos extension entrypoints are loadable from commonjs', () => {

@@ -301,6 +301,11 @@ function patchIosXcodeProjectBuildSettingsObject(objectText) {
         );
 
       patchedBody = ensureIosFrameworksRunpath(patchedBody);
+      if (!/^[ \t]*SWIFT_VERSION = /m.test(patchedBody)) {
+        const settingIndent = patchedBody.match(/^([ \t]+)[A-Za-z0-9_]+(?:\[[^\]]+\])? = /m)?.[1] || '\t\t\t';
+        const prefix = patchedBody.endsWith('\n') || patchedBody.length === 0 ? '' : '\n';
+        patchedBody = `${patchedBody}${prefix}${settingIndent}SWIFT_VERSION = ${sdkConfig.ios.swiftVersion};\n`;
+      }
       return `${start}${patchedBody}${end}`;
     },
   );
@@ -1284,14 +1289,43 @@ function patchIosRtcUsageDescriptions(content) {
 }
 
 async function ensureIosRtcUsageDescriptions(rootDir) {
-  const infoPlistPath = await findFirstExistingPath(rootDir, [
+  const generatedInfoPlistCandidates = [];
+  for (const searchRoot of [rootDir, path.join(rootDir, 'proj'), path.join(rootDir, 'build', 'ios', 'proj')]) {
+    let entries;
+    try {
+      entries = await readdir(path.join(searchRoot, 'CMakeFiles'), { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !entry.name.endsWith('.dir')) {
+        continue;
+      }
+      generatedInfoPlistCandidates.push(path.join(searchRoot, 'CMakeFiles', entry.name, 'Info.plist'));
+    }
+  }
+
+  let infoPlistPath = null;
+  for (const candidate of generatedInfoPlistCandidates) {
+    try {
+      await access(candidate);
+      infoPlistPath = candidate;
+      break;
+    } catch {
+      continue;
+    }
+  }
+
+  if (!infoPlistPath) {
+    infoPlistPath = await findFirstExistingPath(rootDir, [
     'Info.plist',
     'proj/Info.plist',
     'native/engine/ios/Info.plist',
     '../../native/engine/ios/Info.plist',
     '../../../native/engine/ios/Info.plist',
     '../native/engine/ios/Info.plist',
-  ]);
+    ]);
+  }
 
   if (!infoPlistPath) {
     return null;
@@ -1435,6 +1469,7 @@ async function onBeforeMake(rootDir, options = {}) {
   if (platform === 'ios' || rootDir.includes('/ios')) {
     await ensureIosXcodeProjectNativeSources(rootDir);
     await ensureIosXcodeProjectSwiftPackage(rootDir);
+    await ensureIosRtcUsageDescriptions(rootDir);
   }
 }
 
