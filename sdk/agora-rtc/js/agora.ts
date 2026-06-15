@@ -558,8 +558,12 @@ export class AgoraRtcClient {
   }
 
   playEffect(config: AgoraPlayEffectConfig): Promise<void> {
-    const normalized = normalizePlayEffectConfig(config, this.#bridgeRuntime);
-    return this.#invoke('playEffect', { ...normalized }) as Promise<void>;
+    try {
+      const normalized = normalizePlayEffectConfig(config, this.#bridgeRuntime);
+      return this.#invoke('playEffect', { ...normalized }) as Promise<void>;
+    } catch (error) {
+      return Promise.reject(error);
+    }
   }
 
   pauseEffect(soundId: number): Promise<void> {
