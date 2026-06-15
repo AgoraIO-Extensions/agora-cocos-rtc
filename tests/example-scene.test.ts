@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import { promisify } from 'node:util';
 
 const repoRoot = process.cwd();
@@ -80,6 +80,20 @@ test('prepare-example does not precreate ignored ios native engine overrides', a
   );
 
   assert.doesNotMatch(content, /sync-ios-demo-permissions-bridge\.mjs/);
+});
+
+test('android demo permission bridge sync keeps the demo-owned source mirrored into engine android', async () => {
+  const sourcePath = `${repoRoot}/example/basic-call/native/agora-rtc/android/src/main/java/io/agora/cocos/demo/DemoPermissionsPlugin.java`;
+  const mirroredPath = `${repoRoot}/example/basic-call/native/engine/android/app/src/main/java/io/agora/cocos/demo/DemoPermissionsPlugin.java`;
+  const sourceContent = await readFile(sourcePath, 'utf8');
+
+  await rm(mirroredPath, { force: true });
+  await execFileAsync('node', ['./scripts/sync-android-app-bridge.mjs'], {
+    cwd: repoRoot,
+  });
+
+  const mirroredContent = await readFile(mirroredPath, 'utf8');
+  assert.equal(mirroredContent, sourceContent);
 });
 
 test('example bootstrap no longer mounts the monolithic controller at runtime', async () => {

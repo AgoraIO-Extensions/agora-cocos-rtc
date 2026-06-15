@@ -693,14 +693,21 @@ public class AppActivity extends CocosActivity {
   const once = patchAndroidAppActivityBridgeAttachment(original);
   const twice = patchAndroidAppActivityBridgeAttachment(once);
 
+  assert.match(once, /import io\.agora\.cocos\.demo\.DemoPermissionsPlugin;/);
   assert.match(once, /import io\.agora\.cocos\.rtc\.AgoraRtcPlugin;/);
   assert.match(once, /SDKWrapper\.shared\(\)\.init\(this\);\n        AgoraRtcPlugin\.getInstance\(\)\.attachBridge\(\);/);
+  assert.match(once, /DemoPermissionsPlugin\.getInstance\(\)\.attachBridge\(\);/);
   assert.equal(
     [...once.matchAll(/AgoraRtcPlugin\.getInstance\(\)\.attachBridge\(\);/g)].length,
     1,
   );
-  assert.doesNotMatch(once, /onRequestPermissionsResult/);
-  assert.doesNotMatch(once, /AgoraRtcPlugin\.getInstance\(\)\.onRequestPermissionsResult\(requestCode, permissions, grantResults\)/);
+  assert.equal(
+    [...once.matchAll(/DemoPermissionsPlugin\.getInstance\(\)\.attachBridge\(\);/g)].length,
+    1,
+  );
+  assert.match(once, /public void onRequestPermissionsResult\(int requestCode, String\[] permissions, int\[] grantResults\)/);
+  assert.match(once, /super\.onRequestPermissionsResult\(requestCode, permissions, grantResults\);/);
+  assert.match(once, /DemoPermissionsPlugin\.getInstance\(\)\.onRequestPermissionsResult\(requestCode, permissions, grantResults\);/);
   assert.equal(once, twice);
 });
 
@@ -730,9 +737,11 @@ public class AppActivity extends CocosActivity {
   await ensureAndroidAppActivityBridgeAttachment(root);
   const content = await readFile(appActivityPath, 'utf8');
 
+  assert.match(content, /import io\.agora\.cocos\.demo\.DemoPermissionsPlugin;/);
   assert.match(content, /import io\.agora\.cocos\.rtc\.AgoraRtcPlugin;/);
   assert.match(content, /AgoraRtcPlugin\.getInstance\(\)\.attachBridge\(\);/);
-  assert.doesNotMatch(content, /AgoraRtcPlugin\.getInstance\(\)\.onRequestPermissionsResult\(requestCode, permissions, grantResults\)/);
+  assert.match(content, /DemoPermissionsPlugin\.getInstance\(\)\.attachBridge\(\);/);
+  assert.match(content, /DemoPermissionsPlugin\.getInstance\(\)\.onRequestPermissionsResult\(requestCode, permissions, grantResults\);/);
 });
 
 test('ensureAndroidAppActivityBridgeAttachment skips exports without AppActivity.java', async () => {

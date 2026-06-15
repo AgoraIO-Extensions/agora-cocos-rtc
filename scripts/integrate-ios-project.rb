@@ -52,6 +52,7 @@ ENV['GEM_PATH'] ||= [ENV['GEM_HOME'], default_gem_paths].compact.reject(&:empty?
 require 'rubygems'
 Gem.use_paths(ENV['GEM_HOME'], ENV['GEM_PATH'].split(':')) if ENV['GEM_HOME'] && !ENV['GEM_HOME'].empty?
 require 'json'
+require 'fileutils'
 require 'xcodeproj'
 
 REPO_ROOT = File.expand_path('..', __dir__)
@@ -62,6 +63,8 @@ PROJECT_PATH = File.join(REPO_ROOT, 'example/basic-call/build-ios/ios/proj/agora
 APP_DELEGATE_PATH = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/AppDelegate.mm')
 INFO_PLIST_PATH = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/Info.plist')
 COMMON_ENGINE_TEXTURE_BRIDGE_DIR = File.join(REPO_ROOT, 'example/basic-call/native/engine/common/Classes/agora')
+DEMO_PERMISSIONS_SOURCE_PATH = File.join(REPO_ROOT, 'example/basic-call/native/agora-rtc/ios/DemoPermissionsPlugin.mm')
+DEMO_PERMISSIONS_DESTINATION_PATH = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/agora-rtc/DemoPermissionsPlugin.mm')
 GROUP_NAME = 'agora-rtc'
 COMMON_GROUP_NAME = 'agora-engine-texture'
 PACKAGE_URL = SDK_CONFIG.fetch('ios').fetch('packageUrl')
@@ -261,6 +264,15 @@ def ensure_info_plist_usage_descriptions(path)
   patched = "#{patched[0...dict_end_index].rstrip}\n#{usage_block}\n#{patched[dict_end_index..]}"
   File.write(path, patched) if patched != content
 end
+
+def stage_demo_permissions_plugin
+  return unless File.exist?(DEMO_PERMISSIONS_SOURCE_PATH)
+
+  FileUtils.mkdir_p(File.dirname(DEMO_PERMISSIONS_DESTINATION_PATH))
+  FileUtils.cp(DEMO_PERMISSIONS_SOURCE_PATH, DEMO_PERMISSIONS_DESTINATION_PATH)
+end
+
+stage_demo_permissions_plugin
 
 project = Xcodeproj::Project.open(PROJECT_PATH)
 target = project.targets.find { |candidate| candidate.name == TARGET_NAME }
