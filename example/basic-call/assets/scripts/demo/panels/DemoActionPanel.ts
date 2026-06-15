@@ -584,6 +584,9 @@ export class DemoActionPanel extends Component {
     if (name === 'MuteAllRemoteVideo') {
       return this.sessionState?.allRemoteVideoMuted ? 'Remote Video Off' : 'Remote Video On';
     }
+    if (name === 'JoinLeaveLoop') {
+      return this.sessionState?.joinLeaveLoopActive ? 'Stop Join/Leave Loop' : 'Join/Leave Loop (2s)';
+    }
     if (name === 'PlayEffect') {
       return this.sessionState?.audioEffectMixing.effectPlaying ? 'Stop Effect' : 'Play Effect';
     }
@@ -626,6 +629,9 @@ export class DemoActionPanel extends Component {
       return 'toggleOn';
     }
     if (name === 'MuteAllRemoteVideo' && !this.sessionState?.allRemoteVideoMuted) {
+      return 'toggleOn';
+    }
+    if (name === 'JoinLeaveLoop' && this.sessionState?.joinLeaveLoopActive) {
       return 'toggleOn';
     }
     if (name === 'PlayEffect' && this.sessionState?.audioEffectMixing.effectPlaying) {

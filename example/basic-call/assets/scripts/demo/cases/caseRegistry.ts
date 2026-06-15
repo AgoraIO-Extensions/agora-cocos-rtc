@@ -38,6 +38,7 @@ export const DEMO_CASES = [
     actions: [
       'StartPreview',
       'JoinChannel',
+      'JoinLeaveLoop',
       'SwitchCamera',
       'Cam',
       'MuteLocalVideo',

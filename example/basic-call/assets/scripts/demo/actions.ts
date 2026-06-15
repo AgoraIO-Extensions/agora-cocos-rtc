@@ -7,6 +7,7 @@ export const BASIC_VIDEO_ACTIONS = [
   { name: 'ApplyEncoder', handler: 'applySelectedVideoEncoder' },
   { name: 'RefreshViews', handler: 'refreshRtcViews' },
   { name: 'OpenLog', handler: 'openStatusLogPage' },
+  { name: 'JoinLeaveLoop', handler: 'toggleJoinLeaveLoop' },
 ] as const;
 
 export const ADVANCED_ACTIONS = [
@@ -81,6 +82,7 @@ export const ACTION_LABELS: Record<string, string> = {
   ApplyEncoder: 'Apply Encoder',
   RefreshViews: 'Refresh Views',
   OpenLog: 'Log',
+  JoinLeaveLoop: 'Join/Leave Loop (2s)',
   Initialize: 'Initialize',
   Leave: 'Leave',
   Speaker: 'Speaker',

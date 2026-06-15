@@ -35,6 +35,7 @@ const ACTION_PANEL_HEIGHT = 620;
 const MIN_VIDEO_STAGE_WIDTH = 360;
 const STRING_USER_ACCOUNT = 'cocos-user-0';
 const AUTO_STARTUP_DELAY_MS = 800;
+const JOIN_LEAVE_LOOP_INTERVAL_MS = 200;
 
 type CocosTestGlobal = typeof globalThis & {
   AGORA_COCOS_TEST_MODE?: string;
@@ -112,6 +113,7 @@ export class AgoraRtcDemoRoot extends Component {
   private autoStartupTimer: ReturnType<typeof setTimeout> | null = null;
   private autoStartupRunning = false;
   private autoStartupCompleted = false;
+  private joinLeaveLoopActive = false;
 
   private get selectedCaseName(): string | null {
     return this.selectedCase?.name ?? null;
@@ -172,6 +174,7 @@ export class AgoraRtcDemoRoot extends Component {
       clearTimeout(this.autoStartupTimer);
       this.autoStartupTimer = null;
     }
+    this.stopJoinLeaveLoop();
     void this.session?.teardownRtc();
   }
 
@@ -200,6 +203,20 @@ export class AgoraRtcDemoRoot extends Component {
     await this.runSessionAction('JoinChannel', (session) =>
       state.joined ? session.leaveRtcChannel() : session.joinRtcChannel(),
     );
+  }
+
+  async toggleJoinLeaveLoop(): Promise<void> {
+    if (this.joinLeaveLoopActive) {
+      this.stopJoinLeaveLoop();
+      this.setActionResult('JoinLeaveLoop', 'ok');
+      this.pushStatus('Join/leave loop stopped');
+      return;
+    }
+    this.joinLeaveLoopActive = true;
+    this.refreshPanels();
+    this.setActionResult('JoinLeaveLoop', 'ok');
+    this.pushStatus('Join/leave loop started (2s in channel, 2s out)');
+    void this.runJoinLeaveLoop();
   }
 
   async startLocalPreview(): Promise<void> {
@@ -430,6 +447,7 @@ export class AgoraRtcDemoRoot extends Component {
 
   private async backToCaseList(): Promise<void> {
     this.closeStatusLogPage();
+    this.stopJoinLeaveLoop();
     await this.session?.teardownRtc();
     this.session = null;
     this.showCaseList();
@@ -788,7 +806,7 @@ export class AgoraRtcDemoRoot extends Component {
   }
 
   private getSessionState(): DemoSessionState {
-    return this.session?.getState() ?? {
+    const base = this.session?.getState() ?? {
       initialized: false,
       joined: false,
       previewStarted: false,
@@ -826,6 +844,53 @@ export class AgoraRtcDemoRoot extends Component {
         audioMixingPositionMs: 1000,
         remoteAudioStateSummary: '-',
       },
+      joinLeaveLoopActive: false,
     };
+    return {
+      ...base,
+      joinLeaveLoopActive: this.joinLeaveLoopActive,
+    };
+  }
+
+  private stopJoinLeaveLoop(): void {
+    if (!this.joinLeaveLoopActive) {
+      return;
+    }
+    this.joinLeaveLoopActive = false;
+    this.refreshPanels();
+  }
+
+  private async runJoinLeaveLoop(): Promise<void> {
+    while (this.joinLeaveLoopActive) {
+      try {
+        this.createSession();
+        const session = this.session;
+        if (!session) {
+          break;
+        }
+        if (!session.getState().joined) {
+          await session.joinRtcChannel();
+        }
+        await this.delayJoinLeaveLoop(JOIN_LEAVE_LOOP_INTERVAL_MS);
+        if (!this.joinLeaveLoopActive) {
+          break;
+        }
+        if (session.getState().joined) {
+          await session.leaveRtcChannel();
+        }
+        await this.delayJoinLeaveLoop(JOIN_LEAVE_LOOP_INTERVAL_MS);
+      } catch (error) {
+        this.setActionResult('JoinLeaveLoop', 'fail');
+        this.pushStatus(`Join/leave loop failed: ${String(error)}`);
+        this.stopJoinLeaveLoop();
+        break;
+      }
+    }
+  }
+
+  private delayJoinLeaveLoop(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    });
   }
 }

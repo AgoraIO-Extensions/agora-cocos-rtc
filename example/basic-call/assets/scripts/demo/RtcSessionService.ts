@@ -133,6 +133,7 @@ export class RtcSessionService {
         audioMixingPositionMs: this.audioMixingPositionMs,
         remoteAudioStateSummary: this.remoteAudioStateSummary,
       },
+      joinLeaveLoopActive: false,
     };
   }
 
@@ -840,9 +841,9 @@ export class RtcSessionService {
       this.log(`Local texture ready: ${width}x${height}`);
     });
     this.client.on('remoteVideoTextureReady', ({ uid, width, height }) => {
-      this.activeRemoteUid = uid;
-      this.remoteUserUids.add(uid);
-      this.options.onRemoteUsersChanged([...this.remoteUserUids], this.activeRemoteUid);
+      if (this.remoteUserUids.has(uid)) {
+        this.activeRemoteUid = uid;
+      }
       this.log(`Remote texture ready: ${uid} ${width}x${height}`);
       this.emitState();
     });

@@ -32,6 +32,7 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       final int height;
       final int renderMode;
       final int observerPosition;
+      volatile boolean readyDispatched;
 
       TextureSlotState(int slotId, int width, int height, int renderMode, int observerPosition) {
         this.slotId = slotId;
@@ -289,6 +290,9 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
         );
         diagnostic.slotUpdates++;
         maybeLogFrameDiagnostic(kind, uid, slot, videoFrame, diagnostic);
+        if ("remote".equals(kind)) {
+          dispatchRemoteTextureReadyIfNeeded(uid, slot);
+        }
       } finally {
         if (i420Buffer != null) {
           i420Buffer.release();
@@ -401,12 +405,22 @@ public final class RawFrameTextureRenderBackend implements AgoraRenderBackend, I
       TextureSlotState slot = createTextureSlotState(width, height, renderMode, observerPosition);
       remoteTextureSlots.put(uid, slot);
       refreshObservedFramePosition();
+    }
+
+    private void dispatchRemoteTextureReadyIfNeeded(int uid, TextureSlotState slot) {
+      if (slot.readyDispatched) {
+        return;
+      }
+      if (!remoteTextureUids.contains(uid) || remoteTextureSlots.get(uid) != slot) {
+        return;
+      }
+      slot.readyDispatched = true;
       dispatchTextureReadyEvent(
           "remoteVideoTextureReady",
           uid,
           slot.slotId,
-          width,
-          height
+          slot.width,
+          slot.height
       );
     }
 
