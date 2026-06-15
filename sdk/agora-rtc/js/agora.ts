@@ -137,6 +137,7 @@ function normalizeJsonCompatibleValue(
   value: unknown,
   method: ProtectedParameterMethod,
   insideObjectProperty = false,
+  recursionStack = new WeakSet<object>(),
 ): unknown {
   if (value == null || typeof value === 'string' || typeof value === 'boolean') {
     return value;
@@ -151,20 +152,36 @@ function normalizeJsonCompatibleValue(
     throw createInvalidParametersError(method);
   }
   if (Array.isArray(value)) {
-    return value.map((entry) => {
-      const normalized = normalizeJsonCompatibleValue(entry, method, false);
-      return normalized === undefined ? null : normalized;
-    });
+    if (recursionStack.has(value)) {
+      throw createInvalidParametersError(method);
+    }
+    recursionStack.add(value);
+    try {
+      return value.map((entry) => {
+        const normalized = normalizeJsonCompatibleValue(entry, method, false, recursionStack);
+        return normalized === undefined ? null : normalized;
+      });
+    } finally {
+      recursionStack.delete(value);
+    }
   }
   if (isPlainJsonObjectRecord(value)) {
-    const normalizedEntries: Array<[string, unknown]> = [];
-    for (const [key, entry] of Object.entries(value)) {
-      const normalized = normalizeJsonCompatibleValue(entry, method, true);
-      if (normalized !== undefined) {
-        normalizedEntries.push([key, normalized]);
-      }
+    if (recursionStack.has(value)) {
+      throw createInvalidParametersError(method);
     }
-    return Object.fromEntries(normalizedEntries);
+    recursionStack.add(value);
+    try {
+      const normalizedEntries: Array<[string, unknown]> = [];
+      for (const [key, entry] of Object.entries(value)) {
+        const normalized = normalizeJsonCompatibleValue(entry, method, true, recursionStack);
+        if (normalized !== undefined) {
+          normalizedEntries.push([key, normalized]);
+        }
+      }
+      return Object.fromEntries(normalizedEntries);
+    } finally {
+      recursionStack.delete(value);
+    }
   }
   throw createInvalidParametersError(method);
 }

@@ -310,15 +310,15 @@ test('content inspect config exposes module position in the top-level shorthand'
   assert.match(contentInspectFields, /^\s{2}position\?: number;/m);
   assert.match(
     sdkTypesSource,
-    /\/\*\* Android-only content inspection module position\. Ignored on iOS\. \*\/\n\s+position\?: number;/,
+    /\/\*\* Content inspection module position\. On iOS, forwarded only when the native SDK exposes this field; otherwise ignored\. \*\/\n\s+position\?: number;/,
   );
   assert.match(
     sdkTypesSource,
-    /modules\?: Array<\{\n\s+type\?: number;\n\s+interval\?: number;\n\s+\/\*\* Android-only content inspection module position\. Ignored on iOS\. \*\/\n\s+position\?: number;/,
+    /modules\?: Array<\{\n\s+type\?: number;\n\s+interval\?: number;\n\s+\/\*\* Content inspection module position\. On iOS, forwarded only when the native SDK exposes this field; otherwise ignored\. \*\/\n\s+position\?: number;/,
   );
   assert.match(
     apiGuideSource,
-    /\| `position` \| `number` \| No \| .*仅 Android 内容审核模块位置有效，iOS 当前忽略该字段。\s*\|/,
+    /\| `position` \| `number` \| No \| .*iOS 仅在原生 SDK 暴露该字段时透传，否则忽略。\s*\|/,
   );
 });
 
@@ -2043,6 +2043,49 @@ test('setParameters omits undefined object properties before dispatching the nat
   );
 
   await pending;
+});
+
+test('initialize rejects circular parameter objects before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const parameters: Record<string, unknown> = {};
+  parameters.self = parameters;
+
+  await assert.rejects(
+    client.initialize({
+      appId: 'demo-app-id',
+      parameters,
+    }),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'initialize' &&
+      error.details.parameter === 'parameters',
+  );
+  assert.equal(transport.sent.length, 0);
+});
+
+test('setParameters rejects circular parameter objects before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  const parameters: Record<string, unknown> = {};
+  parameters.self = parameters;
+
+  await assert.rejects(
+    client.setParameters(parameters),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'setParameters' &&
+      error.details.parameter === 'parameters',
+  );
+  assert.equal(transport.sent.length, 0);
 });
 
 test('api smoke flow resolves initialize -> join -> local toggles -> leave -> destroy in sequence', async () => {

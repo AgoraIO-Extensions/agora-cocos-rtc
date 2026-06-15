@@ -185,14 +185,14 @@ export interface AgoraBeautyOptions {
 export interface AgoraContentInspectConfig {
   module?: number;
   interval?: number;
-  /** Android-only content inspection module position. Ignored on iOS. */
+  /** Content inspection module position. On iOS, forwarded only when the native SDK exposes this field; otherwise ignored. */
   position?: number;
   extraInfo?: string;
   serverConfig?: string;
   modules?: Array<{
     type?: number;
     interval?: number;
-    /** Android-only content inspection module position. Ignored on iOS. */
+    /** Content inspection module position. On iOS, forwarded only when the native SDK exposes this field; otherwise ignored. */
     position?: number;
   }>;
 }
