@@ -278,6 +278,62 @@ function pickRequests(transport: AutoResponseTransport, method: string): SentReq
   return transport.sent.filter((request) => request.method === method);
 }
 
+test('joinRtcChannel skips encoder config when deferVideoEncoderConfiguration is set', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({ deferVideoEncoderConfiguration: true })),
+  );
+
+  await service.joinRtcChannel();
+
+  const encoderRequests = pickRequests(transport, 'setVideoEncoderConfiguration');
+  assert.equal(encoderRequests.length, 0);
+  const joinRequests = pickRequests(transport, 'joinChannel');
+  assert.equal(joinRequests.length, 1);
+});
+
+test('startLocalPreview skips encoder config when deferVideoEncoderConfiguration is set', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({ deferVideoEncoderConfiguration: true })),
+  );
+
+  await service.startLocalPreview();
+
+  const encoderRequests = pickRequests(transport, 'setVideoEncoderConfiguration');
+  assert.equal(encoderRequests.length, 0);
+});
+
+test('applyVideoEncoderConfiguration forwards width height frameRate and bitrate', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig()),
+  );
+
+  await service.applyVideoEncoderConfiguration({
+    width: 960,
+    height: 540,
+    frameRate: 15,
+    bitrate: 1000,
+  });
+
+  const encoderRequests = pickRequests(transport, 'setVideoEncoderConfiguration');
+  assert.equal(encoderRequests.length, 1);
+  assert.equal(encoderRequests[0].params.width, 960);
+  assert.equal(encoderRequests[0].params.height, 540);
+  assert.equal(encoderRequests[0].params.frameRate, 15);
+  assert.equal(encoderRequests[0].params.bitrate, 1000);
+});
+
 test('joinRtcChannel publishes derived encoder mirror config before join', async () => {
   const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
   const transport = new AutoResponseTransport();

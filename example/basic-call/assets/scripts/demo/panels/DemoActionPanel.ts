@@ -6,6 +6,12 @@ import {
   DEFAULT_BUTTON_LAYOUT,
 } from '../actions.ts';
 import { DEMO_CASES, type DemoCaseDefinition } from '../cases/caseRegistry.ts';
+import {
+  DEMO_VIDEO_ENCODER_DEFAULTS,
+  parseNonNegativeInt,
+  parsePositiveInt,
+  SET_VIDEO_ENCODER_CASE_NAME,
+} from '../videoEncoderDemoConfig.ts';
 import type {
   ActionResult,
   BasicVideoConfigState,
@@ -13,6 +19,7 @@ import type {
   DemoSessionState,
   VideoEncoderPresetName,
 } from '../types.ts';
+import type { AgoraVideoEncoderConfiguration } from '../../../../extensions/agora-rtc/js/types.ts';
 import {
   bindButtonTouch,
   type ButtonVariant,
@@ -44,6 +51,11 @@ const CONTENT_BOTTOM_PADDING = 28;
 const SECTION_GAP = 18;
 const CASE_ACTION_COLUMNS = 2;
 const CASE_ACTION_ROW_GAP = 42;
+const ENCODER_FIELD_WIDTH = 168;
+const ENCODER_FIELD_HEIGHT = 42;
+const ENCODER_FIELD_LEFT_X = -95;
+const ENCODER_FIELD_RIGHT_X = 95;
+const SET_VIDEO_ENCODER_OPTIONS_HEIGHT = 212;
 
 @ccclass('DemoActionPanel')
 export class DemoActionPanel extends Component {
@@ -64,6 +76,10 @@ export class DemoActionPanel extends Component {
   private lastRenderedCaseName: string | null = null;
   private channelInput: EditBox | null = null;
   private uidInput: EditBox | null = null;
+  private encoderWidthInput: EditBox | null = null;
+  private encoderHeightInput: EditBox | null = null;
+  private encoderFrameRateInput: EditBox | null = null;
+  private encoderBitrateInput: EditBox | null = null;
   private profileLabel: Label | null = null;
   private encoderLabel: Label | null = null;
   private statusLabel: Label | null = null;
@@ -78,6 +94,7 @@ export class DemoActionPanel extends Component {
   private scrollContent: Node | null = null;
   private contentCursorY = -CONTENT_TOP_PADDING;
   private blurInputsTimer: ReturnType<typeof setTimeout> | null = null;
+  private activeEditBoxCount = 0;
 
   initialize(callbacks: ActionCallbacks | ((actionName: string) => void)): void {
     if (typeof callbacks === 'function') {
@@ -99,13 +116,26 @@ export class DemoActionPanel extends Component {
   setConfig(config: BasicVideoConfigState): void {
     this.config = config;
     this.ensureControls();
-    if (this.channelInput && this.channelInput.string !== config.channelId) {
-      this.channelInput.string = config.channelId;
-    }
-    if (this.uidInput && this.uidInput.string !== String(config.uid)) {
-      this.uidInput.string = String(config.uid);
+    if (!this.isAnyInputEditing()) {
+      if (this.channelInput && this.channelInput.string !== config.channelId) {
+        this.channelInput.string = config.channelId;
+      }
+      if (this.uidInput && this.uidInput.string !== String(config.uid)) {
+        this.uidInput.string = String(config.uid);
+      }
+      this.syncEncoderInputs(config);
     }
     this.refresh();
+  }
+
+  readVideoEncoderConfiguration(): AgoraVideoEncoderConfiguration {
+    const defaults = this.config?.videoEncoderConfiguration ?? DEMO_VIDEO_ENCODER_DEFAULTS;
+    return {
+      width: parsePositiveInt(this.encoderWidthInput?.string, defaults.width),
+      height: parsePositiveInt(this.encoderHeightInput?.string, defaults.height),
+      frameRate: parsePositiveInt(this.encoderFrameRateInput?.string, defaults.frameRate ?? 15),
+      bitrate: parseNonNegativeInt(this.encoderBitrateInput?.string, defaults.bitrate ?? 0),
+    };
   }
 
   setSessionState(state: DemoSessionState): void {
@@ -114,8 +144,13 @@ export class DemoActionPanel extends Component {
   }
 
   setCaseState(cases: readonly DemoCaseDefinition[], selectedCase: DemoCaseDefinition | null): void {
+    const previousCaseName = this.selectedCase?.name ?? null;
+    const nextCaseName = selectedCase?.name ?? null;
     this.cases = cases;
     this.selectedCase = selectedCase;
+    if (previousCaseName === nextCaseName) {
+      return;
+    }
     this.ensureControls();
     this.scheduleBlurInputs();
     this.refresh();
@@ -222,6 +257,11 @@ export class DemoActionPanel extends Component {
     this.buttonSizes.clear();
     this.channelInput = null;
     this.uidInput = null;
+    this.encoderWidthInput = null;
+    this.encoderHeightInput = null;
+    this.encoderFrameRateInput = null;
+    this.encoderBitrateInput = null;
+    this.activeEditBoxCount = 0;
     this.profileLabel = null;
     this.encoderLabel = null;
     this.statusLabel = null;
@@ -417,8 +457,67 @@ export class DemoActionPanel extends Component {
   }
 
   private buildEncoderControls(parent: Node, titleY: number): void {
-    ensureLabelNode(parent, 'EncoderOptionsLabel', 340, 20, 'Encoder: 640x480 / 480x480 / 480x240', 11, COLORS.textMuted)
-      .node.setPosition(0, titleY - 36, 0);
+    const encoder = this.config?.videoEncoderConfiguration ?? DEMO_VIDEO_ENCODER_DEFAULTS;
+    const labelY = (row: number) => titleY - 28 - row * 58;
+    const inputY = (row: number) => titleY - 52 - row * 58;
+
+    ensureLabelNode(parent, 'EncoderWidthLabel', ENCODER_FIELD_WIDTH, 20, 'width', 12)
+      .node.setPosition(ENCODER_FIELD_LEFT_X, labelY(0), 0);
+    this.encoderWidthInput = this.ensureEditBox(
+      parent,
+      'EncoderWidthInput',
+      ENCODER_FIELD_LEFT_X,
+      inputY(0),
+      ENCODER_FIELD_WIDTH,
+      String(encoder.width),
+      () => this.applyEncoderInputs(),
+      ENCODER_FIELD_HEIGHT,
+    );
+    ensureLabelNode(parent, 'EncoderHeightLabel', ENCODER_FIELD_WIDTH, 20, 'height', 12)
+      .node.setPosition(ENCODER_FIELD_RIGHT_X, labelY(0), 0);
+    this.encoderHeightInput = this.ensureEditBox(
+      parent,
+      'EncoderHeightInput',
+      ENCODER_FIELD_RIGHT_X,
+      inputY(0),
+      ENCODER_FIELD_WIDTH,
+      String(encoder.height),
+      () => this.applyEncoderInputs(),
+      ENCODER_FIELD_HEIGHT,
+    );
+    ensureLabelNode(parent, 'EncoderFrameRateLabel', ENCODER_FIELD_WIDTH, 20, 'frameRate', 12)
+      .node.setPosition(ENCODER_FIELD_LEFT_X, labelY(1), 0);
+    this.encoderFrameRateInput = this.ensureEditBox(
+      parent,
+      'EncoderFrameRateInput',
+      ENCODER_FIELD_LEFT_X,
+      inputY(1),
+      ENCODER_FIELD_WIDTH,
+      String(encoder.frameRate ?? 15),
+      () => this.applyEncoderInputs(),
+      ENCODER_FIELD_HEIGHT,
+    );
+    ensureLabelNode(parent, 'EncoderBitrateLabel', ENCODER_FIELD_WIDTH, 20, 'bitrate', 12)
+      .node.setPosition(ENCODER_FIELD_RIGHT_X, labelY(1), 0);
+    this.encoderBitrateInput = this.ensureEditBox(
+      parent,
+      'EncoderBitrateInput',
+      ENCODER_FIELD_RIGHT_X,
+      inputY(1),
+      ENCODER_FIELD_WIDTH,
+      String(encoder.bitrate ?? 0),
+      () => this.applyEncoderInputs(),
+      ENCODER_FIELD_HEIGHT,
+    );
+    ensureLabelNode(
+      parent,
+      'EncoderHintLabel',
+      360,
+      36,
+      'Preview/join use SDK default. Apply Encoder → setVideoEncoderConfiguration.',
+      11,
+      COLORS.textMuted,
+    ).node.setPosition(0, titleY - 152, 0);
   }
 
   private buildContentInspectControls(parent: Node, titleY: number): void {
@@ -436,7 +535,13 @@ export class DemoActionPanel extends Component {
   }
 
   private caseOptionsSectionHeight(): number {
-    return this.selectedCase?.name === AUDIO_EFFECT_MIXING_CASE_NAME ? 124 : 82;
+    if (this.selectedCase?.name === AUDIO_EFFECT_MIXING_CASE_NAME) {
+      return 124;
+    }
+    if (this.selectedCase?.name === SET_VIDEO_ENCODER_CASE_NAME) {
+      return SET_VIDEO_ENCODER_OPTIONS_HEIGHT;
+    }
+    return 82;
   }
 
   private caseActionSectionHeight(actionCount: number): number {
@@ -502,7 +607,16 @@ export class DemoActionPanel extends Component {
     return label;
   }
 
-  private ensureEditBox(parent: Node, name: string, x: number, y: number, width: number, value: string): EditBox {
+  private ensureEditBox(
+    parent: Node,
+    name: string,
+    x: number,
+    y: number,
+    width: number,
+    value: string,
+    onEnded?: () => void,
+    height = 30,
+  ): EditBox {
     let node = parent.getChildByName(name);
     if (!node) {
       node = new Node(name);
@@ -510,19 +624,51 @@ export class DemoActionPanel extends Component {
     }
     node.layer = parent.layer;
     node.setPosition(x, y, 0);
-    ensureTransform(node, width, 30);
+    ensureTransform(node, width, height);
     const editBox = node.getComponent(EditBox) ?? node.addComponent(EditBox);
     editBox.placeholder = name === 'UidInput' ? '0' : 'demo';
-    editBox.textLabel = this.ensureEditBoxLabel(node, 'TEXT_LABEL', width - 12, value, COLORS.textPrimary);
-    editBox.placeholderLabel = this.ensureEditBoxLabel(node, 'PLACEHOLDER_LABEL', width - 12, editBox.placeholder, COLORS.textMuted);
-    editBox.string = editBox.string || value;
+    const labelHeight = Math.max(24, height - 4);
+    editBox.textLabel = this.ensureEditBoxLabel(node, 'TEXT_LABEL', width - 12, labelHeight, value, COLORS.textPrimary);
+    editBox.placeholderLabel = this.ensureEditBoxLabel(
+      node,
+      'PLACEHOLDER_LABEL',
+      width - 12,
+      labelHeight,
+      editBox.placeholder,
+      COLORS.textMuted,
+    );
+    editBox.string = value;
     editBox.maxLength = name === 'UidInput' ? 10 : 64;
+    this.bindEditBoxEditing(editBox, onEnded);
     return editBox;
   }
 
+  private bindEditBoxEditing(editBox: EditBox, onEnded?: () => void): void {
+    editBox.node.off(EditBox.EventType.EDITING_DID_BEGIN);
+    editBox.node.off(EditBox.EventType.EDITING_DID_ENDED);
+    editBox.node.on(EditBox.EventType.EDITING_DID_BEGIN, () => {
+      this.activeEditBoxCount += 1;
+    }, this);
+    editBox.node.on(EditBox.EventType.EDITING_DID_ENDED, () => {
+      this.activeEditBoxCount = Math.max(0, this.activeEditBoxCount - 1);
+      onEnded?.();
+    }, this);
+  }
+
+  private isAnyInputEditing(): boolean {
+    return this.activeEditBoxCount > 0;
+  }
+
   private blurInputs(): void {
+    if (this.isAnyInputEditing()) {
+      return;
+    }
     this.channelInput?.blur?.();
     this.uidInput?.blur?.();
+    this.encoderWidthInput?.blur?.();
+    this.encoderHeightInput?.blur?.();
+    this.encoderFrameRateInput?.blur?.();
+    this.encoderBitrateInput?.blur?.();
   }
 
   private scheduleBlurInputs(): void {
@@ -535,7 +681,14 @@ export class DemoActionPanel extends Component {
     }, 0);
   }
 
-  private ensureEditBoxLabel(parent: Node, name: string, width: number, text: string, color = COLORS.textPrimary): Label {
+  private ensureEditBoxLabel(
+    parent: Node,
+    name: string,
+    width: number,
+    height: number,
+    text: string,
+    color = COLORS.textPrimary,
+  ): Label {
     let node = parent.getChildByName(name);
     if (!node) {
       node = new Node(name);
@@ -543,7 +696,7 @@ export class DemoActionPanel extends Component {
     }
     node.layer = parent.layer;
     node.setPosition(0, 0, 0);
-    ensureTransform(node, width, 28);
+    ensureTransform(node, width, height);
     const label = node.getComponent(Label) ?? node.addComponent(Label);
     label.horizontalAlign = 1;
     label.verticalAlign = 1;
@@ -675,6 +828,26 @@ export class DemoActionPanel extends Component {
       channelId: this.channelInput?.string.trim() || this.config?.channelId || 'demo',
       uid: Number.isFinite(parsedUid) ? Math.max(0, Math.floor(parsedUid)) : this.config?.uid ?? 0,
     });
+  }
+
+  private applyEncoderInputs(): void {
+    this.onApplyConfig?.({ videoEncoderConfiguration: this.readVideoEncoderConfiguration() });
+  }
+
+  private syncEncoderInputs(config: BasicVideoConfigState): void {
+    const encoder = config.videoEncoderConfiguration ?? DEMO_VIDEO_ENCODER_DEFAULTS;
+    if (this.encoderWidthInput) {
+      this.encoderWidthInput.string = String(encoder.width);
+    }
+    if (this.encoderHeightInput) {
+      this.encoderHeightInput.string = String(encoder.height);
+    }
+    if (this.encoderFrameRateInput) {
+      this.encoderFrameRateInput.string = String(encoder.frameRate ?? 15);
+    }
+    if (this.encoderBitrateInput) {
+      this.encoderBitrateInput.string = String(encoder.bitrate ?? 0);
+    }
   }
 
   private cycleProfile(): void {

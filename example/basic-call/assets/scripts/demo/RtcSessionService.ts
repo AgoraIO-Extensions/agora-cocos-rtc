@@ -174,7 +174,9 @@ export class RtcSessionService {
     const client = this.getClient();
     if (config.publishCameraTrack) {
       await this.setupLocalVideoView();
-      await this.applyVideoEncoderMirrorConfiguration();
+      if (!config.deferVideoEncoderConfiguration) {
+        await this.applyVideoEncoderMirrorConfiguration();
+      }
     }
     await client.joinChannel(config.token, config.channelId.trim(), config.uid, {
       clientRoleType: this.selectedClientRole,
@@ -263,7 +265,9 @@ export class RtcSessionService {
     }
     const config = this.options.getConfig();
     await this.setupLocalVideoView();
-    await this.applyVideoEncoderMirrorConfiguration();
+    if (!config.deferVideoEncoderConfiguration) {
+      await this.applyVideoEncoderMirrorConfiguration();
+    }
     await this.getClient().startPreview(config.previewSourceType);
     this.previewStarted = true;
     this.log('Preview started');
@@ -425,8 +429,16 @@ export class RtcSessionService {
   async applyVideoEncoderPreset(name: VideoEncoderPresetName): Promise<void> {
     this.selectedVideoEncoderPresetName = name;
     const preset = VIDEO_ENCODER_PRESETS[name];
-    await this.getClient().applyVideoEncoderMirrorConfiguration(preset);
-    this.log(`Video encoder: ${preset.name}`);
+    await this.applyVideoEncoderConfiguration(preset);
+  }
+
+  async applyVideoEncoderConfiguration(
+    config: AgoraVideoEncoderConfiguration,
+  ): Promise<void> {
+    await this.getClient().applyVideoEncoderMirrorConfiguration(config);
+    this.log(
+      `Video encoder: ${config.width}x${config.height} @${config.frameRate ?? 15} bitrate=${config.bitrate ?? 0}`,
+    );
     this.emitState();
   }
 

@@ -402,6 +402,8 @@ test('rtc session service tracks flutter-style video settings and stats', async 
   assert.match(content, /startLocalPreview/);
   assert.match(content, /stopLocalPreview/);
   assert.match(content, /applyVideoEncoderPreset/);
+  assert.match(content, /applyVideoEncoderConfiguration/);
+  assert.match(content, /deferVideoEncoderConfiguration/);
 });
 
 test('sdk derives encoder mirror mode from camera facing when unset', async () => {
@@ -795,6 +797,8 @@ test('demo action panel renders case-specific controls instead of the full qa ma
   assert.match(content, /buildAudioEffectMixingControls/);
   assert.match(content, /buildBeautyControls/);
   assert.match(content, /buildEncoderControls/);
+  assert.match(content, /EncoderWidthInput/);
+  assert.match(content, /readVideoEncoderConfiguration/);
   assert.match(content, /buildContentInspectControls/);
 });
 
