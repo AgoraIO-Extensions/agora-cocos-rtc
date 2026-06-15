@@ -1680,16 +1680,22 @@ public final class AgoraRtcPlugin {
             dispatchError(requestId, "RtcEngine is not initialized.");
             return;
         }
-        String parameterValue = params != null ? params.optString("parameters", "") : "";
-        String parameters;
-        try {
-            parameters = mergeProtectedParameters(parameterValue);
-        } catch (IllegalArgumentException error) {
-            dispatchInvalidArgumentError(requestId, error.getMessage(), "setParameters", "parameters", parameterValue);
+        String parameterValue = params != null && params.has("parameters") && !params.isNull("parameters")
+                ? params.optString("parameters", null)
+                : null;
+        if (
+                parameterValue == null ||
+                parameterValue.trim().isEmpty() ||
+                parameterValue.matches("\\{\\s*\\}")
+        ) {
+            dispatchError(requestId, "Parameters are required.");
             return;
         }
-        if (parameters == null || parameters.trim().isEmpty()) {
-            dispatchError(requestId, "Parameters are required.");
+        String parameters;
+        try {
+            parameters = mergeProtectedParameters(parameterValue, false);
+        } catch (IllegalArgumentException error) {
+            dispatchInvalidArgumentError(requestId, error.getMessage(), "setParameters", "parameters", parameterValue);
             return;
         }
         int result = rtcEngine.setParameters(parameters);
@@ -1704,7 +1710,7 @@ public final class AgoraRtcPlugin {
         String parameterValue = params != null ? params.optString("parameters", "") : "";
         String parameters;
         try {
-            parameters = mergeProtectedParameters(parameterValue);
+            parameters = mergeProtectedParameters(parameterValue, true);
         } catch (IllegalArgumentException error) {
             dispatchInvalidArgumentError(requestId, error.getMessage(), method, "parameters", parameterValue);
             return false;
@@ -1721,12 +1727,15 @@ public final class AgoraRtcPlugin {
         return true;
     }
 
-    private String mergeProtectedParameters(String parameterValue) {
+    private String mergeProtectedParameters(String parameterValue, boolean allowEmptyPayload) {
         if (parameterValue == null || parameterValue.trim().isEmpty()) {
             return PROTECTED_APP_TYPE_PARAMETERS;
         }
         try {
             JSONObject clientParams = new JSONObject(parameterValue);
+            if (!allowEmptyPayload && parameterValue.matches("\\{\\s*\\}")) {
+                throw new IllegalArgumentException("Parameters are required.");
+            }
             clientParams.put("rtc.set_app_type", 10);
             return clientParams.toString();
         } catch (JSONException error) {

@@ -185,12 +185,14 @@ export interface AgoraBeautyOptions {
 export interface AgoraContentInspectConfig {
   module?: number;
   interval?: number;
+  /** Content inspection module position. On iOS, forwarded only when the native SDK exposes this field; otherwise ignored. */
   position?: number;
   extraInfo?: string;
   serverConfig?: string;
   modules?: Array<{
     type?: number;
     interval?: number;
+    /** Content inspection module position. On iOS, forwarded only when the native SDK exposes this field; otherwise ignored. */
     position?: number;
   }>;
 }
@@ -217,7 +219,7 @@ export type AgoraChannelProfile =
 export interface AgoraRtcEngineConfig {
   /** Required Agora App ID. */
   appId: string;
-  parameters?: string;
+  parameters?: string | Record<string, unknown>;
   areaCode?: number;
   channelProfile?: number;
   license?: string;

@@ -1535,12 +1535,15 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(inspectMatch[0], /config\.extraInfo = extraInfo/);
   assert.match(inspectMatch[0], /config\.serverConfig = serverConfig/);
   assert.match(inspectMatch[0], /config\.modules = buildContentInspectModules/);
-  assert.doesNotMatch(bridgeContent, /module\.position = parseContentInspectModulePosition/);
-  assert.doesNotMatch(bridgeContent, /private func parseContentInspectModulePosition/);
+  assert.match(bridgeContent, /private func applyContentInspectModulePosition\(_ module: AgoraContentInspectModule, rawValue: Any\)/);
+  assert.match(bridgeContent, /NSSelectorFromString\("setPosition:"\)/);
+  assert.match(bridgeContent, /private func parseContentInspectModulePosition\(_ rawValue: Any\) -> AgoraVideoModulePosition/);
+  assert.match(bridgeContent, /module\.setValue\(NSNumber\(value: parseContentInspectModulePosition\(rawValue\)\.rawValue\), forKey: "position"\)/);
   assert.match(bridgeContent, /applyProtectedParameters\(engine: engine, requestId: requestId, method: "initialize", params: params\)/);
   assert.match(bridgeContent, /clientParams\["rtc\.set_app_type"\] = 10/);
   assert.match(bridgeContent, /throw AgoraRtcBridgeParameterError\.invalidJsonObjectString/);
-  assert.match(bridgeContent, /dispatchInvalidArgumentError\(requestId: requestId, message: error\.localizedDescription, method: method, argumentName: "parameters", argumentValue: parameterValue\)/);
+  assert.match(bridgeContent, /throw AgoraRtcBridgeParameterError\.missingParameters/);
+  assert.match(bridgeContent, /dispatchInvalidArgumentError\(requestId: requestId, message: error\.localizedDescription, method: method, argumentName: "parameters", argumentValue: String\(describing: parameterValue \?\? ""\)\)/);
 
   const inspectModuleMatch = bridgeContent.match(
     /private func buildContentInspectModules[\s\S]*?private func intValue/,
@@ -1548,11 +1551,10 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.ok(inspectModuleMatch);
   assert.match(inspectModuleMatch[0], /"type": params\["module"\] \?\? 1/);
   assert.match(inspectModuleMatch[0], /"interval": params\["interval"\] \?\? 0/);
-  assert.doesNotMatch(inspectModuleMatch[0], /"position": params\["position"\]/);
+  assert.match(inspectModuleMatch[0], /"position": params\["position"\] \?\? AgoraVideoModulePosition\.preRenderer\.rawValue/);
   assert.match(inspectModuleMatch[0], /module\.type = AgoraContentInspectType\(rawValue: typeValue\)/);
   assert.match(inspectModuleMatch[0], /module\.interval = intValue\(params\["interval"\] \?\? 0\)/);
-  assert.doesNotMatch(inspectModuleMatch[0], /"position": params\["position"\]/);
-  assert.doesNotMatch(inspectModuleMatch[0], /module\.position =/);
+  assert.match(inspectModuleMatch[0], /applyContentInspectModulePosition\(module, rawValue: params\["position"\] \?\? AgoraVideoModulePosition\.preRenderer\.rawValue\)/);
 
   assert.doesNotMatch(bridgeContent, /didOccurWarning warningCode/);
   assert.doesNotMatch(bridgeContent, /dispatchEvent\(name: "warning"/);
@@ -1730,8 +1732,17 @@ test('ios bridge template rejects unsafe invalid arguments before calling the rt
   );
   assert.ok(setParametersMatch);
   assert.match(setParametersMatch[0], /Parameters are required\./);
-  assert.match(setParametersMatch[0], /let parameters = try mergeProtectedParameters\(parameterValue\)/);
+  assert.match(setParametersMatch[0], /let parameterValue = params\["parameters"\]/);
+  assertPatternBefore(
+    setParametersMatch[0],
+    /guard let parameterValue else \{/,
+    /try mergeProtectedParameters\(parameterValue, allowEmpty: false\)/,
+    'iOS setParameters must reject missing or blank parameters before merging protected defaults',
+  );
+  assert.match(setParametersMatch[0], /if let stringValue = parameterValue as\? String,\s*stringValue\.trimmingCharacters\(in: \.whitespacesAndNewlines\)\.isEmpty \{/);
+  assert.match(setParametersMatch[0], /let parameters = try mergeProtectedParameters\(parameterValue, allowEmpty: false\)/);
   assert.match(setParametersMatch[0], /catch let error as AgoraRtcBridgeParameterError/);
+  assert.doesNotMatch(setParametersMatch[0], /String\(describing: params\["parameters"\]/);
   assert.match(bridgeContent, /clientParams\["rtc\.set_app_type"\] = 10/);
   assertPatternBefore(
     setParametersMatch[0],
@@ -1850,8 +1861,8 @@ test('ios content inspect module boundary matches the installed rtc objects head
   assert.ok(moduleMatch);
   assert.match(moduleMatch[0], /AgoraContentInspectType type/);
   assert.match(moduleMatch[0], /NSInteger interval/);
-  assert.doesNotMatch(moduleMatch[0], /AgoraVideoModulePosition position/);
-  assert.doesNotMatch(bridgeContent, /module\.position = parseContentInspectModulePosition/);
+  assert.match(moduleMatch[0], /AgoraVideoModulePosition position/);
+  assert.match(bridgeContent, /private func parseContentInspectModulePosition\(_ rawValue: Any\) -> AgoraVideoModulePosition/);
 });
 
 test('ios plugin registrar attaches the js bridge wrapper and forwards responses back to script', async () => {
