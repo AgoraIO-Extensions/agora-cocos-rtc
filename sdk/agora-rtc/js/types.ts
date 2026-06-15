@@ -269,12 +269,13 @@ export interface AgoraChannelMediaOptions {
   defaultVideoStreamType?: number;
   audioDelayMs?: number;
   mediaPlayerAudioDelayMs?: number;
-  /** Android ChannelMediaOptions field. On iOS the bridge uses this to call startPreview before join. */
+  /** Android ChannelMediaOptions field. On iOS the bridge calls startPreview before join instead of writing this into native mediaOptions. */
   startPreview?: boolean;
   /**
    * Video source for join+startPreview (`AgoraVideoSourceType`).
    *
    * iOS bridge helper when {@link startPreview} is true. Android ChannelMediaOptions does not expose this field.
+   * The current iOS bridge uses it only for the pre-join helper call, not as a native mediaOptions field.
    */
   videoSourceType?: AgoraVideoSourceTypeValue;
   /**

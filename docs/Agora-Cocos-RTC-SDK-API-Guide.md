@@ -504,8 +504,8 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `defaultVideoStreamType` | `number` | No | 默认订阅的视频流类型。 |
 | `audioDelayMs` | `number` | No | 音频发布延迟，单位毫秒。 |
 | `mediaPlayerAudioDelayMs` | `number` | No | 媒体播放器音频延迟，单位毫秒。 |
-| `startPreview` | `boolean` | No | 加入频道前是否先启动本地预览；iOS bridge 也会据此调用 `startPreview`。 |
-| `sourceType` | `number` | No | iOS bridge 在 `startPreview` 为 `true` 时使用的辅助字段，用于指定预览使用的视频源类型；Android `ChannelMediaOptions` 不暴露该字段。 |
+| `startPreview` | `boolean` | No | 加入频道前是否先启动本地预览；iOS 当前把它实现为 join 前的 helper 调用，而不是直接写入原生 `mediaOptions.startPreview`。 |
+| `sourceType` | `number` | No | iOS bridge 在 `startPreview` 为 `true` 时使用的辅助字段，用于指定 helper 预览使用的视频源类型；Android `ChannelMediaOptions` 不暴露该字段。 |
 | `enableBuiltInMediaEncryption` | `boolean` | No | 是否启用内置媒体加密。 |
 | `publishRhythmPlayerTrack` | `boolean` | No | 是否发布节奏播放器轨道。 |
 | `isInteractiveAudience` | `boolean` | No | 是否以连麦观众身份加入。 |

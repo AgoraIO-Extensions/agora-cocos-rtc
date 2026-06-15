@@ -1878,6 +1878,43 @@ test('setParameters overrides a caller-provided rtc.set_app_type with the protec
   await pending;
 });
 
+test('initialize rejects invalid parameters strings before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  await assert.rejects(
+    client.initialize({
+      appId: 'demo-app-id',
+      parameters: '{"rtc.debug":true',
+    }),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'initialize' &&
+      error.details.parameter === 'parameters',
+  );
+  assert.equal(transport.sent.length, 0);
+});
+
+test('setParameters rejects invalid json strings before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  await assert.rejects(
+    client.setParameters('{"rtc.debug":true'),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'setParameters' &&
+      error.details.parameter === 'parameters',
+  );
+  assert.equal(transport.sent.length, 0);
+});
+
 test('api smoke flow resolves initialize -> join -> local toggles -> leave -> destroy in sequence', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
