@@ -65,7 +65,7 @@ export class AgoraRtcDemoRoot extends Component {
   renderBackend: RuntimeConfigState['renderBackend'] = 'engine-texture';
 
   @property
-  autoPreview = true;
+  autoPreview = false;
 
   @property
   autoJoin = false;
@@ -733,6 +733,11 @@ export class AgoraRtcDemoRoot extends Component {
 
   private async runAutoStartup(): Promise<void> {
     if (this.autoStartupCompleted || this.autoStartupRunning) {
+      return;
+    }
+    if (!this.autoPreview && !this.autoJoin) {
+      this.pushStatus('Auto startup disabled');
+      this.autoStartupCompleted = true;
       return;
     }
     this.autoStartupRunning = true;

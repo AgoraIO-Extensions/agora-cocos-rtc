@@ -493,6 +493,7 @@ test('demo root loads runtime smoke config and can auto join when requested', as
   assert.match(content, /resolveAgoraExampleConfig/);
   assert.match(content, /this\.loadJsonConfig\('agora-config\.build'\)/);
   assert.match(content, /this\.loadJsonConfig\('agora-config'\)/);
+  assert.match(content, /autoPreview = false;/);
   assert.match(content, /this\.autoPreview/);
   assert.match(content, /this\.autoJoin/);
   assert.match(content, /const AUTO_STARTUP_DELAY_MS = 800;/);
@@ -501,6 +502,7 @@ test('demo root loads runtime smoke config and can auto join when requested', as
   assert.match(content, /private scheduleAutoStartup\(\): void \{/);
   assert.match(content, /Auto startup scheduled in \$\{AUTO_STARTUP_DELAY_MS\}ms/);
   assert.match(content, /private async runAutoStartup\(\): Promise<void> \{/);
+  assert.match(content, /if \(!this\.autoPreview && !this\.autoJoin\) \{[\s\S]*Auto startup disabled/);
   assert.match(content, /Auto preview enabled/);
   assert.match(content, /await this\.initializeRtc\(\);/);
   assert.match(content, /if \(this\.autoPreview\)[\s\S]*await this\.startLocalPreview\(\);/);
@@ -851,6 +853,7 @@ test('example config override supports build-time values without committing cred
   assert.match(content, /set\(name: string, value: string\)/);
   assert.match(content, /resolveAgoraExampleConfig/);
   assert.match(content, /autoPreview/);
+  assert.match(content, /resolveBooleanConfig\(buildConfig\?\.autoPreview, baseConfig\?\.autoPreview, false\)/);
   assert.match(content, /autoJoin/);
   assert.match(content, /publishCameraTrack/);
   assert.match(content, /publishMicrophoneTrack/);
@@ -873,6 +876,7 @@ test('example ships a runtime Agora config template', async () => {
   assert.doesNotMatch(content, /\bappId["']?\s*:\s*["'][0-9a-f]{32}["']/i);
   assert.match(content, /"uid": 0/);
   assert.match(content, /"renderBackend": "engine-texture"/);
+  assert.match(content, /"autoPreview": false/);
 });
 
 test('example runtime defaults keep Agora auto-assigned uid semantics', async () => {

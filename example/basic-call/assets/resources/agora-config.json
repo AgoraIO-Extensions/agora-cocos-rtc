@@ -4,7 +4,7 @@
   "channelId": "<YOUR_CHANNEL_ID>",
   "uid": 0,
   "renderBackend": "engine-texture",
-  "autoPreview": true,
+  "autoPreview": false,
   "autoJoin": false,
   "publishCameraTrack": true,
   "publishMicrophoneTrack": true,
