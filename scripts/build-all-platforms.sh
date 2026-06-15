@@ -24,8 +24,6 @@ TARGET_PLATFORMS="${1:-android,ios}"
 ANDROID_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/android-release.json"
 ANDROID_COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/local/android-release.ci.json"
 ANDROID_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-android/android/proj"
-ANDROID_RUNTIME_PLUGIN_DIR="$ROOT_DIR/example/basic-call/native/agora-rtc/android/src/main/java/io/agora/cocos/rtc"
-ANDROID_EXPORTED_PLUGIN_DIR="$ANDROID_PROJECT_DIR/app/src/main/java/io/agora/cocos/rtc"
 ANDROID_APK_DIR="$ANDROID_PROJECT_DIR/build/agora-cocos-basic-call/outputs/apk/release"
 ANDROID_APK_PATH=""
 ANDROID_SDK_ROOT_DEFAULT="$HOME/Library/Android/sdk"
@@ -271,11 +269,6 @@ if should_build_platform "android"; then
   if [[ ! -f "$ROOT_DIR/example/basic-call/build-android/android/data/assets/main/index.js" ]]; then
     echo "Cocos Android export did not produce build-android/android/data/assets/main/index.js" >&2
     exit 1
-  fi
-
-  if [[ -d "$ANDROID_RUNTIME_PLUGIN_DIR" ]]; then
-    mkdir -p "$ANDROID_EXPORTED_PLUGIN_DIR"
-    cp -R "$ANDROID_RUNTIME_PLUGIN_DIR/." "$ANDROID_EXPORTED_PLUGIN_DIR/"
   fi
 
   (

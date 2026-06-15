@@ -83,17 +83,19 @@ IOS_DEVELOPMENT_TEAM = ENV['IOS_DEVELOPMENT_TEAM']
 IOS_PROVISIONING_PROFILE_SPECIFIER = ENV['IOS_PROVISIONING_PROFILE_SPECIFIER']
 IOS_CODE_SIGN_IDENTITY = ENV['IOS_CODE_SIGN_IDENTITY']
 
-APP_DELEGATE_FORWARD_DECLARATION = <<~OBJC.strip
+AGORA_FORWARD_DECLARATION = <<~OBJC.strip
   @interface AgoraRtcPlugin : NSObject
   + (instancetype)sharedInstance;
   - (void)attachBridge;
   @end
-
+OBJC
+DEMO_PERMISSIONS_FORWARD_DECLARATION = <<~OBJC.strip
   @interface DemoPermissionsPlugin : NSObject
   + (instancetype)sharedInstance;
   - (void)attachBridge;
   @end
 OBJC
+APP_DELEGATE_FORWARD_DECLARATION = "#{AGORA_FORWARD_DECLARATION}\n\n#{DEMO_PERMISSIONS_FORWARD_DECLARATION}"
 APP_DELEGATE_ATTACH_CALL = '    [[AgoraRtcPlugin sharedInstance] attachBridge];'
 DEMO_PERMISSIONS_ATTACH_CALL = '    [[DemoPermissionsPlugin sharedInstance] attachBridge];'
 IOS_RTC_USAGE_DESCRIPTIONS = {
@@ -114,6 +116,13 @@ def ensure_app_delegate_attaches_bridge(path)
               else
                 "#{APP_DELEGATE_FORWARD_DECLARATION}\n\n#{patched}"
               end
+  end
+
+  unless patched.include?('@interface DemoPermissionsPlugin : NSObject')
+    impl_anchor = '@implementation AppDelegate'
+    raise 'Unable to patch iOS AppDelegate: @implementation AppDelegate anchor not found.' unless patched.include?(impl_anchor)
+
+    patched = patched.sub(impl_anchor, "#{DEMO_PERMISSIONS_FORWARD_DECLARATION}\n\n#{impl_anchor}")
   end
 
   unless patched.include?('[[AgoraRtcPlugin sharedInstance] attachBridge]')
