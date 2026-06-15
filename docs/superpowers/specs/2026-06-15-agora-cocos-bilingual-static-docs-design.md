@@ -8,9 +8,9 @@ Status: Approved design, ready for implementation planning
 
 The current repository exposes usable SDK and example documentation in three places:
 
-- root `README.md`
-- SDK package `sdk/agora-rtc/README.md`
-- example project `example/basic-call/README.md`
+- root [README.md](/Users/admin/agora-cocos-rtc/README.md)
+- SDK package [sdk/agora-rtc/README.md](/Users/admin/agora-cocos-rtc/sdk/agora-rtc/README.md)
+- example project [example/basic-call/README.md](/Users/admin/agora-cocos-rtc/example/basic-call/README.md)
 
 These files are technically useful, but they are not organized as a developer documentation experience. They do not yet provide:
 
@@ -40,12 +40,12 @@ The documentation must be derived from the current repo state, not from generic 
 
 Primary code truth surfaces:
 
-- public client API: `sdk/agora-rtc/js/agora.ts`
-- public types and event payloads: `sdk/agora-rtc/js/types.ts`
+- public client API: [sdk/agora-rtc/js/agora.ts](/Users/admin/agora-cocos-rtc/sdk/agora-rtc/js/agora.ts)
+- public types and event payloads: [sdk/agora-rtc/js/types.ts](/Users/admin/agora-cocos-rtc/sdk/agora-rtc/js/types.ts)
 - example behavior and grouped demo actions:
-  - `example/basic-call/assets/scripts/demo/RtcSessionService.ts`
-  - `example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`
-  - `example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts`
+  - [example/basic-call/assets/scripts/demo/RtcSessionService.ts](/Users/admin/agora-cocos-rtc/example/basic-call/assets/scripts/demo/RtcSessionService.ts)
+  - [example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts](/Users/admin/agora-cocos-rtc/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts)
+  - [example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts](/Users/admin/agora-cocos-rtc/example/basic-call/assets/scripts/demo/panels/DemoActionPanel.ts)
 
 Current public surface facts that the docs should explicitly reflect:
 
