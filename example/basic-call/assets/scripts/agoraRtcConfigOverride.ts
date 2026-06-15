@@ -142,7 +142,7 @@ export function resolveAgoraExampleConfig(
   const token = override.getToken() || normalizeConfigValue(buildConfig?.token) || normalizeConfigValue(baseConfig?.token);
   const uid = typeof buildConfig?.uid === 'number' ? buildConfig.uid : baseConfig?.uid;
   const renderBackend = 'engine-texture';
-  const autoPreview = resolveBooleanConfig(buildConfig?.autoPreview, baseConfig?.autoPreview, true);
+  const autoPreview = resolveBooleanConfig(buildConfig?.autoPreview, baseConfig?.autoPreview, false);
   const autoJoin = resolveBooleanConfig(buildConfig?.autoJoin, baseConfig?.autoJoin, false);
   const publishCameraTrack = resolveBooleanConfig(buildConfig?.publishCameraTrack, baseConfig?.publishCameraTrack, true);
   const publishMicrophoneTrack = resolveBooleanConfig(
