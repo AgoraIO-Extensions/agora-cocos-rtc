@@ -1,8 +1,7 @@
 {
   "android": {
     "dependencies": [
-      "io.agora.rtc:full-sdk:4.5.3",
-      "io.agora.rtc:full-screen-sharing:4.5.3"
+      "io.agora.rtc:full-sdk:4.5.3"
     ],
     "gradlePluginVersion": "8.13.1",
     "gradleDistributionUrl": "https\\://services.gradle.org/distributions/gradle-8.13-bin.zip",
@@ -12,7 +11,25 @@
   "ios": {
     "packageUrl": "https://github.com/AgoraIO/AgoraRtcEngine_iOS.git",
     "packageVersion": "4.5.3",
-    "packageProduct": "RtcBasic",
+    "packageProducts": [
+      "RtcBasic",
+      "AINS",
+      "AINSLL",
+      "AudioBeauty",
+      "ClearVision",
+      "ContentInspect",
+      "SpatialAudio",
+      "VirtualBackground",
+      "AIAEC",
+      "AIAECLL",
+      "VQA",
+      "FaceDetection",
+      "FaceCapture",
+      "LipSync",
+      "VideoCodecEnc",
+      "VideoAv1CodecEnc",
+      "ReplayKit"
+    ],
     "swiftVersion": "5.0",
     "podName": "AgoraRtcEngine_iOS",
     "deploymentTarget": "13.0",

@@ -66,7 +66,12 @@ GROUP_NAME = 'agora-rtc'
 COMMON_GROUP_NAME = 'agora-engine-texture'
 PACKAGE_URL = SDK_CONFIG.fetch('ios').fetch('packageUrl')
 PACKAGE_VERSION = SDK_CONFIG.fetch('ios').fetch('packageVersion')
-PACKAGE_PRODUCT = SDK_CONFIG.fetch('ios').fetch('packageProduct')
+IOS_CONFIG = SDK_CONFIG.fetch('ios')
+PACKAGE_PRODUCTS = if IOS_CONFIG['packageProducts'].is_a?(Array) && !IOS_CONFIG['packageProducts'].empty?
+                     IOS_CONFIG['packageProducts']
+                   else
+                     [IOS_CONFIG.fetch('packageProduct')]
+                   end
 TARGET_NAME = 'agora-cocos-basic-call-mobile'
 WITH_PACKAGE = ARGV.include?('--with-package')
 SKIP_SIMULATOR_LAUNCH_ASSETS = ARGV.include?('--skip-simulator-launch-assets')
@@ -126,9 +131,10 @@ def remove_legacy_build_locations_for_swift_packages(project)
   end
 end
 
-def remove_stale_swift_package_products(target, frameworks_phase, package_ref, package_product_name)
+def remove_stale_swift_package_products(target, frameworks_phase, package_ref, package_product_names)
+  allowed = package_product_names
   stale_dependencies = target.package_product_dependencies.select do |dependency|
-    dependency.package == package_ref && dependency.product_name != package_product_name
+    dependency.package == package_ref && !allowed.include?(dependency.product_name)
   end
 
   stale_dependencies.each do |dependency|
@@ -138,6 +144,40 @@ def remove_stale_swift_package_products(target, frameworks_phase, package_ref, p
 
     target.package_product_dependencies.delete(dependency)
     dependency.remove_from_project
+  end
+end
+
+def ensure_swift_package_product(project, target, frameworks_phase, package_ref, package_product_name)
+  package_product = target.package_product_dependencies.find do |dependency|
+    dependency.product_name == package_product_name
+  end
+
+  unless package_product
+    package_product = project.new(Xcodeproj::Project::Object::XCSwiftPackageProductDependency)
+    package_product.package = package_ref
+    package_product.product_name = package_product_name
+    target.package_product_dependencies << package_product
+  end
+
+  return if frameworks_phase.files.any? { |file| file.product_ref == package_product }
+
+  build_file = project.new(Xcodeproj::Project::Object::PBXBuildFile)
+  build_file.product_ref = package_product
+  frameworks_phase.files << build_file
+end
+
+def remove_swift_package_product(target, frameworks_phase, package_product_name)
+  package_product = target.package_product_dependencies.find do |dependency|
+    dependency.product_name == package_product_name
+  end
+
+  frameworks_phase.files
+    .select { |file| file.product_ref && file.product_ref.display_name == package_product_name }
+    .each(&:remove_from_project)
+
+  if package_product
+    target.package_product_dependencies.delete(package_product)
+    package_product.remove_from_project
   end
 end
 
@@ -279,36 +319,14 @@ if WITH_PACKAGE
     'version' => PACKAGE_VERSION,
   }
 
-  remove_stale_swift_package_products(target, frameworks_phase, package_ref, PACKAGE_PRODUCT)
+  remove_stale_swift_package_products(target, frameworks_phase, package_ref, PACKAGE_PRODUCTS)
 
-  package_product = target.package_product_dependencies.find do |dependency|
-    dependency.product_name == PACKAGE_PRODUCT
-  end
-
-  unless package_product
-    package_product = project.new(Xcodeproj::Project::Object::XCSwiftPackageProductDependency)
-    package_product.package = package_ref
-    package_product.product_name = PACKAGE_PRODUCT
-    target.package_product_dependencies << package_product
-  end
-
-  unless frameworks_phase.files.any? { |file| file.product_ref == package_product }
-    build_file = project.new(Xcodeproj::Project::Object::PBXBuildFile)
-    build_file.product_ref = package_product
-    frameworks_phase.files << build_file
+  PACKAGE_PRODUCTS.each do |package_product_name|
+    ensure_swift_package_product(project, target, frameworks_phase, package_ref, package_product_name)
   end
 else
-  package_product = target.package_product_dependencies.find do |dependency|
-    dependency.product_name == PACKAGE_PRODUCT
-  end
-
-  frameworks_phase.files
-    .select { |file| file.product_ref && file.product_ref.display_name == PACKAGE_PRODUCT }
-    .each(&:remove_from_project)
-
-  if package_product
-    target.package_product_dependencies.delete(package_product)
-    package_product.remove_from_project
+  PACKAGE_PRODUCTS.each do |package_product_name|
+    remove_swift_package_product(target, frameworks_phase, package_product_name)
   end
 
   if package_ref

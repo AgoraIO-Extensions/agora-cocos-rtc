@@ -107,7 +107,8 @@ test('ensureIosSetupGuide writes an actionable SPM guide', async () => {
   const filePath = await ensureIosSetupGuide(root);
   const content = await readFile(filePath, 'utf8');
 
-  assert.match(content, new RegExp(sdkConfig.ios.packageProduct));
+  assert.match(content, /RtcBasic/);
+  assert.match(content, /ClearVision/);
   assert.match(content, new RegExp(sdkConfig.ios.packageVersion.replaceAll('.', '\\.')));
   assert.match(content, /Swift Package Manager/);
 });
@@ -488,10 +489,14 @@ test('patchIosXcodeProjectSwiftPackage adds Agora iOS SPM product to the app tar
   assert.match(once, /kind = exactVersion;/);
   assert.match(once, new RegExp(`version = ${sdkConfig.ios.packageVersion.replaceAll('.', '\\.')};`));
   assert.match(once, /XCSwiftPackageProductDependency/);
-  assert.match(once, new RegExp(`productName = ${sdkConfig.ios.packageProduct};`));
+  for (const product of sdkConfig.ios.packageProducts) {
+    assert.match(once, new RegExp(`productName = ${product};`));
+  }
   assert.match(once, /packageReferences = \(\s*A90A00000000000000000101 \/\* XCRemoteSwiftPackageReference "AgoraRtcEngine_iOS" \*\/,\s*\);/);
-  assert.match(once, /packageProductDependencies = \(\s*A90A00000000000000000102 \/\* RtcBasic \*\/,\s*\);/);
-  assert.match(once, /files = \(\s*A90A00000000000000000103 \/\* RtcBasic in Frameworks \*\/,\s*\);/);
+  for (const product of sdkConfig.ios.packageProducts) {
+    assert.match(once, new RegExp(`\\/\\* ${product} \\*\\/,`));
+    assert.match(once, new RegExp(`\\/\\* ${product} in Frameworks \\*\\/,`));
+  }
   assert.equal(
     [...once.matchAll(/repositoryURL = "https:\/\/github\.com\/AgoraIO\/AgoraRtcEngine_iOS\.git";/g)].length,
     1,
