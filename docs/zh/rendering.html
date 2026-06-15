@@ -33,23 +33,23 @@
       <main id="main-content" class="doc-main">
         <section class="hero">
           <h1>Rendering</h1>
-          <p>这个仓库当前的真实渲染模型不是“任意视图任选”，而是以 <code>engine-texture</code> 为主的 Cocos 纹理上传链路。</p>
+          <p>当前渲染路径以 <code>engine-texture</code> 为主，核心是把视频帧上传成 Cocos 可用的纹理。</p>
         </section>
         <section class="card">
           <h2 id="backend">当前支持的后端</h2>
-          <p>当前主要支持的渲染后端是 <code>engine-texture</code>。文档必须把它当作默认路径解释，而不是把它埋在附录里。</p>
+          <p>当前公开支持的渲染后端是 <code>engine-texture</code>，接入和排查都应默认按这条路径理解。</p>
         </section>
         <section class="card warning">
           <h2 id="display-node">displayNode 与纹理事件</h2>
-          <p>把 <code>displayNode</code> 传给视频画布后，SDK 会把引擎纹理绑定到对应节点。你还需要理解 <code>localVideoTextureReady</code> 和 <code>remoteVideoTextureReady</code> 这些事件何时出现。</p>
+          <p>把 <code>displayNode</code> 传给视频画布后，SDK 会把引擎纹理绑定到对应节点。排查画面不更新时，优先看 <code>localVideoTextureReady</code> 和 <code>remoteVideoTextureReady</code> 是否按预期触发。</p>
         </section>
         <section class="card">
           <h2 id="mirror-position">镜像与 position 语义</h2>
-          <p>本页要解释镜像行为、观察者位置、以及 Android 在 <code>position</code> 语义上的限制，避免开发者把原生 SDK 的直觉直接套过来。</p>
+          <p>这里重点看镜像行为、观察者位置，以及 Android 在 <code>position</code> 语义上的限制，避免直接套用原生 SDK 的直觉。</p>
         </section>
         <section class="card">
           <h2 id="compatibility-noop">兼容接口</h2>
-          <p><code>setNativeVideoOverlaySuspended</code> 仍然需要保留说明，但要明确它在当前纹理上传模型里的定位是兼容接口，而不是实际可见的原生覆盖层开关。</p>
+          <p><code>setNativeVideoOverlaySuspended</code> 仍然保留在公开接口里，但在当前纹理上传模型下主要是兼容接口，不对应一个实际可见的原生覆盖层开关。</p>
         </section>
       </main>
       <aside class="doc-toc" aria-label="On this page">

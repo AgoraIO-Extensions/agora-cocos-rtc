@@ -33,23 +33,23 @@
       <main id="main-content" class="doc-main">
         <section class="hero">
           <h1>Rendering</h1>
-          <p>The current render model in this repo is not “pick any view backend.” It is primarily an <code>engine-texture</code>-driven Cocos texture upload path.</p>
+          <p>The current render path is centered on <code>engine-texture</code>: video frames are uploaded as textures that Cocos can render.</p>
         </section>
         <section class="card">
           <h2 id="backend">Current backend support</h2>
-          <p>The main supported render backend is <code>engine-texture</code>. The docs should explain it as the default path, not hide it in a footnote.</p>
+          <p>The public render backend is <code>engine-texture</code>, so both integration and debugging should treat it as the default path.</p>
         </section>
         <section class="card warning">
           <h2 id="display-node">displayNode and texture-ready events</h2>
-          <p>When you pass <code>displayNode</code> into the video canvas, the SDK binds engine textures to that node. Developers also need to understand when <code>localVideoTextureReady</code> and <code>remoteVideoTextureReady</code> fire.</p>
+          <p>When you pass <code>displayNode</code> into the video canvas, the SDK binds engine textures to that node. If the view stays blank, check whether <code>localVideoTextureReady</code> and <code>remoteVideoTextureReady</code> fired as expected.</p>
         </section>
         <section class="card">
           <h2 id="mirror-position">Mirror and position semantics</h2>
-          <p>This page should explain mirror behavior, observer position, and Android limits around <code>position</code> semantics so developers do not assume one-to-one native SDK behavior.</p>
+          <p>This section covers mirror behavior, observer position, and Android limits around <code>position</code> semantics so you do not assume one-to-one native SDK behavior.</p>
         </section>
         <section class="card">
           <h2 id="compatibility-noop">Compatibility surface</h2>
-          <p><code>setNativeVideoOverlaySuspended</code> still deserves documentation, but it must be described as a compatibility surface in the current texture-driven model rather than as a visible native overlay switch.</p>
+          <p><code>setNativeVideoOverlaySuspended</code> still matters as part of the public surface, but in the current texture-driven model it is a compatibility API, not a visible native overlay switch.</p>
         </section>
       </main>
       <aside class="doc-toc" aria-label="On this page">

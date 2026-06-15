@@ -33,7 +33,7 @@
       <main id="main-content" class="doc-main">
         <section class="hero">
           <h1>API Reference</h1>
-          <p>这一页是精确查阅入口。条目必须和当前公开导出保持一致，并给出稳定锚点。</p>
+          <p>这里汇总当前公开导出的构造函数、客户端方法和关键事件，方便按名称精确查阅。</p>
         </section>
         <section class="card">
           <h2 id="exports">Top-level exports</h2>
@@ -72,15 +72,15 @@
             <h3>on</h3>
             <p>订阅 SDK 事件。</p>
             <code class="signature">on(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void): () =&gt; void</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>eventName</code>：请结合源码类型定义理解。</li><li><code>listener</code>：请结合源码类型定义理解。</li></ul></div>
-            <div class="return-note"><strong>返回值</strong><ul><li>返回 () =&gt; void。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>eventName</code>：从 <code>AgoraEventMap</code> 中选择的事件名。</li><li><code>listener</code>：事件触发时调用的回调函数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回一个取消当前监听器的函数。</li></ul></div>
           </article>
           <article id="method-off" data-signature="off(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void)">
             <h3>off</h3>
             <p>取消订阅某个事件监听器。</p>
             <code class="signature">off(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void): void</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>eventName</code>：请结合源码类型定义理解。</li><li><code>listener</code>：请结合源码类型定义理解。</li></ul></div>
-            <div class="return-note"><strong>返回值</strong><ul><li>返回 void。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>eventName</code>：从 <code>AgoraEventMap</code> 中选择的事件名。</li><li><code>listener</code>：事件触发时调用的回调函数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>立即移除这个监听器。</li></ul></div>
           </article>
           <article id="method-setRenderBackend" data-signature="setRenderBackend(backend: AgoraRenderBackend)">
             <h3>setRenderBackend</h3>
@@ -100,7 +100,7 @@
             <h3>getSdkVersion</h3>
             <p>读取当前原生 SDK 版本字符串。</p>
             <code class="signature">getSdkVersion(): Promise&lt;string&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，resolve 为字符串结果。</li></ul></div>
           </article>
           <article id="method-getErrorDescription" data-signature="getErrorDescription(code: number)">
@@ -240,7 +240,7 @@
             <h3>isSpeakerphoneEnabled</h3>
             <p>查询扬声器当前是否开启。</p>
             <code class="signature">isSpeakerphoneEnabled(): Promise&lt;boolean&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，resolve 为布尔结果。</li></ul></div>
           </article>
           <article id="method-adjustPlaybackSignalVolume" data-signature="adjustPlaybackSignalVolume(volume: number)">
@@ -317,14 +317,14 @@
             <h3>getEngineTextureViewManager</h3>
             <p>读取缓存的 engine texture view manager。</p>
             <code class="signature">getEngineTextureViewManager(): InstanceType&lt;AgoraEngineTextureViewManager&gt; | null</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回缓存的 manager 实例；未创建时返回 null。</li></ul></div>
           </article>
           <article id="method-takeCachedLocalTextureSlot" data-signature="takeCachedLocalTextureSlot()">
             <h3>takeCachedLocalTextureSlot</h3>
             <p>取出缓存的本地纹理槽摘要。</p>
             <code class="signature">takeCachedLocalTextureSlot(): TextureReadySlotCache | null</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回缓存的纹理槽摘要；没有缓存时返回 null。</li></ul></div>
           </article>
           <article id="method-takeCachedRemoteTextureSlot" data-signature="takeCachedRemoteTextureSlot(uid: number)">
@@ -366,7 +366,7 @@
             <h3>removeLocalVideoView</h3>
             <p>移除当前本地视频视图绑定。</p>
             <code class="signature">removeLocalVideoView(): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
           <article id="method-removeRemoteVideoView" data-signature="removeRemoteVideoView(uid: number)">
@@ -401,7 +401,7 @@
             <h3>switchCamera</h3>
             <p>切换前后摄像头。</p>
             <code class="signature">switchCamera(): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
           <article id="method-setBeautyEffectOptions" data-signature="setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number)">
@@ -429,28 +429,28 @@
             <h3>pauseAudioMixing</h3>
             <p>暂停当前音频混音。</p>
             <code class="signature">pauseAudioMixing(): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
           <article id="method-resumeAudioMixing" data-signature="resumeAudioMixing()">
             <h3>resumeAudioMixing</h3>
             <p>恢复已暂停的音频混音。</p>
             <code class="signature">resumeAudioMixing(): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
           <article id="method-stopAudioMixing" data-signature="stopAudioMixing()">
             <h3>stopAudioMixing</h3>
             <p>停止当前音频混音。</p>
             <code class="signature">stopAudioMixing(): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
           <article id="method-getAudioMixingCurrentPosition" data-signature="getAudioMixingCurrentPosition()">
             <h3>getAudioMixingCurrentPosition</h3>
             <p>读取当前音频混音进度。</p>
             <code class="signature">getAudioMixingCurrentPosition(): Promise&lt;number&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，resolve 为数字结果。</li></ul></div>
           </article>
           <article id="method-setAudioMixingPosition" data-signature="setAudioMixingPosition(positionMs: number)">
@@ -527,7 +527,7 @@
             <h3>setParameters</h3>
             <p>设置扩展参数，适合透传私有能力或兼容性开关。</p>
             <code class="signature">setParameters(parameters: string | Record&lt;string, unknown&gt;): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>parameters</code>：请结合源码类型定义理解。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>parameters</code>：透传给原生桥的 JSON 字符串或键值对象。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
           <article id="method-getEngineTexture" data-signature="getEngineTexture(slotId: number)">
@@ -548,7 +548,7 @@
             <h3>destroy</h3>
             <p>销毁客户端并清理事件与待处理请求。</p>
             <code class="signature">destroy(): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>无参数。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
         </section>

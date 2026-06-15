@@ -33,7 +33,7 @@
       <main id="main-content" class="doc-main">
         <section class="hero">
           <h1>API Reference</h1>
-          <p>This page is the exact lookup surface. Entries must stay aligned with the current public exports and expose stable anchors.</p>
+          <p>This page collects the current public exports, client methods, and key events for exact lookup.</p>
         </section>
         <section class="card">
           <h2 id="exports">Top-level exports</h2>
@@ -72,15 +72,15 @@
             <h3>on</h3>
             <p>Subscribe to SDK events.</p>
             <code class="signature">on(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void): () =&gt; void</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>eventName</code>: See the source type definition.</li><li><code>listener</code>: See the source type definition.</li></ul></div>
-            <div class="return-note"><strong>Returns</strong><ul><li>Returns () =&gt; void.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>eventName</code>: Event name from <code>AgoraEventMap</code>.</li><li><code>listener</code>: Callback invoked when the event fires.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a function that removes this listener.</li></ul></div>
           </article>
           <article id="method-off" data-signature="off(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void)">
             <h3>off</h3>
             <p>Remove an SDK event listener.</p>
             <code class="signature">off(eventName: K, listener: (payload: AgoraEventMap[K]) =&gt; void): void</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>eventName</code>: See the source type definition.</li><li><code>listener</code>: See the source type definition.</li></ul></div>
-            <div class="return-note"><strong>Returns</strong><ul><li>Returns void.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>eventName</code>: Event name from <code>AgoraEventMap</code>.</li><li><code>listener</code>: Callback invoked when the event fires.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Removes the listener immediately.</li></ul></div>
           </article>
           <article id="method-setRenderBackend" data-signature="setRenderBackend(backend: AgoraRenderBackend)">
             <h3>setRenderBackend</h3>
@@ -100,7 +100,7 @@
             <h3>getSdkVersion</h3>
             <p>Read the current native SDK version string.</p>
             <code class="signature">getSdkVersion(): Promise&lt;string&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves to a string result.</li></ul></div>
           </article>
           <article id="method-getErrorDescription" data-signature="getErrorDescription(code: number)">
@@ -240,7 +240,7 @@
             <h3>isSpeakerphoneEnabled</h3>
             <p>Query whether speakerphone is enabled.</p>
             <code class="signature">isSpeakerphoneEnabled(): Promise&lt;boolean&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves to a boolean result.</li></ul></div>
           </article>
           <article id="method-adjustPlaybackSignalVolume" data-signature="adjustPlaybackSignalVolume(volume: number)">
@@ -317,14 +317,14 @@
             <h3>getEngineTextureViewManager</h3>
             <p>Read the cached engine texture view manager instance.</p>
             <code class="signature">getEngineTextureViewManager(): InstanceType&lt;AgoraEngineTextureViewManager&gt; | null</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns the cached manager instance or null when not created yet.</li></ul></div>
           </article>
           <article id="method-takeCachedLocalTextureSlot" data-signature="takeCachedLocalTextureSlot()">
             <h3>takeCachedLocalTextureSlot</h3>
             <p>Consume the cached local texture slot summary.</p>
             <code class="signature">takeCachedLocalTextureSlot(): TextureReadySlotCache | null</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns the cached slot summary or null when no cached slot exists.</li></ul></div>
           </article>
           <article id="method-takeCachedRemoteTextureSlot" data-signature="takeCachedRemoteTextureSlot(uid: number)">
@@ -366,7 +366,7 @@
             <h3>removeLocalVideoView</h3>
             <p>Remove the current local video view binding.</p>
             <code class="signature">removeLocalVideoView(): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
           <article id="method-removeRemoteVideoView" data-signature="removeRemoteVideoView(uid: number)">
@@ -401,7 +401,7 @@
             <h3>switchCamera</h3>
             <p>Switch the active camera between front and rear.</p>
             <code class="signature">switchCamera(): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
           <article id="method-setBeautyEffectOptions" data-signature="setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number)">
@@ -429,28 +429,28 @@
             <h3>pauseAudioMixing</h3>
             <p>Pause the current audio mixing playback.</p>
             <code class="signature">pauseAudioMixing(): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
           <article id="method-resumeAudioMixing" data-signature="resumeAudioMixing()">
             <h3>resumeAudioMixing</h3>
             <p>Resume paused audio mixing.</p>
             <code class="signature">resumeAudioMixing(): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
           <article id="method-stopAudioMixing" data-signature="stopAudioMixing()">
             <h3>stopAudioMixing</h3>
             <p>Stop current audio mixing playback.</p>
             <code class="signature">stopAudioMixing(): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
           <article id="method-getAudioMixingCurrentPosition" data-signature="getAudioMixingCurrentPosition()">
             <h3>getAudioMixingCurrentPosition</h3>
             <p>Read the current audio mixing position.</p>
             <code class="signature">getAudioMixingCurrentPosition(): Promise&lt;number&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves to a numeric result.</li></ul></div>
           </article>
           <article id="method-setAudioMixingPosition" data-signature="setAudioMixingPosition(positionMs: number)">
@@ -527,7 +527,7 @@
             <h3>setParameters</h3>
             <p>Set extended bridge parameters for private capabilities or compatibility flags.</p>
             <code class="signature">setParameters(parameters: string | Record&lt;string, unknown&gt;): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>parameters</code>: See the source type definition.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>parameters</code>: JSON string or key-value object forwarded to the native bridge.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
           <article id="method-getEngineTexture" data-signature="getEngineTexture(slotId: number)">
@@ -548,7 +548,7 @@
             <h3>destroy</h3>
             <p>Destroy the client and tear down listeners and pending requests.</p>
             <code class="signature">destroy(): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>No parameters.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
         </section>
