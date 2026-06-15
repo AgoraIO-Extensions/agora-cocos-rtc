@@ -27,14 +27,12 @@ test('docs site scaffolding files exist for both locales', async () => {
     'docs/zh/quickstart.html',
     'docs/zh/core-apis.html',
     'docs/zh/rendering.html',
-    'docs/zh/example.html',
     'docs/zh/platform-notes.html',
     'docs/zh/api-reference.html',
     'docs/en/index.html',
     'docs/en/quickstart.html',
     'docs/en/core-apis.html',
     'docs/en/rendering.html',
-    'docs/en/example.html',
     'docs/en/platform-notes.html',
     'docs/en/api-reference.html',
   ];
@@ -53,14 +51,12 @@ const localePages = [
   'docs/zh/quickstart.html',
   'docs/zh/core-apis.html',
   'docs/zh/rendering.html',
-  'docs/zh/example.html',
   'docs/zh/platform-notes.html',
   'docs/zh/api-reference.html',
   'docs/en/index.html',
   'docs/en/quickstart.html',
   'docs/en/core-apis.html',
   'docs/en/rendering.html',
-  'docs/en/example.html',
   'docs/en/platform-notes.html',
   'docs/en/api-reference.html',
 ];
@@ -176,21 +172,6 @@ test('rendering pages explain current engine-texture behavior and compatibility 
   }
 });
 
-test('example pages explain the QA console and grouped demo actions', async () => {
-  const zh = await readDoc('docs/zh/example.html');
-  const en = await readDoc('docs/en/example.html');
-
-  for (const content of [zh, en]) {
-    assert.match(content, /QA/);
-    assert.match(content, /Full Demo/);
-    assert.match(content, /Channel/);
-    assert.match(content, /Mixing/);
-    assert.match(content, /Effect/);
-    assert.match(content, /Diag/);
-    assert.match(content, /RtcSessionService/);
-  }
-});
-
 test('platform notes pages surface Android and iOS differences inline', async () => {
   const zh = await readDoc('docs/zh/platform-notes.html');
   const en = await readDoc('docs/en/platform-notes.html');
@@ -205,11 +186,26 @@ test('platform notes pages surface Android and iOS differences inline', async ()
   }
 });
 
+// Exports and client methods that are part of the package's public JS surface
+// but are internal plumbing for the engine-texture view layer. They are
+// intentionally kept out of the developer-facing docs, mirroring the
+// authoritative customer guide (Agora-Cocos-RTC-SDK-API-Guide.md), which also
+// documents none of them.
+const internalUndocumentedExports = new Set([
+  'createAgoraEngineTextureViewManager',
+  'createAgoraEngineTextureViewController',
+  'getAgoraEngineTextureBridge',
+]);
+
+const internalUndocumentedMethods = new Set([
+  'applyVideoEncoderMirrorConfiguration',
+  'getEngineTextureViewManager',
+  'takeCachedLocalTextureSlot',
+  'takeCachedRemoteTextureSlot',
+]);
+
 const expectedReferenceAnchors = [
   'export-createAgoraRtcClient',
-  'export-createAgoraEngineTextureViewManager',
-  'export-createAgoraEngineTextureViewController',
-  'export-getAgoraEngineTextureBridge',
   'method-on',
   'method-off',
   'method-initialize',
@@ -408,12 +404,14 @@ test('api reference covers every public top-level export, client method, and eve
   const en = await readDoc('docs/en/api-reference.html');
 
   for (const name of sourceSurfaceSnapshot.exports) {
+    if (internalUndocumentedExports.has(name)) continue;
     const anchor = `export-${name}`;
     assert.match(zh, new RegExp(`id="${anchor}"`));
     assert.match(en, new RegExp(`id="${anchor}"`));
   }
 
   for (const name of sourceSurfaceSnapshot.methods) {
+    if (internalUndocumentedMethods.has(name)) continue;
     const anchor = `method-${name}`;
     assert.match(zh, new RegExp(`id="${anchor}"`), `zh doc missing ${anchor}`);
     assert.match(en, new RegExp(`id="${anchor}"`), `en doc missing ${anchor}`);
@@ -423,6 +421,21 @@ test('api reference covers every public top-level export, client method, and eve
     const anchor = `event-${name}`;
     assert.match(zh, new RegExp(`id="${anchor}"`), `zh doc missing ${anchor}`);
     assert.match(en, new RegExp(`id="${anchor}"`), `en doc missing ${anchor}`);
+  }
+});
+
+test('api reference keeps internal engine-texture plumbing out of the developer docs', async () => {
+  const zh = await readDoc('docs/zh/api-reference.html');
+  const en = await readDoc('docs/en/api-reference.html');
+
+  for (const name of internalUndocumentedExports) {
+    assert.doesNotMatch(zh, new RegExp(`id="export-${name}"`), `zh doc should not expose ${name}`);
+    assert.doesNotMatch(en, new RegExp(`id="export-${name}"`), `en doc should not expose ${name}`);
+  }
+
+  for (const name of internalUndocumentedMethods) {
+    assert.doesNotMatch(zh, new RegExp(`id="method-${name}"`), `zh doc should not expose ${name}`);
+    assert.doesNotMatch(en, new RegExp(`id="method-${name}"`), `en doc should not expose ${name}`);
   }
 });
 

@@ -26,7 +26,6 @@
         <a href="./quickstart.html">Quickstart</a>
         <a href="./core-apis.html">Core APIs</a>
         <a href="./rendering.html">Rendering</a>
-        <a href="./example.html">Example</a>
         <a href="./platform-notes.html">Platform Notes</a>
         <a href="./api-reference.html" aria-current="page">API Reference</a>
       </nav>
@@ -43,27 +42,6 @@
             <code class="signature">createAgoraRtcClient(options?: AgoraRtcClientOptions): AgoraRtcClient</code>
             <div class="param-list"><strong>参数说明</strong><ul><li><code>options.bridgeRuntime</code>：可选，自定义桥运行时。</li><li><code>options.timeoutMs</code>：可选，原生请求超时时间，默认 5000ms。</li><li><code>options.transport</code>：可选，直接传入桥传输对象。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回一个 <code>AgoraRtcClient</code> 实例，后续通过它调用 RTC API。</li></ul></div>
-          </article>
-          <article id="export-createAgoraEngineTextureViewManager" data-signature="createAgoraEngineTextureViewManager(client: AgoraRtcClient, bridgeRuntime?: CocosBridgeRuntime)">
-            <h3>createAgoraEngineTextureViewManager</h3>
-            <p>创建 engine-texture 视图管理器，用于处理纹理槽和显示节点绑定。</p>
-            <code class="signature">createAgoraEngineTextureViewManager(client: AgoraRtcClient, bridgeRuntime?: CocosBridgeRuntime): Promise&lt;AgoraEngineTextureViewManager&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>client</code>：必填，已经创建好的 RTC 客户端。</li><li><code>bridgeRuntime</code>：可选，自定义运行时桥上下文。</li></ul></div>
-            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，resolve 为 <code>AgoraEngineTextureViewManager</code>。</li></ul></div>
-          </article>
-          <article id="export-createAgoraEngineTextureViewController" data-signature="createAgoraEngineTextureViewController(client: AgoraRtcClient)">
-            <h3>createAgoraEngineTextureViewController</h3>
-            <p>创建 engine-texture 视图控制器，适合封装本地/远端视图注册逻辑。</p>
-            <code class="signature">createAgoraEngineTextureViewController(client: AgoraRtcClient): AgoraEngineTextureViewController</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>client</code>：必填，RTC 客户端实例。</li></ul></div>
-            <div class="return-note"><strong>返回值</strong><ul><li>返回 <code>AgoraEngineTextureViewController</code> 实例。</li></ul></div>
-          </article>
-          <article id="export-getAgoraEngineTextureBridge" data-signature="getAgoraEngineTextureBridge(runtime?: CocosBridgeRuntime)">
-            <h3>getAgoraEngineTextureBridge</h3>
-            <p>读取当前运行时中可用的引擎纹理桥，适合排查纹理槽状态。</p>
-            <code class="signature">getAgoraEngineTextureBridge(runtime?: CocosBridgeRuntime): CocosEngineTextureBridge | null</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>runtime</code>：可选，显式传入运行时对象。</li></ul></div>
-            <div class="return-note"><strong>返回值</strong><ul><li>返回桥对象；若当前环境没有桥，则返回 <code>null</code>。</li></ul></div>
           </article>
         </section>
         <section class="card">
@@ -306,34 +284,6 @@
             <div class="param-list"><strong>参数说明</strong><ul><li><code>config</code>：必填，编码配置对象。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
-          <article id="method-applyVideoEncoderMirrorConfiguration" data-signature="applyVideoEncoderMirrorConfiguration(config: Partial&lt;AgoraVideoEncoderConfiguration&gt; &amp; Pick&lt;AgoraVideoEncoderConfiguration, &#x27;width&#x27; | &#x27;height&#x27;&gt;)">
-            <h3>applyVideoEncoderMirrorConfiguration</h3>
-            <p>把推导出的镜像配置应用到编码设置。</p>
-            <code class="signature">applyVideoEncoderMirrorConfiguration(config: Partial&lt;AgoraVideoEncoderConfiguration&gt; &amp; Pick&lt;AgoraVideoEncoderConfiguration, &#x27;width&#x27; | &#x27;height&#x27;&gt;): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>config</code>：必填，带宽高字段的局部编码配置。</li></ul></div>
-            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
-          </article>
-          <article id="method-getEngineTextureViewManager" data-signature="getEngineTextureViewManager()">
-            <h3>getEngineTextureViewManager</h3>
-            <p>读取缓存的 engine texture view manager。</p>
-            <code class="signature">getEngineTextureViewManager(): InstanceType&lt;AgoraEngineTextureViewManager&gt; | null</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
-            <div class="return-note"><strong>返回值</strong><ul><li>返回缓存的 manager 实例；未创建时返回 null。</li></ul></div>
-          </article>
-          <article id="method-takeCachedLocalTextureSlot" data-signature="takeCachedLocalTextureSlot()">
-            <h3>takeCachedLocalTextureSlot</h3>
-            <p>取出缓存的本地纹理槽摘要。</p>
-            <code class="signature">takeCachedLocalTextureSlot(): TextureReadySlotCache | null</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
-            <div class="return-note"><strong>返回值</strong><ul><li>返回缓存的纹理槽摘要；没有缓存时返回 null。</li></ul></div>
-          </article>
-          <article id="method-takeCachedRemoteTextureSlot" data-signature="takeCachedRemoteTextureSlot(uid: number)">
-            <h3>takeCachedRemoteTextureSlot</h3>
-            <p>取出指定远端用户的缓存纹理槽摘要。</p>
-            <code class="signature">takeCachedRemoteTextureSlot(uid: number): TextureReadySlotCache | null</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>uid</code>：必填，数字 UID。</li></ul></div>
-            <div class="return-note"><strong>返回值</strong><ul><li>返回缓存的纹理槽摘要；没有缓存时返回 null。</li></ul></div>
-          </article>
           <article id="method-setupLocalVideoView" data-signature="setupLocalVideoView(canvas: AgoraRtcVideoCanvas)">
             <h3>setupLocalVideoView</h3>
             <p>建立本地视频视图，通常和 <code>displayNode</code> 或纹理槽一起使用。</p>
@@ -383,18 +333,18 @@
             <div class="param-list"><strong>参数说明</strong><ul><li><code>suspended</code>：必填，暂停状态。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
-          <article id="method-startPreview" data-signature="startPreview(sourceType?: number)">
+          <article id="method-startPreview" data-signature="startPreview(videoSourceType?: AgoraVideoSourceTypeValue)">
             <h3>startPreview</h3>
             <p>开始本地预览。</p>
-            <code class="signature">startPreview(sourceType?: number): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>sourceType</code>：可选，源类型值。</li></ul></div>
+            <code class="signature">startPreview(videoSourceType?: AgoraVideoSourceTypeValue): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>videoSourceType</code>：请结合相关类型定义理解。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
-          <article id="method-stopPreview" data-signature="stopPreview(sourceType?: number)">
+          <article id="method-stopPreview" data-signature="stopPreview(videoSourceType?: AgoraVideoSourceTypeValue)">
             <h3>stopPreview</h3>
             <p>停止本地预览。</p>
-            <code class="signature">stopPreview(sourceType?: number): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>sourceType</code>：可选，源类型值。</li></ul></div>
+            <code class="signature">stopPreview(videoSourceType?: AgoraVideoSourceTypeValue): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>videoSourceType</code>：请结合相关类型定义理解。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
           <article id="method-switchCamera" data-signature="switchCamera()">
@@ -404,11 +354,11 @@
             <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
-          <article id="method-setBeautyEffectOptions" data-signature="setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number)">
+          <article id="method-setBeautyEffectOptions" data-signature="setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, mediaSourceType?: AgoraMediaSourceTypeValue)">
             <h3>setBeautyEffectOptions</h3>
             <p>启用美颜并更新参数。</p>
-            <code class="signature">setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>enabled</code>：必填，布尔开关。</li><li><code>options</code>：可选，附加选项对象。</li><li><code>sourceType</code>：可选，源类型值。</li></ul></div>
+            <code class="signature">setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, mediaSourceType?: AgoraMediaSourceTypeValue): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>enabled</code>：必填，布尔开关。</li><li><code>options</code>：可选，附加选项对象。</li><li><code>mediaSourceType</code>：请结合相关类型定义理解。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
           <article id="method-enableContentInspect" data-signature="enableContentInspect(enabled: boolean, config?: AgoraContentInspectConfig)">
