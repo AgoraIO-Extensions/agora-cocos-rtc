@@ -353,6 +353,48 @@ article[id] h3 {
   letter-spacing: -0.02em;
 }
 
+.signature {
+  display: block;
+  margin: 10px 0 14px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(24, 24, 27, 0.08);
+  background: rgba(24, 24, 27, 0.04);
+  color: var(--bg-ink);
+  overflow-x: auto;
+}
+
+.param-list,
+.return-note {
+  margin-top: 10px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.84);
+  border: 1px solid rgba(24, 24, 27, 0.08);
+}
+
+.param-list strong,
+.return-note strong {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.84rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.param-list ul,
+.return-note ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.param-list li,
+.return-note li {
+  margin-bottom: 6px;
+  color: var(--text-muted);
+}
+
 .api-link-group {
   display: flex;
   flex-wrap: wrap;

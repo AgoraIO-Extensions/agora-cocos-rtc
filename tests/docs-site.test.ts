@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { access, readFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
 
 const repoRoot = process.cwd();
 
@@ -235,6 +236,78 @@ test('api reference pages expose stable anchors for public exports, methods, and
   }
 });
 
+test('api reference documents signatures, params, and returns for key methods', async () => {
+  const zh = await readDoc('docs/zh/api-reference.html');
+  const en = await readDoc('docs/en/api-reference.html');
+
+  for (const content of [zh, en]) {
+    assert.match(content, /data-signature="createAgoraRtcClient\(options\?: AgoraRtcClientOptions\)"/);
+    assert.match(content, /data-signature="initialize\(config: string \| AgoraRtcEngineConfig\)"/);
+    assert.match(content, /data-signature="joinChannel\(token: string, channelId: string, uid: number, options\?: AgoraChannelMediaOptions\)"/);
+    assert.match(content, /data-signature="setVideoEncoderConfiguration\(config: AgoraVideoEncoderConfiguration\)"/);
+    assert.match(content, /data-signature="playEffect\(config: AgoraPlayEffectConfig\)"/);
+    assert.match(content, /data-signature="setParameters\(parameters: string \| Record(?:<|&lt;)string, unknown(?:>|&gt;)\)"/);
+    assert.match(content, /class="param-list"/);
+    assert.match(content, /class="return-note"/);
+  }
+
+  assert.match(zh, /参数说明/);
+  assert.match(zh, /返回值/);
+  assert.match(en, /Parameters/);
+  assert.match(en, /Returns/);
+});
+
+test('every listed api reference method article includes signature and return metadata', async () => {
+  const zh = await readDoc('docs/zh/api-reference.html');
+  const en = await readDoc('docs/en/api-reference.html');
+
+  const methodIds = [
+    'method-on',
+    'method-off',
+    'method-initialize',
+    'method-joinChannel',
+    'method-joinChannelWithUserAccount',
+    'method-getUserInfoByUserAccount',
+    'method-setRenderBackend',
+    'method-setVideoEncoderConfiguration',
+    'method-setupLocalVideoView',
+    'method-setupRemoteVideoView',
+    'method-startPreview',
+    'method-stopPreview',
+    'method-switchCamera',
+    'method-startAudioMixing',
+    'method-playEffect',
+    'method-setParameters',
+    'method-getEngineTexture',
+    'method-isEngineTextureReady',
+    'method-destroy',
+  ];
+
+  for (const content of [zh, en]) {
+    for (const id of methodIds) {
+      assert.match(content, new RegExp(`<article id="${id}"[\\s\\S]*?class="signature"[\\s\\S]*?class="return-note"`));
+    }
+  }
+});
+
+test('priority event entries include payload field documentation', async () => {
+  const zh = await readDoc('docs/zh/api-reference.html');
+  const en = await readDoc('docs/en/api-reference.html');
+
+  for (const content of [zh, en]) {
+    assert.match(content, /id="event-joinChannelSuccess"[\s\S]*?class="param-list"/);
+    assert.match(content, /id="event-leaveChannel"[\s\S]*?class="param-list"/);
+    assert.match(content, /id="event-rtcStats"[\s\S]*?class="param-list"/);
+    assert.match(content, /id="event-localVideoTextureReady"[\s\S]*?class="param-list"/);
+    assert.match(content, /id="event-remoteVideoTextureReady"[\s\S]*?class="param-list"/);
+    assert.match(content, /id="event-renderBackendState"[\s\S]*?class="param-list"/);
+    assert.match(content, /id="event-error"[\s\S]*?class="param-list"/);
+  }
+
+  assert.match(zh, /payload 字段/);
+  assert.match(en, /Payload fields/);
+});
+
 test('narrative docs link related api names to deep reference anchors', async () => {
   const zhQuickstart = await readDoc('docs/zh/quickstart.html');
   const enQuickstart = await readDoc('docs/en/quickstart.html');
@@ -267,4 +340,54 @@ test('readmes point users to the new static docs entry pages', async () => {
   assert.match(rootReadme, /docs\/en\/index\.html/);
   assert.match(sdkReadme, /docs\/zh\/index\.html/);
   assert.match(sdkReadme, /docs\/en\/index\.html/);
+});
+
+const sourceSurfaceSnapshot = JSON.parse(execFileSync('python3', ['-c', `
+import json, pathlib, re
+root = pathlib.Path('.').resolve()
+agora = (root / 'sdk/agora-rtc/js/agora.ts').read_text()
+types = (root / 'sdk/agora-rtc/js/types.ts').read_text()
+exports = re.findall(r'^export function ([A-Za-z0-9_]+)\\(', agora, re.M)
+start = agora.index('export class AgoraRtcClient {')
+end = agora.index('export function createAgoraRtcClient')
+class_block = agora[start:end]
+methods = []
+for match in re.finditer(r'^  (?:async )?([A-Za-z0-9_]+)\\(', class_block, re.M):
+    name = match.group(1)
+    if name != 'constructor' and not name.startswith('#'):
+        methods.append(name)
+event_block = types.split('export interface AgoraEventMap {', 1)[1].split('export interface CocosJsbBridgeTransport', 1)[0]
+events = []
+for line in event_block.splitlines():
+    match = re.match(r'\\s{2}([A-Za-z0-9_]+):', line)
+    if match:
+        events.append(match.group(1))
+print(json.dumps({
+  'exports': exports,
+  'methods': methods,
+  'events': events,
+}))
+`], { encoding: 'utf8', cwd: repoRoot }));
+
+test('api reference covers every public top-level export, client method, and event from source', async () => {
+  const zh = await readDoc('docs/zh/api-reference.html');
+  const en = await readDoc('docs/en/api-reference.html');
+
+  for (const name of sourceSurfaceSnapshot.exports) {
+    const anchor = `export-${name}`;
+    assert.match(zh, new RegExp(`id="${anchor}"`));
+    assert.match(en, new RegExp(`id="${anchor}"`));
+  }
+
+  for (const name of sourceSurfaceSnapshot.methods) {
+    const anchor = `method-${name}`;
+    assert.match(zh, new RegExp(`id="${anchor}"`), `zh doc missing ${anchor}`);
+    assert.match(en, new RegExp(`id="${anchor}"`), `en doc missing ${anchor}`);
+  }
+
+  for (const name of sourceSurfaceSnapshot.events) {
+    const anchor = `event-${name}`;
+    assert.match(zh, new RegExp(`id="${anchor}"`), `zh doc missing ${anchor}`);
+    assert.match(en, new RegExp(`id="${anchor}"`), `en doc missing ${anchor}`);
+  }
 });
