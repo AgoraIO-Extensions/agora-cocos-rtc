@@ -435,6 +435,7 @@ export class AgoraRtcDemoRoot extends Component {
 
   openStatusLogPage(): void {
     this.logPanel?.show();
+    this.refreshLogPanel();
   }
 
   closeStatusLogPage(): void {
@@ -599,7 +600,7 @@ export class AgoraRtcDemoRoot extends Component {
     this.createSession();
     this.setActionResult(actionName, 'idle');
     try {
-      const assetPath = resolveAudioMixingAssetPath();
+      const assetPath = await resolveAudioMixingAssetPath();
       await action(this.session!, assetPath);
       this.setActionResult(actionName, 'ok');
     } catch (error) {
@@ -775,7 +776,10 @@ export class AgoraRtcDemoRoot extends Component {
   }
 
   private refreshLogPanel(): void {
-    this.logPanel?.setLines(this.statusLines);
+    if (!this.logPanel?.node.active) {
+      return;
+    }
+    this.logPanel.setLines(this.statusLines);
   }
 
   private getRuntimeConfigState(): RuntimeConfigState {

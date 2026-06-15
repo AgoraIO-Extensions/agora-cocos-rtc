@@ -669,7 +669,7 @@ export class RtcSessionService {
   }
 
   async preloadAudioEffect(): Promise<void> {
-    const audioEffectPath = this.getAudioEffectPath();
+    const audioEffectPath = await this.getAudioEffectPath();
     await this.getClient().preloadEffect(this.audioEffectSoundId, audioEffectPath);
     this.audioEffectPreloaded = true;
     this.log(`Audio effect preloaded: ${audioEffectPath}`);
@@ -684,7 +684,7 @@ export class RtcSessionService {
       this.emitState();
       return;
     }
-    const audioEffectPath = this.getAudioEffectPath();
+    const audioEffectPath = await this.getAudioEffectPath();
     await this.getClient().playEffect({
       soundId: this.audioEffectSoundId,
       path: audioEffectPath,
@@ -700,7 +700,7 @@ export class RtcSessionService {
     this.emitState();
   }
 
-  private getAudioEffectPath(): string {
+  private async getAudioEffectPath(): Promise<string> {
     return resolveAudioEffectAssetPath();
   }
 

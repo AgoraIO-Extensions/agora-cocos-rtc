@@ -1,4 +1,4 @@
-import { _decorator, Component, Label, Mask, Node, ScrollView } from 'cc';
+import { _decorator, Component, HorizontalTextAlignment, Label, Mask, Node, ScrollView, VerticalTextAlignment } from 'cc';
 import { bindButtonTouch, ensureButtonNode, ensureTransform } from '../ui/uiStyles.ts';
 
 const { ccclass, property } = _decorator;
@@ -33,6 +33,7 @@ export class LogPanel extends Component {
   private onFreeze: (() => void) | null = null;
   private visibleWidth = 640;
   private visibleHeight = 520;
+  private nodesReady = false;
 
   initialize(callbacks: {
     onClose: () => void;
@@ -52,6 +53,9 @@ export class LogPanel extends Component {
   applyLayout(visibleWidth: number, visibleHeight: number): void {
     this.visibleWidth = visibleWidth;
     this.visibleHeight = visibleHeight;
+    if (!this.node.active) {
+      return;
+    }
     this.ensureFallbackNodes();
     this.layoutExistingNodes();
   }
@@ -60,7 +64,6 @@ export class LogPanel extends Component {
     this.ensureFallbackNodes();
     this.node.active = true;
     this.node.setSiblingIndex((this.node.parent?.children.length ?? 1) - 1);
-    this.scrollView?.scrollToBottom(0, false);
   }
 
   hide(): void {
@@ -68,17 +71,21 @@ export class LogPanel extends Component {
   }
 
   setLines(lines: string[]): void {
+    if (!this.node.active) {
+      return;
+    }
     this.ensureFallbackNodes();
     if (this.bodyLabel) {
       this.bodyLabel.string = lines.join('\n');
     }
     this.layoutExistingNodes();
-    if (this.node.active) {
-      this.scrollView?.scrollToBottom(0, false);
-    }
+    this.scrollView?.scrollToBottom(0, false);
   }
 
   private ensureFallbackNodes(): void {
+    if (this.nodesReady) {
+      return;
+    }
     const { panelWidth, panelHeight } = this.resolvePanelSize();
     ensureTransform(this.node, panelWidth, panelHeight);
 
@@ -118,12 +125,16 @@ export class LogPanel extends Component {
       this.bodyLabel = bodyNode.getComponent(Label) ?? bodyNode.addComponent(Label);
       this.bodyLabel.fontSize = 13;
       this.bodyLabel.lineHeight = 18;
+      this.bodyLabel.overflow = Label.Overflow.RESIZE_HEIGHT;
+      this.bodyLabel.enableWrapText = true;
+      this.bodyLabel.horizontalAlign = HorizontalTextAlignment.LEFT;
+      this.bodyLabel.verticalAlign = VerticalTextAlignment.TOP;
     }
 
     this.closeButton ??= ensureButtonNode(this.node, 'CloseButton', 80, 34, 'Close', 'secondary').node;
     this.clearButton ??= ensureButtonNode(this.node, 'ClearButton', 80, 34, 'Clear', 'ghost').node;
     this.freezeButton ??= ensureButtonNode(this.node, 'FreezeButton', 90, 34, 'Freeze', 'ghost').node;
-    this.layoutExistingNodes();
+    this.nodesReady = true;
   }
 
   private bind(node: Node | null, handler: () => void): void {
@@ -157,7 +168,7 @@ export class LogPanel extends Component {
       ensureTransform(scrollNode, bodyWidth, bodyHeight);
       const contentNode = scrollNode.getChildByName('LogScrollContent');
       if (contentNode) {
-        const contentHeight = Math.max(bodyHeight, this.estimateBodyHeight());
+        const contentHeight = Math.max(bodyHeight, this.estimateBodyHeight(bodyWidth));
         ensureTransform(contentNode, bodyWidth, contentHeight).setAnchorPoint(0.5, 1);
         contentNode.setPosition(0, bodyHeight / 2, 0);
         const bodyNode = contentNode.getChildByName('BodyLabel');
@@ -192,8 +203,14 @@ export class LogPanel extends Component {
     }
   }
 
-  private estimateBodyHeight(): number {
-    const lineCount = Math.max(1, this.bodyLabel?.string.split('\n').length ?? 1);
-    return Math.max(LOG_PANEL_MIN_HEIGHT, lineCount * 18 + LOG_PANEL_MARGIN);
+  private estimateBodyHeight(bodyWidth: number): number {
+    if (!this.bodyLabel) {
+      return LOG_PANEL_MIN_HEIGHT;
+    }
+    const labelWidth = bodyWidth - 12;
+    const labelTransform = ensureTransform(this.bodyLabel.node, labelWidth, 1);
+    this.bodyLabel.updateRenderData(true);
+    const measuredHeight = Math.max(this.bodyLabel.lineHeight, labelTransform.contentSize.height);
+    return Math.max(LOG_PANEL_MIN_HEIGHT, measuredHeight + LOG_PANEL_MARGIN);
   }
 }

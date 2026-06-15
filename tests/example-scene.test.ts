@@ -758,10 +758,12 @@ test('audio effect mixing case resolves a bundled local mixing asset', async () 
   assert.match(content, /Agora\.io-Interactions\.mp3/);
   assert.match(content, /resolveAudioMixingAssetPath/);
   assert.match(content, /resolveAudioEffectAssetPath/);
-  assert.match(content, /export const AUDIO_EFFECT_RESOURCE = 'audio\/Agora\.io-Interactions\.mp3'/);
-  assert.match(content, /native\.fileUtils/);
+  assert.match(content, /export const AUDIO_EFFECT_RESOURCE = 'audio\/Agora\.io-Interactions'/);
+  assert.match(content, /resources\.load/);
+  assert.match(content, /AudioClip/);
+  assert.match(content, /nativeUrl/);
   assert.match(content, /getWritablePath/);
-  assert.match(content, /copyFile/);
+  assert.match(content, /copyFile|getDataFromFile/);
   assert.doesNotMatch(content, /https:\/\/webdemo\.agora\.io\/ding\.mp3/);
 });
 
@@ -774,9 +776,9 @@ test('audio effect demo actions use the bundled local asset path instead of a re
   assert.match(content, /resolveAudioEffectAssetPath/);
   assert.match(content, /const DEMO_NATIVE_REQUEST_TIMEOUT_MS = 20000;/);
   assert.match(content, /timeoutMs: DEMO_NATIVE_REQUEST_TIMEOUT_MS,/);
-  assert.match(content, /private getAudioEffectPath\(\): string \{/);
+  assert.match(content, /private async getAudioEffectPath\(\): Promise<string> \{/);
   assert.match(content, /return resolveAudioEffectAssetPath\(\);/);
-  assert.match(content, /const audioEffectPath = this\.getAudioEffectPath\(\);/);
+  assert.match(content, /const audioEffectPath = await this\.getAudioEffectPath\(\);/);
   assert.match(content, /preloadEffect\(this\.audioEffectSoundId, audioEffectPath\)/);
   assert.match(content, /path: audioEffectPath,/);
   assert.doesNotMatch(content, /audioEffectUrl = 'https:\/\/webdemo\.agora\.io\/ding\.mp3'/);
