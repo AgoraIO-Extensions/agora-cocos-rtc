@@ -26,26 +26,25 @@
         <a href="./quickstart.html">Quickstart</a>
         <a href="./core-apis.html">Core APIs</a>
         <a href="./rendering.html">Rendering</a>
-        <a href="./example.html">Example</a>
         <a href="./platform-notes.html" aria-current="page">Platform Notes</a>
         <a href="./api-reference.html">API Reference</a>
       </nav>
       <main id="main-content" class="doc-main">
         <section class="hero">
-          <h1>Platform Notes</h1>
-          <p>这里集中看 Android 和 iOS 的差异，尤其是那些会直接影响接入结果的行为差别。</p>
+          <h1>平台差异</h1>
+          <p>这里集中说明 Android 与 iOS 的关键差异，尤其是会直接影响入会和渲染结果的行为。接入前先确认这些边界，可以避免把平台限制误判为 SDK 故障。</p>
         </section>
         <section class="card">
           <h2 id="audio-routing">音频路由与会话限制</h2>
-          <p><code>setDefaultAudioRouteToSpeakerphone</code> 和 <code>setAudioSessionOperationRestriction</code> 在不同平台的行为并不完全一致，遇到路由或会话问题时优先核对平台差异。</p>
+          <p><code>setDefaultAudioRouteToSpeakerphone</code>（默认音频路由）和 <code>setAudioSessionOperationRestriction</code>（音频会话操作限制）在两端表现并不一致：后者仅在 iOS 生效，Android 桥接会返回 <code>unsupported</code>。遇到外放、听筒或会话冲突问题时，先核对平台再排查业务逻辑。</p>
         </section>
         <section class="card">
-          <h2 id="channel-options">频道选项差异</h2>
-          <p><code>publishThirdCameraTrack</code> 和 <code>publishFourthCameraTrack</code> 是 Android/C++ 侧字段，iOS 4.5.3 并不对等暴露。<code>sourceType</code> 也需要在 iOS 预览路径里单独解释。</p>
+          <h2 id="channel-options">频道媒体选项差异</h2>
+          <p><code>publishThirdCameraTrack</code> 和 <code>publishFourthCameraTrack</code> 是 Android / C++ 侧暴露的字段，iOS 4.5.3 没有对等接口，不要假设这些字段跨端一致。<code>sourceType</code> 仅在 iOS 的预览路径里作为辅助字段使用，Android 的频道媒体选项不暴露它。</p>
         </section>
         <section class="card">
           <h2 id="effect-contracts">音效与参数约束</h2>
-          <p><code>playEffect.gain</code> 当前遵循整数桥接约定；如果效果异常，先确认传入值是否满足这个约束。</p>
+          <p><code>playEffect.gain</code>（音效增益）当前遵循整数桥接约定。如果音效响度异常，先确认传入值是否为整数、是否落在约定范围内，再判断是否为播放逻辑问题。</p>
         </section>
       </main>
       <aside class="doc-toc" aria-label="On this page">

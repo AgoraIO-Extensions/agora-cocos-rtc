@@ -49,7 +49,7 @@ SDK 提供：
 - Android / iOS 原生桥接
 - 音频通话、视频通话、设备控制
 - 本地/远端视频视图绑定
-- `surface-view` / `texture-view` / `engine-texture` 三种渲染后端
+- `engine-texture` 渲染后端（当前公开 JS 接口暴露的唯一渲染后端）
 - 音频混音、音效、日志和诊断接口
 
 ## 3. 集成前提
@@ -113,7 +113,7 @@ SDK 提供：
 初始化阶段建议按以下顺序执行：
 
 1. 调用 `createAgoraRtcClient()` 创建客户端实例。
-2. 调用 `setRenderBackend('surface-view' | 'texture-view' | 'engine-texture')` 选择渲染后端。
+2. 调用 `setRenderBackend('engine-texture')` 选择渲染后端。
 3. 调用 `initialize(appId)` 或 `initialize({ appId, ...config })` 完成引擎初始化。
 4. 根据业务需要调用 `setChannelProfile(...)`、`setClientRole(...)`、`setVideoEncoderConfiguration(...)` 等可选配置接口。
 5. 在入会前完成事件注册，至少建议监听 `joinChannelSuccess`、`userJoined`、`userOffline`、`error`，并按需补充 `rtcStats`、`remoteVideoStateChanged`、`remoteAudioStateChanged`、`volumeIndication` 等事件。
@@ -353,7 +353,7 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | --- | --- | --- | --- |
 | `on` | `on<K extends keyof AgoraEventMap>(eventName: K, listener: (payload: AgoraEventMap[K]) => void): () => void` | 注册 SDK 事件监听，并返回一个可直接执行的取消订阅函数。 | 需要监听用户上下线、远端音视频状态、错误或纹理事件时使用。 |
 | `off` | `off<K extends keyof AgoraEventMap>(eventName: K, listener: (payload: AgoraEventMap[K]) => void): void` | 按事件名和原始回调移除监听。 | 组件卸载、场景切换或需要手动管理监听生命周期时使用。 |
-| `setRenderBackend` | `setRenderBackend(backend: AgoraRenderBackend): Promise<void>` | 设置视频渲染后端，如 `surface-view`、`texture-view` 或 `engine-texture`。 | 需要在初始化前明确渲染路径，匹配项目的视图或纹理接入方案时使用。 |
+| `setRenderBackend` | `setRenderBackend(backend: AgoraRenderBackend): Promise<void>` | 设置视频渲染后端。当前公开支持的值只有 `engine-texture`。 | 需要在初始化前明确渲染路径，匹配项目的纹理接入方案时使用。 |
 | `initialize` | `initialize(config: string \| AgoraRtcEngineConfig): Promise<void>` | 初始化 RTC 引擎，支持仅传 `appId` 或传入完整引擎配置。 | 创建客户端后、首次调用入会或媒体能力前使用。 |
 | `getSdkVersion` | `getSdkVersion(): Promise<string>` | 获取当前原生 Agora RTC SDK 版本字符串。 | 诊断环境、记录版本信息或做兼容性排查时使用。 |
 | `getErrorDescription` | `getErrorDescription(code: number): Promise<string>` | 查询指定错误码在原生 SDK 中的文本描述。 | 需要将错误码转为可读说明，辅助日志或售后排查时使用。 |
@@ -690,33 +690,25 @@ const mediaOptions: AgoraChannelMediaOptions = {
 
 建议最少监听以下事件组合作为生产接入基线：`joinChannelSuccess`、`userJoined`、`userOffline`、`connectionStateChanged`、`remoteVideoStateChanged`、`remoteAudioStateChanged`、`renderBackendState`、`rtcStats`、`error`。如果选择 `engine-texture`，还应额外监听 `localVideoTextureReady`、`remoteVideoTextureReady`、`localVideoTextureReleased`、`remoteVideoTextureReleased`。
 
-## 10. Rendering Modes
-
-### surface-view
-
-`surface-view` 通过原生 `SurfaceView`/对应平台的原生视频视图直接渲染视频帧，表现上属于原生覆盖层而不是 Cocos 纹理。它适合快速验证通话、全屏视频页、对 Cocos 场景合成要求不高的客户场景；如果客户能接受视频层级独立于 Cocos UI，这通常是最直接的选择。
-
-### texture-view
-
-`texture-view` 仍然通过原生视图体系渲染视频，但在 Android 上使用 `TextureView` 风格后端，行为仍更接近原生覆盖层，而不是可直接被 Cocos 材质消费的纹理。它适合客户需要原生视频视图、同时希望在 Android 上获得比 `surface-view` 更灵活的原生视图变换能力的场景；需要注意，当前 iOS 桥接会把 `texture-view` 请求回退为 `surface-view`，因此不应把它当作跨平台一致的 Cocos 纹理方案。
+## 10. Rendering Mode
 
 ### engine-texture
 
-`engine-texture` 通过桥接把视频帧上传到 Cocos 引擎纹理槽位，再由业务层通过 `getEngineTexture(slotId)` 绑定到 `Texture2D` / `SpriteFrame`，因此它表现为真正的 Cocos 纹理，而不是原生覆盖层。它适合客户需要把视频完全纳入 Cocos 场景编排、裁剪、材质、特效、层级控制或与游戏 UI 深度融合的场景；代价是业务侧必须处理 `localVideoTextureReady` / `remoteVideoTextureReady` 以及纹理暂未就绪时的重试绑定逻辑。
+当前对客户公开支持的渲染后端只有 `engine-texture`。它通过桥接把视频帧上传到 Cocos 引擎纹理槽位，再由业务层通过 `getEngineTexture(slotId)` 绑定到 `Texture2D` / `SpriteFrame`，因此它表现为真正的 Cocos 纹理，而不是原生覆盖层。它适合客户需要把视频完全纳入 Cocos 场景编排、裁剪、材质、特效、层级控制或与游戏 UI 深度融合的场景；代价是业务侧必须处理 `localVideoTextureReady` / `remoteVideoTextureReady` 以及纹理暂未就绪时的重试绑定逻辑。
 
 ## 11. Platform Notes
 
 ### Android
 
-Android 原生依赖坐标以 `sdk/agora-rtc/sdk-config.json` 为准，当前版本为 `io.agora.rtc:full-sdk:4.5.3` 和 `io.agora.rtc:full-screen-sharing:4.5.3`。当前 Android bridge 对 `setAudioSessionOperationRestriction(restriction)` 返回显式 `unsupported` 响应，业务层不应把该接口作为 Android 能力依赖；扬声器路由控制和三种渲染后端选择仍可正常接入，其中 `texture-view` 和 `surface-view` 都属于原生覆盖层路径。
+Android 原生依赖坐标以 `sdk/agora-rtc/sdk-config.json` 为准，当前版本为 `io.agora.rtc:full-sdk:4.5.3` 和 `io.agora.rtc:full-screen-sharing:4.5.3`。当前 Android bridge 对 `setAudioSessionOperationRestriction(restriction)` 返回显式 `unsupported` 响应，业务层不应把该接口作为 Android 能力依赖；扬声器路由控制和 `engine-texture` 渲染接入仍可正常使用。
 
 ### iOS
 
-iOS 当前以 Swift Package Manager 集成 Agora RTC 依赖，`sdk/agora-rtc/sdk-config.json` 的仓库基线是 `integrationMode: swift-package-manager`，包地址为 `https://github.com/AgoraIO/AgoraRtcEngine_iOS.git`，版本为 `4.5.3`，产品名为 `RtcBasic`。`AgoraRtcEngine_iOS` 仍可作为依赖命名上下文理解，但不应把 CocoaPods 视为当前仓库的默认集成模式。iOS 支持 `setAudioSessionOperationRestriction(restriction)`，但当前桥接对 `texture-view` 的请求会回退到 `surface-view`，因此如果客户目标是 Cocos 纹理渲染，应直接选择 `engine-texture`，不要把 `texture-view` 视为独立的 iOS 纹理模式。
+iOS 当前以 Swift Package Manager 集成 Agora RTC 依赖，`sdk/agora-rtc/sdk-config.json` 的仓库基线是 `integrationMode: swift-package-manager`，包地址为 `https://github.com/AgoraIO/AgoraRtcEngine_iOS.git`，版本为 `4.5.3`，产品名为 `RtcBasic`。`AgoraRtcEngine_iOS` 仍可作为依赖命名上下文理解，但不应把 CocoaPods 视为当前仓库的默认集成模式。iOS 支持 `setAudioSessionOperationRestriction(restriction)`。当前对客户公开的渲染后端只有 `engine-texture`，iOS 接入按这一条路径理解即可。
 
 ### Shared Constraints
 
-Android 与 iOS 都依赖客户提供有效的 `App ID` 和 `Token` 才能完成真实入会与媒体联调；同时还需要业务侧正确提供 `channelId` 与 `uid` / `userAccount`。`setNativeVideoOverlaySuspended` 只对 `surface-view`、`texture-view` 这类原生覆盖层后端有实际意义，而对 `engine-texture` 没有可见原生层可隐藏；另外，`warning`、`EnableVideoObserver`、`PreloadEngine / UnloadEngine` 都不属于本 SDK 对客户公开承诺的业务接口。
+Android 与 iOS 都依赖客户提供有效的 `App ID` 和 `Token` 才能完成真实入会与媒体联调；同时还需要业务侧正确提供 `channelId` 与 `uid` / `userAccount`。`setNativeVideoOverlaySuspended` 是为原生覆盖层渲染保留的兼容接口，在当前公开的 `engine-texture` 路径下没有可见原生层可隐藏，业务侧无需依赖它；另外，`warning`、`EnableVideoObserver`、`PreloadEngine / UnloadEngine` 都不属于本 SDK 对客户公开承诺的业务接口。
 
 ## 12. Error Handling and Troubleshooting
 
@@ -766,7 +758,7 @@ Android 与 iOS 都依赖客户提供有效的 `App ID` 和 `Token` 才能完成
 2. 再确认前置凭据。真实入会、远端用户事件和媒体流都依赖有效的客户 `App ID` 和 `Token`；`channelId`、`uid` / `userAccount` 也必须与业务服务端发放逻辑一致。
 3. 检查调用顺序。若客户需要拿到 `renderBackendState`、`error` 等关键诊断信号，应先注册关键事件监听，再执行 `setRenderBackend(...)` 和 `initialize(...)`，最后再进入 `joinChannel(...)` 或 `joinChannelWithUserAccount(...)`。
 4. 检查平台边界。如果 Android 上调用 `setAudioSessionOperationRestriction(...)`，当前 bridge 会返回 `unsupported`，这属于已知平台限制，不应误判为 SDK 故障。
-5. 检查渲染模式是否符合预期。收到 `renderBackendState` 后确认最终 `backend`；在 iOS 上请求 `texture-view` 时，要预期可能实际运行成 `surface-view`。
+5. 检查渲染模式是否符合预期。收到 `renderBackendState` 后确认最终 `backend` 是否为 `engine-texture`，并核对纹理就绪事件是否按预期触发。
 6. 检查媒体事件链。入会成功后如果没有画面，先看是否收到 `userJoined`、`remoteVideoStateChanged`、`localVideoStateChanged`，不要只盯着 UI 层。
 7. 如果是 `engine-texture` 黑屏或偶发无画面，检查是否收到 `localVideoTextureReady` / `remoteVideoTextureReady`，以及 `getEngineTexture(slotId)` 是否在首次回调时暂时返回 `null`；按示例工程策略增加有限重试，而不是假设事件触发即纹理可立即取到。
 8. 如果某个 API Promise 以 `timeout` reject，结合原生日志确认请求是否真的发到 bridge 和原生层；若多次超时集中在单一 API，优先排查该 API 对应的原生实现。

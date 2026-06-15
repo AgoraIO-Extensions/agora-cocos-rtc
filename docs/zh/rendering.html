@@ -26,30 +26,31 @@
         <a href="./quickstart.html">Quickstart</a>
         <a href="./core-apis.html">Core APIs</a>
         <a href="./rendering.html" aria-current="page">Rendering</a>
-        <a href="./example.html">Example</a>
         <a href="./platform-notes.html">Platform Notes</a>
         <a href="./api-reference.html">API Reference</a>
       </nav>
       <main id="main-content" class="doc-main">
         <section class="hero">
-          <h1>Rendering</h1>
-          <p>当前渲染路径以 <code>engine-texture</code> 为主，核心是把视频帧上传成 Cocos 可用的纹理。</p>
+          <h1>视频渲染</h1>
+          <p>当前公开支持的渲染后端只有 <code>engine-texture</code>：它把视频帧上传为 Cocos 引擎纹理，让你像使用普通贴图一样把画面融进场景。</p>
         </section>
         <section class="card">
-          <h2 id="backend">当前支持的后端</h2>
-          <p>当前公开支持的渲染后端是 <code>engine-texture</code>，接入和排查都应默认按这条路径理解。</p>
+          <h2 id="backend">engine-texture 渲染后端</h2>
+          <p>在 <code>initialize(...)</code> 之前调用 <code>setRenderBackend('engine-texture')</code> 确定渲染路径。</p>
+          <p><code>engine-texture</code> 把视频帧上传为 Cocos 引擎纹理，是能真正被 Cocos 材质消费的渲染路径。它适合需要把画面纳入场景编排、裁剪、特效，或与游戏 UI 深度融合的场景；代价是业务侧需要处理纹理就绪事件和绑定逻辑（见下文）。</p>
         </section>
         <section class="card warning">
-          <h2 id="display-node">displayNode 与纹理事件</h2>
-          <p>把 <code>displayNode</code> 传给视频画布后，SDK 会把引擎纹理绑定到对应节点。排查画面不更新时，优先看 <code>localVideoTextureReady</code> 和 <code>remoteVideoTextureReady</code> 是否按预期触发。</p>
+          <h2 id="display-node">displayNode 与纹理就绪事件</h2>
+          <p>选择 <code>engine-texture</code> 后，视频帧会被上传到引擎纹理槽位。绑定画面有两种方式，二选一：把 <code>displayNode</code> 传入视频画布，SDK 会自动把引擎纹理绑定到该节点；或者不传 <code>displayNode</code>，自己通过 <code>getEngineTexture(slotId)</code> 取出纹理并绑定到 <code>Texture2D</code> / <code>SpriteFrame</code>。画面不刷新时，优先确认 <code>localVideoTextureReady</code> 和 <code>remoteVideoTextureReady</code> 是否按预期触发。</p>
+          <p>需要注意：事件触发的那一刻纹理槽位可能仍在准备中，<code>getEngineTexture(slotId)</code> 可能暂时返回 <code>null</code>。请配合就绪检查或有限次重试完成绑定，不要假设事件触发后纹理就立即可取。</p>
         </section>
         <section class="card">
           <h2 id="mirror-position">镜像与 position 语义</h2>
-          <p>这里重点看镜像行为、观察者位置，以及 Android 在 <code>position</code> 语义上的限制，避免直接套用原生 SDK 的直觉。</p>
+          <p>本地预览的镜像行为、观察者位置，以及 Android 在 <code>position</code> 语义上的限制，不能直接套用原生 SDK 的直觉。镜像主要通过视频画布的 <code>mirrorMode</code>（传给 <code>setupLocalVideoView</code> / <code>setupRemoteVideoView</code>）和 <code>setVideoEncoderConfiguration</code> 的 <code>mirrorMode</code> 控制；涉及镜像和画面方向时，请以本套文档的实际说明为准。</p>
         </section>
         <section class="card">
           <h2 id="compatibility-noop">兼容接口</h2>
-          <p><code>setNativeVideoOverlaySuspended</code> 仍然保留在公开接口里，但在当前纹理上传模型下主要是兼容接口，不对应一个实际可见的原生覆盖层开关。</p>
+          <p><code>setNativeVideoOverlaySuspended(...)</code> 是为原生覆盖层渲染保留的兼容接口。在当前公开的 <code>engine-texture</code> 路径下不存在可隐藏的原生层，因此调用它不会对应任何可见的开关，业务侧无需依赖它。</p>
         </section>
       </main>
       <aside class="doc-toc" aria-label="On this page">

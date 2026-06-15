@@ -26,18 +26,18 @@
         <a href="./quickstart.html">Quickstart</a>
         <a href="./core-apis.html" aria-current="page">Core APIs</a>
         <a href="./rendering.html">Rendering</a>
-        <a href="./example.html">Example</a>
         <a href="./platform-notes.html">Platform Notes</a>
         <a href="./api-reference.html">API Reference</a>
       </nav>
       <main id="main-content" class="doc-main">
         <section class="hero">
-          <div class="section-kicker">Capability Map</div>
-          <h1>Core APIs</h1>
-          <p class="lede">这里不按源码文件讲 API，而是按开发者在接入时会做的事情来分组。</p>
+          <div class="section-kicker">能力地图</div>
+          <h1>核心 API</h1>
+          <p class="lede">这一页不按源码文件拆分 API，而是按你在接入时实际要完成的事情来分组，方便你快速定位该调用哪个接口。</p>
         </section>
         <section class="card">
           <h2 id="engine-session">引擎与会话</h2>
+          <p>创建客户端、初始化引擎、销毁释放资源，是每条接入链路的起点和终点。</p>
           <div class="api-link-group">
             <a class="api-link" href="./api-reference.html#export-createAgoraRtcClient">createAgoraRtcClient</a>
             <a class="api-link" href="./api-reference.html#method-initialize">initialize</a>
@@ -46,6 +46,7 @@
         </section>
         <section class="card">
           <h2 id="channel-identity">频道与身份</h2>
+          <p>设置频道场景、加入和离开频道。数字 UID 与字符串用户账号两套身份体系任选其一。</p>
           <div class="api-link-group">
             <a class="api-link" href="./api-reference.html#method-setChannelProfile">setChannelProfile</a>
             <a class="api-link" href="./api-reference.html#method-joinChannel">joinChannel</a>
@@ -55,14 +56,16 @@
         </section>
         <section class="card">
           <h2 id="audio">音频</h2>
+          <p>本地采集与远端播放控制、麦克风开关、音量提示等基础音频能力。混音与音效见下方独立分组。</p>
           <div class="api-link-group">
-            <a class="api-link" href="./api-reference.html#method-startAudioMixing">startAudioMixing</a>
-            <a class="api-link" href="./api-reference.html#method-playEffect">playEffect</a>
-            <a class="api-link" href="./api-reference.html#method-setLogFile">setLogFile</a>
+            <a class="api-link" href="./api-reference.html#method-enableLocalAudio">enableLocalAudio</a>
+            <a class="api-link" href="./api-reference.html#method-muteLocalAudioStream">muteLocalAudioStream</a>
+            <a class="api-link" href="./api-reference.html#method-enableAudioVolumeIndication">enableAudioVolumeIndication</a>
           </div>
         </section>
         <section class="card">
           <h2 id="video-views">视频与视图</h2>
+          <p>设置视频编码属性，并把本地与远端画面绑定到 Cocos 渲染区域或纹理槽位。</p>
           <div class="api-link-group">
             <a class="api-link" href="./api-reference.html#method-setVideoEncoderConfiguration">setVideoEncoderConfiguration</a>
             <a class="api-link" href="./api-reference.html#method-setupLocalVideoView">setupLocalVideoView</a>
@@ -71,6 +74,7 @@
         </section>
         <section class="card">
           <h2 id="rendering-controls">渲染与视觉控制</h2>
+          <p>选择渲染后端、调整编码与镜像表现。入会前先用 <code>setRenderBackend</code> 确定渲染路径。</p>
           <div class="api-link-group">
             <a class="api-link" href="./api-reference.html#method-setRenderBackend">setRenderBackend</a>
             <a class="api-link" href="./api-reference.html#method-setVideoEncoderConfiguration">setVideoEncoderConfiguration</a>
@@ -78,12 +82,13 @@
         </section>
         <section class="card">
           <h2 id="mixing-diagnostics">混音、音效与诊断</h2>
+          <p>背景音乐混音、短音效播放，以及日志与诊断相关接口。</p>
           <div class="api-link-group">
             <a class="api-link" href="./api-reference.html#method-startAudioMixing">startAudioMixing</a>
             <a class="api-link" href="./api-reference.html#method-playEffect">playEffect</a>
             <a class="api-link" href="./api-reference.html#method-setLogFile">setLogFile</a>
           </div>
-          <p>完整条目继续看 <a href="./api-reference.html">API Reference</a>。</p>
+          <p>完整接口清单请查阅 <a href="./api-reference.html">API 参考</a>。</p>
         </section>
       </main>
       <aside class="doc-toc" aria-label="On this page">
