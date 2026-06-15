@@ -64,6 +64,7 @@ type TextureReadySlotCache = {
 };
 
 const PROTECTED_APP_TYPE_PARAMETERS = { 'rtc.set_app_type': 10 } as const;
+type ProtectedParameterMethod = 'initialize' | 'setParameters';
 
 function isIosBridgeRuntime(runtime?: CocosBridgeRuntime): boolean {
   const platform = runtime?.sys?.platform;
@@ -102,29 +103,54 @@ function normalizePlayEffectConfig(
   return config;
 }
 
+function createInvalidParametersError(method: ProtectedParameterMethod): AgoraSdkError {
+  return new AgoraSdkError(
+    AgoraErrorCode.ProtocolError,
+    'parameters must be a valid JSON object string or object.',
+    {
+      method,
+      parameter: 'parameters',
+    },
+  );
+}
+
+function assertJsonObjectRecord(
+  value: unknown,
+  method: ProtectedParameterMethod,
+): Record<string, unknown> {
+  if (value != null && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  throw createInvalidParametersError(method);
+}
+
 function mergeProtectedParameters(
   parameters?: string | Record<string, unknown> | null,
+  method: ProtectedParameterMethod = 'setParameters',
 ): string {
   if (parameters == null || parameters === '') {
     return JSON.stringify(PROTECTED_APP_TYPE_PARAMETERS);
   }
 
+  let clientParams: Record<string, unknown>;
   if (typeof parameters === 'string') {
     try {
-      const clientParams = JSON.parse(parameters) as Record<string, unknown>;
-      return JSON.stringify({
-        ...clientParams,
-        ...PROTECTED_APP_TYPE_PARAMETERS,
-      });
+      clientParams = assertJsonObjectRecord(JSON.parse(parameters), method);
     } catch {
-      return JSON.stringify(PROTECTED_APP_TYPE_PARAMETERS);
+      throw createInvalidParametersError(method);
     }
+  } else {
+    clientParams = assertJsonObjectRecord(parameters, method);
   }
 
-  return JSON.stringify({
-    ...parameters,
-    ...PROTECTED_APP_TYPE_PARAMETERS,
-  });
+  try {
+    return JSON.stringify({
+      ...clientParams,
+      ...PROTECTED_APP_TYPE_PARAMETERS,
+    });
+  } catch {
+    throw createInvalidParametersError(method);
+  }
 }
 
 export { AgoraErrorCode, AgoraSdkError };
@@ -243,10 +269,14 @@ export class AgoraRtcClient {
   }
 
   initialize(config: string | AgoraRtcEngineConfig): Promise<void> {
-    const params = typeof config === 'string'
-      ? { appId: config, parameters: mergeProtectedParameters() }
-      : { ...config, parameters: mergeProtectedParameters(config.parameters) };
-    return this.#invoke('initialize', params) as Promise<void>;
+    try {
+      const params = typeof config === 'string'
+        ? { appId: config, parameters: mergeProtectedParameters(undefined, 'initialize') }
+        : { ...config, parameters: mergeProtectedParameters(config.parameters, 'initialize') };
+      return this.#invoke('initialize', params) as Promise<void>;
+    } catch (error) {
+      return Promise.reject(error);
+    }
   }
 
   getSdkVersion(): Promise<string> {
@@ -677,9 +707,13 @@ export class AgoraRtcClient {
   }
 
   setParameters(parameters: string | Record<string, unknown>): Promise<void> {
-    return this.#invoke('setParameters', {
-      parameters: mergeProtectedParameters(parameters),
-    }) as Promise<void>;
+    try {
+      return this.#invoke('setParameters', {
+        parameters: mergeProtectedParameters(parameters, 'setParameters'),
+      }) as Promise<void>;
+    } catch (error) {
+      return Promise.reject(error);
+    }
   }
 
   getEngineTexture(slotId: number): unknown | null {

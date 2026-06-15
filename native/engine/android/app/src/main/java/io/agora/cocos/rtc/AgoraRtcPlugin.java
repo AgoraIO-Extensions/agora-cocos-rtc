@@ -707,7 +707,7 @@ public final class AgoraRtcPlugin {
         applyChannelMediaOptions(options, mediaOptions);
         int result = rtcEngine.joinChannel(token, channelId, uid, options);
         if (result < 0) {
-            dispatchError(requestId, "RtcEngine.joinChannel failed: " + result);
+            dispatchAgoraError(requestId, "joinChannel", result);
             return;
         }
 
@@ -1769,7 +1769,14 @@ public final class AgoraRtcPlugin {
             dispatchError(requestId, "RtcEngine is not initialized.");
             return;
         }
-        String parameters = mergeProtectedParameters(params != null ? params.optString("parameters", "") : "");
+        String parameterValue = params != null ? params.optString("parameters", "") : "";
+        String parameters;
+        try {
+            parameters = mergeProtectedParameters(parameterValue);
+        } catch (IllegalArgumentException error) {
+            dispatchInvalidArgumentError(requestId, error.getMessage(), "setParameters", "parameters", parameterValue);
+            return;
+        }
         if (parameters == null || parameters.trim().isEmpty()) {
             dispatchError(requestId, "Parameters are required.");
             return;
@@ -1783,7 +1790,14 @@ public final class AgoraRtcPlugin {
     }
 
     private boolean applyProtectedParameters(RtcEngine engine, String requestId, String method, JSONObject params) {
-        String parameters = mergeProtectedParameters(params != null ? params.optString("parameters", "") : "");
+        String parameterValue = params != null ? params.optString("parameters", "") : "";
+        String parameters;
+        try {
+            parameters = mergeProtectedParameters(parameterValue);
+        } catch (IllegalArgumentException error) {
+            dispatchInvalidArgumentError(requestId, error.getMessage(), method, "parameters", parameterValue);
+            return false;
+        }
         if (parameters == null || parameters.trim().isEmpty()) {
             dispatchError(requestId, "Parameters are required.");
             return false;
@@ -1796,16 +1810,16 @@ public final class AgoraRtcPlugin {
         return true;
     }
 
-    private String mergeProtectedParameters(String parameters) {
-        if (parameters == null || parameters.trim().isEmpty()) {
+    private String mergeProtectedParameters(String parameterValue) {
+        if (parameterValue == null || parameterValue.trim().isEmpty()) {
             return PROTECTED_APP_TYPE_PARAMETERS;
         }
         try {
-            JSONObject clientParams = new JSONObject(parameters);
+            JSONObject clientParams = new JSONObject(parameterValue);
             clientParams.put("rtc.set_app_type", 10);
             return clientParams.toString();
         } catch (JSONException error) {
-            return PROTECTED_APP_TYPE_PARAMETERS;
+            throw new IllegalArgumentException("Parameters must be a valid JSON object string.");
         }
     }
 
