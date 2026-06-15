@@ -114,13 +114,13 @@ test('dev-ios-device script wires bundle id, team, provisioning profile, and dev
   assert.doesNotMatch(content, /726DD8AE/);
 });
 
-test('agora native plugin manifest remains disabled because this project uses manual native integration', async () => {
+test('agora native plugin manifest can stay enabled for the false-case integration check', async () => {
   const content = await readFile(
     `${repoRoot}/sdk/agora-rtc/cc_plugin.json`,
     'utf8',
   );
 
-  assert.match(content, /"disabled":\s*true/);
+  assert.match(content, /"disabled":\s*false/);
   assert.match(content, /"engine-version":\s*">=3\.8\.0"/);
   assert.match(content, /"platforms":\s*\[/);
 });
