@@ -32,9 +32,8 @@
 - (instancetype)init {
     self = [super init];
     if (self) {
-        DemoPermissionsPlugin *plugin = self;
         _listener = ^(NSString *payload) {
-            [plugin handleScriptRequest:payload];
+            [self handleScriptRequest:payload];
         };
         _listener = [_listener copy];
     }
@@ -78,37 +77,54 @@
         case AVAuthorizationStatusAuthorized:
             [self dispatchOk:requestId];
             return;
-        case AVAuthorizationStatusNotDetermined:
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
-                    [self dispatchPermissionResult:granted requestId:requestId permission:@"camera"];
-                }];
-            });
-            return;
         case AVAuthorizationStatusDenied:
         case AVAuthorizationStatusRestricted:
-        default:
-            [self dispatchError:requestId message:@"Camera permission is required."];
+            [self dispatchPermissionResult:NO requestId:requestId permission:@"camera"];
+            return;
+        case AVAuthorizationStatusNotDetermined:
+            [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
+                dispatch_async(dispatch_get_main_queue(), ^{
+                    [self dispatchPermissionResult:granted requestId:requestId permission:@"camera"];
+                });
+            }];
             return;
     }
 }
 
 - (void)ensureMicrophonePermissionForRequestId:(NSString *)requestId {
-    switch ([[AVAudioSession sharedInstance] recordPermission]) {
-        case AVAudioSessionRecordPermissionGranted:
-            [self dispatchOk:requestId];
-            return;
-        case AVAudioSessionRecordPermissionUndetermined:
-            dispatch_async(dispatch_get_main_queue(), ^{
-                [[AVAudioSession sharedInstance] requestRecordPermission:^(BOOL granted) {
-                    [self dispatchPermissionResult:granted requestId:requestId permission:@"microphone"];
+    AVAudioSession *audioSession = [AVAudioSession sharedInstance];
+    if (@available(iOS 17.0, *)) {
+        switch ([audioSession recordPermission]) {
+            case AVAudioSessionRecordPermissionGranted:
+                [self dispatchOk:requestId];
+                return;
+            case AVAudioSessionRecordPermissionDenied:
+                [self dispatchPermissionResult:NO requestId:requestId permission:@"microphone"];
+                return;
+            case AVAudioSessionRecordPermissionUndetermined:
+                [audioSession requestRecordPermission:^(BOOL granted) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [self dispatchPermissionResult:granted requestId:requestId permission:@"microphone"];
+                    });
                 }];
-            });
-            return;
-        case AVAudioSessionRecordPermissionDenied:
-        default:
-            [self dispatchError:requestId message:@"Microphone permission is required."];
-            return;
+                return;
+        }
+    } else {
+        switch ([audioSession recordPermission]) {
+            case AVAudioSessionRecordPermissionGranted:
+                [self dispatchOk:requestId];
+                return;
+            case AVAudioSessionRecordPermissionDenied:
+                [self dispatchPermissionResult:NO requestId:requestId permission:@"microphone"];
+                return;
+            case AVAudioSessionRecordPermissionUndetermined:
+                [audioSession requestRecordPermission:^(BOOL granted) {
+                    dispatch_async(dispatch_get_main_queue(), ^{
+                        [self dispatchPermissionResult:granted requestId:requestId permission:@"microphone"];
+                    });
+                }];
+                return;
+        }
     }
 }
 
@@ -125,35 +141,37 @@
 }
 
 - (void)dispatchOk:(NSString *)requestId {
-    [self dispatchResponse:@{
+    NSDictionary *payload = @{
         @"requestId": requestId ?: @"",
         @"ok": @YES,
-    }];
+    };
+    [self.class dispatchPayload:payload];
 }
 
 - (void)dispatchError:(NSString *)requestId message:(NSString *)message {
-    [self dispatchResponse:@{
+    NSDictionary *payload = @{
         @"requestId": requestId ?: @"",
         @"ok": @NO,
         @"error": @{
             @"message": message ?: @"Demo permission request failed.",
         },
-    }];
+    };
+    [self.class dispatchPayload:payload];
 }
 
-- (void)dispatchResponse:(NSDictionary *)response {
++ (void)dispatchPayload:(NSDictionary *)payload {
     NSError *error = nil;
-    NSData *data = [NSJSONSerialization dataWithJSONObject:response options:0 error:&error];
-    if (!data || error) {
+    NSData *json = [NSJSONSerialization dataWithJSONObject:payload options:0 error:&error];
+    if (!json || error) {
         return;
     }
-    NSString *payload = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding];
-    if (!payload) {
+
+    NSString *text = [[NSString alloc] initWithData:json encoding:NSUTF8StringEncoding];
+    if (!text) {
         return;
     }
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [DemoPermissionsPlugin dispatchEventToScript:@"demo:permissions:response" payload:payload];
-    });
+
+    [DemoPermissionsPlugin dispatchEventToScript:@"demo:permissions:response" payload:text];
 }
 
 @end

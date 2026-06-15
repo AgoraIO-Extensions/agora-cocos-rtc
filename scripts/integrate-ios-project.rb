@@ -86,6 +86,9 @@ APP_DELEGATE_FORWARD_DECLARATION = <<~OBJC.strip
   - (void)attachBridge;
   @end
 
+OBJC
+
+DEMO_PERMISSIONS_FORWARD_DECLARATION = <<~OBJC.strip
   @interface DemoPermissionsPlugin : NSObject
   + (instancetype)sharedInstance;
   - (void)attachBridge;
@@ -104,13 +107,29 @@ def ensure_app_delegate_attaches_bridge(path)
   content = File.read(path)
   patched = content.dup
 
+  import_anchor = '#import "service/SDKWrapper.h"'
   unless patched.include?('@interface AgoraRtcPlugin : NSObject')
-    import_anchor = '#import "service/SDKWrapper.h"'
     patched = if patched.include?(import_anchor)
                 patched.sub(import_anchor, "#{import_anchor}\n\n#{APP_DELEGATE_FORWARD_DECLARATION}")
               else
                 "#{APP_DELEGATE_FORWARD_DECLARATION}\n\n#{patched}"
               end
+  end
+
+  unless patched.include?('@interface DemoPermissionsPlugin : NSObject')
+    patched = if patched.include?(import_anchor)
+                patched.sub(import_anchor, "#{import_anchor}\n\n#{DEMO_PERMISSIONS_FORWARD_DECLARATION}")
+              else
+                "#{DEMO_PERMISSIONS_FORWARD_DECLARATION}\n\n#{patched}"
+              end
+  end
+
+  if patched.include?('@interface DemoPermissionsPlugin : NSObject') &&
+     patched.include?('@interface AgoraRtcPlugin : NSObject')
+    patched = patched.sub(
+      "#{APP_DELEGATE_FORWARD_DECLARATION}\n\n#{DEMO_PERMISSIONS_FORWARD_DECLARATION}",
+      "#{APP_DELEGATE_FORWARD_DECLARATION}\n\n#{DEMO_PERMISSIONS_FORWARD_DECLARATION}"
+    )
   end
 
   unless patched.include?('[[AgoraRtcPlugin sharedInstance] attachBridge]')

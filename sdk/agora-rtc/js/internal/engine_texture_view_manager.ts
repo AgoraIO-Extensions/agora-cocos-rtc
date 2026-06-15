@@ -337,7 +337,6 @@ export class AgoraEngineTextureViewManager {
       return;
     }
     this.#resetDisplayMirror(viewId, view.displayNode);
-    view.spriteFrame.texture = null;
     const sprite = this.#resolveSprite(view.displayNode);
     if (sprite) {
       sprite.spriteFrame = null;
@@ -372,14 +371,20 @@ export class AgoraEngineTextureViewManager {
       const view = this.#views.get(LOCAL_VIEW_ID);
       if (view) {
         view.slotId = null;
-        view.spriteFrame.texture = null;
+        const sprite = this.#resolveSprite(view.displayNode);
+        if (sprite) {
+          sprite.spriteFrame = null;
+        }
       }
     });
     this.#client.on('remoteVideoTextureReleased', ({ uid }) => {
       const view = this.#views.get(this.#remoteViewId(uid));
       if (view) {
         view.slotId = null;
-        view.spriteFrame.texture = null;
+        const sprite = this.#resolveSprite(view.displayNode);
+        if (sprite) {
+          sprite.spriteFrame = null;
+        }
       }
     });
   }

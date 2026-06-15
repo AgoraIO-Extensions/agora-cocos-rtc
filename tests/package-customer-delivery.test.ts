@@ -151,6 +151,19 @@ test('customer-delivery template map defines directory-level sync boundaries', a
   );
   assert.ok(exampleAndroidRule, 'example Android runtime bridge should mirror from sdk templates');
 
+  const exampleIosRule = templateMap.rules.find(
+    (rule: Record<string, unknown>) =>
+      rule.type === 'mirror'
+      && rule.src === 'sdk/agora-rtc/templates/ios'
+      && rule.dst === 'example/basic-call/native/agora-rtc/ios',
+  ) as { include?: string[] } | undefined;
+  assert.ok(exampleIosRule, 'example iOS runtime bridge should mirror from sdk templates');
+  assert.ok(Array.isArray(exampleIosRule.include), 'example iOS runtime bridge should define an include list');
+  assert.ok(
+    !exampleIosRule.include?.includes('DemoPermissionsPlugin.mm'),
+    'demo permissions should stay in example native sources, not sdk templates',
+  );
+
   const deliveryEngineRule = templateMap.rules.find(
     (rule: Record<string, unknown>) =>
       rule.type === 'preserve'

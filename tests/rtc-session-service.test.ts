@@ -93,7 +93,19 @@ export class Texture2D {
 
 export class SpriteFrame {
   constructor() {
-    this.texture = null;
+    this._texture = null;
+  }
+
+  get texture() {
+    return this._texture;
+  }
+
+  set texture(value) {
+    if (value === null) {
+      globalThis.__ccSpriteFrameNullAssignments = (globalThis.__ccSpriteFrameNullAssignments ?? 0) + 1;
+      throw new Error('SpriteFrame.texture cannot be null');
+    }
+    this._texture = value;
   }
 }
 
@@ -256,6 +268,9 @@ async function prepareRtcSessionFixture() {
   const rtcModule = await import(
     pathToFileURL(path.join(fixtureRoot, 'example/basic-call/assets/scripts/demo/RtcSessionService.js')).href
   );
+  const engineTextureViewManagerModule = await import(
+    pathToFileURL(path.join(fixtureRoot, 'example/basic-call/extensions/agora-rtc/js/internal/engine_texture_view_manager.js')).href
+  );
 
   return {
     Node: ccModule.Node as new () => {
@@ -263,8 +278,29 @@ async function prepareRtcSessionFixture() {
       getScale(): { x: number; y: number; z: number };
       setScale(x: number, y: number, z: number): void;
     },
+    Sprite: ccModule.Sprite as new () => {
+      spriteFrame: { texture: unknown } | null;
+      node: object | null;
+    },
+    SpriteFrame: ccModule.SpriteFrame as new () => {
+      texture: unknown;
+    },
+    Texture2D: ccModule.Texture2D as new () => object,
     native: ccModule.native as {
       jsbBridgeWrapper: AutoResponseTransport | null;
+    },
+    AgoraEngineTextureViewManager: engineTextureViewManagerModule.AgoraEngineTextureViewManager as new (
+      client: {
+        on(eventName: string, listener: (payload: Record<string, unknown>) => void): void;
+        takeCachedLocalTextureSlot(): null;
+        takeCachedRemoteTextureSlot(uid: number): null;
+      },
+    ) => {
+      registerLocalDisplay(options: {
+        displayNode: object;
+        mirrorMode?: number;
+        sourceType?: number;
+      }): void;
     },
     RtcSessionService: rtcModule.RtcSessionService as new (
       options: ConstructorParameters<typeof rtcModule.RtcSessionService>[0]
@@ -517,4 +553,45 @@ test('triggerSwitchCamera reapplies encoder mirror config after facing flips', a
   assert.equal(encoderRequests[0].params.frameRate, 15);
   assert.equal(encoderRequests[0].params.bitrate, 0);
   assert.equal(encoderRequests[0].params.mirrorMode, 1);
+});
+
+test('engine texture view manager detaches sprite frames instead of assigning null textures on release', async () => {
+  const {
+    AgoraEngineTextureViewManager,
+    Node,
+    Sprite,
+    SpriteFrame,
+    Texture2D,
+  } = await prepareRtcSessionFixture();
+  const listeners = new Map<string, (payload: Record<string, unknown>) => void>();
+  const client = {
+    on(eventName: string, listener: (payload: Record<string, unknown>) => void) {
+      listeners.set(eventName, listener);
+    },
+    takeCachedLocalTextureSlot() {
+      return null;
+    },
+    takeCachedRemoteTextureSlot(_uid: number) {
+      return null;
+    },
+  };
+  const manager = new AgoraEngineTextureViewManager(client);
+  const displayNode = new Node() as Node & { _sprite?: InstanceType<typeof Sprite> };
+  const sprite = new Sprite();
+  sprite.node = displayNode;
+  sprite.spriteFrame = new SpriteFrame();
+  sprite.spriteFrame.texture = new Texture2D();
+  displayNode._sprite = sprite;
+  globalThis.__ccSpriteFrameNullAssignments = 0;
+
+  manager.registerLocalDisplay({
+    displayNode,
+    mirrorMode: 0,
+  });
+
+  const releaseListener = listeners.get('localVideoTextureReleased');
+  assert.ok(releaseListener);
+  assert.doesNotThrow(() => releaseListener({}));
+  assert.equal(globalThis.__ccSpriteFrameNullAssignments, 0);
+  assert.equal(sprite.spriteFrame, null);
 });
