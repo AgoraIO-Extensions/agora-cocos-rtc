@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createAgoraExampleBuildConfig } from '../example/basic-call/assets/scripts/agoraRtcConfigOverride.ts';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
@@ -86,34 +87,34 @@ if (!appId) {
   process.exit(1);
 }
 
-const buildConfig = {
-  ...baseConfig,
+const overrides = {
   appId,
   channelId: firstNonEmptyEnv('CHANNEL_ID', 'TEST_CHANNEL_ID') ?? nonPlaceholderString(baseConfig.channelId) ?? 'testapi',
   token: firstNonEmptyEnv('TOKEN', 'TEST_TOKEN') ?? (typeof baseConfig.token === 'string' ? baseConfig.token : ''),
 };
-setIfDefined(buildConfig, 'uid', parseOptionalInteger('TEST_UID') ?? parseOptionalInteger('UID'));
-setIfDefined(buildConfig, 'autoPreview', parseOptionalBoolean('AUTO_PREVIEW'));
-setIfDefined(buildConfig, 'autoJoin', parseOptionalBoolean('AUTO_JOIN'));
-setIfDefined(buildConfig, 'publishCameraTrack', parseOptionalBoolean('PUBLISH_CAMERA_TRACK'));
-setIfDefined(buildConfig, 'publishMicrophoneTrack', parseOptionalBoolean('PUBLISH_MICROPHONE_TRACK'));
-setIfDefined(buildConfig, 'autoSubscribeAudio', parseOptionalBoolean('AUTO_SUBSCRIBE_AUDIO'));
-setIfDefined(buildConfig, 'autoSubscribeVideo', parseOptionalBoolean('AUTO_SUBSCRIBE_VIDEO'));
+setIfDefined(overrides, 'uid', parseOptionalInteger('TEST_UID') ?? parseOptionalInteger('UID'));
+setIfDefined(overrides, 'autoPreview', parseOptionalBoolean('AUTO_PREVIEW'));
+setIfDefined(overrides, 'autoJoin', parseOptionalBoolean('AUTO_JOIN'));
+setIfDefined(overrides, 'publishCameraTrack', parseOptionalBoolean('PUBLISH_CAMERA_TRACK'));
+setIfDefined(overrides, 'publishMicrophoneTrack', parseOptionalBoolean('PUBLISH_MICROPHONE_TRACK'));
+setIfDefined(overrides, 'autoSubscribeAudio', parseOptionalBoolean('AUTO_SUBSCRIBE_AUDIO'));
+setIfDefined(overrides, 'autoSubscribeVideo', parseOptionalBoolean('AUTO_SUBSCRIBE_VIDEO'));
 setIfDefined(
-  buildConfig,
+  overrides,
   'channelProfile',
   parseOptionalEnum('CHANNEL_PROFILE', ['communication', 'liveBroadcasting']),
 );
 setIfDefined(
-  buildConfig,
+  overrides,
   'clientRole',
   parseOptionalEnum('CLIENT_ROLE', ['broadcaster', 'audience']),
 );
 setIfDefined(
-  buildConfig,
+  overrides,
   'videoEncoderPresetName',
   parseOptionalEnum('VIDEO_ENCODER_PRESET_NAME', ['360p', '540p', '720p']),
 );
+const buildConfig = createAgoraExampleBuildConfig(baseConfig, overrides);
 const buildConfigMeta = {
   ver: '2.0.1',
   importer: 'json',

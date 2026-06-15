@@ -876,7 +876,13 @@ test('example ships a runtime Agora config template', async () => {
   assert.doesNotMatch(content, /\bappId["']?\s*:\s*["'][0-9a-f]{32}["']/i);
   assert.match(content, /"uid": 0/);
   assert.match(content, /"renderBackend": "engine-texture"/);
-  assert.match(content, /"autoPreview": false/);
+  assert.doesNotMatch(content, /"autoPreview":/);
+  assert.doesNotMatch(content, /"autoJoin":/);
+  assert.doesNotMatch(content, /"publishCameraTrack":/);
+  assert.doesNotMatch(content, /"publishMicrophoneTrack":/);
+  assert.doesNotMatch(content, /"autoSubscribeAudio":/);
+  assert.doesNotMatch(content, /"autoSubscribeVideo":/);
+  assert.doesNotMatch(content, /"localVideoCanvas":/);
 });
 
 test('example runtime defaults keep Agora auto-assigned uid semantics', async () => {
