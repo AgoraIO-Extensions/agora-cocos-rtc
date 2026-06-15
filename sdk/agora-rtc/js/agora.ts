@@ -231,6 +231,10 @@ function mergeProtectedParameters(
     clientParams = normalizeJsonObjectRecord(parameters, method);
   }
 
+  if (method === 'setParameters' && Object.keys(clientParams).length === 0) {
+    throw createMissingParametersError(method);
+  }
+
   try {
     return JSON.stringify({
       ...clientParams,

@@ -24,11 +24,14 @@ final class TextureSlotState: NSObject {
 
 private enum AgoraRtcBridgeParameterError: LocalizedError {
     case invalidJsonObjectString
+    case missingParameters
 
     var errorDescription: String? {
         switch self {
         case .invalidJsonObjectString:
             return "Parameters must be a valid JSON object string."
+        case .missingParameters:
+            return "Parameters are required."
         }
     }
 }
@@ -804,11 +807,14 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 if allowEmpty {
                     return protectedAppTypeParameters
                 }
-                throw AgoraRtcBridgeParameterError.invalidJsonObjectString
+                throw AgoraRtcBridgeParameterError.missingParameters
             }
             guard let data = trimmed.data(using: .utf8),
                   var clientParams = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
                 throw AgoraRtcBridgeParameterError.invalidJsonObjectString
+            }
+            if !allowEmpty && clientParams.isEmpty {
+                throw AgoraRtcBridgeParameterError.missingParameters
             }
             clientParams["rtc.set_app_type"] = 10
             guard let parametersData = try? JSONSerialization.data(withJSONObject: clientParams),
@@ -822,11 +828,14 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             if allowEmpty {
                 return protectedAppTypeParameters
             }
-            throw AgoraRtcBridgeParameterError.invalidJsonObjectString
+            throw AgoraRtcBridgeParameterError.missingParameters
         }
 
         if JSONSerialization.isValidJSONObject(parameterValue as Any),
            var clientParams = parameterValue as? [String: Any] {
+            if !allowEmpty && clientParams.isEmpty {
+                throw AgoraRtcBridgeParameterError.missingParameters
+            }
             clientParams["rtc.set_app_type"] = 10
             guard let parametersData = try? JSONSerialization.data(withJSONObject: clientParams),
                   let serialized = String(data: parametersData, encoding: .utf8) else {
@@ -1114,6 +1123,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return AgoraMultipathType(rawValue: value) ?? AgoraMultipathType(rawValue: 99)!
     }
 
+    private func parseContentInspectModulePosition(_ rawValue: Any) -> AgoraVideoModulePosition {
+        let value = intValue(rawValue)
+        return AgoraVideoModulePosition(rawValue: value) ?? .preRenderer
+    }
+
     private func buildClientRoleOptions(_ params: [String: Any]?) -> AgoraClientRoleOptions {
         let options = AgoraClientRoleOptions()
         if let rawValue = params?["audienceLatencyLevel"] {
@@ -1157,7 +1171,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         guard module.responds(to: selector) else {
             return
         }
-        module.setValue(NSNumber(value: intValue(rawValue)), forKey: "position")
+        module.setValue(NSNumber(value: parseContentInspectModulePosition(rawValue).rawValue), forKey: "position")
     }
 
     private func intValue(_ rawValue: Any) -> Int {

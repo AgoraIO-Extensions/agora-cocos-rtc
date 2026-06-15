@@ -1953,6 +1953,40 @@ test('setParameters rejects empty strings before dispatching the native request'
   assert.equal(transport.sent.length, 0);
 });
 
+test('setParameters rejects empty object payloads before dispatching the native request', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+
+  await assert.rejects(
+    client.setParameters({}),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'setParameters' &&
+      error.details.parameter === 'parameters',
+  );
+
+  await assert.rejects(
+    client.setParameters('{}'),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'setParameters' &&
+      error.details.parameter === 'parameters',
+  );
+
+  await assert.rejects(
+    client.setParameters({ optional: undefined }),
+    (error: { code: string; details: Record<string, unknown> }) =>
+      error.code === AgoraErrorCode.ProtocolError &&
+      error.details.method === 'setParameters' &&
+      error.details.parameter === 'parameters',
+  );
+
+  assert.equal(transport.sent.length, 0);
+});
+
 test('initialize rejects non-plain parameter objects before dispatching the native request', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
