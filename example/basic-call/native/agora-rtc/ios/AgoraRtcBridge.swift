@@ -733,7 +733,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
             return
         }
-        guard applyProtectedParameters(engine: engine, requestId: requestId, method: "initialize") else {
+        guard applyProtectedParameters(engine: engine, requestId: requestId, method: "initialize", params: params) else {
             rtcEngine = nil
             return
         }
@@ -744,8 +744,9 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         ])
     }
 
-    private func applyProtectedParameters(engine: AgoraRtcEngineKit, requestId: String, method: String) -> Bool {
-        let result = engine.setParameters(protectedAppTypeParameters)
+    private func applyProtectedParameters(engine: AgoraRtcEngineKit, requestId: String, method: String, params: [String: Any]) -> Bool {
+        let parameters = mergeProtectedParameters(params["parameters"]) ?? protectedAppTypeParameters
+        let result = engine.setParameters(parameters)
         if result < 0 {
             dispatchAgoraError(requestId: requestId, method: method, result: result)
             return false

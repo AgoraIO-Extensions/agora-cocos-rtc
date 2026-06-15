@@ -1064,7 +1064,7 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.match(bridgeContent, /logConfig\.level = logConfigParams\.optInt\("level", logConfig\.level\)/);
   assert.match(bridgeContent, /config\.mLogConfig = logConfig/);
   assert.match(bridgeContent, /config\.addExtension\(extensions\.optString\(index\)\)/);
-  assert.match(bridgeContent, /applyProtectedParameters\(rtcEngine, requestId, "initialize"\)/);
+  assert.match(bridgeContent, /applyProtectedParameters\(rtcEngine, requestId, "initialize", params\)/);
   assert.match(bridgeContent, /clientParams\.put\("rtc\.set_app_type", 10\);/);
   assert.match(bridgeContent, /return PROTECTED_APP_TYPE_PARAMETERS;/);
 
@@ -1557,7 +1557,7 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(inspectMatch[0], /config\.modules = buildContentInspectModules/);
   assert.match(bridgeContent, /module\.position = parseContentInspectModulePosition/);
   assert.match(bridgeContent, /private func parseContentInspectModulePosition/);
-  assert.match(bridgeContent, /applyProtectedParameters\(engine: engine, requestId: requestId, method: "initialize"\)/);
+  assert.match(bridgeContent, /applyProtectedParameters\(engine: engine, requestId: requestId, method: "initialize", params: params\)/);
   assert.match(bridgeContent, /clientParams\["rtc\.set_app_type"\] = 10/);
   assert.match(bridgeContent, /return protectedAppTypeParameters/);
 
