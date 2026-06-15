@@ -2,7 +2,7 @@
 
 Repository: https://github.com/AgoraIO/AgoraRtcEngine_iOS.git
 Version: 4.5.3
-Package: RtcBasic
+Products: RtcBasic, AINS, AINSLL, AudioBeauty, ClearVision, ContentInspect, SpatialAudio, VirtualBackground, AIAEC, AIAECLL, VQA, FaceDetection, FaceCapture, LipSync, VideoCodecEnc, VideoAv1CodecEnc, ReplayKit
 
 ## Steps
 

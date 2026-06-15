@@ -1971,7 +1971,8 @@ test('ios integration script refreshes the configured Swift package exact versio
 
   assert.ok(withPackageIndex >= 0, 'expected WITH_PACKAGE branch');
   assert.ok(createPackageIndex >= 0, 'expected package creation branch');
-  assert.ok(packageProductIndex >= 0, 'expected package product branch');
+  assert.match(scriptContent, /ensure_swift_package_product/);
+  assert.match(scriptContent, /PACKAGE_PRODUCTS\.each do \|package_product_name\|/);
   assert.match(
     scriptContent,
     /unless package_ref[\s\S]+project\.root_object\.package_references << package_ref\s+end\s+package_ref\.requirement =/,
@@ -1994,16 +1995,34 @@ test('ios integration script removes stale Swift package products for the same r
   assert.match(scriptContent, /dependency\.remove_from_project/);
   assert.match(
     scriptContent,
-    /remove_stale_swift_package_products\(target, frameworks_phase, package_ref, PACKAGE_PRODUCT\)/,
+    /remove_stale_swift_package_products\(target, frameworks_phase, package_ref, PACKAGE_PRODUCTS\)/,
   );
 });
 
-test('ios sdk config uses the product name declared by the local 4.5.3 Package.swift', async () => {
+test('ios sdk config uses the product names declared by the local 4.5.3 Package.swift', async () => {
   const sdkConfig = JSON.parse(
     await readFile(path.join(repoRoot, 'sdk/agora-rtc/sdk-config.json'), 'utf8'),
   );
 
-  assert.equal(sdkConfig.ios.packageProduct, 'RtcBasic');
+  assert.deepEqual(sdkConfig.ios.packageProducts, [
+    'RtcBasic',
+    'AINS',
+    'AINSLL',
+    'AudioBeauty',
+    'ClearVision',
+    'ContentInspect',
+    'SpatialAudio',
+    'VirtualBackground',
+    'AIAEC',
+    'AIAECLL',
+    'VQA',
+    'FaceDetection',
+    'FaceCapture',
+    'LipSync',
+    'VideoCodecEnc',
+    'VideoAv1CodecEnc',
+    'ReplayKit',
+  ]);
 });
 
 test('ios integration script removes Cocos legacy build locations before enabling Swift packages', async () => {

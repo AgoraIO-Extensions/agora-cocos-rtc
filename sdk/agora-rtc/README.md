@@ -90,7 +90,8 @@ await client.joinChannel(token, channelId, uid);
 
 ## Platform Notes
 
-- Android uses `io.agora.rtc:full-sdk:4.5.3` and `io.agora.rtc:full-screen-sharing:4.5.3`.
+- Android uses `io.agora.rtc:full-sdk:4.5.3` (bundled extensions, aligned with iOS SPM products below).
+- iOS SPM links all extension products from `sdk-config.json` `packageProducts` (same capability set as Android `full-sdk`).
 - iOS uses `AgoraRtcEngine_iOS 4.5.3`.
 - Android supports `setDefaultAudioRouteToSpeakerphone`; Android still returns an explicit `unsupported` response for `setAudioSessionOperationRestriction`.
 - Android and iOS 4.5.3 `ChannelMediaOptions` both expose multipath fields; macOS-only screen/camera track fields are not part of the iOS Cocos bridge.
