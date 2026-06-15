@@ -1020,6 +1020,7 @@ test('android bridge template dispatches expanded native rtc callbacks as js eve
   assert.match(bridgeContent, /dispatchEvent\("localVideoStateChanged"/);
   assert.match(bridgeContent, /private int mapLocalVideoSourceType\(Constants\.VideoSourceType source\)/);
   assert.match(bridgeContent, /"sourceType", mapLocalVideoSourceType\(source\)/);
+  assert.match(bridgeContent, /return Constants\.VideoSourceType\.getValue\(source\)/);
   assert.match(bridgeContent, /"error", error/);
   assert.match(bridgeContent, /onAudioMixingFinished/);
   assert.match(bridgeContent, /dispatchEvent\("audioMixingFinished"/);
