@@ -26,15 +26,14 @@
         <a href="./quickstart.html" aria-current="page">Quickstart</a>
         <a href="./core-apis.html">Core APIs</a>
         <a href="./rendering.html">Rendering</a>
-        <a href="./example.html">Example</a>
         <a href="./platform-notes.html">Platform Notes</a>
         <a href="./api-reference.html">API Reference</a>
       </nav>
       <main id="main-content" class="doc-main">
         <section class="hero">
-          <div class="section-kicker">Onboarding First</div>
-          <h1>Quickstart</h1>
-          <p class="lede">目标是在最短路径内完成准备示例、初始化引擎、加入频道、开始预览，并验证关键回调。</p>
+          <div class="section-kicker">先跑通最短链路</div>
+          <h1>快速开始</h1>
+          <p class="lede">目标是用最短路径跑通一条完整链路：准备示例、初始化引擎、加入频道、开启本地预览，并通过关键回调确认接入成功。</p>
         </section>
         <section class="card">
           <h2 id="prepare-example">1. 准备示例工程</h2>
@@ -42,27 +41,45 @@
           <p>然后用 Cocos Creator 3.8.8 打开 <code>example/basic-call</code>。</p>
         </section>
         <section class="card">
-          <h2 id="initialize-join">2. 初始化并加入频道</h2>
+          <h2 id="initialize-join">2. 初始化引擎、开启视频并加入频道</h2>
+          <p>下面是一条能出画面的最短链路。注意顺序：<code>setRenderBackend(...)</code> 必须在 <code>initialize(...)</code> 之前调用。</p>
           <pre class="code-block"><code>import { createAgoraRtcClient } from '../../extensions/agora-rtc/js/agora.ts';
 
+// 这些值由你的业务服务端下发，这里仅作占位。
+const appId = 'YOUR_APP_ID';
+const token = 'YOUR_TOKEN';
+const channelId = 'test-channel';
+const uid = 1001;
+
 const client = createAgoraRtcClient();
+
+// 渲染后端必须在初始化前确定。
+await client.setRenderBackend('engine-texture');
 await client.initialize(appId);
+
+// 开启视频并把本地画面绑定到一块渲染区域。
+await client.enableVideo(true);
+await client.setupLocalVideoView({ x: 0, y: 0, width: 320, height: 180 });
+
 await client.joinChannel(token, channelId, uid);</code></pre>
           <div class="api-link-group">
             <a class="api-link" href="./api-reference.html#export-createAgoraRtcClient">createAgoraRtcClient</a>
+            <a class="api-link" href="./api-reference.html#method-setRenderBackend">setRenderBackend</a>
             <a class="api-link" href="./api-reference.html#method-initialize">initialize</a>
+            <a class="api-link" href="./api-reference.html#method-enableVideo">enableVideo</a>
+            <a class="api-link" href="./api-reference.html#method-setupLocalVideoView">setupLocalVideoView</a>
             <a class="api-link" href="./api-reference.html#method-joinChannel">joinChannel</a>
           </div>
-          <p>想先按能力分组看接口，可以跳到 <a href="./core-apis.html">Core APIs</a>。</p>
+          <p>只做语音通话时，可以省略 <code>enableVideo</code> 和 <code>setupLocalVideoView</code>。想先按能力分组看接口，可以跳到 <a href="./core-apis.html">Core APIs</a>。</p>
         </section>
         <section class="card">
-          <h2 id="verify-success">3. 验证成功信号</h2>
+          <h2 id="verify-success">3. 确认接入成功</h2>
           <ul>
-            <li><a class="api-link" href="./api-reference.html#event-joinChannelSuccess">joinChannelSuccess</a> 已触发</li>
-            <li>如果绑定纹理视图，观察到 <a class="api-link" href="./api-reference.html#event-localVideoTextureReady">localVideoTextureReady</a></li>
-            <li>示例状态区持续刷新 RTC 事件和统计信息</li>
+            <li>收到 <a class="api-link" href="./api-reference.html#event-joinChannelSuccess">joinChannelSuccess</a> 回调，说明本端已成功加入频道</li>
+            <li>如果使用 <code>engine-texture</code> 渲染并绑定了本地视图，会收到 <a class="api-link" href="./api-reference.html#event-localVideoTextureReady">localVideoTextureReady</a> 回调</li>
+            <li>示例的状态面板会持续刷新 RTC 事件和通话统计信息</li>
           </ul>
-          <p>如果你不确定纹理视图或镜像行为，继续读 <a href="./rendering.html">Rendering</a>。</p>
+          <p>如果对纹理绑定或镜像行为还有疑问，继续阅读 <a href="./rendering.html">Rendering</a>。</p>
         </section>
       </main>
       <aside class="doc-toc" aria-label="On this page">

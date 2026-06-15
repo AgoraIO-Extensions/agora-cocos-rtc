@@ -26,7 +26,6 @@
         <a href="./quickstart.html">Quickstart</a>
         <a href="./core-apis.html">Core APIs</a>
         <a href="./rendering.html">Rendering</a>
-        <a href="./example.html">Example</a>
         <a href="./platform-notes.html">Platform Notes</a>
         <a href="./api-reference.html" aria-current="page">API Reference</a>
       </nav>
@@ -43,27 +42,6 @@
             <code class="signature">createAgoraRtcClient(options?: AgoraRtcClientOptions): AgoraRtcClient</code>
             <div class="param-list"><strong>Parameters</strong><ul><li><code>options.bridgeRuntime</code>: optional custom bridge runtime.</li><li><code>options.timeoutMs</code>: optional native request timeout in milliseconds. Default is 5000.</li><li><code>options.transport</code>: optional explicit bridge transport.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns an <code>AgoraRtcClient</code> instance for later RTC calls.</li></ul></div>
-          </article>
-          <article id="export-createAgoraEngineTextureViewManager" data-signature="createAgoraEngineTextureViewManager(client: AgoraRtcClient, bridgeRuntime?: CocosBridgeRuntime)">
-            <h3>createAgoraEngineTextureViewManager</h3>
-            <p>Create an engine-texture view manager for texture slot and display-node binding workflows.</p>
-            <code class="signature">createAgoraEngineTextureViewManager(client: AgoraRtcClient, bridgeRuntime?: CocosBridgeRuntime): Promise&lt;AgoraEngineTextureViewManager&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>client</code>: required RTC client instance.</li><li><code>bridgeRuntime</code>: optional explicit bridge runtime context.</li></ul></div>
-            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves to <code>AgoraEngineTextureViewManager</code>.</li></ul></div>
-          </article>
-          <article id="export-createAgoraEngineTextureViewController" data-signature="createAgoraEngineTextureViewController(client: AgoraRtcClient)">
-            <h3>createAgoraEngineTextureViewController</h3>
-            <p>Create an engine-texture view controller for local and remote view registration flows.</p>
-            <code class="signature">createAgoraEngineTextureViewController(client: AgoraRtcClient): AgoraEngineTextureViewController</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>client</code>: required RTC client instance.</li></ul></div>
-            <div class="return-note"><strong>Returns</strong><ul><li>Returns an <code>AgoraEngineTextureViewController</code> instance.</li></ul></div>
-          </article>
-          <article id="export-getAgoraEngineTextureBridge" data-signature="getAgoraEngineTextureBridge(runtime?: CocosBridgeRuntime)">
-            <h3>getAgoraEngineTextureBridge</h3>
-            <p>Read the active engine texture bridge from the current runtime.</p>
-            <code class="signature">getAgoraEngineTextureBridge(runtime?: CocosBridgeRuntime): CocosEngineTextureBridge | null</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>runtime</code>: optional explicit runtime object.</li></ul></div>
-            <div class="return-note"><strong>Returns</strong><ul><li>Returns the bridge object, or <code>null</code> when unavailable.</li></ul></div>
           </article>
         </section>
         <section class="card">
@@ -306,34 +284,6 @@
             <div class="param-list"><strong>Parameters</strong><ul><li><code>config</code>: required encoder config object.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
-          <article id="method-applyVideoEncoderMirrorConfiguration" data-signature="applyVideoEncoderMirrorConfiguration(config: Partial&lt;AgoraVideoEncoderConfiguration&gt; &amp; Pick&lt;AgoraVideoEncoderConfiguration, &#x27;width&#x27; | &#x27;height&#x27;&gt;)">
-            <h3>applyVideoEncoderMirrorConfiguration</h3>
-            <p>Apply derived mirror configuration to encoder settings.</p>
-            <code class="signature">applyVideoEncoderMirrorConfiguration(config: Partial&lt;AgoraVideoEncoderConfiguration&gt; &amp; Pick&lt;AgoraVideoEncoderConfiguration, &#x27;width&#x27; | &#x27;height&#x27;&gt;): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>config</code>: required partial video encoder config with width and height.</li></ul></div>
-            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
-          </article>
-          <article id="method-getEngineTextureViewManager" data-signature="getEngineTextureViewManager()">
-            <h3>getEngineTextureViewManager</h3>
-            <p>Read the cached engine texture view manager instance.</p>
-            <code class="signature">getEngineTextureViewManager(): InstanceType&lt;AgoraEngineTextureViewManager&gt; | null</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
-            <div class="return-note"><strong>Returns</strong><ul><li>Returns the cached manager instance or null when not created yet.</li></ul></div>
-          </article>
-          <article id="method-takeCachedLocalTextureSlot" data-signature="takeCachedLocalTextureSlot()">
-            <h3>takeCachedLocalTextureSlot</h3>
-            <p>Consume the cached local texture slot summary.</p>
-            <code class="signature">takeCachedLocalTextureSlot(): TextureReadySlotCache | null</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
-            <div class="return-note"><strong>Returns</strong><ul><li>Returns the cached slot summary or null when no cached slot exists.</li></ul></div>
-          </article>
-          <article id="method-takeCachedRemoteTextureSlot" data-signature="takeCachedRemoteTextureSlot(uid: number)">
-            <h3>takeCachedRemoteTextureSlot</h3>
-            <p>Consume the cached remote texture slot summary for one remote user.</p>
-            <code class="signature">takeCachedRemoteTextureSlot(uid: number): TextureReadySlotCache | null</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>uid</code>: required numeric user ID.</li></ul></div>
-            <div class="return-note"><strong>Returns</strong><ul><li>Returns the cached slot summary or null when no cached slot exists.</li></ul></div>
-          </article>
           <article id="method-setupLocalVideoView" data-signature="setupLocalVideoView(canvas: AgoraRtcVideoCanvas)">
             <h3>setupLocalVideoView</h3>
             <p>Bind a local video view, usually with <code>displayNode</code> or a texture slot.</p>
@@ -383,18 +333,18 @@
             <div class="param-list"><strong>Parameters</strong><ul><li><code>suspended</code>: required suspended state.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
-          <article id="method-startPreview" data-signature="startPreview(sourceType?: number)">
+          <article id="method-startPreview" data-signature="startPreview(videoSourceType?: AgoraVideoSourceTypeValue)">
             <h3>startPreview</h3>
             <p>Start local preview.</p>
-            <code class="signature">startPreview(sourceType?: number): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>sourceType</code>: optional source type value.</li></ul></div>
+            <code class="signature">startPreview(videoSourceType?: AgoraVideoSourceTypeValue): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>videoSourceType</code>: See the related type definition.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
-          <article id="method-stopPreview" data-signature="stopPreview(sourceType?: number)">
+          <article id="method-stopPreview" data-signature="stopPreview(videoSourceType?: AgoraVideoSourceTypeValue)">
             <h3>stopPreview</h3>
             <p>Stop local preview.</p>
-            <code class="signature">stopPreview(sourceType?: number): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>sourceType</code>: optional source type value.</li></ul></div>
+            <code class="signature">stopPreview(videoSourceType?: AgoraVideoSourceTypeValue): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>videoSourceType</code>: See the related type definition.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
           <article id="method-switchCamera" data-signature="switchCamera()">
@@ -404,11 +354,11 @@
             <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
-          <article id="method-setBeautyEffectOptions" data-signature="setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number)">
+          <article id="method-setBeautyEffectOptions" data-signature="setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, mediaSourceType?: AgoraMediaSourceTypeValue)">
             <h3>setBeautyEffectOptions</h3>
             <p>Enable beauty effects and update their options.</p>
-            <code class="signature">setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, sourceType?: number): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>enabled</code>: required boolean switch.</li><li><code>options</code>: optional options object.</li><li><code>sourceType</code>: optional source type value.</li></ul></div>
+            <code class="signature">setBeautyEffectOptions(enabled: boolean, options: AgoraBeautyOptions, mediaSourceType?: AgoraMediaSourceTypeValue): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>enabled</code>: required boolean switch.</li><li><code>options</code>: optional options object.</li><li><code>mediaSourceType</code>: See the related type definition.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
           <article id="method-enableContentInspect" data-signature="enableContentInspect(enabled: boolean, config?: AgoraContentInspectConfig)">

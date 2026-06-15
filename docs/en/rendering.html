@@ -26,30 +26,31 @@
         <a href="./quickstart.html">Quickstart</a>
         <a href="./core-apis.html">Core APIs</a>
         <a href="./rendering.html" aria-current="page">Rendering</a>
-        <a href="./example.html">Example</a>
         <a href="./platform-notes.html">Platform Notes</a>
         <a href="./api-reference.html">API Reference</a>
       </nav>
       <main id="main-content" class="doc-main">
         <section class="hero">
-          <h1>Rendering</h1>
-          <p>The current render path is centered on <code>engine-texture</code>: video frames are uploaded as textures that Cocos can render.</p>
+          <h1>Video Rendering</h1>
+          <p>The only public render backend today is <code>engine-texture</code>: it uploads video frames as Cocos engine textures so you can composite video into your scene like any other texture.</p>
         </section>
         <section class="card">
-          <h2 id="backend">Current backend support</h2>
-          <p>The public render backend is <code>engine-texture</code>, so both integration and debugging should treat it as the default path.</p>
+          <h2 id="backend">The engine-texture backend</h2>
+          <p>Call <code>setRenderBackend('engine-texture')</code> before <code>initialize(...)</code> to fix the render path.</p>
+          <p><code>engine-texture</code> uploads video frames as Cocos engine textures, the render path whose output Cocos materials can actually consume. Reach for it when you need to crop, style, or deeply integrate video with your game UI; the cost is that your app handles the texture-ready events and binding logic described below.</p>
         </section>
         <section class="card warning">
           <h2 id="display-node">displayNode and texture-ready events</h2>
-          <p>When you pass <code>displayNode</code> into the video canvas, the SDK binds engine textures to that node. If the view stays blank, check whether <code>localVideoTextureReady</code> and <code>remoteVideoTextureReady</code> fired as expected.</p>
+          <p>With <code>engine-texture</code>, frames are uploaded into engine texture slots. When you pass <code>displayNode</code> into the video canvas, the SDK binds those textures to that node; otherwise you bind them to a <code>Texture2D</code> / <code>SpriteFrame</code> yourself via <code>getEngineTexture(slotId)</code>. If the view stays blank, first check whether <code>localVideoTextureReady</code> and <code>remoteVideoTextureReady</code> fired as expected.</p>
+          <p>One caveat: when the event fires, the slot may still be initializing, so <code>getEngineTexture(slotId)</code> can briefly return <code>null</code>. Bind with a readiness check or a bounded retry instead of assuming the texture is immediately available.</p>
         </section>
         <section class="card">
           <h2 id="mirror-position">Mirror and position semantics</h2>
-          <p>This section covers mirror behavior, observer position, and Android limits around <code>position</code> semantics so you do not assume one-to-one native SDK behavior.</p>
+          <p>Local-preview mirror behavior, observer position, and Android's limits around <code>position</code> semantics do not map one-to-one onto native SDK intuition. Mirroring is driven by <code>mirrorMode</code> on the video canvas (passed to <code>setupLocalVideoView</code> / <code>setupRemoteVideoView</code>) and on <code>setVideoEncoderConfiguration</code>, not by a dedicated method. When mirror or orientation is involved, rely on this doc set's described behavior rather than native SDK assumptions.</p>
         </section>
         <section class="card">
           <h2 id="compatibility-noop">Compatibility surface</h2>
-          <p><code>setNativeVideoOverlaySuspended</code> still matters as part of the public surface, but in the current texture-driven model it is a compatibility API, not a visible native overlay switch.</p>
+          <p><code>setNativeVideoOverlaySuspended(...)</code> is a compatibility surface kept for native-overlay rendering. Under the public <code>engine-texture</code> path there is no native layer to hide, so calling it maps to no visible switch and your app does not need to rely on it.</p>
         </section>
       </main>
       <aside class="doc-toc" aria-label="On this page">

@@ -26,7 +26,6 @@
         <a href="./quickstart.html">Quickstart</a>
         <a href="./core-apis.html">Core APIs</a>
         <a href="./rendering.html">Rendering</a>
-        <a href="./example.html">Example</a>
         <a href="./platform-notes.html">Platform Notes</a>
         <a href="./api-reference.html">API Reference</a>
       </nav>
@@ -40,7 +39,7 @@
           <ul>
             <li><code>sdk/agora-rtc</code>：交付给业务项目的 Cocos 扩展、JS API 包装和原生桥模板</li>
             <li><code>example/basic-call</code>：用于验证接入和排查问题的 QA 控制台示例</li>
-            <li>Android 和 iOS 4.5.3 桥接能力，以及 <code>engine-texture</code> 渲染路径</li>
+            <li>Android 和 iOS 4.5.3 原生桥接，以及 <code>engine-texture</code> 渲染后端（把视频帧上传为 Cocos 引擎纹理）</li>
           </ul>
         </section>
         <section class="card">
@@ -56,10 +55,11 @@
         <section class="card">
           <h2 id="reading-path">推荐阅读路径</h2>
           <ol>
-            <li>先读 <a href="./quickstart.html">Quickstart</a> 跑通初始化、入会和预览</li>
-            <li>再读 <a href="./core-apis.html">Core APIs</a> 理解能力分组</li>
-            <li>遇到纹理和视图问题时读 <a href="./rendering.html">Rendering</a></li>
-            <li>查精确方法时跳到 <a href="./api-reference.html">API Reference</a></li>
+            <li>先读 <a href="./quickstart.html">Quickstart</a> 跑通初始化、开启视频和入会</li>
+            <li>再读 <a href="./core-apis.html">Core APIs</a> 按接入任务理解能力分组</li>
+            <li>选择渲染后端、处理视频画面时读 <a href="./rendering.html">Rendering</a></li>
+            <li>遇到 Android / iOS 行为差异时读 <a href="./platform-notes.html">Platform Notes</a></li>
+            <li>查精确方法和回调时跳到 <a href="./api-reference.html">API Reference</a></li>
           </ol>
         </section>
       </main>

@@ -21,8 +21,29 @@ function humanize(name) {
     .replace(/^./, (char) => char.toUpperCase());
 }
 
+// Exports and client methods that are part of the package's public JS surface
+// but are internal plumbing for the engine-texture view layer. They are
+// intentionally kept out of the developer-facing docs, mirroring the
+// authoritative customer guide (Agora-Cocos-RTC-SDK-API-Guide.md), which also
+// documents none of them. Keep this in sync with internalUndocumented* in
+// tests/docs-site.test.ts.
+const INTERNAL_UNDOCUMENTED_EXPORTS = new Set([
+  'createAgoraEngineTextureViewManager',
+  'createAgoraEngineTextureViewController',
+  'getAgoraEngineTextureBridge',
+]);
+
+const INTERNAL_UNDOCUMENTED_METHODS = new Set([
+  'applyVideoEncoderMirrorConfiguration',
+  'getEngineTextureViewManager',
+  'takeCachedLocalTextureSlot',
+  'takeCachedRemoteTextureSlot',
+]);
+
 function parseExports() {
-  return [...agoraTs.matchAll(/^export function ([A-Za-z0-9_]+)\(/gm)].map((match) => match[1]);
+  return [...agoraTs.matchAll(/^export function ([A-Za-z0-9_]+)\(/gm)]
+    .map((match) => match[1])
+    .filter((name) => !INTERNAL_UNDOCUMENTED_EXPORTS.has(name));
 }
 
 function parseMethods() {
@@ -41,6 +62,7 @@ function parseMethods() {
   for (const match of classBlock.matchAll(pattern)) {
     const name = match[1];
     if (name === 'constructor' || name.startsWith('#')) continue;
+    if (INTERNAL_UNDOCUMENTED_METHODS.has(name)) continue;
     const params = match[2]
       .split('\n')
       .map((line) => line.trim())
@@ -762,7 +784,6 @@ function renderApiReference(locale) {
     quickstart: 'Quickstart',
     coreApis: 'Core APIs',
     rendering: 'Rendering',
-    example: 'Example',
     platformNotes: 'Platform Notes',
     apiReference: 'API Reference',
   };
@@ -816,7 +837,6 @@ function renderApiReference(locale) {
         <a href="./quickstart.html">${sections.quickstart}</a>
         <a href="./core-apis.html">${sections.coreApis}</a>
         <a href="./rendering.html">${sections.rendering}</a>
-        <a href="./example.html">${sections.example}</a>
         <a href="./platform-notes.html">${sections.platformNotes}</a>
         <a href="./api-reference.html" aria-current="page">${sections.apiReference}</a>
       </nav>

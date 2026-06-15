@@ -26,7 +26,6 @@
         <a href="./quickstart.html">Quickstart</a>
         <a href="./core-apis.html" aria-current="page">Core APIs</a>
         <a href="./rendering.html">Rendering</a>
-        <a href="./example.html">Example</a>
         <a href="./platform-notes.html">Platform Notes</a>
         <a href="./api-reference.html">API Reference</a>
       </nav>
@@ -38,6 +37,7 @@
         </section>
         <section class="card">
           <h2 id="engine-session">Engine &amp; Session</h2>
+          <p>Create the client, initialize the engine, and destroy it to release resources. This is the start and end of every integration flow.</p>
           <div class="api-link-group">
             <a class="api-link" href="./api-reference.html#export-createAgoraRtcClient">createAgoraRtcClient</a>
             <a class="api-link" href="./api-reference.html#method-initialize">initialize</a>
@@ -46,6 +46,7 @@
         </section>
         <section class="card">
           <h2 id="channel-identity">Channel &amp; Identity</h2>
+          <p>Set the channel profile, join, and leave. Pick one of the two identity models: numeric UID or string user account.</p>
           <div class="api-link-group">
             <a class="api-link" href="./api-reference.html#method-setChannelProfile">setChannelProfile</a>
             <a class="api-link" href="./api-reference.html#method-joinChannel">joinChannel</a>
@@ -55,14 +56,16 @@
         </section>
         <section class="card">
           <h2 id="audio">Audio</h2>
+          <p>Capture and playback control, plus volume indication. Mixing and effects live in their own group below.</p>
           <div class="api-link-group">
-            <a class="api-link" href="./api-reference.html#method-startAudioMixing">startAudioMixing</a>
-            <a class="api-link" href="./api-reference.html#method-playEffect">playEffect</a>
-            <a class="api-link" href="./api-reference.html#method-setLogFile">setLogFile</a>
+            <a class="api-link" href="./api-reference.html#method-enableLocalAudio">enableLocalAudio</a>
+            <a class="api-link" href="./api-reference.html#method-muteLocalAudioStream">muteLocalAudioStream</a>
+            <a class="api-link" href="./api-reference.html#method-enableAudioVolumeIndication">enableAudioVolumeIndication</a>
           </div>
         </section>
         <section class="card">
           <h2 id="video-views">Video &amp; Views</h2>
+          <p>Set the video encoder profile, then bind local and remote frames to a Cocos render region or texture slot.</p>
           <div class="api-link-group">
             <a class="api-link" href="./api-reference.html#method-setVideoEncoderConfiguration">setVideoEncoderConfiguration</a>
             <a class="api-link" href="./api-reference.html#method-setupLocalVideoView">setupLocalVideoView</a>
@@ -71,6 +74,7 @@
         </section>
         <section class="card">
           <h2 id="rendering-controls">Rendering &amp; Visual Controls</h2>
+          <p>Choose the render backend and tune encoder and mirror behavior. Call <code>setRenderBackend</code> before init to fix the render path.</p>
           <div class="api-link-group">
             <a class="api-link" href="./api-reference.html#method-setRenderBackend">setRenderBackend</a>
             <a class="api-link" href="./api-reference.html#method-setVideoEncoderConfiguration">setVideoEncoderConfiguration</a>
@@ -78,6 +82,7 @@
         </section>
         <section class="card">
           <h2 id="mixing-diagnostics">Mixing, Effects &amp; Diagnostics</h2>
+          <p>Background music mixing, short sound effects, plus logging and diagnostics.</p>
           <div class="api-link-group">
             <a class="api-link" href="./api-reference.html#method-startAudioMixing">startAudioMixing</a>
             <a class="api-link" href="./api-reference.html#method-playEffect">playEffect</a>

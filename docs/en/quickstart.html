@@ -26,7 +26,6 @@
         <a href="./quickstart.html" aria-current="page">Quickstart</a>
         <a href="./core-apis.html">Core APIs</a>
         <a href="./rendering.html">Rendering</a>
-        <a href="./example.html">Example</a>
         <a href="./platform-notes.html">Platform Notes</a>
         <a href="./api-reference.html">API Reference</a>
       </nav>
@@ -34,7 +33,7 @@
         <section class="hero">
           <div class="section-kicker">Onboarding First</div>
           <h1>Quickstart</h1>
-          <p class="lede">The goal is to prepare the example, initialize the engine, join a channel, start preview, and verify the key callbacks in the shortest path.</p>
+          <p class="lede">The goal is the shortest path to a working video call: prepare the example, initialize the engine, bind a local view, join a channel, and confirm success through the key callbacks.</p>
         </section>
         <section class="card">
           <h2 id="prepare-example">1. Prepare the example project</h2>
@@ -42,15 +41,33 @@
           <p>Then open <code>example/basic-call</code> in Cocos Creator 3.8.8.</p>
         </section>
         <section class="card">
-          <h2 id="initialize-join">2. Initialize and join the channel</h2>
+          <h2 id="initialize-join">2. Initialize, enable video, and join the channel</h2>
+          <p>Here is the shortest path that actually renders a frame. Order matters: call <code>setRenderBackend(...)</code> before <code>initialize(...)</code>.</p>
           <pre class="code-block"><code>import { createAgoraRtcClient } from '../../extensions/agora-rtc/js/agora.ts';
 
+// These values come from your own backend; placeholders shown here.
+const appId = 'YOUR_APP_ID';
+const token = 'YOUR_TOKEN';
+const channelId = 'test-channel';
+const uid = 1001;
+
 const client = createAgoraRtcClient();
+
+// The render backend must be chosen before init.
+await client.setRenderBackend('engine-texture');
 await client.initialize(appId);
+
+// Enable video and bind the local frame to a render region.
+await client.enableVideo(true);
+await client.setupLocalVideoView({ x: 0, y: 0, width: 320, height: 180 });
+
 await client.joinChannel(token, channelId, uid);</code></pre>
           <div class="api-link-group">
             <a class="api-link" href="./api-reference.html#export-createAgoraRtcClient">createAgoraRtcClient</a>
+            <a class="api-link" href="./api-reference.html#method-setRenderBackend">setRenderBackend</a>
             <a class="api-link" href="./api-reference.html#method-initialize">initialize</a>
+            <a class="api-link" href="./api-reference.html#method-enableVideo">enableVideo</a>
+            <a class="api-link" href="./api-reference.html#method-setupLocalVideoView">setupLocalVideoView</a>
             <a class="api-link" href="./api-reference.html#method-joinChannel">joinChannel</a>
           </div>
           <p>If you prefer to browse by capability first, jump to <a href="./core-apis.html">Core APIs</a>.</p>
@@ -58,9 +75,9 @@ await client.joinChannel(token, channelId, uid);</code></pre>
         <section class="card">
           <h2 id="verify-success">3. Verify success signals</h2>
           <ul>
-            <li><a class="api-link" href="./api-reference.html#event-joinChannelSuccess">joinChannelSuccess</a> has fired</li>
-            <li>If you bind texture views, you can observe <a class="api-link" href="./api-reference.html#event-localVideoTextureReady">localVideoTextureReady</a></li>
-            <li>The example status area keeps updating RTC events and summaries</li>
+            <li>The <a class="api-link" href="./api-reference.html#event-joinChannelSuccess">joinChannelSuccess</a> callback fires, confirming the local user has joined the channel</li>
+            <li>With <code>engine-texture</code> rendering and a bound local view, you receive the <a class="api-link" href="./api-reference.html#event-localVideoTextureReady">localVideoTextureReady</a> callback</li>
+            <li>The example's status panel keeps updating RTC events and call statistics</li>
           </ul>
           <p>If texture views or mirror behavior are unclear, continue with <a href="./rendering.html">Rendering</a>.</p>
         </section>
