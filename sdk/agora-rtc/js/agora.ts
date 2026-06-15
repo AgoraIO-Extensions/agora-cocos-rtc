@@ -114,6 +114,17 @@ function createInvalidParametersError(method: ProtectedParameterMethod): AgoraSd
   );
 }
 
+function createMissingParametersError(method: ProtectedParameterMethod): AgoraSdkError {
+  return new AgoraSdkError(
+    AgoraErrorCode.ProtocolError,
+    'Parameters are required.',
+    {
+      method,
+      parameter: 'parameters',
+    },
+  );
+}
+
 function isPlainJsonObjectRecord(value: unknown): value is Record<string, unknown> {
   if (value == null || typeof value !== 'object' || Array.isArray(value)) {
     return false;
@@ -122,62 +133,85 @@ function isPlainJsonObjectRecord(value: unknown): value is Record<string, unknow
   return prototype === Object.prototype || prototype === null;
 }
 
-function assertJsonCompatibleValue(
+function normalizeJsonCompatibleValue(
   value: unknown,
   method: ProtectedParameterMethod,
-): void {
+  insideObjectProperty = false,
+): unknown {
   if (value == null || typeof value === 'string' || typeof value === 'boolean') {
-    return;
+    return value;
+  }
+  if (typeof value === 'undefined') {
+    return insideObjectProperty ? undefined : null;
   }
   if (typeof value === 'number') {
     if (Number.isFinite(value)) {
-      return;
+      return value;
     }
     throw createInvalidParametersError(method);
   }
   if (Array.isArray(value)) {
-    for (const entry of value) {
-      assertJsonCompatibleValue(entry, method);
-    }
-    return;
+    return value.map((entry) => {
+      const normalized = normalizeJsonCompatibleValue(entry, method, false);
+      return normalized === undefined ? null : normalized;
+    });
   }
   if (isPlainJsonObjectRecord(value)) {
-    for (const entry of Object.values(value)) {
-      assertJsonCompatibleValue(entry, method);
+    const normalizedEntries: Array<[string, unknown]> = [];
+    for (const [key, entry] of Object.entries(value)) {
+      const normalized = normalizeJsonCompatibleValue(entry, method, true);
+      if (normalized !== undefined) {
+        normalizedEntries.push([key, normalized]);
+      }
     }
-    return;
+    return Object.fromEntries(normalizedEntries);
   }
   throw createInvalidParametersError(method);
 }
 
-function assertJsonObjectRecord(
+function normalizeJsonObjectRecord(
   value: unknown,
   method: ProtectedParameterMethod,
 ): Record<string, unknown> {
   if (!isPlainJsonObjectRecord(value)) {
     throw createInvalidParametersError(method);
   }
-  assertJsonCompatibleValue(value, method);
-  return value;
+  return normalizeJsonCompatibleValue(value, method) as Record<string, unknown>;
 }
 
 function mergeProtectedParameters(
   parameters?: string | Record<string, unknown> | null,
   method: ProtectedParameterMethod = 'setParameters',
 ): string {
-  if (parameters == null || parameters === '') {
+  if (parameters == null) {
+    if (method === 'initialize') {
+      return JSON.stringify(PROTECTED_APP_TYPE_PARAMETERS);
+    }
+    throw createMissingParametersError(method);
+  }
+
+  if (typeof parameters === 'string') {
+    if (parameters.trim() === '') {
+      if (method === 'initialize') {
+        return JSON.stringify(PROTECTED_APP_TYPE_PARAMETERS);
+      }
+      throw createMissingParametersError(method);
+    }
+  }
+
+  if (parameters === '') {
     return JSON.stringify(PROTECTED_APP_TYPE_PARAMETERS);
   }
 
   let clientParams: Record<string, unknown>;
   if (typeof parameters === 'string') {
     try {
-      clientParams = assertJsonObjectRecord(JSON.parse(parameters), method);
+      clientParams = normalizeJsonObjectRecord(JSON.parse(parameters), method);
     } catch {
       throw createInvalidParametersError(method);
     }
   } else {
-    clientParams = assertJsonObjectRecord(parameters, method);
+    clientParams = normalizeJsonObjectRecord(parameters, method);
   }
 
   try {
