@@ -94,9 +94,33 @@ export {
   VIDEO_ENCODER_MIRROR_MODE_DISABLED,
 } from './internal/engine_texture_encoder_mirror.ts';
 
+/**
+ * Optional client-construction settings for {@link AgoraRtcClient}.
+ *
+ * Use this object when the default global bridge discovery is not enough for
+ * your runtime, or when you want to override timeout and transport behavior in
+ * tests or custom host integrations.
+ */
 export type AgoraRtcClientOptions = {
+  /**
+   * Explicit bridge runtime object.
+   *
+   * When omitted, the SDK resolves the runtime from the ambient Cocos / JSB
+   * environment.
+   */
   bridgeRuntime?: CocosBridgeRuntime;
+  /**
+   * Native request timeout in milliseconds.
+   *
+   * Defaults to {@link DEFAULT_TIMEOUT_MS}.
+   */
   timeoutMs?: number;
+  /**
+   * Explicit bridge transport implementation.
+   *
+   * Use this when the caller wants to bypass runtime auto-discovery and wire a
+   * specific transport directly.
+   */
   transport?: CocosJsbBridgeTransport | null;
 };
 

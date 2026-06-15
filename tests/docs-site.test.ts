@@ -399,3 +399,27 @@ test('api reference covers every public top-level export, client method, and eve
     assert.match(en, new RegExp(`id="${anchor}"`), `en doc missing ${anchor}`);
   }
 });
+
+test('source types expose tsdoc on key config and payload structures', async () => {
+  const agora = await readFile(path.join(repoRoot, 'sdk/agora-rtc/js/agora.ts'), 'utf8');
+  const types = await readFile(path.join(repoRoot, 'sdk/agora-rtc/js/types.ts'), 'utf8');
+
+  assert.match(agora, /\/\*\*[\s\S]*?\*\/\s*export type AgoraRtcClientOptions/);
+
+  for (const name of [
+    'AgoraRtcVideoCanvas',
+    'AgoraVideoEncoderConfiguration',
+    'AgoraContentInspectConfig',
+    'AgoraClientRoleOptions',
+    'AgoraRtcEngineConfig',
+    'AgoraChannelMediaOptions',
+    'AgoraLeaveChannelOptions',
+    'AgoraAudioMixingConfig',
+    'AgoraPlayEffectConfig',
+    'AgoraUserInfo',
+    'AgoraRtcStatsPayload',
+    'AgoraEventMap',
+  ]) {
+    assert.match(types, new RegExp(`/\\*\\*[\\s\\S]*?\\*/\\s*export (?:interface|type) ${name}`), `${name} should have TSDoc`);
+  }
+});
