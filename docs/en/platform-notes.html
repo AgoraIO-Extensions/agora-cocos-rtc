@@ -26,26 +26,25 @@
         <a href="./quickstart.html">Quickstart</a>
         <a href="./core-apis.html">Core APIs</a>
         <a href="./rendering.html">Rendering</a>
-        <a href="./example.html">Example</a>
         <a href="./platform-notes.html" aria-current="page">Platform Notes</a>
         <a href="./api-reference.html">API Reference</a>
       </nav>
       <main id="main-content" class="doc-main">
         <section class="hero">
           <h1>Platform Notes</h1>
-          <p>This page collects Android and iOS differences, especially the ones most likely to affect integration results.</p>
+          <p>This page collects the key Android and iOS differences, especially behavior that directly affects joining a channel and rendering. Confirming these boundaries up front keeps you from mistaking a platform limit for an SDK bug.</p>
         </section>
         <section class="card">
           <h2 id="audio-routing">Audio routing and session restrictions</h2>
-          <p><code>setDefaultAudioRouteToSpeakerphone</code> and <code>setAudioSessionOperationRestriction</code> do not behave identically across platforms. Check platform behavior first when routing or session issues appear.</p>
+          <p><code>setDefaultAudioRouteToSpeakerphone</code> and <code>setAudioSessionOperationRestriction</code> do not behave identically across platforms: the latter only takes effect on iOS, while the Android bridge returns <code>unsupported</code>. When you hit speaker, earpiece, or session-conflict issues, check the platform before debugging your own logic.</p>
         </section>
         <section class="card">
           <h2 id="channel-options">Channel option differences</h2>
-          <p><code>publishThirdCameraTrack</code> and <code>publishFourthCameraTrack</code> are Android/C++-side fields. iOS 4.5.3 does not expose equivalent fields directly. <code>sourceType</code> also needs explicit explanation in the iOS preview path.</p>
+          <p><code>publishThirdCameraTrack</code> and <code>publishFourthCameraTrack</code> are fields exposed on the Android/C++ side; iOS 4.5.3 has no equivalent, so do not assume these fields are consistent across platforms. <code>sourceType</code> is only used as a helper field in the iOS preview path — the Android channel media options do not expose it.</p>
         </section>
         <section class="card">
           <h2 id="effect-contracts">Effect and parameter contracts</h2>
-          <p><code>playEffect.gain</code> currently follows an integer bridge contract. If effect playback looks wrong, verify the value before digging deeper.</p>
+          <p><code>playEffect.gain</code> currently follows an integer bridge contract. If effect loudness looks wrong, first confirm the value is an integer within the agreed range before treating it as a playback-logic problem.</p>
         </section>
       </main>
       <aside class="doc-toc" aria-label="On this page">
