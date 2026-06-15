@@ -15,6 +15,7 @@ yarn-error.log*
 /dist/
 tmp/
 .worktrees/
+.superpowers/
 
 # Cocos Creator project cache and generated output
 # Based on the Cocos Creator 3.8 template .gitignore, with this repo's
@@ -57,4 +58,4 @@ example/basic-call/assets/resources/agora-config.build.json.meta
 GoogleService-Info.plist
 google-services.json
 
-docs/
+docs/superpowers/reports/
