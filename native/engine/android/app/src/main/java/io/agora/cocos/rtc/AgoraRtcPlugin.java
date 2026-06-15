@@ -606,7 +606,7 @@ public final class AgoraRtcPlugin {
                 dispatchError(requestId, "RtcEngine.create returned null.");
                 return;
             }
-            if (!applyProtectedParameters(rtcEngine, requestId, "initialize")) {
+            if (!applyProtectedParameters(rtcEngine, requestId, "initialize", params)) {
                 rtcEngine = null;
                 return;
             }
@@ -1774,8 +1774,13 @@ public final class AgoraRtcPlugin {
         dispatchOk(requestId);
     }
 
-    private boolean applyProtectedParameters(RtcEngine engine, String requestId, String method) {
-        int result = engine.setParameters(PROTECTED_APP_TYPE_PARAMETERS);
+    private boolean applyProtectedParameters(RtcEngine engine, String requestId, String method, JSONObject params) {
+        String parameters = mergeProtectedParameters(params != null ? params.optString("parameters", "") : "");
+        if (parameters == null || parameters.trim().isEmpty()) {
+            dispatchError(requestId, "Parameters are required.");
+            return false;
+        }
+        int result = engine.setParameters(parameters);
         if (result < 0) {
             dispatchAgoraError(requestId, method, result);
             return false;
