@@ -1586,12 +1586,22 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     private func videoSourceType(from params: [String: Any]) -> AgoraVideoSourceType {
-        let value = intValue(params["sourceType"] ?? AgoraVideoSourceType.camera.rawValue)
+        let value: Int
+        if params["videoSourceType"] != nil {
+            value = intValue(params["videoSourceType"]!)
+        } else {
+            value = intValue(params["sourceType"] ?? AgoraVideoSourceType.camera.rawValue)
+        }
         return AgoraVideoSourceType(rawValue: value) ?? .camera
     }
 
     private func mediaSourceType(from params: [String: Any]) -> AgoraMediaSourceType {
-        let value = intValue(params["sourceType"] ?? AgoraMediaSourceType.primaryCamera.rawValue)
+        let value: Int
+        if params["mediaSourceType"] != nil {
+            value = intValue(params["mediaSourceType"]!)
+        } else {
+            value = intValue(params["sourceType"] ?? AgoraMediaSourceType.primaryCamera.rawValue)
+        }
         return AgoraMediaSourceType(rawValue: value) ?? .primaryCamera
     }
 

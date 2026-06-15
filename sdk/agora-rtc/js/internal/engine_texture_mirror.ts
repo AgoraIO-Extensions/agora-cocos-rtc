@@ -1,26 +1,26 @@
+import { AgoraVideoSourceType } from '../source_types.ts';
+
 export type EngineTextureMirrorInput = {
   mirrorMode?: number;
   sourceType?: number;
+  videoSourceType?: number;
 };
 
-/** Agora VideoSourceType primary camera — the only supported local engine-texture source. */
-export const ENGINE_TEXTURE_PRIMARY_CAMERA_SOURCE_TYPE = 0;
+/** @deprecated Use {@link AgoraVideoSourceType.Camera}. */
+export const ENGINE_TEXTURE_PRIMARY_CAMERA_SOURCE_TYPE = AgoraVideoSourceType.Camera;
 
 const MIRROR_MODE_AUTO = 0;
 const MIRROR_MODE_DISABLED = 2;
-const SCREEN_SOURCE_PRIMARY = 2;
-const SCREEN_SOURCE_SECONDARY = 3;
-const TRANSCODED_SOURCE = 10;
 
 export function isScreenLikeVideoSource(sourceType?: number): boolean {
-  return sourceType === SCREEN_SOURCE_PRIMARY
-    || sourceType === SCREEN_SOURCE_SECONDARY
-    || sourceType === TRANSCODED_SOURCE;
+  return sourceType === AgoraVideoSourceType.ScreenPrimary
+    || sourceType === AgoraVideoSourceType.ScreenSecondary
+    || sourceType === AgoraVideoSourceType.Transcoded;
 }
 
 export function isSupportedEngineTextureLocalSourceType(sourceType?: number): boolean {
   return sourceType === undefined
-    || sourceType === ENGINE_TEXTURE_PRIMARY_CAMERA_SOURCE_TYPE;
+    || sourceType === AgoraVideoSourceType.Camera;
 }
 
 /**
@@ -29,11 +29,12 @@ export function isSupportedEngineTextureLocalSourceType(sourceType?: number): bo
  */
 export function resolveEngineTextureMirror(input: EngineTextureMirrorInput): boolean {
   const mirrorMode = input.mirrorMode ?? MIRROR_MODE_AUTO;
+  const sourceType = input.videoSourceType ?? input.sourceType;
 
   if (mirrorMode === MIRROR_MODE_DISABLED) {
     return false;
   }
-  if (isScreenLikeVideoSource(input.sourceType)) {
+  if (isScreenLikeVideoSource(sourceType)) {
     return false;
   }
   return true;

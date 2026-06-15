@@ -321,6 +321,106 @@ test('public video canvas types keep the old rect alias as a compatibility layer
   assert.match(sdkTypesSource, /export type AgoraVideoViewRect = AgoraRtcVideoCanvas;/);
 });
 
+test('public types expose distinct video and media source enums', () => {
+  assert.match(sdkTypesSource, /videoSourceType\?: AgoraVideoSourceTypeValue;/);
+  assert.match(sdkTypesSource, /sourceType\?: AgoraVideoSourceTypeValue;/);
+});
+
+test('video and media source enums map to distinct native values', async () => {
+  const {
+    AgoraVideoSourceType,
+    AgoraMediaSourceType,
+  } = await import('../sdk/agora-rtc/js/agora.ts');
+
+  assert.equal(AgoraVideoSourceType.Camera, 0);
+  assert.equal(AgoraMediaSourceType.PrimaryCamera, 2);
+  assert.notEqual(AgoraVideoSourceType.Camera, AgoraMediaSourceType.PrimaryCamera);
+});
+
+test('videoSourceType is normalized to explicit bridge fields for preview and canvas APIs', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+  const { AgoraVideoSourceType, AgoraMediaSourceType } = await import('../sdk/agora-rtc/js/agora.ts');
+
+  const previewPending = client.startPreview(AgoraVideoSourceType.Camera);
+  const previewRequest = JSON.parse(transport.sent[0].payload);
+  assert.deepEqual(previewRequest.params, {
+    videoSourceType: AgoraVideoSourceType.Camera,
+    sourceType: AgoraVideoSourceType.Camera,
+  });
+  transport.emit('agora:response', JSON.stringify({ requestId: previewRequest.requestId, ok: true }));
+  await previewPending;
+
+  const canvasPending = client.setupLocalVideoView({
+    x: 0,
+    y: 0,
+    width: 320,
+    height: 180,
+    videoSourceType: AgoraVideoSourceType.Camera,
+  });
+  const canvasRequest = JSON.parse(transport.sent[1].payload);
+  assert.deepEqual(canvasRequest.params, {
+    x: 0,
+    y: 0,
+    width: 320,
+    height: 180,
+    videoSourceType: AgoraVideoSourceType.Camera,
+    sourceType: AgoraVideoSourceType.Camera,
+  });
+  transport.emit('agora:response', JSON.stringify({ requestId: canvasRequest.requestId, ok: true }));
+  await canvasPending;
+
+  const joinPending = client.joinChannel('token', 'room', 1, {
+    startPreview: true,
+    videoSourceType: AgoraVideoSourceType.CameraSecondary,
+  });
+  const joinRequest = JSON.parse(transport.sent[2].payload);
+  assert.deepEqual(joinRequest.params.options, {
+    startPreview: true,
+    videoSourceType: AgoraVideoSourceType.CameraSecondary,
+    sourceType: AgoraVideoSourceType.CameraSecondary,
+  });
+  transport.emit('agora:response', JSON.stringify({ requestId: joinRequest.requestId, ok: true }));
+  await joinPending;
+
+  const beautyPending = client.setBeautyEffectOptions(true, {}, AgoraMediaSourceType.PrimaryCamera);
+  const beautyRequest = JSON.parse(transport.sent[3].payload);
+  assert.deepEqual(beautyRequest.params, {
+    enabled: true,
+    options: {},
+    mediaSourceType: AgoraMediaSourceType.PrimaryCamera,
+    sourceType: AgoraMediaSourceType.PrimaryCamera,
+  });
+  transport.emit('agora:response', JSON.stringify({ requestId: beautyRequest.requestId, ok: true }));
+  await beautyPending;
+});
+
+test('videoSourceType takes precedence over legacy sourceType when both are provided', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+  const { AgoraVideoSourceType } = await import('../sdk/agora-rtc/js/agora.ts');
+
+  const pending = client.setupLocalVideoView({
+    x: 0,
+    y: 0,
+    width: 320,
+    height: 180,
+    videoSourceType: AgoraVideoSourceType.Camera,
+    sourceType: AgoraVideoSourceType.CameraSecondary,
+  });
+  const request = JSON.parse(transport.sent[0].payload);
+  assert.equal(request.params.videoSourceType, AgoraVideoSourceType.Camera);
+  assert.equal(request.params.sourceType, AgoraVideoSourceType.Camera);
+  transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true }));
+  await pending;
+});
+
 test('client surfaces error and volume indication events to subscribed listeners', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -512,7 +612,7 @@ test('joinChannel dispatches optional channel media options from TypeScript', as
     defaultVideoStreamType: 0,
     audioDelayMs: 50,
     mediaPlayerAudioDelayMs: 60,
-    sourceType: 1,
+    videoSourceType: 1,
     enableBuiltInMediaEncryption: true,
     publishRhythmPlayerTrack: true,
     isInteractiveAudience: true,
@@ -561,6 +661,7 @@ test('joinChannel dispatches optional channel media options from TypeScript', as
       audioDelayMs: 50,
       mediaPlayerAudioDelayMs: 60,
       sourceType: 1,
+      videoSourceType: 1,
       enableBuiltInMediaEncryption: true,
       publishRhythmPlayerTrack: true,
       isInteractiveAudience: true,
@@ -1294,6 +1395,7 @@ test('setupLocalVideoView dispatches the expected native request', async () => {
     renderMode: 'adaptive',
     mirrorMode: 1,
     setupMode: 1,
+    videoSourceType: 0,
     sourceType: 0,
     mediaPlayerId: 7,
     cropArea: { x: 1, y: 2, width: 3, height: 4 },
@@ -1317,6 +1419,7 @@ test('setupLocalVideoView dispatches the expected native request', async () => {
     mirrorMode: 1,
     setupMode: 1,
     sourceType: 0,
+    videoSourceType: 0,
     mediaPlayerId: 7,
     cropArea: { x: 1, y: 2, width: 3, height: 4 },
     backgroundColor: 0x11223344,
@@ -1401,6 +1504,7 @@ test('setupRemoteVideoView dispatches AgoraRtcVideoCanvas fields to native', asy
     mirrorMode: 2,
     setupMode: 1,
     sourceType: 0,
+    videoSourceType: 0,
     mediaPlayerId: 11,
     cropArea: { x: 4, y: 3, width: 2, height: 1 },
     backgroundColor: 0x55667788,
@@ -1447,6 +1551,7 @@ test('updateLocalVideoView dispatches stripped canvas fields to native', async (
     height: 100,
     mirrorMode: 1,
     sourceType: 0,
+    videoSourceType: 0,
   });
   assert.equal(request.params.displayNode, undefined);
 
@@ -1487,6 +1592,7 @@ test('updateRemoteVideoView dispatches stripped canvas fields to native', async 
     height: 100,
     mirrorMode: 2,
     sourceType: 0,
+    videoSourceType: 0,
   });
   assert.equal(request.params.displayNode, undefined);
 
@@ -1566,7 +1672,7 @@ test('startPreview and switchCamera dispatch the expected native requests', asyn
   const secondaryPreviewPending = client.startPreview(1);
   const secondaryPreviewRequest = JSON.parse(transport.sent[1].payload);
   assert.equal(secondaryPreviewRequest.method, 'startPreview');
-  assert.deepEqual(secondaryPreviewRequest.params, { sourceType: 1 });
+  assert.deepEqual(secondaryPreviewRequest.params, { videoSourceType: 1, sourceType: 1 });
   transport.emit(
     'agora:response',
     JSON.stringify({
@@ -1961,7 +2067,7 @@ test('client dispatches expected native requests for all expanded public APIs', 
     rednessLevel: 0.5,
     sharpnessLevel: 0.5,
   };
-  await testApi('setBeautyEffectOptions', () => client.setBeautyEffectOptions(true, fullBeautyOptions, 2), { enabled: true, options: fullBeautyOptions, sourceType: 2 });
+  await testApi('setBeautyEffectOptions', () => client.setBeautyEffectOptions(true, fullBeautyOptions, 2), { enabled: true, options: fullBeautyOptions, mediaSourceType: 2, sourceType: 2 });
   assertFixtureCoversInterfaceFields('AgoraBeautyOptions', fullBeautyOptions);
 
   const fullContentInspectConfig = {
@@ -2013,6 +2119,7 @@ test('client dispatches expected native requests for all expanded public APIs', 
       mirrorMode: 1,
       setupMode: 1,
       sourceType: 0,
+      videoSourceType: 0,
       mediaPlayerId: 7,
       cropArea: { x: 1, y: 2, width: 3, height: 4 },
       backgroundColor: 0x11223344,
@@ -2032,6 +2139,7 @@ test('client dispatches expected native requests for all expanded public APIs', 
       mirrorMode: 1,
       setupMode: 1,
       sourceType: 0,
+      videoSourceType: 0,
       mediaPlayerId: 7,
       cropArea: { x: 1, y: 2, width: 3, height: 4 },
       backgroundColor: 0x11223344,
@@ -2073,6 +2181,7 @@ test('client dispatches expected native requests for all expanded public APIs', 
       mirrorMode: 2,
       setupMode: 1,
       sourceType: 0,
+      videoSourceType: 0,
       mediaPlayerId: 11,
       cropArea: { x: 4, y: 3, width: 2, height: 1 },
       backgroundColor: 0x55667788,
@@ -2085,7 +2194,7 @@ test('client dispatches expected native requests for all expanded public APIs', 
   await testApi('removeLocalVideoView', () => client.removeLocalVideoView(), {});
   await testApi('removeRemoteVideoView', () => client.removeRemoteVideoView(123), { uid: 123 });
   await testApi('setNativeVideoOverlaySuspended', () => client.setNativeVideoOverlaySuspended(true), { suspended: true });
-  await testApi('stopPreview', () => client.stopPreview(1), { sourceType: 1 });
+  await testApi('stopPreview', () => client.stopPreview(1), { videoSourceType: 1, sourceType: 1 });
   await testApi('renewToken', () => client.renewToken('token123'), { token: 'token123' });
 });
 
