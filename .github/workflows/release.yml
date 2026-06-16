@@ -23,6 +23,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get tags
+        run: git fetch --tags origin
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -58,17 +62,38 @@ jobs:
 
       - name: Create GitHub Release
         if: ${{ inputs.dry-run == false }}
+        id: publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="$(node -p "require('./sdk/agora-rtc/package.json').version")"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           git push origin "HEAD:${GITHUB_REF_NAME}"
           git push origin "refs/tags/${VERSION}"
           gh release create "${VERSION}" \
+            --repo "${{ github.repository }}" \
             --title "Release ${VERSION}" \
-            --notes-file CHANGELOG.md \
-            dist/agora-rtc-cocos-plugin.zip \
-            dist/customer-delivery/agora-rtc-cocos-plugin.zip
+            --notes-file CHANGELOG.md
+
+      - name: Upload SDK plugin zip
+        if: ${{ inputs.dry-run == false }}
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/agora-rtc-cocos-plugin.zip
+          asset_name: agora-rtc-cocos-plugin.zip
+          tag: ${{ steps.publish.outputs.version }}
+          overwrite: true
+
+      - name: Upload customer delivery plugin zip
+        if: ${{ inputs.dry-run == false }}
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: dist/customer-delivery/agora-rtc-cocos-plugin.zip
+          asset_name: agora-rtc-cocos-plugin-customer-delivery.zip
+          tag: ${{ steps.publish.outputs.version }}
+          overwrite: true
 
       - name: Upload dry-run artifacts
         if: ${{ inputs.dry-run == true }}
