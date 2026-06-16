@@ -59,6 +59,8 @@ jobs:
         run: |
           ./scripts/package-sdk.sh ./dist
           ./scripts/package-customer-delivery.sh ./dist/customer-delivery
+          rm -f dist/agora-cocos-customer-delivery.zip
+          (cd dist && zip -rq agora-cocos-customer-delivery.zip customer-delivery)
 
       - name: Create GitHub Release
         if: ${{ inputs.dry-run == false }}
@@ -85,13 +87,13 @@ jobs:
           tag: ${{ steps.publish.outputs.version }}
           overwrite: true
 
-      - name: Upload customer delivery plugin zip
+      - name: Upload customer delivery zip
         if: ${{ inputs.dry-run == false }}
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: dist/customer-delivery/agora-rtc-cocos-plugin.zip
-          asset_name: agora-rtc-cocos-plugin-customer-delivery.zip
+          file: dist/agora-cocos-customer-delivery.zip
+          asset_name: agora-cocos-customer-delivery.zip
           tag: ${{ steps.publish.outputs.version }}
           overwrite: true
 
