@@ -107,8 +107,17 @@ test('ensureIosSetupGuide writes an actionable SPM guide', async () => {
   const filePath = await ensureIosSetupGuide(root);
   const content = await readFile(filePath, 'utf8');
 
-  assert.match(content, /RtcBasic/);
-  assert.match(content, /ClearVision/);
+  // The guide must list exactly the products the config selects, however many
+  // that is. Asserting against the live config (instead of hardcoded names)
+  // means the test stays correct when the update-deps workflow narrows the
+  // product set down to a subset such as just RtcBasic.
+  assert.ok(
+    Array.isArray(sdkConfig.ios.packageProducts) && sdkConfig.ios.packageProducts.length > 0,
+    'expected sdkConfig.ios.packageProducts to be a non-empty array',
+  );
+  for (const product of sdkConfig.ios.packageProducts) {
+    assert.match(content, new RegExp(`\\b${product}\\b`));
+  }
   assert.match(content, new RegExp(sdkConfig.ios.packageVersion.replaceAll('.', '\\.')));
   assert.match(content, /Swift Package Manager/);
 });

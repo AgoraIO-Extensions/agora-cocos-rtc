@@ -60,14 +60,14 @@ const mavenCoordinateRegex =
 //   github:git@github.com:AgoraIO/AgoraAudio_iOS.git
 //   https://github.com/AgoraIO/AgoraAudio_iOS.git
 const githubSourceRegex =
-  /github\.com[:/]([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+?)(?:\.git)?(?=$|[\s|,'")])/i;
+  /github\.com[:/]([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+?)(?:\.git)?(?=$|[\s|,'")/])/i;
 
 // iOS Swift Package version. This is the one field that needs an explicit label
 // (`tag:` or `version:`), because a bare version number is indistinguishable
 // from the Android coordinate's own version (e.g. iOS 4.5.3-a1 vs Android
 // 4.5.3.1.BASIC1). The separator may be `:` or `=` with any spacing.
 //   tag:4.5.3-a1
-const tagRegex = /(?:tag|version)\s*[:=]\s*([A-Za-z0-9_.+-]+)/i;
+const tagRegex = /\b(?:tag|version)\s*[:=]\s*([A-Za-z0-9_.+-]+)/i;
 
 // iOS Swift Package products to link. A product name is just a bare identifier
 // (RtcBasic, AINS, ...) with no distinctive shape of its own, so — unlike the
@@ -77,20 +77,27 @@ const tagRegex = /(?:tag|version)\s*[:=]\s*([A-Za-z0-9_.+-]+)/i;
 // of valid products is NOT hardcoded here: whatever names a future Package.swift
 // exports can be selected without touching this script. The list is captured up
 // to the first token that is not a comma-joined identifier, so a trailing Maven
-// coordinate or keyword on the same single-line input is left alone.
+// coordinate or keyword on the same single-line input is left alone. Each name
+// must be a complete word that is not part of a URL or path: the negative
+// lookahead `(?![A-Za-z0-9_.:/-])` rejects partial matches, so neither
+// `github.com` nor a `https://` scheme can contribute a bogus product when the
+// list is otherwise empty (e.g. `products: https://github.com/...`).
 //   products:RtcBasic,AINS,AudioBeauty
 //   product: RtcBasic , AINS
-const productsRegex =
-  /products?\s*[:=]\s*([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)/i;
+const PRODUCT_NAME = /[A-Za-z0-9_]+(?![A-Za-z0-9_.:/-])/.source;
+const productsRegex = new RegExp(
+  `products?\\s*[:=]\\s*(${PRODUCT_NAME}(?:\\s*,\\s*${PRODUCT_NAME})*)`,
+  'i',
+);
 
 // Parses a free-form dependencies block into the fields we maintain in
 // sdk-config.json. Returns only the values that were actually found.
 function parseDependenciesContent(content) {
   const parsed = {};
 
-  const mavenDependencies = [...content.matchAll(mavenCoordinateRegex)].map(
-    (match) => match[1],
-  );
+  const mavenDependencies = [
+    ...new Set([...content.matchAll(mavenCoordinateRegex)].map((match) => match[1])),
+  ];
   if (mavenDependencies.length > 0) {
     parsed.androidDependencies = mavenDependencies;
   }

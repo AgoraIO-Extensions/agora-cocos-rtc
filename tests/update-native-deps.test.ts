@@ -160,3 +160,57 @@ test('messy free-form input still resolves every field', async () => {
     'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1',
   ]);
 });
+
+// --- Adversarial cases: each of these caught a real parser bug. ---
+
+test('the word "hashtag" is not mistaken for a tag: label', async () => {
+  // /tag/ without a word boundary matches the "tag" inside "hashtag", which
+  // would set the iOS version to a stray neighbouring token.
+  const config = await runWithContent(
+    'github:https://github.com/AgoraIO/AgoraAudio_iOS.git tag:4.5.3-a1 hashtag meeting',
+  );
+
+  assert.equal(config.ios.packageVersion, '4.5.3-a1');
+});
+
+test('a github url with a trailing slash is still recognized', async () => {
+  const config = await runWithContent(
+    'github:https://github.com/AgoraIO/AgoraAudio_iOS.git/ tag:4.5.3-a1',
+  );
+
+  assert.equal(config.ios.packageUrl, 'https://github.com/AgoraIO/AgoraAudio_iOS.git');
+});
+
+test('an empty products label does not harvest a word from a following url', async () => {
+  // `products:` with no real names must NOT pull "https"/"github" out of the
+  // URL that follows it. With nothing valid after the label, products stay put.
+  const config = await runWithContent(
+    'products: https://github.com/AgoraIO/AgoraAudio_iOS.git tag:4.5.3-a1',
+  );
+
+  // The base config's products are left untouched, not replaced by a URL token.
+  assert.deepEqual(config.ios.packageProducts, ['RtcBasic']);
+});
+
+test('duplicate Maven coordinates are de-duplicated', async () => {
+  const config = await runWithContent(
+    [
+      "implementation 'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'",
+      "implementation 'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'",
+    ].join('\n'),
+  );
+
+  assert.deepEqual(config.android.dependencies, [
+    'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1',
+  ]);
+});
+
+test('a product name that is a prefix of a url host is not captured', async () => {
+  // "github" is a valid-looking identifier but here it is the url host, not a
+  // product. The negative lookahead on "." / ":" / "/" must reject it.
+  const config = await runWithContent(
+    'products:github.com tag:1.0',
+  );
+
+  assert.deepEqual(config.ios.packageProducts, ['RtcBasic']);
+});
