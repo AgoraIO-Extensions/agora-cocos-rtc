@@ -8,13 +8,16 @@
 /local/
 /build/
 /build-android/
+/build-google-play/
 /build-ios/
 /build-logs/
 /build-android-logs/
+/build-google-play-logs/
 /build-ios-logs/
 /local-maven/
 /profiles/
 /native/engine/android/**/*/assets
+/native/engine/google-play/**/*/assets
 
 #//////////////////////////
 # NPM

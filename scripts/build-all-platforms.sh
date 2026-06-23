@@ -26,11 +26,16 @@ ANDROID_COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/local/android-release.c
 ANDROID_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-android/android/proj"
 ANDROID_APK_DIR="$ANDROID_PROJECT_DIR/build/agora-cocos-basic-call/outputs/apk/release"
 ANDROID_APK_PATH=""
+GOOGLE_PLAY_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/google-play-release.json"
+GOOGLE_PLAY_COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/local/google-play-release.ci.json"
+GOOGLE_PLAY_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-google-play/google-play/proj"
+GOOGLE_PLAY_APK_DIR="$GOOGLE_PLAY_PROJECT_DIR/build/agora-cocos-basic-call/outputs/apk/release"
+GOOGLE_PLAY_APK_PATH=""
 ANDROID_SDK_ROOT_DEFAULT="$HOME/Library/Android/sdk"
 ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_SDK_ROOT_DEFAULT}"
 ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
 ANDROID_GRADLE_OFFLINE="${ANDROID_GRADLE_OFFLINE:-false}"
-LOCAL_AGORA_MAVEN_DIR="$ROOT_DIR/example/basic-call/native/engine/android/local-maven"
+LOCAL_AGORA_MAVEN_DIR="$ROOT_DIR/example/basic-call/local-maven"
 
 IOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/ios-release.json"
 IOS_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-ios/ios/proj"
@@ -50,6 +55,7 @@ BUILD_PROVISION_PROFILE_TEAMID="${BUILD_PROVISION_PROFILE_TEAMID:-}"
 BUILD_PROVISION_PROFILE_IDENTITY="${BUILD_PROVISION_PROFILE_IDENTITY:-Apple Distribution}"
 IOS_EXPORT_METHOD="${IOS_EXPORT_METHOD:-ad-hoc}"
 BUILT_ANDROID_APK=""
+BUILT_GOOGLE_PLAY_APK=""
 BUILT_IOS_IPA=""
 
 IFS=',' read -rA REQUESTED_PLATFORMS <<< "$TARGET_PLATFORMS"
@@ -97,10 +103,11 @@ validate_ios_signing() {
   fi
 }
 
-resolve_android_release_apk() {
+resolve_android_like_release_apk() {
+  local apk_dir="$1"
   local candidates=(
-    "$ANDROID_APK_DIR/agora-cocos-basic-call-release.apk"
-    "$ANDROID_APK_DIR/agora-cocos-basic-call-release-unsigned.apk"
+    "$apk_dir/agora-cocos-basic-call-release.apk"
+    "$apk_dir/agora-cocos-basic-call-release-unsigned.apk"
   )
   local candidate
 
@@ -111,13 +118,21 @@ resolve_android_release_apk() {
     fi
   done
 
-  local discovered_apks=("${(@f)$(find "$ANDROID_APK_DIR" -maxdepth 1 -name '*.apk' -type f 2>/dev/null)}")
+  local discovered_apks=("${(@f)$(find "$apk_dir" -maxdepth 1 -name '*.apk' -type f 2>/dev/null)}")
   if [[ ${#discovered_apks[@]} -eq 1 ]]; then
     echo "$discovered_apks[1]"
     return 0
   fi
 
   return 1
+}
+
+resolve_android_release_apk() {
+  resolve_android_like_release_apk "$ANDROID_APK_DIR"
+}
+
+resolve_google_play_release_apk() {
+  resolve_android_like_release_apk "$GOOGLE_PLAY_APK_DIR"
 }
 
 resolve_android_ndk_path() {
@@ -143,7 +158,10 @@ resolve_android_ndk_path() {
   return 1
 }
 
-write_android_cocos_build_config() {
+write_android_like_cocos_build_config() {
+  local source_config="$1"
+  local output_config="$2"
+
   if [[ ! -d "$ANDROID_SDK_ROOT/platform-tools" ]]; then
     echo "Android SDK is missing platform-tools under $ANDROID_SDK_ROOT." >&2
     echo "Set ANDROID_SDK_ROOT or install Android command-line tools before building Android." >&2
@@ -157,25 +175,20 @@ write_android_cocos_build_config() {
     exit 1
   fi
 
-  mkdir -p "$(dirname "$ANDROID_COCOS_BUILD_CONFIG")"
-  ANDROID_BUILD_CONFIG="$ANDROID_BUILD_CONFIG" \
-  ANDROID_COCOS_BUILD_CONFIG="$ANDROID_COCOS_BUILD_CONFIG" \
+  mkdir -p "$(dirname "$output_config")"
+  COCOS_BUILD_SOURCE_CONFIG="$source_config" \
+  COCOS_BUILD_OUTPUT_CONFIG="$output_config" \
   ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
   ANDROID_NDK_HOME="$ANDROID_NDK_HOME" \
-  node --input-type=module <<'NODE'
-import { readFile, writeFile } from 'node:fs/promises';
+  node "$ROOT_DIR/scripts/write-cocos-native-build-config.mjs"
+}
 
-const sourcePath = process.env.ANDROID_BUILD_CONFIG;
-const outputPath = process.env.ANDROID_COCOS_BUILD_CONFIG;
-const config = JSON.parse(await readFile(sourcePath, 'utf8'));
+write_android_cocos_build_config() {
+  write_android_like_cocos_build_config "$ANDROID_BUILD_CONFIG" "$ANDROID_COCOS_BUILD_CONFIG"
+}
 
-config.packages ??= {};
-config.packages.android ??= {};
-config.packages.android.sdkPath = process.env.ANDROID_SDK_ROOT;
-config.packages.android.ndkPath = process.env.ANDROID_NDK_HOME;
-
-await writeFile(outputPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
-NODE
+write_google_play_cocos_build_config() {
+  write_android_like_cocos_build_config "$GOOGLE_PLAY_BUILD_CONFIG" "$GOOGLE_PLAY_COCOS_BUILD_CONFIG"
 }
 
 print_build_artifacts() {
@@ -184,6 +197,9 @@ print_build_artifacts() {
   echo "Release packages:"
   if [[ -n "$BUILT_ANDROID_APK" ]]; then
     echo "  Android: $BUILT_ANDROID_APK"
+  fi
+  if [[ -n "$BUILT_GOOGLE_PLAY_APK" ]]; then
+    echo "  Google Play: $BUILT_GOOGLE_PLAY_APK"
   fi
   if [[ -n "$BUILT_IOS_IPA" ]]; then
     echo "  iOS:     $BUILT_IOS_IPA"
@@ -197,12 +213,12 @@ validate_requested_platforms() {
   for platform in "${REQUESTED_PLATFORMS[@]}"; do
     platform="${platform//[[:space:]]/}"
     case "$platform" in
-      android|ios)
+      android|google-play|ios)
         ;;
       '')
         ;;
       *)
-        echo "unsupported platform: $platform. Supported platforms are android and ios." >&2
+        echo "unsupported platform: $platform. Supported platforms are android, google-play, and ios." >&2
         exit 1
         ;;
     esac
@@ -286,6 +302,38 @@ if should_build_platform "android"; then
     exit 1
   fi
   BUILT_ANDROID_APK="$ANDROID_APK_PATH"
+fi
+
+if should_build_platform "google-play"; then
+  echo "Building Google Play release APK..."
+  if [[ ! -d "$LOCAL_AGORA_MAVEN_DIR" ]]; then
+    node ./scripts/fetch-agora-maven.mjs >/dev/null
+  fi
+  write_google_play_cocos_build_config
+  run_cocos_build "$GOOGLE_PLAY_COCOS_BUILD_CONFIG" "Google Play"
+  node ./scripts/sync-native-engine-texture-bridge.mjs >/dev/null
+  node ./scripts/sync-android-app-bridge.mjs >/dev/null
+
+  if [[ ! -f "$ROOT_DIR/example/basic-call/build-google-play/google-play/data/assets/main/index.js" ]]; then
+    echo "Cocos Google Play export did not produce build-google-play/google-play/data/assets/main/index.js" >&2
+    exit 1
+  fi
+
+  (
+    cd "$GOOGLE_PLAY_PROJECT_DIR"
+    if [[ "$ANDROID_GRADLE_OFFLINE" == "true" ]]; then
+      ./gradlew --offline :agora-cocos-basic-call:assembleRelease
+    else
+      ./gradlew :agora-cocos-basic-call:assembleRelease
+    fi
+  )
+
+  GOOGLE_PLAY_APK_PATH="$(resolve_google_play_release_apk || true)"
+  if [[ -z "$GOOGLE_PLAY_APK_PATH" ]]; then
+    echo "Google Play release APK was not produced under $GOOGLE_PLAY_APK_DIR" >&2
+    exit 1
+  fi
+  BUILT_GOOGLE_PLAY_APK="$GOOGLE_PLAY_APK_PATH"
 fi
 
 if should_build_platform "ios"; then

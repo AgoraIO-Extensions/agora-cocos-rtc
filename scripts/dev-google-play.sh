@@ -5,10 +5,10 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "$0")/.." && pwd)
 COCOS_CLI="/Applications/Cocos/Creator/3.8.8/CocosCreator.app/Contents/MacOS/CocosCreator"
 COCOS_PROJECT_DIR="$ROOT_DIR/example/basic-call"
-ANDROID_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/android-debug.json"
-ANDROID_COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-android/android-debug.local.json"
-ANDROID_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-android/android/proj"
-APK_PATH="$ANDROID_PROJECT_DIR/build/agora-cocos-basic-call/outputs/apk/debug/agora-cocos-basic-call-debug.apk"
+GOOGLE_PLAY_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-configs/google-play-debug.json"
+GOOGLE_PLAY_COCOS_BUILD_CONFIG="$ROOT_DIR/example/basic-call/build-google-play/google-play-debug.local.json"
+GOOGLE_PLAY_PROJECT_DIR="$ROOT_DIR/example/basic-call/build-google-play/google-play/proj"
+APK_PATH="$GOOGLE_PLAY_PROJECT_DIR/build/agora-cocos-basic-call/outputs/apk/debug/agora-cocos-basic-call-debug.apk"
 PACKAGE_NAME="io.agora.cocos.example"
 ACTIVITY_NAME="com.cocos.game.AppActivity"
 ANDROID_SDK_ROOT_DEFAULT="$HOME/Library/Android/sdk"
@@ -47,23 +47,23 @@ resolve_android_ndk_path() {
   return 1
 }
 
-write_android_cocos_build_config() {
+write_google_play_cocos_build_config() {
   if [[ ! -d "$ANDROID_SDK_ROOT/platform-tools" ]]; then
     echo "Android SDK is missing platform-tools under $ANDROID_SDK_ROOT." >&2
-    echo "Set ANDROID_SDK_ROOT or install Android command-line tools before building Android." >&2
+    echo "Set ANDROID_SDK_ROOT or install Android command-line tools before building Google Play." >&2
     exit 1
   fi
 
   ANDROID_NDK_HOME="$(resolve_android_ndk_path || true)"
   if [[ -z "$ANDROID_NDK_HOME" ]]; then
     echo "Android NDK was not found under $ANDROID_SDK_ROOT/ndk." >&2
-    echo "Set ANDROID_NDK_HOME or install NDK 23.1.7779620 before building Android." >&2
+    echo "Set ANDROID_NDK_HOME or install NDK 23.1.7779620 before building Google Play." >&2
     exit 1
   fi
 
-  mkdir -p "$(dirname "$ANDROID_COCOS_BUILD_CONFIG")"
-  COCOS_BUILD_SOURCE_CONFIG="$ANDROID_BUILD_CONFIG" \
-  COCOS_BUILD_OUTPUT_CONFIG="$ANDROID_COCOS_BUILD_CONFIG" \
+  mkdir -p "$(dirname "$GOOGLE_PLAY_COCOS_BUILD_CONFIG")"
+  COCOS_BUILD_SOURCE_CONFIG="$GOOGLE_PLAY_BUILD_CONFIG" \
+  COCOS_BUILD_OUTPUT_CONFIG="$GOOGLE_PLAY_COCOS_BUILD_CONFIG" \
   ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
   ANDROID_NDK_HOME="$ANDROID_NDK_HOME" \
   node "$ROOT_DIR/scripts/write-cocos-native-build-config.mjs"
@@ -85,10 +85,10 @@ fi
 if [[ ! -d "$LOCAL_AGORA_MAVEN_DIR" ]]; then
   node ./scripts/fetch-agora-maven.mjs >/dev/null
 fi
-write_android_cocos_build_config
+write_google_play_cocos_build_config
 
 set +e
-"$COCOS_CLI" --project "$COCOS_PROJECT_DIR" --build "configPath=$ANDROID_COCOS_BUILD_CONFIG"
+"$COCOS_CLI" --project "$COCOS_PROJECT_DIR" --build "configPath=$GOOGLE_PLAY_COCOS_BUILD_CONFIG"
 COCOS_BUILD_EXIT_CODE=$?
 set -e
 
@@ -97,23 +97,22 @@ if [[ $COCOS_BUILD_EXIT_CODE -ne 0 && $COCOS_BUILD_EXIT_CODE -ne 36 ]]; then
   exit $COCOS_BUILD_EXIT_CODE
 fi
 
-if [[ ! -f "$ROOT_DIR/example/basic-call/build-android/android/data/assets/main/index.js" ]]; then
-  echo "Cocos CLI build did not produce build-android/android/data/assets/main/index.js" >&2
+if [[ ! -f "$ROOT_DIR/example/basic-call/build-google-play/google-play/data/assets/main/index.js" ]]; then
+  echo "Cocos CLI build did not produce build-google-play/google-play/data/assets/main/index.js" >&2
   exit 1
 fi
 
 node ./scripts/sync-android-app-bridge.mjs >/dev/null
 
-cd "$ANDROID_PROJECT_DIR"
+cd "$GOOGLE_PLAY_PROJECT_DIR"
 ./gradlew --offline :agora-cocos-basic-call:assembleDebug
 
-# "$ADB_BIN" uninstall "$PACKAGE_NAME" >/dev/null 2>&1 || true
 "$ADB_BIN" "${ADB_TARGET_ARGS[@]}" install -g -r --no-streaming "$APK_PATH"
 "$ADB_BIN" "${ADB_TARGET_ARGS[@]}" logcat -c || echo "Warning: failed to clear logcat; continuing." >&2
 "$ADB_BIN" "${ADB_TARGET_ARGS[@]}" shell am start -n "$PACKAGE_NAME/$ACTIVITY_NAME"
 
 echo
-echo "Android debug build installed and launched:"
+echo "Google Play debug build installed and launched:"
 echo "  APK: $APK_PATH"
 echo "  Package: $PACKAGE_NAME"
 if [[ -n "$TARGET_ANDROID_SERIAL" ]]; then

@@ -483,6 +483,7 @@ test('patchIosXcodeProjectSwiftPackage adds Agora iOS SPM product to the app tar
   const original = createIosPbxprojFixture();
   const once = patchIosXcodeProjectSwiftPackage(original);
   const twice = patchIosXcodeProjectSwiftPackage(once);
+  const packageName = sdkConfig.ios.packageUrl.split('/').pop()?.replace(/\.git$/, '') ?? '';
 
   assert.match(once, /XCRemoteSwiftPackageReference/);
   assert.match(once, new RegExp(sdkConfig.ios.packageUrl.replaceAll('.', '\\.')));
@@ -492,13 +493,18 @@ test('patchIosXcodeProjectSwiftPackage adds Agora iOS SPM product to the app tar
   for (const product of sdkConfig.ios.packageProducts) {
     assert.match(once, new RegExp(`productName = ${product};`));
   }
-  assert.match(once, /packageReferences = \(\s*A90A00000000000000000101 \/\* XCRemoteSwiftPackageReference "AgoraRtcEngine_iOS" \*\/,\s*\);/);
+  assert.match(
+    once,
+    new RegExp(
+      `packageReferences = \\(\\s*A90A00000000000000000101 \\/\\* XCRemoteSwiftPackageReference "${packageName}" \\*\\/,\\s*\\);`,
+    ),
+  );
   for (const product of sdkConfig.ios.packageProducts) {
     assert.match(once, new RegExp(`\\/\\* ${product} \\*\\/,`));
     assert.match(once, new RegExp(`\\/\\* ${product} in Frameworks \\*\\/,`));
   }
   assert.equal(
-    [...once.matchAll(/repositoryURL = "https:\/\/github\.com\/AgoraIO\/AgoraRtcEngine_iOS\.git";/g)].length,
+    [...once.matchAll(new RegExp(`repositoryURL = "${sdkConfig.ios.packageUrl.replaceAll('.', '\\.')}";`, 'g'))].length,
     1,
   );
   assert.equal(once, twice);
@@ -854,4 +860,41 @@ test('cocos extension entrypoints are loadable from commonjs', () => {
   assert.equal(typeof main.load, 'function');
   assert.equal(typeof main.unload, 'function');
   assert.equal(typeof builder.configs.ios.hooks, 'string');
+  assert.equal(typeof builder.configs['google-play'].hooks, 'string');
+});
+
+test('google-play is treated as an android-like platform for export integration', async () => {
+  const {
+    ANDROID_ENGINE_DIR_NAMES,
+    androidEnginePathCandidates,
+    isAndroidLikePlatform,
+    onAfterBuild,
+  } = require('../sdk/agora-rtc/dist/hooks.js');
+
+  assert.deepEqual(ANDROID_ENGINE_DIR_NAMES, ['google-play', 'android']);
+  assert.equal(isAndroidLikePlatform('google-play'), true);
+  assert.equal(isAndroidLikePlatform('ANDROID'), true);
+  assert.equal(isAndroidLikePlatform('ios'), false);
+  assert.ok(
+    androidEnginePathCandidates('app/build.gradle').some((candidate) =>
+      candidate.includes('native/engine/google-play/app/build.gradle'),
+    ),
+  );
+
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-google-play-export-'));
+  const manifestPath = path.join(root, 'native/engine/google-play/app/AndroidManifest.xml');
+  await mkdir(path.dirname(manifestPath), { recursive: true });
+  await writeFile(
+    manifestPath,
+    `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <application />
+</manifest>`,
+    'utf8',
+  );
+
+  await onAfterBuild({ platform: 'google-play' }, { dest: root });
+  const content = await readFile(manifestPath, 'utf8');
+  assert.match(content, /android\.permission\.CAMERA/);
+  assert.match(content, /android\.permission\.RECORD_AUDIO/);
 });
