@@ -10,11 +10,19 @@ on:
         default: ''
       dependencies_content:
         description: |
-          Native dependency block. Include the iOS Swift Package source/tag and the
-          Android Maven coordinate(s). Optionally append products:<comma-list> to set
-          the linked iOS package products. For example:
-            github:https://github.com/AgoraIO/AgoraAudio_iOS.git | tag:4.5.3-a1 | products:RtcBasic
-            implementation 'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'
+          Native dependency block. Paste whatever the release note gives you, in
+          any order and with any separators (newlines, spaces, pipes, quotes). Each
+          field is detected by its shape:
+            - Android: any group:artifact:version coordinate (implementation/api and
+              quotes optional), e.g. io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1
+            - iOS source: any github.com URL (https or git@), e.g.
+              https://github.com/AgoraIO/AgoraAudio_iOS.git
+            - iOS version: must be labelled tag: or version: (e.g. tag:4.5.3-a1),
+              since a bare version is ambiguous with the Android one
+            - iOS products: mention any of the known product names (RtcBasic, AINS,
+              AudioBeauty, ...) to narrow the linked set; omit to keep the current list
+          Example:
+            github:https://github.com/AgoraIO/AgoraAudio_iOS.git tag:4.5.3-a1 implementation 'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'
         type: string
         required: true
 

@@ -40,53 +40,64 @@ function parseArgs(argv) {
   return args;
 }
 
-// Matches Android Maven coordinates declared in Gradle style, e.g.
+// The dependencies content is meant to be forgiving: users paste whatever a
+// release note hands them, in any order, with any separators (newlines, spaces,
+// pipes, quotes). Each field is detected by its own shape instead of by a
+// rigid layout, so messy input still resolves correctly.
+
+// Android Maven coordinate (group:artifact:version). The `implementation`/`api`
+// keyword and the surrounding quotes are optional — the group:artifact:version
+// shape is distinctive enough to match on its own, anywhere in the text.
 //   implementation 'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'
+//   io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1
 const mavenCoordinateRegex =
-  /(?:implementation|api)\s+['"]((?:cn|io)\.(?:agora|shengwang)(?:\.[a-z]+)?:[a-zA-Z0-9_-]+:[a-zA-Z0-9_.-]+)['"]/g;
+  /\b((?:cn|io)\.(?:agora|shengwang)(?:\.[a-z]+)?:[A-Za-z0-9_-]+:[A-Za-z0-9_.+-]+)/g;
 
-// Matches a Swift Package source declared as `github:<git-url>`, e.g.
+// iOS Swift Package GitHub source, in any form: https, http, or SCP-style SSH
+// (git@github.com:Owner/Repo.git), with or without a `github:` label and with
+// or without a trailing `.git`. We capture owner/repo and rebuild the canonical
+// https URL stored in sdk-config.json.
 //   github:git@github.com:AgoraIO/AgoraAudio_iOS.git
-const githubSourceRegex = /github:\s*(\S+)/;
+//   https://github.com/AgoraIO/AgoraAudio_iOS.git
+const githubSourceRegex =
+  /github\.com[:/]([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+?)(?:\.git)?(?=$|[\s|,'")])/i;
 
-// Matches a Swift Package tag declared as `tag:<version>`, e.g.
+// iOS Swift Package version. This is the one field that needs an explicit label
+// (`tag:` or `version:`), because a bare version number is indistinguishable
+// from the Android coordinate's own version (e.g. iOS 4.5.3-a1 vs Android
+// 4.5.3.1.BASIC1). The separator may be `:` or `=` with any spacing.
 //   tag:4.5.3-a1
-const tagRegex = /tag:\s*(\S+)/;
+const tagRegex = /(?:tag|version)\s*[:=]\s*([A-Za-z0-9_.+-]+)/i;
 
-// Matches the Swift Package products to link, declared as a comma-separated
-// `products:<list>`, e.g.
+// iOS Swift Package products to link. A product name is just a bare identifier
+// (RtcBasic, AINS, ...) with no distinctive shape of its own, so — unlike the
+// other fields — it cannot be detected by pattern alone without guessing. We
+// therefore require an explicit `products:` (or `product:`) label and take the
+// comma-separated identifier list that follows it verbatim. This means the set
+// of valid products is NOT hardcoded here: whatever names a future Package.swift
+// exports can be selected without touching this script. The list is captured up
+// to the first token that is not a comma-joined identifier, so a trailing Maven
+// coordinate or keyword on the same single-line input is left alone.
 //   products:RtcBasic,AINS,AudioBeauty
-// Captured up to the next `|` delimiter or end of line so the list may contain
-// spaces after commas.
-const productsRegex = /products:\s*([^\n|]+)/;
-
-function normalizeGithubUrl(rawUrl) {
-  const url = rawUrl.trim();
-  // Convert SCP-style SSH remotes (git@github.com:Owner/Repo.git) to https,
-  // matching the packageUrl style stored in sdk-config.json.
-  const sshMatch = url.match(/^git@([^:]+):(.+)$/);
-  if (sshMatch) {
-    return `https://${sshMatch[1]}/${sshMatch[2]}`;
-  }
-  return url;
-}
+//   product: RtcBasic , AINS
+const productsRegex =
+  /products?\s*[:=]\s*([A-Za-z0-9_]+(?:\s*,\s*[A-Za-z0-9_]+)*)/i;
 
 // Parses a free-form dependencies block into the fields we maintain in
 // sdk-config.json. Returns only the values that were actually found.
 function parseDependenciesContent(content) {
   const parsed = {};
 
-  const mavenDependencies = [];
-  for (const match of content.matchAll(mavenCoordinateRegex)) {
-    mavenDependencies.push(match[1]);
-  }
+  const mavenDependencies = [...content.matchAll(mavenCoordinateRegex)].map(
+    (match) => match[1],
+  );
   if (mavenDependencies.length > 0) {
     parsed.androidDependencies = mavenDependencies;
   }
 
   const githubMatch = content.match(githubSourceRegex);
   if (githubMatch) {
-    parsed.iosPackageUrl = normalizeGithubUrl(githubMatch[1]);
+    parsed.iosPackageUrl = `https://github.com/${githubMatch[1]}.git`;
   }
 
   const tagMatch = content.match(tagRegex);
@@ -94,6 +105,9 @@ function parseDependenciesContent(content) {
     parsed.iosVersion = tagMatch[1].trim();
   }
 
+  // Select the products listed after a `products:` label, verbatim. No fixed
+  // list of valid names is assumed here, so new Package.swift products work
+  // without changing this script.
   const productsMatch = content.match(productsRegex);
   if (productsMatch) {
     const products = productsMatch[1]
