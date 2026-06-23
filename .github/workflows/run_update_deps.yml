@@ -34,10 +34,19 @@ jobs:
             exit 1
           fi
 
+      - name: Prepare target branch
+        id: prepare_target_branch
+        env:
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          final_target_branch="${TARGET_BRANCH:-$REF_NAME}"
+          echo "final_target_branch=${final_target_branch}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.target_branch || github.ref_name }}
+          ref: ${{ steps.prepare_target_branch.outputs.final_target_branch }}
           fetch-depth: 1
 
       - name: Setup Node
@@ -68,8 +77,8 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: 'feat: update native dependencies'
-          branch: deps/native-sdk-update
-          base: ${{ inputs.target_branch || github.ref_name }}
+          branch: ${{ steps.prepare_target_branch.outputs.final_target_branch }}-deps
+          base: ${{ steps.prepare_target_branch.outputs.final_target_branch }}
           delete-branch: true
           title: 'feat: update native dependencies'
           body: |
