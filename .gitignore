@@ -26,13 +26,16 @@ example/basic-call/local/
 example/basic-call/profiles/
 example/basic-call/build/
 example/basic-call/build-android/
+example/basic-call/build-google-play/
 example/basic-call/build-ios/
 example/basic-call/build-logs
 example/basic-call/build-android-logs
+example/basic-call/build-google-play-logs
 example/basic-call/build-ios-logs
 example/basic-call/local-maven/
 example/basic-call/native/engine/
 example/basic-call/native/engine/android/**/*/assets
+example/basic-call/native/engine/google-play/**/*/assets
 example/basic-call/assets/scripts/cocos-device-tests/
 example/basic-call/assets/scripts/cocos-device-tests.meta
 test_shard/integration_test_app/reports/*.json
