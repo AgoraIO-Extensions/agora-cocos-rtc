@@ -53,6 +53,13 @@ const githubSourceRegex = /github:\s*(\S+)/;
 //   tag:4.5.3-a1
 const tagRegex = /tag:\s*(\S+)/;
 
+// Matches the Swift Package products to link, declared as a comma-separated
+// `products:<list>`, e.g.
+//   products:RtcBasic,AINS,AudioBeauty
+// Captured up to the next `|` delimiter or end of line so the list may contain
+// spaces after commas.
+const productsRegex = /products:\s*([^\n|]+)/;
+
 function normalizeGithubUrl(rawUrl) {
   const url = rawUrl.trim();
   // Convert SCP-style SSH remotes (git@github.com:Owner/Repo.git) to https,
@@ -87,6 +94,17 @@ function parseDependenciesContent(content) {
     parsed.iosVersion = tagMatch[1].trim();
   }
 
+  const productsMatch = content.match(productsRegex);
+  if (productsMatch) {
+    const products = productsMatch[1]
+      .split(',')
+      .map((product) => product.trim())
+      .filter(Boolean);
+    if (products.length > 0) {
+      parsed.iosPackageProducts = products;
+    }
+  }
+
   return parsed;
 }
 
@@ -115,6 +133,10 @@ const androidDependencies =
     : null;
 const iosPackageUrl = fromContent.iosPackageUrl ?? null;
 const iosVersion = fromContent.iosVersion || args.iosVersion;
+const iosPackageProducts =
+  fromContent.iosPackageProducts && fromContent.iosPackageProducts.length > 0
+    ? fromContent.iosPackageProducts
+    : null;
 
 if (androidDependencies) {
   sdkConfig.android.dependencies = androidDependencies;
@@ -135,6 +157,10 @@ if (iosPackageUrl) {
 
 if (iosVersion) {
   sdkConfig.ios.packageVersion = iosVersion;
+}
+
+if (iosPackageProducts) {
+  sdkConfig.ios.packageProducts = iosPackageProducts;
 }
 
 await writeFile(configPath, `${JSON.stringify(sdkConfig, null, 2)}\n`, 'utf8');
