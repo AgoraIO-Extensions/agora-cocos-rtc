@@ -1981,12 +1981,16 @@ test('ios integration script removes stale Swift package products for the same r
   );
 });
 
-test('ios sdk config uses the product names declared by the local 4.5.3 Package.swift', async () => {
+test('ios sdk config uses product names declared by the local 4.5.3 Package.swift', async () => {
   const sdkConfig = JSON.parse(
     await readFile(path.join(repoRoot, 'sdk/agora-rtc/sdk-config.json'), 'utf8'),
   );
 
-  assert.deepEqual(sdkConfig.ios.packageProducts, [
+  // The full set of products exported by the 4.5.3 Package.swift. The configured
+  // packageProducts may select any non-empty subset of these (the update-deps
+  // workflow can narrow them), but every entry must be a real product name so the
+  // exported Xcode project never links a product that does not exist.
+  const availableProducts = new Set([
     'RtcBasic',
     'AINS',
     'AINSLL',
@@ -2005,6 +2009,15 @@ test('ios sdk config uses the product names declared by the local 4.5.3 Package.
     'VideoAv1CodecEnc',
     'ReplayKit',
   ]);
+
+  assert.ok(
+    Array.isArray(sdkConfig.ios.packageProducts) && sdkConfig.ios.packageProducts.length > 0,
+    'expected ios.packageProducts to be a non-empty array',
+  );
+  const unknown = sdkConfig.ios.packageProducts.filter(
+    (product) => !availableProducts.has(product),
+  );
+  assert.deepEqual(unknown, [], `unknown iOS package products: ${unknown.join(', ')}`);
 });
 
 test('ios integration script removes Cocos legacy build locations before enabling Swift packages', async () => {

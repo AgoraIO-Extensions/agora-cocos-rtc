@@ -96,18 +96,67 @@ test('https github source is kept as-is', async () => {
   assert.equal(config.ios.packageUrl, 'https://github.com/AgoraIO/AgoraAudio_iOS.git');
 });
 
-test('dependencies-content updates iOS package products when provided', async () => {
+test('products listed after a products: label are taken verbatim', async () => {
+  // Any names work — the script does not assume a fixed set, so future
+  // Package.swift products are supported without code changes.
   const config = await runWithContent(
-    'github:https://github.com/AgoraIO/AgoraAudio_iOS.git | tag:4.5.3-a1 | products:RtcBasic,AINS',
-  );
-
-  assert.deepEqual(config.ios.packageProducts, ['RtcBasic', 'AINS']);
-});
-
-test('package products tolerate spaces after commas', async () => {
-  const config = await runWithContent(
-    'github:https://github.com/AgoraIO/AgoraAudio_iOS.git | tag:4.5.3-a1 | products:RtcBasic, AINS, AudioBeauty',
+    'github:https://github.com/AgoraIO/AgoraAudio_iOS.git | tag:4.5.3-a1 | products:RtcBasic,AINS,AudioBeauty',
   );
 
   assert.deepEqual(config.ios.packageProducts, ['RtcBasic', 'AINS', 'AudioBeauty']);
+});
+
+test('a future product name not known in advance is still selectable', async () => {
+  const config = await runWithContent(
+    'github:https://github.com/AgoraIO/AgoraAudio_iOS.git | tag:4.5.3-a1 | products:RtcBasic,SomeBrandNewProduct',
+  );
+
+  assert.deepEqual(config.ios.packageProducts, ['RtcBasic', 'SomeBrandNewProduct']);
+});
+
+test('products list tolerates assorted spacing and a product:/= label', async () => {
+  const config = await runWithContent(
+    'github:https://github.com/AgoraIO/AgoraAudio_iOS.git tag:4.5.3-a1 product = RtcBasic, AINS ,AudioBeauty',
+  );
+
+  assert.deepEqual(config.ios.packageProducts, ['RtcBasic', 'AINS', 'AudioBeauty']);
+});
+
+test('a trailing Maven coordinate after the products list is left alone', async () => {
+  // workflow_dispatch inputs arrive on one line, so the Android coordinate can
+  // sit right after the products list; the list must stop before it.
+  const config = await runWithContent(
+    "github:https://github.com/AgoraIO/AgoraAudio_iOS.git tag:4.5.3-a1 products:RtcBasic implementation 'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'",
+  );
+
+  assert.deepEqual(config.ios.packageProducts, ['RtcBasic']);
+  assert.deepEqual(config.android.dependencies, [
+    'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1',
+  ]);
+});
+
+test('omitting the products label leaves the existing package products untouched', async () => {
+  const config = await runWithContent(
+    'github:https://github.com/AgoraIO/AgoraAudio_iOS.git | tag:4.5.3-a1',
+  );
+
+  assert.deepEqual(config.ios.packageProducts, ['RtcBasic']);
+});
+
+test('messy free-form input still resolves every field', async () => {
+  const config = await runWithContent(
+    [
+      'please bump iOS to tag = 4.5.3-a1',
+      'repo git@github.com:AgoraIO/AgoraAudio_iOS.git',
+      "android: implementation 'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'",
+      'products: RtcBasic, AINS',
+    ].join('\n'),
+  );
+
+  assert.equal(config.ios.packageVersion, '4.5.3-a1');
+  assert.equal(config.ios.packageUrl, 'https://github.com/AgoraIO/AgoraAudio_iOS.git');
+  assert.deepEqual(config.ios.packageProducts, ['RtcBasic', 'AINS']);
+  assert.deepEqual(config.android.dependencies, [
+    'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1',
+  ]);
 });
