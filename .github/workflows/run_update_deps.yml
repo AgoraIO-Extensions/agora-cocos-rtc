@@ -11,8 +11,9 @@ on:
       dependencies_content:
         description: |
           Native dependency block. Include the iOS Swift Package source/tag and the
-          Android Maven coordinate(s), for example:
-            github:git@github.com:AgoraIO/AgoraAudio_iOS.git | tag:4.5.3-a1
+          Android Maven coordinate(s). Optionally append products:<comma-list> to set
+          the linked iOS package products. For example:
+            github:https://github.com/AgoraIO/AgoraAudio_iOS.git | tag:4.5.3-a1 | products:RtcBasic
             implementation 'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'
         type: string
         required: true
@@ -62,14 +63,15 @@ jobs:
         run: npm run verify
 
       - name: Commit and create pull request
+        id: create_pull_request
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'chore: update native dependencies'
+          commit-message: 'feat: update native dependencies'
           branch: deps/native-sdk-update
           base: ${{ inputs.target_branch || github.ref_name }}
           delete-branch: true
-          title: 'chore: update native dependencies'
+          title: 'feat: update native dependencies'
           body: |
             Updates Agora native dependency versions in `sdk/agora-rtc/sdk-config.json`.
 
@@ -78,3 +80,25 @@ jobs:
             ```
             ${{ inputs.dependencies_content }}
             ```
+
+      - name: Report pull request link
+        if: ${{ steps.create_pull_request.outputs.pull-request-number }}
+        env:
+          PR_NUMBER: ${{ steps.create_pull_request.outputs.pull-request-number }}
+          PR_URL: ${{ steps.create_pull_request.outputs.pull-request-url }}
+          PR_OPERATION: ${{ steps.create_pull_request.outputs.pull-request-operation }}
+        run: |
+          {
+            echo "### Native dependency update"
+            echo ""
+            echo "- Pull request: [#${PR_NUMBER}](${PR_URL}) (${PR_OPERATION})"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report no changes
+        if: ${{ !steps.create_pull_request.outputs.pull-request-number }}
+        run: |
+          {
+            echo "### Native dependency update"
+            echo ""
+            echo "No changes detected; the dependencies content matched the current config."
+          } >> "$GITHUB_STEP_SUMMARY"

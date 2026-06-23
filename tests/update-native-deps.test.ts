@@ -95,3 +95,19 @@ test('https github source is kept as-is', async () => {
 
   assert.equal(config.ios.packageUrl, 'https://github.com/AgoraIO/AgoraAudio_iOS.git');
 });
+
+test('dependencies-content updates iOS package products when provided', async () => {
+  const config = await runWithContent(
+    'github:https://github.com/AgoraIO/AgoraAudio_iOS.git | tag:4.5.3-a1 | products:RtcBasic,AINS',
+  );
+
+  assert.deepEqual(config.ios.packageProducts, ['RtcBasic', 'AINS']);
+});
+
+test('package products tolerate spaces after commas', async () => {
+  const config = await runWithContent(
+    'github:https://github.com/AgoraIO/AgoraAudio_iOS.git | tag:4.5.3-a1 | products:RtcBasic, AINS, AudioBeauty',
+  );
+
+  assert.deepEqual(config.ios.packageProducts, ['RtcBasic', 'AINS', 'AudioBeauty']);
+});
