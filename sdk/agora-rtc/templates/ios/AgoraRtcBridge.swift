@@ -139,6 +139,18 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return slotNumber.intValue
     }
 
+    private func runOnMainQueue(sync: Bool = true, _ block: @escaping () -> Void) {
+        if Thread.isMainThread {
+            block()
+            return
+        }
+        if sync {
+            DispatchQueue.main.sync(execute: block)
+            return
+        }
+        DispatchQueue.main.async(execute: block)
+    }
+
     private func updateTextureSlot(slotId: Int, pixelBuffer: CVPixelBuffer) {
         guard let type = textureSlotBridgeClass() else {
             return
@@ -669,16 +681,16 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "destroy":
-            let shouldDestroyEngine = rtcEngine != nil
-            _ = rtcEngine?.setVideoFrameDelegate(nil)
-            rtcEngine = nil
-            releaseAllTextureSlots()
-            dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
-            if shouldDestroyEngine {
-                DispatchQueue.global(qos: .utility).async {
+            runOnMainQueue {
+                let shouldDestroyEngine = self.rtcEngine != nil
+                _ = self.rtcEngine?.setVideoFrameDelegate(nil)
+                self.rtcEngine = nil
+                self.releaseAllTextureSlots()
+                self.dispatchResponse([
+                    "requestId": requestId,
+                    "ok": true,
+                ])
+                if shouldDestroyEngine {
                     AgoraRtcEngineKit.destroy()
                 }
             }
@@ -753,20 +765,22 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             config.logConfig = logConfig
         }
 
-        rtcEngine = AgoraRtcEngineKit.sharedEngine(with: config, delegate: self)
-        guard let engine = rtcEngine else {
-            dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
-            return
+        runOnMainQueue {
+            self.rtcEngine = AgoraRtcEngineKit.sharedEngine(with: config, delegate: self)
+            guard let engine = self.rtcEngine else {
+                self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+                return
+            }
+            guard self.applyProtectedParameters(engine: engine, requestId: requestId, method: "initialize", params: params) else {
+                self.rtcEngine = nil
+                return
+            }
+            _ = engine.setVideoFrameDelegate(self)
+            self.dispatchResponse([
+                "requestId": requestId,
+                "ok": true,
+            ])
         }
-        guard applyProtectedParameters(engine: engine, requestId: requestId, method: "initialize", params: params) else {
-            rtcEngine = nil
-            return
-        }
-        _ = engine.setVideoFrameDelegate(self)
-        dispatchResponse([
-            "requestId": requestId,
-            "ok": true,
-        ])
     }
 
     private func applyProtectedParameters(engine: AgoraRtcEngineKit, requestId: String, method: String, params: [String: Any]) -> Bool {
@@ -1246,12 +1260,14 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         ])
     }
 
-    private func requireEngine(requestId: String, action: (AgoraRtcEngineKit) -> Void) {
-        guard let engine = rtcEngine else {
-            dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
-            return
+    private func requireEngine(requestId: String, action: @escaping (AgoraRtcEngineKit) -> Void) {
+        runOnMainQueue {
+            guard let engine = self.rtcEngine else {
+                self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+                return
+            }
+            action(engine)
         }
-        action(engine)
     }
 
     private func requiredString(

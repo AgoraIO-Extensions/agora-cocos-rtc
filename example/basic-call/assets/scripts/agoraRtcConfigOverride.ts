@@ -26,6 +26,8 @@ export type AgoraExampleRuntimeConfig = {
   autoSubscribeVideo?: boolean;
   channelProfile?: ChannelProfile;
   clientRole?: ClientRole;
+  initialLocalAudioEnabled?: boolean;
+  initialLocalAudioMuted?: boolean;
   videoEncoderPresetName?: VideoEncoderPresetName;
   previewSourceType?: number;
   localVideoCanvas?: Partial<AgoraRtcVideoCanvas>;
@@ -162,6 +164,16 @@ export function resolveAgoraExampleConfig(
     baseConfig?.clientRole,
     ['broadcaster', 'audience'] as const,
   );
+  const initialLocalAudioEnabled = resolveBooleanConfig(
+    buildConfig?.initialLocalAudioEnabled,
+    baseConfig?.initialLocalAudioEnabled,
+    true,
+  );
+  const initialLocalAudioMuted = resolveBooleanConfig(
+    buildConfig?.initialLocalAudioMuted,
+    baseConfig?.initialLocalAudioMuted,
+    false,
+  );
   const videoEncoderPresetName = resolveEnumConfig(
     buildConfig?.videoEncoderPresetName,
     baseConfig?.videoEncoderPresetName,
@@ -235,6 +247,8 @@ export function resolveAgoraExampleConfig(
     autoSubscribeVideo,
     channelProfile,
     clientRole,
+    initialLocalAudioEnabled,
+    initialLocalAudioMuted,
     videoEncoderPresetName,
     previewSourceType,
     localVideoCanvas,
