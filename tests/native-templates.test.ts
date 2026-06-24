@@ -1444,6 +1444,18 @@ test('ios bridge template maps joinChannel media options from request payload', 
   );
 });
 
+test('ios bridge template keeps requireEngine action non-escaping', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /private func runOnMainQueueSync\(_ block: \(\) -> Void\)/);
+  assert.match(bridgeContent, /private func requireEngine\(requestId: String, action: \(AgoraRtcEngineKit\) -> Void\)/);
+  assert.doesNotMatch(bridgeContent, /private func runOnMainQueueSync\(_ block: @escaping/);
+  assert.doesNotMatch(bridgeContent, /private func requireEngine\(requestId: String, action: @escaping/);
+});
+
 test('ios bridge template maps expanded configs and callbacks', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
@@ -1819,6 +1831,7 @@ test('ios bridge template routes rtc engine lifecycle and api calls through the 
   assert.match(bridgeContent, /if Thread\.isMainThread \{/);
   assert.match(bridgeContent, /DispatchQueue\.main\.sync\(execute: block\)/);
   assert.match(bridgeContent, /DispatchQueue\.main\.async\(execute: block\)/);
+  assert.match(bridgeContent, /private func runOnMainQueueSync\(_ block: \(\) -> Void\)/);
 
   const initializeMatch = bridgeContent.match(
     /private func handleInitialize\(requestId: String, params: \[String: Any\]\) \{[\s\S]*?private func applyProtectedParameters/,
@@ -1828,11 +1841,13 @@ test('ios bridge template routes rtc engine lifecycle and api calls through the 
   assert.match(initializeMatch[0], /rtcEngine = AgoraRtcEngineKit\.sharedEngine\(with: config, delegate: self\)/);
 
   const requireEngineMatch = bridgeContent.match(
-    /private func requireEngine\(requestId: String, action: @escaping \(AgoraRtcEngineKit\) -> Void\) \{[\s\S]*?private func requiredString/,
+    /private func requireEngine\(requestId: String, action: \(AgoraRtcEngineKit\) -> Void\) \{[\s\S]*?private func requiredString/,
   );
   assert.ok(requireEngineMatch);
-  assert.match(requireEngineMatch[0], /runOnMainQueue \{/);
+  assert.match(requireEngineMatch[0], /runOnMainQueueSync \{/);
+  assert.match(requireEngineMatch[0], /guard let engine = rtcEngine else/);
   assert.match(requireEngineMatch[0], /action\(engine\)/);
+  assert.doesNotMatch(requireEngineMatch[0], /DispatchQueue\.main\.sync/);
 
   const destroyMatch = bridgeContent.match(
     /case "destroy":[\s\S]*?case "setupLocalVideoView":/,

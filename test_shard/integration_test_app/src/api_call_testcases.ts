@@ -1,4 +1,8 @@
-import type { AgoraRtcClient } from '../../../extensions/agora-rtc/js/agora.ts';
+import {
+  AgoraAudioProfile,
+  AgoraAudioScenario,
+  type AgoraRtcClient,
+} from '../../../extensions/agora-rtc/js/agora.ts';
 
 export type ApiEvidenceKind = 'response' | 'event' | 'error' | 'value';
 
@@ -221,9 +225,12 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'audio.profile',
     method: 'setAudioProfile',
-    expectedParams: { profile: 0, scenario: 1 },
+    expectedParams: { profile: 5, scenario: 3 },
     requiredEvidence: ['response'],
-    run: (client) => client.setAudioProfile(0, 1),
+    run: (client) => client.setAudioProfile(
+      AgoraAudioProfile.MusicHighQualityStereo,
+      AgoraAudioScenario.GameStreaming,
+    ),
   },
   {
     id: 'audio.volume-indication',

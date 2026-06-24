@@ -6,6 +6,8 @@ import {
 } from 'cc';
 
 import {
+  AgoraAudioProfile,
+  AgoraAudioScenario,
   createAgoraRtcClient,
   resolveEngineTextureMirror,
   type AgoraRtcClient,
@@ -71,7 +73,7 @@ export class RtcSessionService {
   private defaultAudioRouteToSpeakerphone = false;
   private beautyEffectEnabled = false;
   private contentInspectEnabled = false;
-  private currentAudioProfile = 0;
+  private currentAudioProfile = AgoraAudioProfile.Default;
   private playbackVolume = 100;
   private userPlaybackVolume = 100;
   private speakerphoneEnabled: boolean | null = null;
@@ -542,7 +544,9 @@ export class RtcSessionService {
   }
 
   async toggleAudioProfile(): Promise<void> {
-    const next = this.currentAudioProfile === 0 ? 1 : 0;
+    const next = this.currentAudioProfile === AgoraAudioProfile.Default
+      ? AgoraAudioProfile.SpeechStandard
+      : AgoraAudioProfile.Default;
     const config = this.options.getConfig();
     const audioProfile = config.audioProfile ?? { profile: next };
     await this.getClient().setAudioProfile(audioProfile.profile, audioProfile.scenario);
@@ -1058,7 +1062,10 @@ export class RtcSessionService {
 
   private async runAudioControlDemo(): Promise<void> {
     const config = this.options.getConfig();
-    const audioProfile = config.audioProfile ?? { profile: 0, scenario: 0 };
+    const audioProfile = config.audioProfile ?? {
+      profile: AgoraAudioProfile.Default,
+      scenario: AgoraAudioScenario.Default,
+    };
     const audioVolumeIndication = config.audioVolumeIndication ?? { interval: 300, smooth: 3, reportVad: false };
     const playbackVolume = config.playbackVolume ?? 100;
     const userPlaybackVolume = config.userPlaybackVolume ?? 100;

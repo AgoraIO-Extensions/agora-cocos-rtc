@@ -298,7 +298,8 @@ test('rtc session service uses runtime-configurable audio, mixing, effect, and d
   const audioControlDemoMatch = content.match(/private async runAudioControlDemo\(\): Promise<void>[\s\S]*?private async runVideoControlDemo/);
   assert.ok(audioControlDemoMatch);
   assert.match(audioControlDemoMatch[0], /const config = this\.options\.getConfig\(\);/);
-  assert.match(audioControlDemoMatch[0], /const audioProfile = config\.audioProfile \?\? \{ profile: 0, scenario: 0 \}/);
+  assert.match(audioControlDemoMatch[0], /profile: AgoraAudioProfile\.Default/);
+  assert.match(audioControlDemoMatch[0], /scenario: AgoraAudioScenario\.Default/);
   assert.match(audioControlDemoMatch[0], /const audioVolumeIndication = config\.audioVolumeIndication \?\? \{ interval: 300, smooth: 3, reportVad: false \}/);
   assert.match(audioControlDemoMatch[0], /const playbackVolume = config\.playbackVolume \?\? 100/);
   assert.match(audioControlDemoMatch[0], /const userPlaybackVolume = config\.userPlaybackVolume \?\? 100/);

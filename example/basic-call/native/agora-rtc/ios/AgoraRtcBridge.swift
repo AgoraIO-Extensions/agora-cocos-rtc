@@ -151,6 +151,14 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         DispatchQueue.main.async(execute: block)
     }
 
+    private func runOnMainQueueSync(_ block: () -> Void) {
+        if Thread.isMainThread {
+            block()
+            return
+        }
+        DispatchQueue.main.sync(execute: block)
+    }
+
     private func updateTextureSlot(slotId: Int, pixelBuffer: CVPixelBuffer) {
         guard let type = textureSlotBridgeClass() else {
             return
@@ -1260,10 +1268,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         ])
     }
 
-    private func requireEngine(requestId: String, action: @escaping (AgoraRtcEngineKit) -> Void) {
-        runOnMainQueue {
-            guard let engine = self.rtcEngine else {
-                self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+    private func requireEngine(requestId: String, action: (AgoraRtcEngineKit) -> Void) {
+        runOnMainQueueSync {
+            guard let engine = rtcEngine else {
+                dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
                 return
             }
             action(engine)
