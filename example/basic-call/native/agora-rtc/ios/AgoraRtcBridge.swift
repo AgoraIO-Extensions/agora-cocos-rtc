@@ -48,6 +48,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     private var remoteTextureUids = Set<UInt>()
     private var remoteTextureSlots: [UInt: TextureSlotState] = [:]
     private var observedFramePosition: AgoraVideoFramePosition = [.postCapture, .preRenderer]
+    private var shouldFinalizeDestroyedEngine = false
 
     private func sharedInstance(named className: String) -> NSObject? {
         guard let type = NSClassFromString(className) as? NSObject.Type else {
@@ -540,6 +541,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     return
                 }
             }
+#if AGORA_HAS_CONTENT_INSPECT
         case "enableContentInspect":
             requireEngine(requestId: requestId) { engine in
                 let enabled = params["enabled"] as? Bool ?? false
@@ -553,6 +555,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 let result = engine.enableContentInspect(enabled, config: config)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
+#endif
         case "startAudioMixing":
             requireEngine(requestId: requestId) { engine in
                 guard let path = requiredString(
@@ -690,7 +693,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "destroy":
             runOnMainQueue {
-                let shouldDestroyEngine = self.rtcEngine != nil
+                self.shouldFinalizeDestroyedEngine = self.rtcEngine != nil
                 _ = self.rtcEngine?.setVideoFrameDelegate(nil)
                 self.rtcEngine = nil
                 self.releaseAllTextureSlots()
@@ -698,10 +701,9 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     "requestId": requestId,
                     "ok": true,
                 ])
-                if shouldDestroyEngine {
-                    AgoraRtcEngineKit.destroy()
-                }
             }
+        case "finalizeDestroy":
+            finalizeDestroyEngine()
         case "setupLocalVideoView":
             handleSetupLocalVideoView(requestId: requestId, params: params)
         case "setupRemoteVideoView":
@@ -1102,10 +1104,12 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return AgoraVideoStreamType(rawValue: value) ?? AgoraVideoStreamType(rawValue: 0)!
     }
 
+#if AGORA_HAS_CONTENT_INSPECT
     private func parseContentInspectModulePosition(_ rawValue: Any) -> AgoraVideoModulePosition {
         let value = intValue(rawValue)
         return AgoraVideoModulePosition(rawValue: value) ?? .preRenderer
     }
+#endif
 
     private func parseMultipathMode(_ rawValue: Any) -> AgoraMultipathMode {
         let value = intValue(rawValue)
@@ -1135,6 +1139,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return options
     }
 
+#if AGORA_HAS_CONTENT_INSPECT
     private func buildContentInspectModules(_ params: [String: Any]) -> [AgoraContentInspectModule] {
         if let moduleParams = params["modules"] as? [[String: Any]], !moduleParams.isEmpty {
             return moduleParams.map { buildContentInspectModule($0) }
@@ -1162,6 +1167,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         }
         module.setValue(NSNumber(value: parseContentInspectModulePosition(rawValue).rawValue), forKey: "position")
     }
+#endif
 
     private func intValue(_ rawValue: Any) -> Int {
         if let value = rawValue as? Int {
@@ -1311,6 +1317,16 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             return false
         }
         return true
+    }
+
+    private func finalizeDestroyEngine() {
+        runOnMainQueue {
+            guard self.shouldFinalizeDestroyedEngine else {
+                return
+            }
+            self.shouldFinalizeDestroyedEngine = false
+            AgoraRtcEngineKit.destroy()
+        }
     }
 
     private func handleSetupLocalVideoView(requestId: String, params: [String: Any]) {
@@ -1883,11 +1899,13 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         ])
     }
 
+    #if AGORA_HAS_CONTENT_INSPECT
     func rtcEngine(_ engine: AgoraRtcEngineKit, contentInspectResult result: AgoraContentInspectResult) {
         dispatchEvent(name: "contentInspectResult", payload: [
             "result": result.rawValue,
         ])
     }
+    #endif
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, localVideoStateChangedOf state: AgoraVideoLocalState, reason: AgoraLocalVideoStreamReason, sourceType: AgoraVideoSourceType) {
         dispatchEvent(name: "localVideoStateChanged", payload: [

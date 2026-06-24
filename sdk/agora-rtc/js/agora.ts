@@ -59,6 +59,9 @@ type PendingRequest = {
   timer: ReturnType<typeof setTimeout>;
 };
 
+type InternalAgoraMethod = 'finalizeDestroy';
+type BridgeDispatchMethod = AgoraBridgeRequest['method'] | InternalAgoraMethod;
+
 type AnyAgoraEventListener = (payload: AgoraEventMap[keyof AgoraEventMap]) => void;
 
 type TextureReadySlotCache = {
@@ -71,14 +74,25 @@ const PROTECTED_APP_TYPE_PARAMETERS = { 'rtc.set_app_type': 10 } as const;
 type ProtectedParameterMethod = 'initialize' | 'setParameters';
 
 function isIosBridgeRuntime(runtime?: CocosBridgeRuntime): boolean {
-  const platform = runtime?.sys?.platform;
-  if (platform === undefined || platform === null) {
-    return false;
+  const os = runtime?.sys?.os;
+  const iosOs = runtime?.sys?.OS?.IOS;
+  if (os !== undefined && os !== null) {
+    if (iosOs !== undefined && iosOs !== null && os === iosOs) {
+      return true;
+    }
+    if (typeof os === 'string') {
+      return os.toUpperCase() === 'IOS' || os.toUpperCase() === 'I_OS';
+    }
   }
+
+  const platform = runtime?.sys?.platform;
   if (typeof platform === 'string') {
     return platform.toUpperCase() === 'IOS';
   }
-  return platform === 2;
+  if (typeof platform === 'number') {
+    return platform === 2;
+  }
+  return false;
 }
 
 function normalizePlayEffectConfig(
@@ -832,7 +846,13 @@ export class AgoraRtcClient {
     try {
       await this.#invoke('destroy', {});
     } finally {
+      const shouldFinalizeNativeDestroy = isIosBridgeRuntime(this.#bridgeRuntime);
       this.#teardown();
+      if (shouldFinalizeNativeDestroy) {
+        setTimeout(() => {
+          this.#dispatchFireAndForget('finalizeDestroy', {});
+        }, 0);
+      }
     }
   }
 
@@ -884,6 +904,27 @@ export class AgoraRtcClient {
         JSON.stringify(request),
       );
     });
+  }
+
+  #dispatchFireAndForget(method: BridgeDispatchMethod, params: Record<string, unknown>): void {
+    const transport = this.#resolveTransport();
+    if (!transport) {
+      return;
+    }
+
+    const request = {
+      requestId: createRequestId(),
+      method,
+      params,
+    };
+    const payload = JSON.stringify(request);
+
+    if (typeof transport.dispatchEventToNative === 'function') {
+      transport.dispatchEventToNative(BRIDGE_REQUEST_EVENT, payload);
+      return;
+    }
+
+    transport.dispatchEventToScript?.(BRIDGE_REQUEST_EVENT, payload);
   }
 
   #handleResponse(payload: string): void {

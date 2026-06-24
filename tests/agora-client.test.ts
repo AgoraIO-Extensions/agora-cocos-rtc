@@ -1437,6 +1437,44 @@ test('destroy dispatches the expected native request and detaches listeners', as
   assert.equal(transport.removed.length, 2);
 });
 
+test('destroy defers iOS native engine teardown until after the destroy response resolves', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    bridgeRuntime: {
+      sys: {
+        isNative: true,
+        os: 'iOS',
+        OS: {
+          IOS: 'iOS',
+        },
+      },
+    },
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.destroy();
+  const request = JSON.parse(transport.sent[0].payload);
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+  assert.equal(transport.sent.length, 1);
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(transport.sent.length, 2);
+  const finalizeRequest = JSON.parse(transport.sent[1].payload);
+  assert.equal(finalizeRequest.method, 'finalizeDestroy');
+  assert.deepEqual(finalizeRequest.params, {});
+});
+
 test('setupLocalVideoView dispatches the expected native request', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({

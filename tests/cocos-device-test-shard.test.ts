@@ -48,6 +48,8 @@ test('cocos api test matrix covers every native Agora method and records paramet
 
   assert.match(testcasesContent, /expectedParams:/);
   assert.match(testcasesContent, /requiredEvidence:/);
+  assert.match(testcasesContent, /requiredCapabilities:/);
+  assert.match(testcasesContent, /filterApiCallTestcases/);
   assert.match(testcasesContent, /lighteningContrastLevel/);
   assert.match(testcasesContent, /orientationMode/);
   assert.match(testcasesContent, /loopback/);
@@ -149,6 +151,66 @@ test('cocos api testcases accept native error evidence for platform-sensitive ca
   }
 });
 
+test('cocos api testcases skip video, render, and content inspect coverage for audio-only native deps', async () => {
+  const testcasesContent = await readFile(
+    `${repoRoot}/test_shard/integration_test_app/src/api_call_testcases.ts`,
+    'utf8',
+  );
+  const runnerContent = await readFile(
+    `${repoRoot}/test_shard/integration_test_app/src/api_test_runner.ts`,
+    'utf8',
+  );
+
+  assert.match(testcasesContent, /export type ApiTestCapability = 'video' \| 'render' \| 'contentInspect'/);
+  assert.match(testcasesContent, /DEFAULT_API_TEST_CAPABILITIES/);
+  assert.match(testcasesContent, /filterApiCallTestcases/);
+  assert.match(runnerContent, /createCapabilities/);
+  assert.match(runnerContent, /filterApiCallTestcases\(capabilities\)/);
+  assert.match(runnerContent, /TEST_CAPABILITIES/);
+
+  for (const caseId of [
+    'channel.join',
+    'video.enable',
+    'video.enable-local',
+    'video.mute-local',
+    'video.mute-remote',
+    'video.mute-all-remote',
+    'video.encoder-config',
+    'video.start-preview',
+    'video.switch-camera',
+    'video.beauty',
+    'video.stop-preview',
+  ]) {
+    assert.match(
+      testcasesContent,
+      new RegExp(`id:\\s*'${caseId}'[\\s\\S]*?requiredCapabilities:\\s*\\['video'\\]`),
+      `${caseId} should be skipped when video capability is disabled`,
+    );
+  }
+
+  for (const caseId of [
+    'render.setup-local-view',
+    'render.setup-remote-view',
+    'render.update-local-view',
+    'render.update-remote-view',
+    'render.suspend-overlay',
+    'render.remove-remote-view',
+    'render.remove-local-view',
+  ]) {
+    assert.match(
+      testcasesContent,
+      new RegExp(`id:\\s*'${caseId}'[\\s\\S]*?requiredCapabilities:\\s*\\['render'\\]`),
+      `${caseId} should be skipped when render capability is disabled`,
+    );
+  }
+
+  assert.match(
+    testcasesContent,
+    /id:\s*'video\.content-inspect'[\s\S]*?requiredCapabilities:\s*\['contentInspect'\]/,
+    'content inspect should be skipped when the optional product is absent',
+  );
+});
+
 test('cocos device runner emits structured logs and writes a json report', async () => {
   const runnerContent = await readFile(
     `${repoRoot}/test_shard/integration_test_app/src/api_test_runner.ts`,
@@ -206,6 +268,20 @@ test('cocos runner injection supports the dynamic prefab bootstrap mount point',
     await readFile(`${repoRoot}/example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts`, 'utf8'),
     'utf8',
   );
+  await mkdir(`${fixtureRoot}/sdk/agora-rtc`, { recursive: true });
+  await writeFile(
+    `${fixtureRoot}/sdk/agora-rtc/sdk-config.json`,
+    `${JSON.stringify({
+      android: {
+        dependencies: ['io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'],
+      },
+      ios: {
+        packageUrl: 'https://github.com/AgoraIO/AgoraAudio_iOS.git',
+        packageProducts: ['RtcBasic'],
+      },
+    }, null, 2)}\n`,
+    'utf8',
+  );
 
   await execFileAsync('node', ['./scripts/inject-cocos-test-runner.mjs'], {
     cwd: fixtureRoot,
@@ -228,6 +304,10 @@ test('cocos runner injection supports the dynamic prefab bootstrap mount point',
     `${fixtureRoot}/example/basic-call/assets/scripts/cocos-device-tests/api_call_testcases.ts`,
     'utf8',
   );
+  const injectedTestModeContent = await readFile(
+    `${fixtureRoot}/example/basic-call/assets/scripts/cocos-device-tests/test-mode.ts`,
+    'utf8',
+  );
   assert.match(
     bootstrapContent,
     /import \{ runAgoraCocosDeviceTestsWhenReady \} from '\.\/cocos-device-tests\/test-mode\.ts';/,
@@ -238,6 +318,9 @@ test('cocos runner injection supports the dynamic prefab bootstrap mount point',
   assert.match(injectedRunnerContent, /\.\.\/\.\.\/\.\.\/extensions\/agora-rtc\/js\/agora\.ts/);
   assert.match(injectedRunnerContent, /\.\.\/\.\.\/\.\.\/extensions\/agora-rtc\/js\/internal\/bridge\.ts/);
   assert.match(injectedTestcasesContent, /\.\.\/\.\.\/\.\.\/extensions\/agora-rtc\/js\/agora\.ts/);
+  assert.match(injectedTestModeContent, /AGORA_COCOS_TEST_CAPABILITIES/);
+  assert.match(injectedTestModeContent, /"Android":\s*\{\s*"video": false,\s*"render": false,\s*"contentInspect": false\s*\}/);
+  assert.match(injectedTestModeContent, /"iOS":\s*\{\s*"video": false,\s*"render": false,\s*"contentInspect": false\s*\}/);
 });
 
 test('cocos integration scripts build and launch android and ios test apps', async () => {
