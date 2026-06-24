@@ -47,6 +47,10 @@ export interface RuntimeConfigState {
   publishMicrophoneTrack: boolean;
   autoSubscribeAudio: boolean;
   autoSubscribeVideo: boolean;
+  channelProfile?: ChannelProfile;
+  clientRole?: ClientRole;
+  initialLocalAudioEnabled?: boolean;
+  initialLocalAudioMuted?: boolean;
   previewSourceType?: number;
   localVideoCanvas?: Partial<AgoraRtcVideoCanvas>;
   remoteVideoCanvas?: Partial<AgoraRtcVideoCanvas>;

@@ -146,6 +146,7 @@ export class RtcSessionService {
       return;
     }
     const config = this.options.getConfig();
+    this.applyConfiguredSessionDefaults(config);
     if (!config.appId.trim()) {
       throw new Error('Agora App ID is empty.');
     }
@@ -154,6 +155,18 @@ export class RtcSessionService {
     await client.initialize(config.appId.trim());
     // await client.setParameters({ 'rtc.camera_capture_mirror_mode': 1 });
     await client.enableVideo(true);
+    if (config.channelProfile) {
+      await client.setChannelProfile(this.selectedChannelProfile);
+    }
+    if (config.clientRole) {
+      await client.setClientRole(this.selectedClientRole);
+    }
+    if (typeof config.initialLocalAudioEnabled === 'boolean') {
+      await client.enableLocalAudio(this.localAudioEnabled);
+    }
+    if (typeof config.initialLocalAudioMuted === 'boolean') {
+      await client.muteLocalAudioStream(this.localAudioMuted);
+    }
     this.initialized = true;
     this.videoEnabled = true;
     this.log('Initialize request sent');
@@ -956,6 +969,21 @@ export class RtcSessionService {
       this.emitState();
     });
     this.listenersBound = true;
+  }
+
+  private applyConfiguredSessionDefaults(config: RuntimeConfigState): void {
+    if (config.channelProfile) {
+      this.selectedChannelProfile = config.channelProfile;
+    }
+    if (config.clientRole) {
+      this.selectedClientRole = config.clientRole;
+    }
+    if (typeof config.initialLocalAudioEnabled === 'boolean') {
+      this.localAudioEnabled = config.initialLocalAudioEnabled;
+    }
+    if (typeof config.initialLocalAudioMuted === 'boolean') {
+      this.localAudioMuted = config.initialLocalAudioMuted;
+    }
   }
 
   private async setupLocalVideoView(): Promise<void> {

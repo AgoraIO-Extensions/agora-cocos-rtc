@@ -658,7 +658,8 @@ test('ios bridge resolves destroy before running sdk teardown', async () => {
     /AgoraRtcEngineKit\.destroy\(\)/,
     'iOS destroy must resolve the JS request before running the potentially blocking sdk teardown',
   );
-  assert.match(destroyMatch[0], /DispatchQueue\.global\(qos: \.utility\)\.async/);
+  assert.match(destroyMatch[0], /runOnMainQueue \{/);
+  assert.doesNotMatch(destroyMatch[0], /DispatchQueue\.global\(qos: \.utility\)\.async/);
 });
 
 test('android bridge template returns errors for bad native requests instead of timing out', async () => {
@@ -1808,6 +1809,39 @@ test('ios bridge template leaves runtime permission ownership to callers', async
   assert.doesNotMatch(handleJoinChannelWithUserAccountMatch[0], /ensureRtcPermissions\(/);
 });
 
+test('ios bridge template routes rtc engine lifecycle and api calls through the main queue', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /private func runOnMainQueue\(sync: Bool = true, _ block: @escaping \(\) -> Void\)/);
+  assert.match(bridgeContent, /if Thread\.isMainThread \{/);
+  assert.match(bridgeContent, /DispatchQueue\.main\.sync\(execute: block\)/);
+  assert.match(bridgeContent, /DispatchQueue\.main\.async\(execute: block\)/);
+
+  const initializeMatch = bridgeContent.match(
+    /private func handleInitialize\(requestId: String, params: \[String: Any\]\) \{[\s\S]*?private func applyProtectedParameters/,
+  );
+  assert.ok(initializeMatch);
+  assert.match(initializeMatch[0], /runOnMainQueue \{/);
+  assert.match(initializeMatch[0], /rtcEngine = AgoraRtcEngineKit\.sharedEngine\(with: config, delegate: self\)/);
+
+  const requireEngineMatch = bridgeContent.match(
+    /private func requireEngine\(requestId: String, action: @escaping \(AgoraRtcEngineKit\) -> Void\) \{[\s\S]*?private func requiredString/,
+  );
+  assert.ok(requireEngineMatch);
+  assert.match(requireEngineMatch[0], /runOnMainQueue \{/);
+  assert.match(requireEngineMatch[0], /action\(engine\)/);
+
+  const destroyMatch = bridgeContent.match(
+    /case "destroy":[\s\S]*?case "setupLocalVideoView":/,
+  );
+  assert.ok(destroyMatch);
+  assert.match(destroyMatch[0], /runOnMainQueue \{/);
+  assert.match(destroyMatch[0], /AgoraRtcEngineKit\.destroy\(\)/);
+});
+
 test('ios bridge template routes bridged uid parsing through uintValue helper for native uint calls', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
@@ -1889,6 +1923,7 @@ test('ios plugin registrar attaches the js bridge wrapper and forwards responses
   assert.match(pluginContent, /handleScriptRequest:/);
   assert.match(pluginContent, /#import "apple\/JsbBridge\.h"/);
   assert.match(pluginContent, /dispatchEventToScript:\(NSString \*\)eventName payload:\(NSString \*\)payload/);
+  assert.match(pluginContent, /dispatch_async\(dispatch_get_main_queue\(\), \^\{/);
   assert.match(
     pluginContent,
     /\[\[JsbBridgeWrapper sharedInstance\] dispatchEventToScript:eventName arg:payload\]/,
@@ -1899,6 +1934,18 @@ test('ios plugin registrar attaches the js bridge wrapper and forwards responses
   assert.match(bridgeContent, /dispatchEventToScript:payload:/);
   assert.match(bridgeContent, /agora:response/);
   assert.match(bridgeContent, /agora:event/);
+});
+
+test('customer delivery ios plugin registrar also marshals bridged responses back to the main queue', async () => {
+  const pluginContent = await readFile(
+    path.join(repoRoot, 'customer-delivery/example-basic-call/native/engine/ios/agora-rtc/AgoraRtcPlugin.mm'),
+    'utf8',
+  );
+
+  assert.match(pluginContent, /dispatchEventToScript:\(NSString \*\)eventName payload:\(NSString \*\)payload/);
+  assert.match(pluginContent, /dispatch_async\(dispatch_get_main_queue\(\), \^\{/);
+  assert.match(pluginContent, /\[\[JsbBridge sharedInstance\] sendToScript:eventName arg1:payload\]/);
+  assert.match(pluginContent, /\[\[JsbBridge sharedInstance\] setCallback:_bridgeCallback\]/);
 });
 
 test('ios integration script registers all committed bridge templates in the exported project', async () => {

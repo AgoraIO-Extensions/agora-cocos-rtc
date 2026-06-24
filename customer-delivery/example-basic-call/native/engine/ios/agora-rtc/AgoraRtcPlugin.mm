@@ -48,7 +48,9 @@
 }
 
 + (void)dispatchEventToScript:(NSString *)eventName payload:(NSString *)payload {
-    [[JsbBridge sharedInstance] sendToScript:eventName arg1:payload];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [[JsbBridge sharedInstance] sendToScript:eventName arg1:payload];
+    });
 }
 
 - (instancetype)init {

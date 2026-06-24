@@ -713,6 +713,16 @@ test('parameter preset buttons keep success and failure state on the pressed but
   assert.match(content, /await this\.runSessionAction\(actionName, \(session\) => session\.applyParameterPreset\(parameters\)\);/);
 });
 
+test('demo root swallows handled async action failures after logging them so native taps do not crash JS', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /onAction: \(actionName\) => \{ void this\.invokeAction\(actionName\)\.catch\(\(\) => \{\}\); \},/);
+  assert.match(content, /await Promise\.resolve\(handler\.call\(this\)\);/);
+});
+
 test('audio effect mixing case wires flutter-required controls', async () => {
   const actionsContent = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/actions.ts`,

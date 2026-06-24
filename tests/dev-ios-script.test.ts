@@ -78,14 +78,24 @@ test('dev-ios-device script wires bundle id, team, provisioning profile, and dev
   );
 
   assert.match(content, /IOS_BUNDLE_ID=.*io\.agora\.cocos\.example/);
-  assert.match(content, /IOS_DEVELOPMENT_TEAM="\$\{IOS_DEVELOPMENT_TEAM:-\}"/);
-  assert.match(content, /IOS_PROVISIONING_PROFILE_SPECIFIER="\$\{IOS_PROVISIONING_PROFILE_SPECIFIER:-\}"/);
-  assert.match(content, /AUTO_JOIN/);
+  assert.match(content, /IOS_DEVELOPMENT_TEAM="\$\{IOS_DEVELOPMENT_TEAM:-rte_team_ios\}"/);
+  assert.match(content, /IOS_PROVISIONING_PROFILE_SPECIFIER="\$\{IOS_PROVISIONING_PROFILE_SPECIFIER:-rte_team_ios\}"/);
+  assert.doesNotMatch(content, /AUTO_JOIN/);
   assert.match(content, /PUBLISH_CAMERA_TRACK/);
+  assert.match(content, /CHANNEL_PROFILE/);
+  assert.match(content, /CLIENT_ROLE/);
+  assert.match(content, /INITIAL_LOCAL_AUDIO_ENABLED/);
+  assert.match(content, /INITIAL_LOCAL_AUDIO_MUTED/);
   assert.match(content, /node \.\/scripts\/write-example-build-config\.mjs >/);
+  assert.match(content, /export CHANNEL_PROFILE="\$\{CHANNEL_PROFILE:-liveBroadcasting\}"/);
+  assert.match(content, /export CLIENT_ROLE="\$\{CLIENT_ROLE:-broadcaster\}"/);
+  assert.match(content, /export PUBLISH_CAMERA_TRACK="\$\{PUBLISH_CAMERA_TRACK:-false\}"/);
+  assert.match(content, /export PUBLISH_MICROPHONE_TRACK="\$\{PUBLISH_MICROPHONE_TRACK:-true\}"/);
+  assert.match(content, /export INITIAL_LOCAL_AUDIO_ENABLED="\$\{INITIAL_LOCAL_AUDIO_ENABLED:-false\}"/);
+  assert.match(content, /export INITIAL_LOCAL_AUDIO_MUTED="\$\{INITIAL_LOCAL_AUDIO_MUTED:-true\}"/);
   assert.match(content, /PROJECT_PATH="\$IOS_PROJECT_DIR\/agora-cocos-basic-call\.xcodeproj"/);
   assert.doesNotMatch(content, /WORKSPACE_PATH=/);
-  assert.match(content, /IOS_CODE_SIGN_IDENTITY="\$\{IOS_CODE_SIGN_IDENTITY:-Apple Development\}"/);
+  assert.match(content, /IOS_CODE_SIGN_IDENTITY="\$\{IOS_CODE_SIGN_IDENTITY:-Apple Development: xuhui lu\}"/);
   assert.match(content, /IOS_XCODE_DESTINATION_ID="\$\{IOS_XCODE_DESTINATION_ID:-\$\{IOS_DEVICE_ID:-\}\}"/);
   assert.match(content, /IOS_DEVICE_ID="\$\{IOS_DEVICE_ID:-\}"/);
   assert.match(content, /iOS device build requires signing and device environment variables/);
@@ -108,8 +118,6 @@ test('dev-ios-device script wires bundle id, team, provisioning profile, and dev
   assert.match(content, /devicectl device install app --device "\$IOS_DEVICE_ID"/);
   assert.match(content, /devicectl device process launch/);
   assert.match(content, /devicectl device process launch --device "\$IOS_DEVICE_ID"/);
-  assert.doesNotMatch(content, /xuhui/);
-  assert.doesNotMatch(content, /rte_team_ios/);
   assert.doesNotMatch(content, /56S4B84HA8/);
   assert.doesNotMatch(content, /726DD8AE/);
 });

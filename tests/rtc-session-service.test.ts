@@ -460,6 +460,48 @@ test('joinRtcChannel publishes derived encoder mirror config before join', async
   );
 });
 
+test('initializeRtc applies configured live-broadcasting broadcaster defaults and pre-join local audio state', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      channelProfile: 'liveBroadcasting',
+      clientRole: 'broadcaster',
+      initialLocalAudioEnabled: false,
+      initialLocalAudioMuted: true,
+    })),
+  );
+
+  await service.initializeRtc();
+
+  assert.deepEqual(
+    transport.sent.map((request) => request.method),
+    [
+      'setRenderBackend',
+      'initialize',
+      'enableVideo',
+      'setChannelProfile',
+      'setClientRole',
+      'enableLocalAudio',
+      'muteLocalAudioStream',
+    ],
+  );
+  assert.deepEqual(pickRequests(transport, 'setChannelProfile')[0]?.params, { profile: 'liveBroadcasting' });
+  assert.deepEqual(pickRequests(transport, 'setClientRole')[0]?.params, { role: 'broadcaster' });
+  assert.deepEqual(pickRequests(transport, 'enableLocalAudio')[0]?.params, { enabled: false });
+  assert.deepEqual(pickRequests(transport, 'muteLocalAudioStream')[0]?.params, { muted: true });
+
+  const state = service.getState();
+  assert.equal(state.channelProfile, 'liveBroadcasting');
+  assert.equal(state.clientRole, 'broadcaster');
+  assert.equal(state.localAudioEnabled, false);
+  assert.equal(state.localAudioMuted, true);
+});
+
 test('startLocalPreview preserves explicit encoder mirror config', async () => {
   const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
   const transport = new AutoResponseTransport();

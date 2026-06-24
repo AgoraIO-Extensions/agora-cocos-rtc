@@ -138,7 +138,7 @@ export class AgoraRtcDemoRoot extends Component {
       onApplyConfig: (channelId, uid) => this.applyConfig(channelId, uid),
     });
     this.actionPanel?.initialize({
-      onAction: (actionName) => { void this.invokeAction(actionName); },
+      onAction: (actionName) => { void this.invokeAction(actionName).catch(() => {}); },
       onApplyConfig: (config) => this.applyBasicVideoConfig(config),
       onSelectCase: (caseName) => this.selectDemoCase(caseName),
       onBackToCases: () => { void this.backToCaseList(); },
@@ -814,6 +814,8 @@ export class AgoraRtcDemoRoot extends Component {
       publishMicrophoneTrack: this.publishMicrophoneTrack,
       autoSubscribeAudio: this.autoSubscribeAudio,
       autoSubscribeVideo: this.autoSubscribeVideo,
+      channelProfile: this.channelProfile,
+      clientRole: this.clientRole,
       previewSourceType: this.previewSourceType,
       localVideoCanvas: this.localVideoCanvas,
       remoteVideoCanvas: this.remoteVideoCanvas,
