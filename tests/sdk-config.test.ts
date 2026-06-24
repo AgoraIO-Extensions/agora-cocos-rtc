@@ -23,6 +23,10 @@ test('sdk native dependency config is exposed from a single source of truth', ()
   assert.equal(sdkConfig.ios.packageVersion, sourceConfig.ios.packageVersion);
   assert.equal(sdkConfig.ios.packageUrl, sourceConfig.ios.packageUrl);
   assert.deepEqual(sdkConfig.ios.packageProducts, sourceConfig.ios.packageProducts);
+  assert.deepEqual(
+    sdkConfig.ios.productCompilationFlags,
+    sourceConfig.ios.productCompilationFlags,
+  );
   assert.equal(sdkConfig.ios.podName, sourceConfig.ios.podName);
   assert.equal(sdkConfig.ios.deploymentTarget, sourceConfig.ios.deploymentTarget);
   assert.equal(sdkConfig.ios.integrationMode, sourceConfig.ios.integrationMode);

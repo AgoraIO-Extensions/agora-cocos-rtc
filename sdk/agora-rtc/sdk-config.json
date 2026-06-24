@@ -30,6 +30,9 @@
       "VideoAv1CodecEnc",
       "ReplayKit"
     ],
+    "productCompilationFlags": {
+      "ContentInspect": "AGORA_HAS_CONTENT_INSPECT"
+    },
     "swiftVersion": "5.0",
     "podName": "AgoraRtcEngine_iOS",
     "deploymentTarget": "13.0",

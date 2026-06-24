@@ -532,6 +532,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     return
                 }
             }
+#if AGORA_HAS_CONTENT_INSPECT
         case "enableContentInspect":
             requireEngine(requestId: requestId) { engine in
                 let enabled = params["enabled"] as? Bool ?? false
@@ -545,6 +546,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 let result = engine.enableContentInspect(enabled, config: config)
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
+#endif
         case "startAudioMixing":
             requireEngine(requestId: requestId) { engine in
                 guard let path = requiredString(
@@ -1094,10 +1096,12 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return AgoraVideoStreamType(rawValue: value) ?? AgoraVideoStreamType(rawValue: 0)!
     }
 
+#if AGORA_HAS_CONTENT_INSPECT
     private func parseContentInspectModulePosition(_ rawValue: Any) -> AgoraVideoModulePosition {
         let value = intValue(rawValue)
         return AgoraVideoModulePosition(rawValue: value) ?? .preRenderer
     }
+#endif
 
     private func parseMultipathMode(_ rawValue: Any) -> AgoraMultipathMode {
         let value = intValue(rawValue)
@@ -1127,6 +1131,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return options
     }
 
+#if AGORA_HAS_CONTENT_INSPECT
     private func buildContentInspectModules(_ params: [String: Any]) -> [AgoraContentInspectModule] {
         if let moduleParams = params["modules"] as? [[String: Any]], !moduleParams.isEmpty {
             return moduleParams.map { buildContentInspectModule($0) }
@@ -1154,6 +1159,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         }
         module.setValue(NSNumber(value: parseContentInspectModulePosition(rawValue).rawValue), forKey: "position")
     }
+#endif
 
     private func intValue(_ rawValue: Any) -> Int {
         if let value = rawValue as? Int {
@@ -1875,11 +1881,13 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         ])
     }
 
+    #if AGORA_HAS_CONTENT_INSPECT
     func rtcEngine(_ engine: AgoraRtcEngineKit, contentInspectResult result: AgoraContentInspectResult) {
         dispatchEvent(name: "contentInspectResult", payload: [
             "result": result.rawValue,
         ])
     }
+    #endif
 
     func rtcEngine(_ engine: AgoraRtcEngineKit, localVideoStateChangedOf state: AgoraVideoLocalState, reason: AgoraLocalVideoStreamReason, sourceType: AgoraVideoSourceType) {
         dispatchEvent(name: "localVideoStateChanged", payload: [
