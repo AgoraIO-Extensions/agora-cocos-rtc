@@ -40,6 +40,10 @@ import {
   resolveBridgeTransport,
   resolveEngineTextureBridge,
 } from './internal/bridge.ts';
+import type {
+  AgoraAudioProfileValue,
+  AgoraAudioScenarioValue,
+} from './audio_types.ts';
 import {
   AgoraEngineTextureViewController,
 } from './internal/engine_texture_view.ts';
@@ -255,6 +259,14 @@ export {
   ENGINE_TEXTURE_PRIMARY_CAMERA_SOURCE_TYPE,
 } from './internal/engine_texture_mirror.ts';
 export {
+  AgoraAudioProfile,
+  AgoraAudioScenario,
+} from './audio_types.ts';
+export type {
+  AgoraAudioProfileValue,
+  AgoraAudioScenarioValue,
+} from './audio_types.ts';
+export {
   AgoraVideoSourceType,
   AgoraMediaSourceType,
   resolveVideoSourceTypeParam,
@@ -457,7 +469,7 @@ export class AgoraRtcClient {
     return this.#invoke('muteAllRemoteAudioStreams', { muted }) as Promise<void>;
   }
 
-  setAudioProfile(profile: number, scenario?: number): Promise<void> {
+  setAudioProfile(profile: AgoraAudioProfileValue, scenario?: AgoraAudioScenarioValue): Promise<void> {
     return this.#invoke('setAudioProfile', { profile, scenario }) as Promise<void>;
   }
 

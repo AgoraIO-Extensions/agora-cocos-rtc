@@ -1,5 +1,7 @@
 import type { Node, Sprite, SpriteFrame, Texture2D } from 'cc';
 import type {
+  AgoraAudioProfileValue,
+  AgoraAudioScenarioValue,
   AgoraAudioMixingConfig,
   AgoraEngineTextureCameraFacing,
   AgoraVideoEncoderConfiguration,
@@ -63,8 +65,8 @@ export interface RuntimeConfigState {
     reportVad?: boolean;
   };
   audioProfile?: {
-    profile: number;
-    scenario?: number;
+    profile: AgoraAudioProfileValue;
+    scenario?: AgoraAudioScenarioValue;
   };
   audioMixing?: AgoraAudioMixingConfig;
   audioMixingSeekPositionMs?: number;

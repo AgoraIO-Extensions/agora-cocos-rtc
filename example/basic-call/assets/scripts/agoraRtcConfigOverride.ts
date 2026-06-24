@@ -4,6 +4,8 @@ import type {
   VideoEncoderPresetName,
 } from './demo/types.ts';
 import type {
+  AgoraAudioProfileValue,
+  AgoraAudioScenarioValue,
   AgoraAudioMixingConfig,
   AgoraVideoEncoderConfiguration,
   AgoraBeautyOptions,
@@ -41,8 +43,8 @@ export type AgoraExampleRuntimeConfig = {
     reportVad?: boolean;
   };
   audioProfile?: {
-    profile: number;
-    scenario?: number;
+    profile: AgoraAudioProfileValue;
+    scenario?: AgoraAudioScenarioValue;
   };
   audioMixing?: AgoraAudioMixingConfig;
   audioMixingSeekPositionMs?: number;

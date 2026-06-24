@@ -106,7 +106,7 @@
             <h3>setChannelProfile</h3>
             <p>在入会前设置频道 profile。</p>
             <code class="signature">setChannelProfile(profile: &#x27;communication&#x27; | &#x27;liveBroadcasting&#x27;): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>profile</code>：必填，profile 值。</li></ul></div>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>profile</code>：必填，频道 profile。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
           <article id="method-setClientRole" data-signature="setClientRole(role: &#x27;broadcaster&#x27; | &#x27;audience&#x27;, options?: AgoraClientRoleOptions)">
@@ -186,11 +186,11 @@
             <div class="param-list"><strong>参数说明</strong><ul><li><code>muted</code>：必填，静音状态。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
-          <article id="method-setAudioProfile" data-signature="setAudioProfile(profile: number, scenario?: number)">
+          <article id="method-setAudioProfile" data-signature="setAudioProfile(profile: AgoraAudioProfileValue, scenario?: AgoraAudioScenarioValue)">
             <h3>setAudioProfile</h3>
-            <p>设置音频 profile 和 scenario。</p>
-            <code class="signature">setAudioProfile(profile: number, scenario?: number): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>参数说明</strong><ul><li><code>profile</code>：必填，profile 值。</li><li><code>scenario</code>：可选，scenario 值。</li></ul></div>
+            <p>设置音频 profile 和 scenario。建议使用 AgoraAudioProfile 和 AgoraAudioScenario，避免直接写数字。</p>
+            <code class="signature">setAudioProfile(profile: AgoraAudioProfileValue, scenario?: AgoraAudioScenarioValue): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li><code>profile</code>：必填，音频 profile，建议使用 <code>AgoraAudioProfile</code>。</li><li><code>scenario</code>：可选，音频 scenario，建议使用 <code>AgoraAudioScenario</code>。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
           <article id="method-enableAudioVolumeIndication" data-signature="enableAudioVolumeIndication(interval: number, smooth?: number, reportVad?: boolean)">
