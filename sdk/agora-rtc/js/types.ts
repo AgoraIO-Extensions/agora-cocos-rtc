@@ -530,5 +530,9 @@ export interface CocosBridgeRuntime {
   sys?: {
     isNative?: boolean;
     platform?: string | number;
+    os?: string | number;
+    OS?: {
+      IOS?: string | number;
+    };
   };
 }

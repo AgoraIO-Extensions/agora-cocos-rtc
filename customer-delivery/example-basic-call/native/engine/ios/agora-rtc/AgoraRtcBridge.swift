@@ -45,6 +45,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     private var remoteTextureUids = Set<UInt>()
     private var remoteTextureSlots: [UInt: TextureSlotState] = [:]
     private var observedFramePosition: AgoraVideoFramePosition = [.postCapture, .preRenderer]
+    private var shouldFinalizeDestroyedEngine = false
 
     private func sharedInstance(named className: String) -> NSObject? {
         guard let type = NSClassFromString(className) as? NSObject.Type else {
@@ -687,7 +688,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "destroy":
             runOnMainQueue {
-                let shouldDestroyEngine = self.rtcEngine != nil
+                self.shouldFinalizeDestroyedEngine = self.rtcEngine != nil
                 _ = self.rtcEngine?.setVideoFrameDelegate(nil)
                 self.rtcEngine = nil
                 self.releaseAllTextureSlots()
@@ -695,10 +696,9 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     "requestId": requestId,
                     "ok": true,
                 ])
-                if shouldDestroyEngine {
-                    AgoraRtcEngineKit.destroy()
-                }
             }
+        case "finalizeDestroy":
+            finalizeDestroyEngine()
         case "setupLocalVideoView":
             handleSetupLocalVideoView(requestId: requestId, params: params)
         case "setupRemoteVideoView":
@@ -1308,6 +1308,16 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             return false
         }
         return true
+    }
+
+    private func finalizeDestroyEngine() {
+        runOnMainQueue {
+            guard self.shouldFinalizeDestroyedEngine else {
+                return
+            }
+            self.shouldFinalizeDestroyedEngine = false
+            AgoraRtcEngineKit.destroy()
+        }
     }
 
     private func handleSetupLocalVideoView(requestId: String, params: [String: Any]) {
