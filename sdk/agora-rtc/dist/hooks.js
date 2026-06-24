@@ -341,6 +341,7 @@ function patchIosXcodeProjectBuildSettingsObject(objectText) {
         );
 
       patchedBody = ensureIosFrameworksRunpath(patchedBody);
+      patchedBody = ensureSwiftCompilationConditions(patchedBody);
       if (!/^[ \t]*SWIFT_VERSION = /m.test(patchedBody)) {
         const settingIndent = patchedBody.match(/^([ \t]+)[A-Za-z0-9_]+(?:\[[^\]]+\])? = /m)?.[1] || '\t\t\t';
         const prefix = patchedBody.endsWith('\n') || patchedBody.length === 0 ? '' : '\n';
@@ -559,6 +560,84 @@ function getIosPackageProducts() {
     return [ios.packageProduct];
   }
   return ['RtcBasic'];
+}
+
+// Some bridge APIs reference native symbols that only exist in an optional
+// Swift Package product. The bridge code guards those references behind a Swift
+// compilation condition so the app still links when the product is not selected
+// in packageProducts. The product -> flag mapping lives in sdk-config.json
+// (ios.productCompilationFlags) so it is defined once and shared by both build
+// scripts. To gate a new product, add an entry there and wrap the matching
+// bridge code in `#if <FLAG> ... #endif`.
+const PRODUCT_COMPILATION_FLAGS = sdkConfig.ios.productCompilationFlags || {};
+
+function getActiveProductCompilationFlags() {
+  const flags = [];
+  for (const product of getIosPackageProducts()) {
+    const flag = PRODUCT_COMPILATION_FLAGS[product];
+    if (flag && !flags.includes(flag)) {
+      flags.push(flag);
+    }
+  }
+  return flags;
+}
+
+// Merge the active product flags into SWIFT_ACTIVE_COMPILATION_CONDITIONS while
+// dropping any of our managed flags whose product is no longer selected, so the
+// setting tracks packageProducts in both directions. Other flags (e.g. DEBUG)
+// are preserved untouched.
+function ensureSwiftCompilationConditions(
+  buildSettingsBody,
+  activeFlags = getActiveProductCompilationFlags(),
+) {
+  const managedFlags = Object.values(PRODUCT_COMPILATION_FLAGS);
+
+  const arrayPattern = /^([ \t]*)SWIFT_ACTIVE_COMPILATION_CONDITIONS = \(\n([\s\S]*?)^\1\);/m;
+  const scalarPattern = /^([ \t]*)SWIFT_ACTIVE_COMPILATION_CONDITIONS = ([^;]*);$/m;
+
+  const merge = (existing) => {
+    const kept = existing.filter((flag) => !managedFlags.includes(flag));
+    const result = [...kept];
+    if (!result.includes('$(inherited)')) {
+      result.unshift('$(inherited)');
+    }
+    for (const flag of activeFlags) {
+      if (!result.includes(flag)) {
+        result.push(flag);
+      }
+    }
+    return result;
+  };
+
+  const format = (indent, values) => {
+    const lines = values.map((value) => `${indent}  ${quotePbxBuildSettingValue(value)},`).join('\n');
+    return `${indent}SWIFT_ACTIVE_COMPILATION_CONDITIONS = (\n${lines}\n${indent});`;
+  };
+
+  if (arrayPattern.test(buildSettingsBody)) {
+    return buildSettingsBody.replace(arrayPattern, (_match, indent, valuesBody) => {
+      const existing = [...valuesBody.matchAll(/^\s*"?([^",\n]+)"?,?\s*$/gm)]
+        .map((valueMatch) => valueMatch[1])
+        .filter(Boolean);
+      return format(indent, merge(existing));
+    });
+  }
+
+  if (scalarPattern.test(buildSettingsBody)) {
+    return buildSettingsBody.replace(scalarPattern, (_match, indent, value) => {
+      const normalizedValue = String(value).trim().replace(/^"|"$/g, '');
+      const existing = normalizedValue ? normalizedValue.split(/\s+/) : [];
+      return format(indent, merge(existing));
+    });
+  }
+
+  if (activeFlags.length === 0) {
+    return buildSettingsBody;
+  }
+
+  const settingIndent = buildSettingsBody.match(/^([ \t]+)[A-Za-z0-9_]+(?:\[[^\]]+\])? = /m)?.[1] || '\t\t\t';
+  const prefix = buildSettingsBody.endsWith('\n') || buildSettingsBody.length === 0 ? '' : '\n';
+  return `${buildSettingsBody}${prefix}${format(settingIndent, merge([]))}\n`;
 }
 
 function getIosSpmIdsForProduct(_productName, index = 0) {
@@ -1514,6 +1593,8 @@ module.exports = {
   ensureIosCMakeRtcBridgeSources,
   ensureNativeEngineTextureBridge,
   ensureIosAppDelegateBridgeAttachment,
+  ensureSwiftCompilationConditions,
+  PRODUCT_COMPILATION_FLAGS,
   onAfterBuild,
   onBeforeMake,
   patchAndroidAppActivityBridgeAttachment,
