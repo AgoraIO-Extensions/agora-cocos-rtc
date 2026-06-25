@@ -506,6 +506,82 @@ test('initializeRtc applies configured live-broadcasting broadcaster defaults an
   assert.equal(state.localAudioMuted, true);
 });
 
+test('audio-only initialize and join skip video backend and enableVideo requests', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      autoPreview: false,
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      autoSubscribeVideo: false,
+    })),
+  );
+
+  await service.joinRtcChannel();
+
+  assert.deepEqual(
+    transport.sent.map((request) => request.method),
+    [
+      'initialize',
+      'joinChannel',
+    ],
+  );
+  assert.deepEqual(
+    pickRequests(transport, 'joinChannel')[0]?.params.options,
+    {
+      clientRoleType: 'broadcaster',
+      channelProfile: 'communication',
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      autoSubscribeAudio: true,
+      autoSubscribeVideo: false,
+    },
+  );
+  assert.deepEqual(
+    transport.permissionRequests.map((request) => request.permission),
+    ['microphone'],
+  );
+
+  const state = service.getState();
+  assert.equal(state.videoEnabled, false);
+  assert.equal(state.localVideoEnabled, false);
+});
+
+test('audio-only teardown skips remote video view cleanup after user callbacks', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      autoPreview: false,
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      autoSubscribeVideo: false,
+    })),
+  );
+
+  await service.joinRtcChannel();
+  transport.emit('agora:event', JSON.stringify({
+    eventName: 'userJoined',
+    payload: { uid: 4242, elapsed: 0 },
+  }));
+  await service.teardownRtc();
+
+  assert.deepEqual(
+    transport.sent.map((request) => request.method),
+    [
+      'initialize',
+      'joinChannel',
+      'leaveChannel',
+      'destroy',
+    ],
+  );
+});
+
 test('startLocalPreview preserves explicit encoder mirror config', async () => {
   const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
   const transport = new AutoResponseTransport();
