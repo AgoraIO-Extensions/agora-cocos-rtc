@@ -45,10 +45,8 @@ public final class AgoraRtcPlugin {
     private RtcEngine rtcEngine;
     private boolean attached;
     private String renderBackendType = "engine-texture";
-    private AgoraRenderBackend renderBackend = AgoraRenderBackendFactory.create(
-            renderBackendType,
-            this::dispatchEvent
-    );
+    private AgoraRenderBackend renderBackend;
+    private boolean renderBackendConfigured;
 
     public static AgoraRtcPlugin getInstance() {
         return INSTANCE;
@@ -367,7 +365,7 @@ public final class AgoraRtcPlugin {
             return;
         }
 
-        if (backend.equals(renderBackendType) && renderBackend != null) {
+        if (backend.equals(renderBackendType) && renderBackendConfigured && renderBackend != null) {
             dispatchOk(requestId);
             return;
         }
@@ -379,6 +377,7 @@ public final class AgoraRtcPlugin {
             }
             renderBackendType = backend;
             renderBackend = nextBackend;
+            renderBackendConfigured = true;
             if (rtcEngine != null) {
                 renderBackend.bindEngine(rtcEngine);
             }
@@ -546,7 +545,7 @@ public final class AgoraRtcPlugin {
                 rtcEngine = null;
                 return;
             }
-            if (renderBackend != null) {
+            if (renderBackendConfigured && renderBackend != null) {
                 renderBackend.bindEngine(rtcEngine);
             }
             dispatchOk(requestId);
@@ -806,6 +805,14 @@ public final class AgoraRtcPlugin {
         return activity;
     }
 
+    private AgoraRenderBackend requireRenderBackend(String requestId, String method) {
+        if (!renderBackendConfigured || renderBackend == null) {
+            dispatchNativeMethodError(requestId, method, "Render backend is not configured.");
+            return null;
+        }
+        return renderBackend;
+    }
+
     private void handleJoinChannelWithUserAccount(String requestId, JSONObject params) {
         String token = params != null ? params.optString("token") : "";
         String channelId = params != null ? params.optString("channelId") : "";
@@ -922,7 +929,11 @@ public final class AgoraRtcPlugin {
             );
             return;
         }
-        renderBackend.setupLocalVideoView(activity, params, requestCallback(requestId));
+        AgoraRenderBackend backend = requireRenderBackend(requestId, "setupLocalVideoView");
+        if (backend == null) {
+            return;
+        }
+        backend.setupLocalVideoView(activity, params, requestCallback(requestId));
     }
 
     private void handleSetupRemoteVideoView(String requestId, JSONObject params) {
@@ -930,7 +941,11 @@ public final class AgoraRtcPlugin {
         if (activity == null) {
             return;
         }
-        renderBackend.setupRemoteVideoView(activity, params, requestCallback(requestId));
+        AgoraRenderBackend backend = requireRenderBackend(requestId, "setupRemoteVideoView");
+        if (backend == null) {
+            return;
+        }
+        backend.setupRemoteVideoView(activity, params, requestCallback(requestId));
     }
 
     private void handleUpdateLocalVideoView(String requestId, JSONObject params) {
@@ -944,24 +959,44 @@ public final class AgoraRtcPlugin {
             );
             return;
         }
-        renderBackend.updateLocalVideoView(params, requestCallback(requestId));
+        AgoraRenderBackend backend = requireRenderBackend(requestId, "updateLocalVideoView");
+        if (backend == null) {
+            return;
+        }
+        backend.updateLocalVideoView(params, requestCallback(requestId));
     }
 
     private void handleUpdateRemoteVideoView(String requestId, JSONObject params) {
-        renderBackend.updateRemoteVideoView(params, requestCallback(requestId));
+        AgoraRenderBackend backend = requireRenderBackend(requestId, "updateRemoteVideoView");
+        if (backend == null) {
+            return;
+        }
+        backend.updateRemoteVideoView(params, requestCallback(requestId));
     }
 
     private void handleRemoveLocalVideoView(String requestId) {
-        renderBackend.removeLocalVideoView(requestCallback(requestId));
+        AgoraRenderBackend backend = requireRenderBackend(requestId, "removeLocalVideoView");
+        if (backend == null) {
+            return;
+        }
+        backend.removeLocalVideoView(requestCallback(requestId));
     }
 
     private void handleRemoveRemoteVideoView(String requestId, JSONObject params) {
-        renderBackend.removeRemoteVideoView(params, requestCallback(requestId));
+        AgoraRenderBackend backend = requireRenderBackend(requestId, "removeRemoteVideoView");
+        if (backend == null) {
+            return;
+        }
+        backend.removeRemoteVideoView(params, requestCallback(requestId));
     }
 
     private void handleSetNativeVideoOverlaySuspended(String requestId, JSONObject params) {
         boolean suspended = params == null || params.optBoolean("suspended", true);
-        renderBackend.setNativeVideoOverlaySuspended(suspended, requestCallback(requestId));
+        AgoraRenderBackend backend = requireRenderBackend(requestId, "setNativeVideoOverlaySuspended");
+        if (backend == null) {
+            return;
+        }
+        backend.setNativeVideoOverlaySuspended(suspended, requestCallback(requestId));
     }
 
     private void handleStartPreview(String requestId, JSONObject params) {
@@ -979,15 +1014,27 @@ public final class AgoraRtcPlugin {
             return;
         }
 
-        renderBackend.startPreview(params, requestCallback(requestId));
+        AgoraRenderBackend backend = requireRenderBackend(requestId, "startPreview");
+        if (backend == null) {
+            return;
+        }
+        backend.startPreview(params, requestCallback(requestId));
     }
 
     private void handleStopPreview(String requestId, JSONObject params) {
-        renderBackend.stopPreview(params, requestCallback(requestId));
+        AgoraRenderBackend backend = requireRenderBackend(requestId, "stopPreview");
+        if (backend == null) {
+            return;
+        }
+        backend.stopPreview(params, requestCallback(requestId));
     }
 
     private void handleSwitchCamera(String requestId) {
-        renderBackend.switchCamera(requestCallback(requestId));
+        AgoraRenderBackend backend = requireRenderBackend(requestId, "switchCamera");
+        if (backend == null) {
+            return;
+        }
+        backend.switchCamera(requestCallback(requestId));
     }
 
     private void handleLeaveChannel(String requestId, JSONObject params) {
@@ -1284,10 +1331,8 @@ public final class AgoraRtcPlugin {
     private void handleDestroy(String requestId) {
         final AgoraRenderBackend backendToRelease = renderBackend;
         final RtcEngine engineToDestroy = rtcEngine;
-        renderBackend = AgoraRenderBackendFactory.create(
-                renderBackendType,
-                this::dispatchEvent
-        );
+        renderBackend = null;
+        renderBackendConfigured = false;
         rtcEngine = null;
         dispatchOk(requestId);
         if (backendToRelease != null) {

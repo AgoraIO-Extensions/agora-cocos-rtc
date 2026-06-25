@@ -3347,6 +3347,10 @@ final class AgoraEngineTextureSlotBridge {
   assert.match(pluginSource, /setRenderBackend/);
   assert.match(pluginSource, /AgoraRenderBackendFactory/);
   assert.match(pluginSource, /renderBackendType = "engine-texture"/);
+  assert.match(pluginSource, /private AgoraRenderBackend renderBackend;/);
+  assert.match(pluginSource, /private boolean renderBackendConfigured;/);
+  assert.doesNotMatch(pluginSource, /private AgoraRenderBackend renderBackend = AgoraRenderBackendFactory\.create/);
+  assert.match(pluginSource, /if \(renderBackendConfigured && renderBackend != null\) \{/);
   assert.doesNotMatch(pluginSource, /surface-view/);
   assert.doesNotMatch(pluginSource, /texture-view/);
   const handleJoinChannelMatch = pluginSource.match(

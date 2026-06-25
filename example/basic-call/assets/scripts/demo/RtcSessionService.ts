@@ -153,10 +153,15 @@ export class RtcSessionService {
       throw new Error('Agora App ID is empty.');
     }
     const client = this.getClient();
-    await client.setRenderBackend(config.renderBackend);
+    const videoRuntimeEnabled = this.isVideoRuntimeEnabled(config);
+    if (videoRuntimeEnabled) {
+      await client.setRenderBackend(config.renderBackend);
+    }
     await client.initialize(config.appId.trim());
     // await client.setParameters({ 'rtc.camera_capture_mirror_mode': 1 });
-    await client.enableVideo(true);
+    if (videoRuntimeEnabled) {
+      await client.enableVideo(true);
+    }
     if (config.channelProfile) {
       await client.setChannelProfile(this.selectedChannelProfile);
     }
@@ -170,7 +175,8 @@ export class RtcSessionService {
       await client.muteLocalAudioStream(this.localAudioMuted);
     }
     this.initialized = true;
-    this.videoEnabled = true;
+    this.videoEnabled = videoRuntimeEnabled;
+    this.localVideoEnabled = videoRuntimeEnabled;
     this.log('Initialize request sent');
     this.emitState();
   }
@@ -224,7 +230,9 @@ export class RtcSessionService {
       throw new Error('User account is empty.');
     }
     const client = this.getClient();
-    await client.enableVideo(false);
+    if (this.isVideoRuntimeEnabled(config)) {
+      await client.enableVideo(false);
+    }
     this.videoEnabled = false;
     await client.joinChannelWithUserAccount(
       config.token,
@@ -254,8 +262,10 @@ export class RtcSessionService {
     if (this.localViewAttached) {
       await client.removeLocalVideoView();
     }
-    for (const uid of remoteUids) {
-      await client.removeRemoteVideoView(uid);
+    if (this.videoEnabled || this.isVideoRuntimeEnabled()) {
+      for (const uid of remoteUids) {
+        await client.removeRemoteVideoView(uid);
+      }
     }
     this.clearLocalVideoRenderState();
     this.clearRemoteVideoRenderState(remoteUids);
@@ -281,6 +291,10 @@ export class RtcSessionService {
       return;
     }
     const config = this.options.getConfig();
+    if (!this.isVideoRuntimeEnabled(config)) {
+      this.log('Preview skipped for audio-only config');
+      return;
+    }
     await ensureCameraPermission();
     await this.setupLocalVideoView();
     if (!config.deferVideoEncoderConfiguration) {
@@ -325,6 +339,10 @@ export class RtcSessionService {
   }
 
   async refreshRtcViews(): Promise<void> {
+    if (!this.isVideoRuntimeEnabled()) {
+      this.log('Video views refresh skipped for audio-only config');
+      return;
+    }
     await this.setupLocalVideoView();
     await Promise.all([...this.remoteUserUids].map((uid) => this.setupRemoteVideoView(uid)));
     this.log('Video views refreshed');
@@ -643,7 +661,9 @@ export class RtcSessionService {
     }
     await this.runChannelRoleDemo();
     await this.runAudioControlDemo();
-    await this.runVideoControlDemo();
+    if (this.isVideoRuntimeEnabled()) {
+      await this.runVideoControlDemo();
+    }
     await this.runMixingDemo();
     await this.runEffectDemo();
     await this.runDiagnosticsDemo();
@@ -840,6 +860,7 @@ export class RtcSessionService {
       return;
     }
     const client = this.client;
+    const shouldCleanupVideoViews = this.shouldUseVideoNativeViews();
     try {
       if (this.joined) {
         await this.teardownRtcStep('leaveChannel', () => client.leaveChannel());
@@ -850,10 +871,12 @@ export class RtcSessionService {
       if (this.localViewAttached) {
         await this.teardownRtcStep('removeLocalVideoView', () => client.removeLocalVideoView());
       }
-      for (const uid of this.remoteUserUids) {
-        await this.teardownRtcStep(`removeRemoteVideoView:${uid}`, () =>
-          client.removeRemoteVideoView(uid),
-        );
+      if (shouldCleanupVideoViews) {
+        for (const uid of this.remoteUserUids) {
+          await this.teardownRtcStep(`removeRemoteVideoView:${uid}`, () =>
+            client.removeRemoteVideoView(uid),
+          );
+        }
       }
       await this.teardownRtcStep('destroy', () => client.destroy());
     } finally {
@@ -906,9 +929,11 @@ export class RtcSessionService {
         this.activeRemoteUid = uid;
       }
       this.options.onRemoteUsersChanged([...this.remoteUserUids], this.activeRemoteUid);
-      void this.setupRemoteVideoView(uid).catch((error) => {
-        this.recordAsyncError('Remote view setup failed', error);
-      });
+      if (this.isVideoRuntimeEnabled()) {
+        void this.setupRemoteVideoView(uid).catch((error) => {
+          this.recordAsyncError('Remote view setup failed', error);
+        });
+      }
       this.log(`Remote user joined: ${uid}`);
       this.emitState();
     });
@@ -920,9 +945,11 @@ export class RtcSessionService {
       this.lastRemoteVideoStatsByUid.delete(uid);
       this.clearRemoteVideoRenderState([uid]);
       this.options.onRemoteUsersChanged([...this.remoteUserUids], this.activeRemoteUid);
-      void this.removeRemoteVideoView(uid).catch((error) => {
-        this.recordAsyncError(`Remote view cleanup failed for uid ${uid}`, error);
-      });
+      if (this.videoEnabled || this.isVideoRuntimeEnabled()) {
+        void this.removeRemoteVideoView(uid).catch((error) => {
+          this.recordAsyncError(`Remote view cleanup failed for uid ${uid}`, error);
+        });
+      }
       this.log(`Remote user offline: ${uid} (${reason ?? 'unknown'})`);
       this.emitState();
     });
@@ -988,6 +1015,17 @@ export class RtcSessionService {
     if (typeof config.initialLocalAudioMuted === 'boolean') {
       this.localAudioMuted = config.initialLocalAudioMuted;
     }
+  }
+
+  private isVideoRuntimeEnabled(config: RuntimeConfigState = this.options.getConfig()): boolean {
+    return config.publishCameraTrack || config.autoSubscribeVideo;
+  }
+
+  private shouldUseVideoNativeViews(config: RuntimeConfigState = this.options.getConfig()): boolean {
+    return this.isVideoRuntimeEnabled(config)
+      || this.videoEnabled
+      || this.localViewAttached
+      || this.previewStarted;
   }
 
   private async setupLocalVideoView(): Promise<void> {

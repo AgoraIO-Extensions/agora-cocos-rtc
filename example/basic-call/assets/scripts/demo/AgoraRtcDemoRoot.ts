@@ -129,6 +129,10 @@ export class AgoraRtcDemoRoot extends Component {
     return this.selectedCase?.name ?? null;
   }
 
+  private isSelectedAudioOnlyCase(): boolean {
+    return this.selectedCase?.displayMode === 'audio';
+  }
+
   onLoad(): void {
     this.resolvePanelBindings();
     view.on('canvas-resize', this.layoutResponsivePanels, this);
@@ -808,12 +812,12 @@ export class AgoraRtcDemoRoot extends Component {
       channelId: this.channelId,
       uid: this.uid,
       renderBackend: this.renderBackend,
-      autoPreview: this.autoPreview,
+      autoPreview: this.isSelectedAudioOnlyCase() ? false : this.autoPreview,
       autoJoin: this.autoJoin,
-      publishCameraTrack: this.publishCameraTrack,
+      publishCameraTrack: this.isSelectedAudioOnlyCase() ? false : this.publishCameraTrack,
       publishMicrophoneTrack: this.publishMicrophoneTrack,
       autoSubscribeAudio: this.autoSubscribeAudio,
-      autoSubscribeVideo: this.autoSubscribeVideo,
+      autoSubscribeVideo: this.isSelectedAudioOnlyCase() ? false : this.autoSubscribeVideo,
       channelProfile: this.channelProfile,
       clientRole: this.clientRole,
       previewSourceType: this.previewSourceType,

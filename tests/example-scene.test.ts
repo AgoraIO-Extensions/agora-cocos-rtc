@@ -509,6 +509,28 @@ test('demo root loads runtime smoke config and can auto join when requested', as
   assert.match(content, /if \(this\.autoJoin\)[\s\S]*await this\.joinRtcChannel\(\);/);
 });
 
+test('demo root projects audio cases to audio-only runtime media options', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /private isSelectedAudioOnlyCase\(\): boolean/);
+  assert.match(content, /this\.selectedCase\?\.displayMode === 'audio'/);
+  assert.match(
+    content,
+    /autoPreview:\s*this\.isSelectedAudioOnlyCase\(\) \? false : this\.autoPreview/,
+  );
+  assert.match(
+    content,
+    /publishCameraTrack:\s*this\.isSelectedAudioOnlyCase\(\) \? false : this\.publishCameraTrack/,
+  );
+  assert.match(
+    content,
+    /autoSubscribeVideo:\s*this\.isSelectedAudioOnlyCase\(\) \? false : this\.autoSubscribeVideo/,
+  );
+});
+
 test('demo root lays out panels from the landscape visible size', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
