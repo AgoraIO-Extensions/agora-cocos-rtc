@@ -777,7 +777,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 return
             }
             guard self.applyProtectedParameters(engine: engine, requestId: requestId, method: "initialize", params: params) else {
-                self.rtcEngine = nil
+                self.cleanupFailedInitialize(engine)
                 return
             }
             _ = engine.setVideoFrameDelegate(self)
@@ -786,6 +786,16 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 "ok": true,
             ])
         }
+    }
+
+    private func cleanupFailedInitialize(_ engine: AgoraRtcEngineKit) {
+        if self.rtcEngine === engine {
+            self.rtcEngine = nil
+        }
+        self.shouldFinalizeDestroyedEngine = false
+        _ = engine.setVideoFrameDelegate(nil)
+        self.releaseAllTextureSlots()
+        AgoraRtcEngineKit.destroy()
     }
 
     private func applyProtectedParameters(engine: AgoraRtcEngineKit, requestId: String, method: String, params: [String: Any]) -> Bool {

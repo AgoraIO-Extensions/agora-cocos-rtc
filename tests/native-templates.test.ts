@@ -1051,6 +1051,7 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.match(bridgeContent, /config\.mLogConfig = logConfig/);
   assert.match(bridgeContent, /config\.addExtension\(extensions\.optString\(index\)\)/);
   assert.match(bridgeContent, /applyProtectedParameters\(rtcEngine, requestId, "initialize", params\)/);
+  assert.match(bridgeContent, /cleanupFailedInitialize\(rtcEngine\)/);
   assert.match(bridgeContent, /clientParams\.put\("rtc\.set_app_type", 10\);/);
   assert.match(bridgeContent, /throw new IllegalArgumentException\("Parameters must be a valid JSON object string\."\);/);
   assert.match(bridgeContent, /dispatchInvalidArgumentError\(requestId, error\.getMessage\(\), method, "parameters", parameterValue\);/);
@@ -1203,6 +1204,33 @@ test('android bridge template maps expanded config objects and reliable results'
     assert.match(effectMatch[0], /params != null \? params\.optInt\("soundId", 0\) : 0/);
     assert.match(effectMatch[0], new RegExp(`effectManager\\.${nativeCall}\\(`));
   }
+});
+
+test('android initialize failure destroys the created native rtc singleton', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  const initializeMatch = bridgeContent.match(
+    /private void handleInitialize[\s\S]*?private RtcEngineConfig buildRtcEngineConfig/,
+  );
+  assert.ok(initializeMatch);
+  assert.match(initializeMatch[0], /if \(!applyProtectedParameters\(rtcEngine, requestId, "initialize", params\)\) \{/);
+  assert.match(initializeMatch[0], /cleanupFailedInitialize\(rtcEngine\)/);
+  assert.doesNotMatch(initializeMatch[0], /rtcEngine = null;\s*return;/);
+
+  const cleanupMatch = bridgeContent.match(
+    /private void cleanupFailedInitialize[\s\S]*?private RtcEngineConfig buildRtcEngineConfig/,
+  );
+  assert.ok(cleanupMatch);
+  assert.match(cleanupMatch[0], /rtcEngine = null/);
+  assert.match(cleanupMatch[0], /backendToRelease::release/);
+  assert.match(cleanupMatch[0], /new Thread\(\(\) -> \{/);
+  assert.match(cleanupMatch[0], /RtcEngine\.destroy\(\)/);
 });
 
 test('android bridge template maps video encoder enum raw values from rtc 4.5.3', async () => {
@@ -1574,6 +1602,7 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(bridgeContent, /private func parseContentInspectModulePosition\(_ rawValue: Any\) -> AgoraVideoModulePosition/);
   assert.match(bridgeContent, /module\.setValue\(NSNumber\(value: parseContentInspectModulePosition\(rawValue\)\.rawValue\), forKey: "position"\)/);
   assert.match(bridgeContent, /applyProtectedParameters\(engine: engine, requestId: requestId, method: "initialize", params: params\)/);
+  assert.match(bridgeContent, /cleanupFailedInitialize\(engine\)/);
   assert.match(bridgeContent, /clientParams\["rtc\.set_app_type"\] = 10/);
   assert.match(bridgeContent, /throw AgoraRtcBridgeParameterError\.invalidJsonObjectString/);
   assert.match(bridgeContent, /throw AgoraRtcBridgeParameterError\.missingParameters/);
@@ -1875,6 +1904,31 @@ test('ios bridge template routes rtc engine lifecycle and api calls through the 
   assert.match(destroyMatch[0], /runOnMainQueue \{/);
   assert.doesNotMatch(destroyMatch[0], /AgoraRtcEngineKit\.destroy\(\)/);
   assert.match(bridgeContent, /private func finalizeDestroyEngine\(\)/);
+});
+
+test('ios initialize failure destroys the created native rtc singleton', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  const initializeMatch = bridgeContent.match(
+    /private func handleInitialize\(requestId: String, params: \[String: Any\]\) \{[\s\S]*?private func applyProtectedParameters/,
+  );
+  assert.ok(initializeMatch);
+  assert.match(initializeMatch[0], /guard self\.applyProtectedParameters\(engine: engine, requestId: requestId, method: "initialize", params: params\) else \{/);
+  assert.match(initializeMatch[0], /cleanupFailedInitialize\(engine\)/);
+  assert.doesNotMatch(initializeMatch[0], /self\.rtcEngine = nil\s*return/);
+
+  const cleanupMatch = bridgeContent.match(
+    /private func cleanupFailedInitialize[\s\S]*?private func applyProtectedParameters/,
+  );
+  assert.ok(cleanupMatch);
+  assert.match(cleanupMatch[0], /if self\.rtcEngine === engine \{/);
+  assert.match(cleanupMatch[0], /self\.rtcEngine = nil/);
+  assert.match(cleanupMatch[0], /engine\.setVideoFrameDelegate\(nil\)/);
+  assert.match(cleanupMatch[0], /self\.releaseAllTextureSlots\(\)/);
+  assert.match(cleanupMatch[0], /AgoraRtcEngineKit\.destroy\(\)/);
 });
 
 test('ios bridge template routes bridged uid parsing through uintValue helper for native uint calls', async () => {

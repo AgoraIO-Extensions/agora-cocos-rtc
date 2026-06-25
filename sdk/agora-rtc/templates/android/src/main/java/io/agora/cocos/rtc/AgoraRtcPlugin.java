@@ -542,7 +542,7 @@ public final class AgoraRtcPlugin {
                 return;
             }
             if (!applyProtectedParameters(rtcEngine, requestId, "initialize", params)) {
-                rtcEngine = null;
+                cleanupFailedInitialize(rtcEngine);
                 return;
             }
             if (renderBackendConfigured && renderBackend != null) {
@@ -552,6 +552,21 @@ public final class AgoraRtcPlugin {
         } catch (Exception error) {
             dispatchError(requestId, "RtcEngine.create failed: " + error.getMessage());
         }
+    }
+
+    private void cleanupFailedInitialize(RtcEngine engineToDestroy) {
+        final AgoraRenderBackend backendToRelease = renderBackend;
+        renderBackend = null;
+        renderBackendConfigured = false;
+        rtcEngine = null;
+        if (backendToRelease != null) {
+            CocosHelper.runOnGameThread(backendToRelease::release);
+        }
+        new Thread(() -> {
+            if (engineToDestroy != null) {
+                RtcEngine.destroy();
+            }
+        }).start();
     }
 
     private RtcEngineConfig buildRtcEngineConfig(Context context, String appId, JSONObject params) {
