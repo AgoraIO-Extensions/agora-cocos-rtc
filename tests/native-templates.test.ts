@@ -2019,6 +2019,8 @@ test('ios integration keeps Swift bridge registration in Xcode rather than CMake
 
   assert.match(integrationScript, /AgoraRtcBridge\.swift/);
   assert.match(integrationScript, /target\.add_file_references\(\[file_ref\]\)/);
+  assert.doesNotMatch(integrationScript, /COMMON_ENGINE_TEXTURE_BRIDGE_DIR/);
+  assert.doesNotMatch(integrationScript, /AgoraEngineTextureBridge\.cpp/);
   assert.match(iosCMakeBlock, /list\(APPEND CC_PROJ_SOURCES/);
   assert.doesNotMatch(iosCMakeBlock, /AgoraRtcBridge\.swift/);
   assert.doesNotMatch(hooksContent, /project\([^)]*\bSwift\b[^)]*\)/);

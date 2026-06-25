@@ -62,11 +62,9 @@ SDK_CONFIG = JSON.parse(
 PROJECT_PATH = File.join(REPO_ROOT, 'example/basic-call/build-ios/ios/proj/agora-cocos-basic-call.xcodeproj')
 APP_DELEGATE_PATH = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/AppDelegate.mm')
 INFO_PLIST_PATH = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/Info.plist')
-COMMON_ENGINE_TEXTURE_BRIDGE_DIR = File.join(REPO_ROOT, 'example/basic-call/native/engine/common/Classes/agora')
 IOS_RUNTIME_PLUGIN_DIR = File.join(REPO_ROOT, 'example/basic-call/native/agora-rtc/ios')
 IOS_NATIVE_PLUGIN_DIR = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/agora-rtc')
 GROUP_NAME = 'agora-rtc'
-COMMON_GROUP_NAME = 'agora-engine-texture'
 PACKAGE_URL = SDK_CONFIG.fetch('ios').fetch('packageUrl')
 PACKAGE_VERSION = SDK_CONFIG.fetch('ios').fetch('packageVersion')
 IOS_CONFIG = SDK_CONFIG.fetch('ios')
@@ -328,18 +326,6 @@ ensure_demo_permissions_plugin_copied
 ['AgoraRtcBridge.swift', 'AgoraRtcPlugin.mm', 'DemoPermissionsPlugin.mm', 'AgoraEngineTextureSlotBridge.h', 'AgoraEngineTextureSlotBridge.mm'].each do |filename|
   file_ref = group.files.find { |file| file.path == filename } || group.new_file(filename)
   target.add_file_references([file_ref])
-end
-
-common_group = project.main_group.find_subpath(COMMON_GROUP_NAME, true)
-common_group.set_source_tree('<group>')
-common_group.path = COMMON_GROUP_NAME
-
-['AgoraEngineTextureBridge.h', 'AgoraEngineTextureBridge.cpp'].each do |filename|
-  source_path = File.join(COMMON_ENGINE_TEXTURE_BRIDGE_DIR, filename)
-  next unless File.exist?(source_path)
-
-  file_ref = common_group.files.find { |file| file.path == source_path } || common_group.new_file(source_path)
-  target.add_file_references([file_ref]) unless target.source_build_phase.files_references.include?(file_ref)
 end
 
 target.build_configurations.each do |configuration|
