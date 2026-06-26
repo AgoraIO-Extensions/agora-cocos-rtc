@@ -19,7 +19,6 @@ type PermissionRequest = {
 };
 
 const repoRoot = process.cwd();
-
 const CC_STUB_SOURCE = `
 export const native = {
   jsbBridgeWrapper: null,

@@ -35,6 +35,10 @@
           <p>这里集中说明 Android 与 iOS 的关键差异，尤其是会直接影响入会和渲染结果的行为。接入前先确认这些边界，可以避免把平台限制误判为 SDK 故障。</p>
         </section>
         <section class="card">
+          <h2 id="native-capabilities">原生依赖能力</h2>
+          <p>当前 <code>sdk-config.json</code> 交付是 voice-only：Android 使用 <code>io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1</code>，iOS 使用 <code>AgoraAudio_iOS</code> 的 <code>RtcBasic</code> product。视频、渲染、美颜和内容审核 API 为兼容性仍保留在 TypeScript 接口里；当前原生依赖不支持某个调用时，请求会进入 native，并通过常规 native failure 路径返回，通常对应 SDK 错误码 <code>-4</code>。</p>
+        </section>
+        <section class="card">
           <h2 id="audio-routing">音频路由与会话限制</h2>
           <p><code>setDefaultAudioRouteToSpeakerphone</code>（默认音频路由）和 <code>setAudioSessionOperationRestriction</code>（音频会话操作限制）在两端表现并不一致：后者仅在 iOS 生效，Android 桥接会返回 <code>unsupported</code>。遇到外放、听筒或会话冲突问题时，先核对平台再排查业务逻辑。</p>
         </section>

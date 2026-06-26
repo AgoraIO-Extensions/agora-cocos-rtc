@@ -1437,7 +1437,7 @@ test('destroy dispatches the expected native request and detaches listeners', as
   assert.equal(transport.removed.length, 2);
 });
 
-test('destroy defers iOS native engine teardown until after the destroy response resolves', async () => {
+test('destroy relies on native iOS teardown and does not dispatch finalizeDestroy after response', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
     bridgeRuntime: {
@@ -1469,10 +1469,39 @@ test('destroy defers iOS native engine teardown until after the destroy response
 
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  assert.equal(transport.sent.length, 2);
-  const finalizeRequest = JSON.parse(transport.sent[1].payload);
-  assert.equal(finalizeRequest.method, 'finalizeDestroy');
-  assert.deepEqual(finalizeRequest.params, {});
+  assert.equal(transport.sent.length, 1);
+});
+
+test('video, render, and content inspect APIs dispatch to native by default', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({ transport, timeoutMs: 50 });
+
+  const expectNativeDispatch = async (
+    method: string,
+    action: () => Promise<unknown>,
+  ) => {
+    const pending = action();
+    const request = JSON.parse(transport.sent.at(-1)?.payload ?? '{}');
+    assert.equal(request.method, method);
+    transport.emit(
+      'agora:response',
+      JSON.stringify({
+        requestId: request.requestId,
+        ok: true,
+      }),
+    );
+    await pending;
+  };
+
+  await expectNativeDispatch('enableVideo', () => client.enableVideo(true));
+  await expectNativeDispatch('setRenderBackend', () =>
+    client.setRenderBackend('engine-texture'),
+  );
+  await expectNativeDispatch('enableContentInspect', () =>
+    client.enableContentInspect(true, { module: 0, interval: 10 }),
+  );
+
+  assert.equal(transport.sent.length, 3);
 });
 
 test('setupLocalVideoView dispatches the expected native request', async () => {

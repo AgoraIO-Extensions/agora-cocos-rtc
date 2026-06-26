@@ -47,6 +47,9 @@ public final class AgoraRtcPlugin {
     private String renderBackendType = "engine-texture";
     private AgoraRenderBackend renderBackend;
     private boolean renderBackendConfigured;
+    private boolean isDestroying;
+    private String pendingInitializeRequestId;
+    private JSONObject pendingInitializeParams;
 
     public static AgoraRtcPlugin getInstance() {
         return INSTANCE;
@@ -389,6 +392,10 @@ public final class AgoraRtcPlugin {
     }
 
     private void handleInitialize(String requestId, JSONObject params) {
+        if (deferInitializeIfDestroying(requestId, params)) {
+            return;
+        }
+
         String appId = params != null ? params.optString("appId") : "";
         if (appId == null || appId.trim().isEmpty()) {
             dispatchError(requestId, "App ID is required.");
@@ -562,11 +569,54 @@ public final class AgoraRtcPlugin {
         if (backendToRelease != null) {
             CocosHelper.runOnGameThread(backendToRelease::release);
         }
+        if (engineToDestroy != null) {
+            synchronized (this) {
+                isDestroying = true;
+            }
+        }
         new Thread(() -> {
-            if (engineToDestroy != null) {
-                RtcEngine.destroy();
+            try {
+                if (engineToDestroy != null) {
+                    RtcEngine.destroy();
+                }
+            } finally {
+                if (engineToDestroy != null) {
+                    finishDestroy();
+                }
             }
         }).start();
+    }
+
+    private boolean deferInitializeIfDestroying(String requestId, JSONObject params) {
+        synchronized (this) {
+            if (isDestroying) {
+                pendingInitializeRequestId = requestId;
+                pendingInitializeParams = params;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void finishDestroy() {
+        synchronized (this) {
+            isDestroying = false;
+        }
+        flushPendingInitializeIfNeeded();
+    }
+
+    private void flushPendingInitializeIfNeeded() {
+        final String requestId;
+        final JSONObject params;
+        synchronized (this) {
+            requestId = pendingInitializeRequestId;
+            params = pendingInitializeParams;
+            pendingInitializeRequestId = null;
+            pendingInitializeParams = null;
+        }
+        if (requestId != null) {
+            handleInitialize(requestId, params);
+        }
     }
 
     private RtcEngineConfig buildRtcEngineConfig(Context context, String appId, JSONObject params) {
@@ -1349,13 +1399,24 @@ public final class AgoraRtcPlugin {
         renderBackend = null;
         renderBackendConfigured = false;
         rtcEngine = null;
+        if (engineToDestroy != null) {
+            synchronized (this) {
+                isDestroying = true;
+            }
+        }
         dispatchOk(requestId);
         if (backendToRelease != null) {
             CocosHelper.runOnGameThread(backendToRelease::release);
         }
         new Thread(() -> {
-            if (engineToDestroy != null) {
-                RtcEngine.destroy();
+            try {
+                if (engineToDestroy != null) {
+                    RtcEngine.destroy();
+                }
+            } finally {
+                if (engineToDestroy != null) {
+                    finishDestroy();
+                }
             }
         }).start();
     }

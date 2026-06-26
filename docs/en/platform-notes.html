@@ -35,6 +35,10 @@
           <p>This page collects the key Android and iOS differences, especially behavior that directly affects joining a channel and rendering. Confirming these boundaries up front keeps you from mistaking a platform limit for an SDK bug.</p>
         </section>
         <section class="card">
+          <h2 id="native-capabilities">Native dependency capabilities</h2>
+          <p>The current <code>sdk-config.json</code> delivery is voice-only: Android uses <code>io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1</code>, and iOS uses <code>AgoraAudio_iOS</code> with <code>RtcBasic</code>. Video, rendering, beauty, and content-inspection APIs stay in the TypeScript surface for compatibility. When the packaged native dependency does not support one of those calls, the request reaches native and is reported through the normal native failure path, typically with SDK error code <code>-4</code>.</p>
+        </section>
+        <section class="card">
           <h2 id="audio-routing">Audio routing and session restrictions</h2>
           <p><code>setDefaultAudioRouteToSpeakerphone</code> and <code>setAudioSessionOperationRestriction</code> do not behave identically across platforms: the latter only takes effect on iOS, while the Android bridge returns <code>unsupported</code>. When you hit speaker, earpiece, or session-conflict issues, check the platform before debugging your own logic.</p>
         </section>
