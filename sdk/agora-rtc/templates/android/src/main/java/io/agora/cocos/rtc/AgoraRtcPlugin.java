@@ -1349,15 +1349,13 @@ public final class AgoraRtcPlugin {
         renderBackend = null;
         renderBackendConfigured = false;
         rtcEngine = null;
-        dispatchOk(requestId);
         if (backendToRelease != null) {
             CocosHelper.runOnGameThread(backendToRelease::release);
         }
-        new Thread(() -> {
-            if (engineToDestroy != null) {
-                RtcEngine.destroy();
-            }
-        }).start();
+        if (engineToDestroy != null) {
+            RtcEngine.destroy();
+        }
+        dispatchOk(requestId);
     }
 
     private void handleSetVideoEncoderConfiguration(String requestId, JSONObject params) {
