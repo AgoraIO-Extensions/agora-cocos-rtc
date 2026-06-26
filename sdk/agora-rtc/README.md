@@ -92,12 +92,11 @@ await client.joinChannel(token, channelId, uid);
 
 ## Platform Notes
 
-- Android uses `io.agora.rtc:full-sdk:4.5.3` (bundled extensions, aligned with iOS SPM products below).
-- iOS SPM links all extension products from `sdk-config.json` `packageProducts` (same capability set as Android `full-sdk`).
-- iOS uses `AgoraRtcEngine_iOS 4.5.3`.
+- Native dependencies are defined by `sdk-config.json`. The current dev/4.5.3 delivery is voice-only: Android uses `io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1`, and iOS uses `AgoraAudio_iOS` with the `RtcBasic` product.
+- Video, rendering, beauty, and content-inspection methods remain in the TypeScript surface for compatibility. When the packaged native dependency does not support one of those methods, the native SDK reports that unsupported call, typically as error code `-4`, through the normal `native_failure` Promise rejection path.
 - Android supports `setDefaultAudioRouteToSpeakerphone`; Android still returns an explicit `unsupported` response for `setAudioSessionOperationRestriction`.
 - Android and iOS 4.5.3 `ChannelMediaOptions` both expose multipath fields; macOS-only screen/camera track fields are not part of the iOS Cocos bridge.
-- Android and iOS 4.5.3 content inspect modules both expose `position`.
+- Content inspect is available only when the native dependency set includes that product.
 - `engine-texture` is the main Cocos texture rendering path for video frames.
 - `AudioEffectMixing` effect pause/resume and effect volume map to native audio effect APIs; audio mixing publish/playout volume maps to native audio mixing APIs.
 

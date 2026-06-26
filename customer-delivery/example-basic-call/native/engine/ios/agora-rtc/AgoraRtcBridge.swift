@@ -45,7 +45,8 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     private var remoteTextureUids = Set<UInt>()
     private var remoteTextureSlots: [UInt: TextureSlotState] = [:]
     private var observedFramePosition: AgoraVideoFramePosition = [.postCapture, .preRenderer]
-    private var shouldFinalizeDestroyedEngine = false
+    private var isDestroying = false
+    private var pendingInitialize: (requestId: String, params: [String: Any])?
 
     private func sharedInstance(named className: String) -> NSObject? {
         guard let type = NSClassFromString(className) as? NSObject.Type else {
@@ -688,7 +689,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             }
         case "destroy":
             runOnMainQueue {
-                self.shouldFinalizeDestroyedEngine = self.rtcEngine != nil
+                let shouldDestroyEngine = self.rtcEngine != nil
+                if shouldDestroyEngine {
+                    self.isDestroying = true
+                }
                 _ = self.rtcEngine?.setVideoFrameDelegate(nil)
                 self.rtcEngine = nil
                 self.releaseAllTextureSlots()
@@ -696,9 +700,10 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     "requestId": requestId,
                     "ok": true,
                 ])
+                if shouldDestroyEngine {
+                    self.finishDestroyAfterResponse()
+                }
             }
-        case "finalizeDestroy":
-            finalizeDestroyEngine()
         case "setupLocalVideoView":
             handleSetupLocalVideoView(requestId: requestId, params: params)
         case "setupRemoteVideoView":
@@ -722,6 +727,17 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     private func handleInitialize(requestId: String, params: [String: Any]) {
+        var shouldDeferInitialize = false
+        runOnMainQueue {
+            if self.isDestroying {
+                self.pendingInitialize = (requestId: requestId, params: params)
+                shouldDeferInitialize = true
+            }
+        }
+        if shouldDeferInitialize {
+            return
+        }
+
         let appId = (params["appId"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !appId.isEmpty else {
             dispatchError(requestId: requestId, message: "App ID is required.")
@@ -792,7 +808,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         if self.rtcEngine === engine {
             self.rtcEngine = nil
         }
-        self.shouldFinalizeDestroyedEngine = false
+        self.isDestroying = false
         _ = engine.setVideoFrameDelegate(nil)
         self.releaseAllTextureSlots()
         AgoraRtcEngineKit.destroy()
@@ -1320,14 +1336,23 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return true
     }
 
-    private func finalizeDestroyEngine() {
-        runOnMainQueue {
-            guard self.shouldFinalizeDestroyedEngine else {
+    private func finishDestroyAfterResponse() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.isDestroying else {
                 return
             }
-            self.shouldFinalizeDestroyedEngine = false
             AgoraRtcEngineKit.destroy()
+            self.isDestroying = false
+            self.flushPendingInitializeIfNeeded()
         }
+    }
+
+    private func flushPendingInitializeIfNeeded() {
+        guard let pendingInitialize else {
+            return
+        }
+        self.pendingInitialize = nil
+        handleInitialize(requestId: pendingInitialize.requestId, params: pendingInitialize.params)
     }
 
     private func handleSetupLocalVideoView(requestId: String, params: [String: Any]) {

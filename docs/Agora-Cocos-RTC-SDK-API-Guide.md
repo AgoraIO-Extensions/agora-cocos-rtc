@@ -701,15 +701,17 @@ const mediaOptions: AgoraChannelMediaOptions = {
 
 ### Android
 
-Android 原生依赖坐标以 `sdk/agora-rtc/sdk-config.json` 为准，当前版本为 `io.agora.rtc:full-sdk:4.5.3` 和 `io.agora.rtc:full-screen-sharing:4.5.3`。当前 Android bridge 对 `setAudioSessionOperationRestriction(restriction)` 返回显式 `unsupported` 响应，业务层不应把该接口作为 Android 能力依赖；扬声器路由控制和 `engine-texture` 渲染接入仍可正常使用。
+Android 原生依赖坐标以 `sdk/agora-rtc/sdk-config.json` 为准，当前 dev/4.5.3 交付为 voice-only，依赖是 `io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1`。JS 层仍保留视频、渲染、美颜和内容审核 API；当当前原生依赖不支持对应能力时，调用会进入 native，并按原生 SDK 的不支持语义返回错误，通常表现为错误码 `-4`，再通过 `native_failure` Promise rejection 暴露给业务层。当前 Android bridge 对 `setAudioSessionOperationRestriction(restriction)` 返回显式 `unsupported` 响应，业务层不应把该接口作为 Android 能力依赖。
 
 ### iOS
 
-iOS 当前以 Swift Package Manager 集成 Agora RTC 依赖，`sdk/agora-rtc/sdk-config.json` 的仓库基线是 `integrationMode: swift-package-manager`，包地址为 `https://github.com/AgoraIO/AgoraRtcEngine_iOS.git`，版本为 `4.5.3`，产品名为 `RtcBasic`。`AgoraRtcEngine_iOS` 仍可作为依赖命名上下文理解，但不应把 CocoaPods 视为当前仓库的默认集成模式。iOS 支持 `setAudioSessionOperationRestriction(restriction)`。当前对客户公开的渲染后端只有 `engine-texture`，iOS 接入按这一条路径理解即可。
+iOS 当前以 Swift Package Manager 集成 Agora 依赖，`sdk/agora-rtc/sdk-config.json` 的仓库基线是 `integrationMode: swift-package-manager`，包地址为 `https://github.com/AgoraIO/AgoraAudio_iOS.git`，版本为 `4.5.3-a1`，产品名为 `RtcBasic`。iOS 支持 `setAudioSessionOperationRestriction(restriction)`；当前 voice-only 包不额外做 JS 侧能力拦截，不支持的原生调用按 SDK 错误返回。
 
 ### Shared Constraints
 
 Android 与 iOS 都依赖客户提供有效的 `App ID` 和 `Token` 才能完成真实入会与媒体联调；同时还需要业务侧正确提供 `channelId` 与 `uid` / `userAccount`。`setNativeVideoOverlaySuspended` 是为原生覆盖层渲染保留的兼容接口，在当前公开的 `engine-texture` 路径下没有可见原生层可隐藏，业务侧无需依赖它；另外，`warning`、`EnableVideoObserver`、`PreloadEngine / UnloadEngine` 都不属于本 SDK 对客户公开承诺的业务接口。
+
+当前 JS 类型仍保留 full/video API，用于兼容历史调用和未来 full-capability 包。不要把 TypeScript 可见的方法等同于当前原生依赖一定支持的能力；如果业务需要依赖某个视频或扩展能力，应结合 `sdk-config.json` 和 native 返回错误确认当前包是否包含对应能力。
 
 ## 12. Error Handling and Troubleshooting
 
