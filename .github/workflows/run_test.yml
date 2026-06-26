@@ -159,7 +159,17 @@ jobs:
           version: ${{ env.COCOS_CREATOR_VERSION }}
           download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
       - run: npm ci
+      - id: ios-simulator
+        uses: futureware-tech/simulator-action@v4
+        with:
+          os: iOS
+          os_version: '>=14.0'
+          erase_before_boot: true
+          wait_for_boot: true
+          shutdown_after_job: true
       - run: bash scripts/run_cocos_integration_test_ios.sh
+        env:
+          IOS_SIMULATOR_UDID: ${{ steps.ios-simulator.outputs.udid }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

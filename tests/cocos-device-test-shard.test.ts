@@ -709,9 +709,17 @@ test('cocos run_test workflow exposes unit and device integration jobs', async (
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_android\.sh/);
   assert.match(workflow, /arch: x86_64/);
   assert.match(workflow, /integration_test_ios:/);
-  assert.doesNotMatch(workflow, /futureware-tech\/simulator-action@v4/);
+  assert.match(workflow, /id: ios-simulator[\s\S]*uses: futureware-tech\/simulator-action@v4/);
+  assert.match(workflow, /os: iOS/);
+  assert.match(workflow, /os_version: '>=14\.0'/);
+  assert.match(workflow, /erase_before_boot: true/);
+  assert.match(workflow, /wait_for_boot: true/);
+  assert.match(workflow, /shutdown_after_job: true/);
   assert.doesNotMatch(workflow, /model: 'iPhone 16 Pro'/);
-  assert.match(workflow, /bash scripts\/run_cocos_integration_test_ios\.sh/);
+  assert.match(
+    workflow,
+    /run: bash scripts\/run_cocos_integration_test_ios\.sh[\s\S]*IOS_SIMULATOR_UDID: \$\{\{ steps\.ios-simulator\.outputs\.udid \}\}/,
+  );
   assert.match(workflow, /test_shard\/integration_test_app\/reports/);
 });
 
