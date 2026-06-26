@@ -2036,6 +2036,10 @@ test('ios plugin registrar attaches the js bridge wrapper and forwards responses
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcPlugin.mm'),
     'utf8',
   );
+  const examplePluginContent = await readFile(
+    path.join(repoRoot, 'example/basic-call/native/agora-rtc/ios/AgoraRtcPlugin.mm'),
+    'utf8',
+  );
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
     'utf8',
@@ -2053,11 +2057,19 @@ test('ios plugin registrar attaches the js bridge wrapper and forwards responses
   assert.match(pluginContent, /handleScriptRequest:/);
   assert.match(pluginContent, /#import "apple\/JsbBridge\.h"/);
   assert.match(pluginContent, /dispatchEventToScript:\(NSString \*\)eventName payload:\(NSString \*\)payload/);
-  assert.match(pluginContent, /dispatch_async\(dispatch_get_main_queue\(\), \^\{/);
+  assert.doesNotMatch(pluginContent, /dispatch_async\(dispatch_get_main_queue\(\), \^\{[\s\S]*dispatchEventToScript/);
   assert.match(
     pluginContent,
     /\[\[JsbBridgeWrapper sharedInstance\] dispatchEventToScript:eventName arg:payload\]/,
   );
+  assert.match(examplePluginContent, /dispatchEventToScript:\(NSString \*\)eventName payload:\(NSString \*\)payload/);
+  assert.doesNotMatch(examplePluginContent, /dispatch_async\(dispatch_get_main_queue\(\), \^\{[\s\S]*dispatchEventToScript/);
+  assert.match(
+    examplePluginContent,
+    /\[\[JsbBridgeWrapper sharedInstance\] dispatchEventToScript:eventName arg:payload\]/,
+  );
+  assert.match(bridgeContent, /private func dispatchResponse\(_ object: \[String: Any\]\) \{[\s\S]*?DispatchQueue\.main\.async/);
+  assert.match(bridgeContent, /private func dispatchResponse\(_ object: \[String: Any\], event: String\) \{[\s\S]*?DispatchQueue\.main\.async/);
   assert.doesNotMatch(pluginContent, /_bridgeCallback = \^\(NSString \*eventName, NSString \*arg\)/);
   assert.doesNotMatch(pluginContent, /\[\[JsbBridge sharedInstance\] setCallback:_bridgeCallback\]/);
   assert.match(bridgeContent, /dispatchToScript\(event:/);
@@ -2066,15 +2078,21 @@ test('ios plugin registrar attaches the js bridge wrapper and forwards responses
   assert.match(bridgeContent, /agora:event/);
 });
 
-test('customer delivery ios plugin registrar also marshals bridged responses back to the main queue', async () => {
+test('customer delivery ios plugin registrar does not remarshal bridged responses already on the main queue', async () => {
   const pluginContent = await readFile(
     path.join(repoRoot, 'customer-delivery/example-basic-call/native/engine/ios/agora-rtc/AgoraRtcPlugin.mm'),
     'utf8',
   );
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'customer-delivery/example-basic-call/native/engine/ios/agora-rtc/AgoraRtcBridge.swift'),
+    'utf8',
+  );
 
   assert.match(pluginContent, /dispatchEventToScript:\(NSString \*\)eventName payload:\(NSString \*\)payload/);
-  assert.match(pluginContent, /dispatch_async\(dispatch_get_main_queue\(\), \^\{/);
+  assert.doesNotMatch(pluginContent, /dispatch_async\(dispatch_get_main_queue\(\), \^\{[\s\S]*sendToScript/);
   assert.match(pluginContent, /\[\[JsbBridge sharedInstance\] sendToScript:eventName arg1:payload\]/);
+  assert.match(bridgeContent, /private func dispatchResponse\(_ object: \[String: Any\]\) \{[\s\S]*?DispatchQueue\.main\.async/);
+  assert.match(bridgeContent, /private func dispatchResponse\(_ object: \[String: Any\], event: String\) \{[\s\S]*?DispatchQueue\.main\.async/);
   assert.match(pluginContent, /\[\[JsbBridge sharedInstance\] setCallback:_bridgeCallback\]/);
 });
 
