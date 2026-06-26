@@ -117,60 +117,25 @@ resolve_ios_simulator_udid() {
   fi
 
   xcrun simctl list devices booted -j > "$IOS_SIMULATORS_LOG_PATH"
-  local booted_udid
-  set +e
-  booted_udid="$(node - "$IOS_SIMULATORS_LOG_PATH" "${IOS_SIMULATOR_NAME:-iPhone 16 Pro}" "booted" <<'NODE'
-const fs = require('node:fs');
-
-const [listPath, preferredName, requiredState] = process.argv.slice(2);
-const data = JSON.parse(fs.readFileSync(listPath, 'utf8'));
-const devices = Object.entries(data.devices ?? {})
-  .flatMap(([runtime, devices]) => (Array.isArray(devices) ? devices : []).map((device) => ({ ...device, runtime })))
-  .filter((device) => device.isAvailable !== false && /iOS/i.test(device.runtime))
-  .filter((device) => requiredState !== 'booted' || device.state === 'Booted');
-const preferredDevices = devices.filter((device) => device.name === preferredName);
-const selectedDevice = preferredDevices[0] ?? devices[0];
-
-if (!selectedDevice?.udid) {
-  process.exit(1);
-}
-
-console.error(`Selected iOS simulator: ${selectedDevice.name} ${selectedDevice.udid}`);
-process.stdout.write(selectedDevice.udid);
-NODE
-  )"
-  local booted_status=$?
-  set -e
-  if [[ $booted_status -eq 0 && -n "$booted_udid" ]]; then
-    echo "$booted_udid"
-    return
-  fi
-
-  xcrun simctl list devices available -j > "$IOS_SIMULATORS_LOG_PATH"
-  local selected_udid
-  selected_udid="$(node - "$IOS_SIMULATORS_LOG_PATH" "${IOS_SIMULATOR_NAME:-iPhone 16 Pro}" <<'NODE'
+  node - "$IOS_SIMULATORS_LOG_PATH" "${IOS_SIMULATOR_NAME:-iPhone 16 Pro}" <<'NODE'
 const fs = require('node:fs');
 
 const [listPath, preferredName] = process.argv.slice(2);
 const data = JSON.parse(fs.readFileSync(listPath, 'utf8'));
-const devices = Object.entries(data.devices ?? {})
+const bootedDevices = Object.entries(data.devices ?? {})
   .flatMap(([runtime, devices]) => (Array.isArray(devices) ? devices : []).map((device) => ({ ...device, runtime })))
-  .filter((device) => device.isAvailable !== false && /iOS/i.test(device.runtime));
-const preferredDevices = devices.filter((device) => device.name === preferredName);
-const selectedDevice = preferredDevices[0] ?? devices[0];
+  .filter((device) => device.state === 'Booted' && device.isAvailable !== false && /iOS/i.test(device.runtime));
+const preferredDevices = bootedDevices.filter((device) => device.name === preferredName);
+const selectedDevice = preferredDevices[0] ?? bootedDevices[0];
 
 if (!selectedDevice?.udid) {
-  console.error('No available iOS simulator was found.');
+  console.error('No booted iOS simulator was found.');
   process.exit(1);
 }
 
 console.error(`Selected iOS simulator: ${selectedDevice.name} ${selectedDevice.udid}`);
 process.stdout.write(selectedDevice.udid);
 NODE
-  )"
-  xcrun simctl boot "$selected_udid" >/dev/null 2>&1 || true
-  xcrun simctl bootstatus "$selected_udid" -b >&2
-  echo "$selected_udid"
 }
 
 refresh_ios_report_path() {
