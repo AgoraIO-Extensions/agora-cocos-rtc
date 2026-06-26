@@ -139,26 +139,6 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         return slotNumber.intValue
     }
 
-    private func runOnMainQueue(sync: Bool = true, _ block: @escaping () -> Void) {
-        if Thread.isMainThread {
-            block()
-            return
-        }
-        if sync {
-            DispatchQueue.main.sync(execute: block)
-            return
-        }
-        DispatchQueue.main.async(execute: block)
-    }
-
-    private func runOnMainQueueSync(_ block: () -> Void) {
-        if Thread.isMainThread {
-            block()
-            return
-        }
-        DispatchQueue.main.sync(execute: block)
-    }
-
     private func updateTextureSlot(slotId: Int, pixelBuffer: CVPixelBuffer) {
         guard let type = textureSlotBridgeClass() else {
             return
@@ -691,19 +671,17 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 dispatchResult(requestId: requestId, method: method, result: result)
             }
         case "destroy":
-            runOnMainQueue {
-                let engineToDestroy = self.rtcEngine
-                _ = engineToDestroy?.setVideoFrameDelegate(nil)
-                self.rtcEngine = nil
-                self.releaseAllTextureSlots()
-                if engineToDestroy != nil {
-                    AgoraRtcEngineKit.destroy()
-                }
-                self.dispatchResponse([
-                    "requestId": requestId,
-                    "ok": true,
-                ])
+            let engineToDestroy = self.rtcEngine
+            _ = engineToDestroy?.setVideoFrameDelegate(nil)
+            self.rtcEngine = nil
+            self.releaseAllTextureSlots()
+            if engineToDestroy != nil {
+                AgoraRtcEngineKit.destroy()
             }
+            self.dispatchResponse([
+                "requestId": requestId,
+                "ok": true,
+            ])
         case "setupLocalVideoView":
             handleSetupLocalVideoView(requestId: requestId, params: params)
         case "setupRemoteVideoView":
@@ -775,22 +753,20 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             config.logConfig = logConfig
         }
 
-        runOnMainQueue {
-            self.rtcEngine = AgoraRtcEngineKit.sharedEngine(with: config, delegate: self)
-            guard let engine = self.rtcEngine else {
-                self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
-                return
-            }
-            guard self.applyProtectedParameters(engine: engine, requestId: requestId, method: "initialize", params: params) else {
-                self.cleanupFailedInitialize(engine)
-                return
-            }
-            _ = engine.setVideoFrameDelegate(self)
-            self.dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
+        self.rtcEngine = AgoraRtcEngineKit.sharedEngine(with: config, delegate: self)
+        guard let engine = self.rtcEngine else {
+            self.dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+            return
         }
+        guard self.applyProtectedParameters(engine: engine, requestId: requestId, method: "initialize", params: params) else {
+            self.cleanupFailedInitialize(engine)
+            return
+        }
+        _ = engine.setVideoFrameDelegate(self)
+        self.dispatchResponse([
+            "requestId": requestId,
+            "ok": true,
+        ])
     }
 
     private func cleanupFailedInitialize(_ engine: AgoraRtcEngineKit) {
@@ -1284,13 +1260,11 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     }
 
     private func requireEngine(requestId: String, action: (AgoraRtcEngineKit) -> Void) {
-        runOnMainQueueSync {
-            guard let engine = rtcEngine else {
-                dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
-                return
-            }
-            action(engine)
+        guard let engine = rtcEngine else {
+            dispatchError(requestId: requestId, message: "RtcEngine is not initialized.")
+            return
         }
+        action(engine)
     }
 
     private func requiredString(
