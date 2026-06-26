@@ -59,9 +59,6 @@ type PendingRequest = {
   timer: ReturnType<typeof setTimeout>;
 };
 
-type InternalAgoraMethod = 'finalizeDestroy';
-type BridgeDispatchMethod = AgoraBridgeRequest['method'] | InternalAgoraMethod;
-
 type AnyAgoraEventListener = (payload: AgoraEventMap[keyof AgoraEventMap]) => void;
 
 type TextureReadySlotCache = {
@@ -846,13 +843,7 @@ export class AgoraRtcClient {
     try {
       await this.#invoke('destroy', {});
     } finally {
-      const shouldFinalizeNativeDestroy = isIosBridgeRuntime(this.#bridgeRuntime);
       this.#teardown();
-      if (shouldFinalizeNativeDestroy) {
-        setTimeout(() => {
-          this.#dispatchFireAndForget('finalizeDestroy', {});
-        }, 0);
-      }
     }
   }
 
@@ -904,27 +895,6 @@ export class AgoraRtcClient {
         JSON.stringify(request),
       );
     });
-  }
-
-  #dispatchFireAndForget(method: BridgeDispatchMethod, params: Record<string, unknown>): void {
-    const transport = this.#resolveTransport();
-    if (!transport) {
-      return;
-    }
-
-    const request = {
-      requestId: createRequestId(),
-      method,
-      params,
-    };
-    const payload = JSON.stringify(request);
-
-    if (typeof transport.dispatchEventToNative === 'function') {
-      transport.dispatchEventToNative(BRIDGE_REQUEST_EVENT, payload);
-      return;
-    }
-
-    transport.dispatchEventToScript?.(BRIDGE_REQUEST_EVENT, payload);
   }
 
   #handleResponse(payload: string): void {
