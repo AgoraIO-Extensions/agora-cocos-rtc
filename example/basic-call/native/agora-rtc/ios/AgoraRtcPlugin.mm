@@ -47,9 +47,7 @@
 }
 
 + (void)dispatchEventToScript:(NSString *)eventName payload:(NSString *)payload {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [[JsbBridgeWrapper sharedInstance] dispatchEventToScript:eventName arg:payload];
-    });
+    [[JsbBridgeWrapper sharedInstance] dispatchEventToScript:eventName arg:payload];
 }
 
 - (instancetype)init {
