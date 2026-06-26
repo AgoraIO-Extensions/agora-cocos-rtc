@@ -55,6 +55,7 @@ export class RtcSessionService {
   private listenersBound = false;
   private initialized = false;
   private joined = false;
+  private joinRequestPending = false;
   private previewStarted = false;
   private activeRemoteUid: number | null = null;
   private remoteUserUids = new Set<number>();
@@ -189,27 +190,36 @@ export class RtcSessionService {
       this.log('Already joined');
       return;
     }
+    if (this.joinRequestPending) {
+      this.log('Join already pending');
+      return;
+    }
     const config = this.options.getConfig();
     if (!config.channelId.trim()) {
       throw new Error('Channel ID is empty.');
     }
-    await this.ensureJoinPermissions(config);
-    const client = this.getClient();
-    if (config.publishCameraTrack) {
-      await this.setupLocalVideoView();
-      if (!config.deferVideoEncoderConfiguration) {
-        await this.applyVideoEncoderMirrorConfiguration();
+    this.joinRequestPending = true;
+    try {
+      await this.ensureJoinPermissions(config);
+      const client = this.getClient();
+      if (config.publishCameraTrack) {
+        await this.setupLocalVideoView();
+        if (!config.deferVideoEncoderConfiguration) {
+          await this.applyVideoEncoderMirrorConfiguration();
+        }
       }
+      await client.joinChannel(config.token, config.channelId.trim(), config.uid, {
+        clientRoleType: this.selectedClientRole,
+        channelProfile: this.selectedChannelProfile,
+        publishCameraTrack: config.publishCameraTrack,
+        publishMicrophoneTrack: config.publishMicrophoneTrack,
+        autoSubscribeAudio: config.autoSubscribeAudio,
+        autoSubscribeVideo: config.autoSubscribeVideo,
+      });
+    } catch (error) {
+      this.joinRequestPending = false;
+      throw error;
     }
-    await client.joinChannel(config.token, config.channelId.trim(), config.uid, {
-      clientRoleType: this.selectedClientRole,
-      channelProfile: this.selectedChannelProfile,
-      publishCameraTrack: config.publishCameraTrack,
-      publishMicrophoneTrack: config.publishMicrophoneTrack,
-      autoSubscribeAudio: config.autoSubscribeAudio,
-      autoSubscribeVideo: config.autoSubscribeVideo,
-    });
-    this.joined = true;
     this.log(`Join request sent: ${config.channelId} (${config.uid})`);
     this.emitState();
   }
@@ -222,6 +232,10 @@ export class RtcSessionService {
       this.log('Already joined');
       return;
     }
+    if (this.joinRequestPending) {
+      this.log('Join already pending');
+      return;
+    }
     const config = this.options.getConfig();
     if (!config.channelId.trim()) {
       throw new Error('Channel ID is empty.');
@@ -229,17 +243,22 @@ export class RtcSessionService {
     if (!userAccount.trim()) {
       throw new Error('User account is empty.');
     }
-    const client = this.getClient();
-    if (this.isVideoRuntimeEnabled(config)) {
-      await client.enableVideo(false);
+    this.joinRequestPending = true;
+    try {
+      const client = this.getClient();
+      if (this.isVideoRuntimeEnabled(config)) {
+        await client.enableVideo(false);
+      }
+      this.videoEnabled = false;
+      await client.joinChannelWithUserAccount(
+        config.token,
+        config.channelId.trim(),
+        userAccount.trim(),
+      );
+    } catch (error) {
+      this.joinRequestPending = false;
+      throw error;
     }
-    this.videoEnabled = false;
-    await client.joinChannelWithUserAccount(
-      config.token,
-      config.channelId.trim(),
-      userAccount.trim(),
-    );
-    this.joined = true;
     this.log(`String user account join request sent: ${userAccount.trim()}`);
     this.emitState();
   }
@@ -253,12 +272,29 @@ export class RtcSessionService {
   }
 
   async leaveRtcChannel(): Promise<void> {
-    const client = this.getClient();
     const remoteUids = [...this.remoteUserUids];
+    if (
+      !this.joined
+      && !this.joinRequestPending
+      && !this.previewStarted
+      && !this.localViewAttached
+      && remoteUids.length === 0
+    ) {
+      this.log('Already left');
+      this.emitState();
+      return;
+    }
+    const client = this.getClient();
+    const shouldLeaveChannel = this.joined || this.joinRequestPending;
+    if (this.joinRequestPending) {
+      this.joinRequestPending = false;
+    }
     if (this.previewStarted) {
       await client.stopPreview();
     }
-    await client.leaveChannel();
+    if (shouldLeaveChannel) {
+      await client.leaveChannel();
+    }
     if (this.localViewAttached) {
       await client.removeLocalVideoView();
     }
@@ -269,12 +305,13 @@ export class RtcSessionService {
     }
     this.clearLocalVideoRenderState();
     this.clearRemoteVideoRenderState(remoteUids);
+    this.joinRequestPending = false;
     this.joined = false;
     this.remoteUserUids.clear();
     this.lastRemoteVideoStatsByUid.clear();
     this.activeRemoteUid = null;
     this.options.onRemoteUsersChanged([], null);
-    this.log('Leave request sent');
+    this.log(shouldLeaveChannel ? 'Leave request sent' : 'Already left');
     this.emitState();
   }
 
@@ -862,7 +899,11 @@ export class RtcSessionService {
     const client = this.client;
     const shouldCleanupVideoViews = this.shouldUseVideoNativeViews();
     try {
-      if (this.joined) {
+      const shouldLeaveChannel = this.joined || this.joinRequestPending;
+      if (this.joinRequestPending) {
+        this.joinRequestPending = false;
+      }
+      if (shouldLeaveChannel) {
         await this.teardownRtcStep('leaveChannel', () => client.leaveChannel());
       }
       if (this.previewStarted) {
@@ -883,6 +924,7 @@ export class RtcSessionService {
       const remoteUids = [...this.remoteUserUids];
       this.listenersBound = false;
       this.initialized = false;
+      this.joinRequestPending = false;
       this.joined = false;
       this.previewStarted = false;
       this.activeRemoteUid = null;
@@ -919,6 +961,11 @@ export class RtcSessionService {
       return;
     }
     this.client.on('joinChannelSuccess', ({ channelId, uid }) => {
+      if (!this.joinRequestPending) {
+        this.log(`Ignored stale join success: ${channelId} (${uid})`);
+        return;
+      }
+      this.joinRequestPending = false;
       this.joined = true;
       this.log(`Joined channel: ${channelId} (${uid})`);
       this.emitState();
@@ -995,6 +1042,9 @@ export class RtcSessionService {
       this.log(`Backend[${payload.backend}] ${payload.phase}: ${payload.result}`);
     });
     this.client.on('error', ({ message }) => {
+      if (!this.joined) {
+        this.joinRequestPending = false;
+      }
       this.lastErrorMessage = message;
       this.log(`Native error: ${message}`);
       this.emitState();

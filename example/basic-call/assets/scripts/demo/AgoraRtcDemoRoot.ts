@@ -124,6 +124,7 @@ export class AgoraRtcDemoRoot extends Component {
   private autoStartupRunning = false;
   private autoStartupCompleted = false;
   private joinLeaveLoopActive = false;
+  private sessionActionQueue: Promise<void> = Promise.resolve();
 
   private get selectedCaseName(): string | null {
     return this.selectedCase?.name ?? null;
@@ -213,9 +214,8 @@ export class AgoraRtcDemoRoot extends Component {
   }
 
   async toggleJoinChannel(): Promise<void> {
-    const state = this.getSessionState();
     await this.runSessionAction('JoinChannel', (session) =>
-      state.joined ? session.leaveRtcChannel() : session.joinRtcChannel(),
+      session.getState().joined ? session.leaveRtcChannel() : session.joinRtcChannel(),
     );
   }
 
@@ -599,35 +599,45 @@ export class AgoraRtcDemoRoot extends Component {
     actionName: string,
     action: (session: RtcSessionService) => Promise<void>,
   ): Promise<void> {
-    this.createSession();
-    this.setActionResult(actionName, 'idle');
-    this.pushStatus(`${actionName} started`);
-    try {
-      await action(this.session!);
-      this.setActionResult(actionName, 'ok');
-      this.pushStatus(`${actionName} completed`);
-    } catch (error) {
-      this.setActionResult(actionName, 'fail');
-      this.pushStatus(`${actionName} failed: ${String(error)}`);
-      throw error;
-    }
+    return this.enqueueSessionAction(async () => {
+      this.createSession();
+      this.setActionResult(actionName, 'idle');
+      this.pushStatus(`${actionName} started`);
+      try {
+        await action(this.session!);
+        this.setActionResult(actionName, 'ok');
+        this.pushStatus(`${actionName} completed`);
+      } catch (error) {
+        this.setActionResult(actionName, 'fail');
+        this.pushStatus(`${actionName} failed: ${String(error)}`);
+        throw error;
+      }
+    });
+  }
+
+  private async enqueueSessionAction(task: () => Promise<void>): Promise<void> {
+    const run = this.sessionActionQueue.then(task, task);
+    this.sessionActionQueue = run.catch(() => {});
+    await run;
   }
 
   private async runAudioEffectMixingAction(
     actionName: string,
     action: (session: RtcSessionService, assetPath: string) => Promise<void>,
   ): Promise<void> {
-    this.createSession();
-    this.setActionResult(actionName, 'idle');
-    try {
-      const assetPath = await resolveAudioMixingAssetPath();
-      await action(this.session!, assetPath);
-      this.setActionResult(actionName, 'ok');
-    } catch (error) {
-      this.setActionResult(actionName, 'fail');
-      this.pushStatus(`${actionName} failed: ${String(error)}`);
-      throw error;
-    }
+    return this.enqueueSessionAction(async () => {
+      this.createSession();
+      this.setActionResult(actionName, 'idle');
+      try {
+        const assetPath = await resolveAudioMixingAssetPath();
+        await action(this.session!, assetPath);
+        this.setActionResult(actionName, 'ok');
+      } catch (error) {
+        this.setActionResult(actionName, 'fail');
+        this.pushStatus(`${actionName} failed: ${String(error)}`);
+        throw error;
+      }
+    });
   }
 
   private setActionResult(actionName: string, result: ActionResult): void {
