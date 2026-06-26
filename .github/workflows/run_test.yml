@@ -159,14 +159,6 @@ jobs:
           version: ${{ env.COCOS_CREATOR_VERSION }}
           download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
       - run: npm ci
-      - uses: futureware-tech/simulator-action@v4
-        with:
-          model: 'iPhone 16 Pro'
-          os: iOS
-          os_version: '>=18.0'
-          erase_before_boot: true
-          wait_for_boot: true
-          shutdown_after_job: true
       - run: bash scripts/run_cocos_integration_test_ios.sh
       - uses: actions/upload-artifact@v4
         if: always()

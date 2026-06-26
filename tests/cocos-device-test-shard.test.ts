@@ -445,6 +445,9 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /collect_ios_diagnostics/);
   assert.match(iosScript, /resolve_ios_simulator_udid\(\)/);
   assert.match(iosScript, /IOS_SIMULATOR_UDID="\$\(resolve_ios_simulator_udid\)"/);
+  assert.match(iosScript, /simctl list devices available -j/);
+  assert.match(iosScript, /simctl boot "\$selected_udid"/);
+  assert.match(iosScript, /simctl bootstatus "\$selected_udid" -b/);
   assert.match(iosScript, /simctl privacy "\$IOS_SIMULATOR_UDID" grant camera "\$IOS_BUNDLE_ID"/);
   assert.match(iosScript, /simctl privacy "\$IOS_SIMULATOR_UDID" grant microphone "\$IOS_BUNDLE_ID"/);
   assert.match(iosScript, /rm -f "\$IOS_REPORT_SIM_PATH"/);
@@ -556,6 +559,65 @@ exit 1
   );
 });
 
+test('ios simulator resolver boots an available simulator when none is already booted', async () => {
+  const iosScript = await readFile(
+    `${repoRoot}/scripts/run_cocos_integration_test_ios.sh`,
+    'utf8',
+  );
+  const functionMatch = iosScript.match(
+    /resolve_ios_simulator_udid\(\) \{[\s\S]*?\n\}\n\nrefresh_ios_report_path/,
+  );
+  assert.ok(functionMatch, 'expected iOS simulator resolver function');
+
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-simulator-resolver-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const reportDir = path.join(tempRoot, 'reports');
+  const commandLog = path.join(tempRoot, 'xcrun.log');
+  await mkdir(binDir, { recursive: true });
+  await mkdir(reportDir, { recursive: true });
+  await writeFile(
+    path.join(binDir, 'xcrun'),
+    `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "${commandLog}"
+if [[ "$1" == "simctl" && "$2" == "list" && "$3" == "devices" && "$4" == "booted" && "$5" == "-j" ]]; then
+  printf '%s' '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-5":[]}}'
+  exit 0
+fi
+if [[ "$1" == "simctl" && "$2" == "list" && "$3" == "devices" && "$4" == "available" && "$5" == "-j" ]]; then
+  printf '%s' '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-5":[{"name":"iPhone 15 Pro","udid":"available-udid","state":"Shutdown","isAvailable":true}]}}'
+  exit 0
+fi
+if [[ "$1" == "simctl" && "$2" == "boot" && "$3" == "available-udid" ]]; then
+  exit 0
+fi
+if [[ "$1" == "simctl" && "$2" == "bootstatus" && "$3" == "available-udid" && "$4" == "-b" ]]; then
+  exit 0
+fi
+exit 1
+`,
+    { encoding: 'utf8', mode: 0o755 },
+  );
+
+  const functionSource = functionMatch[0].replace(/\n\nrefresh_ios_report_path$/, '');
+  const result = spawnSync('bash', ['-c', `set -euo pipefail\n${functionSource}\nresolve_ios_simulator_udid`], {
+    encoding: 'utf8',
+    env: {
+      BASH_ENV: '/dev/null',
+      HOME: tempRoot,
+      IOS_SIMULATORS_LOG_PATH: path.join(reportDir, 'ios-simulators.json'),
+      PATH: `${binDir}${path.delimiter}/opt/homebrew/bin${path.delimiter}/usr/bin${path.delimiter}/bin`,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, 'available-udid\n');
+  const commands = await readFile(commandLog, 'utf8');
+  assert.match(commands, /simctl list devices booted -j/);
+  assert.match(commands, /simctl list devices available -j/);
+  assert.match(commands, /simctl boot available-udid/);
+  assert.match(commands, /simctl bootstatus available-udid -b/);
+});
+
 test('android integration script prefers pinned test ndk over ambient ndk env', async () => {
   const androidScript = await readFile(
     `${repoRoot}/scripts/run_cocos_integration_test_android.sh`,
@@ -647,7 +709,8 @@ test('cocos run_test workflow exposes unit and device integration jobs', async (
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_android\.sh/);
   assert.match(workflow, /arch: x86_64/);
   assert.match(workflow, /integration_test_ios:/);
-  assert.match(workflow, /futureware-tech\/simulator-action@v4/);
+  assert.doesNotMatch(workflow, /futureware-tech\/simulator-action@v4/);
+  assert.doesNotMatch(workflow, /model: 'iPhone 16 Pro'/);
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_ios\.sh/);
   assert.match(workflow, /test_shard\/integration_test_app\/reports/);
 });
