@@ -37,6 +37,7 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
     private let responseEventName = "agora:response"
     private let callbackEventName = "agora:event"
     private let protectedAppTypeParameters = "{\"rtc.set_app_type\":10}"
+    private let destroyQueue = DispatchQueue(label: "io.agora.cocos.rtc.destroy", qos: .utility)
 
     private var rtcEngine: AgoraRtcEngineKit?
     private var renderBackend = "engine-texture"
@@ -670,13 +671,15 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
             _ = engineToDestroy?.setVideoFrameDelegate(nil)
             self.rtcEngine = nil
             self.releaseAllTextureSlots()
-            if engineToDestroy != nil {
-                AgoraRtcEngineKit.destroy()
+            destroyQueue.async { [weak self] in
+                if engineToDestroy != nil {
+                    AgoraRtcEngineKit.destroy()
+                }
+                self?.dispatchResponse([
+                    "requestId": requestId,
+                    "ok": true,
+                ])
             }
-            self.dispatchResponse([
-                "requestId": requestId,
-                "ok": true,
-            ])
         case "setupLocalVideoView":
             handleSetupLocalVideoView(requestId: requestId, params: params)
         case "setupRemoteVideoView":
@@ -770,7 +773,9 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
         }
         _ = engine.setVideoFrameDelegate(nil)
         self.releaseAllTextureSlots()
-        AgoraRtcEngineKit.destroy()
+        destroyQueue.async {
+            AgoraRtcEngineKit.destroy()
+        }
     }
 
     private func applyProtectedParameters(engine: AgoraRtcEngineKit, requestId: String, method: String, params: [String: Any]) -> Bool {

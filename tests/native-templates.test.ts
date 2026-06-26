@@ -686,6 +686,8 @@ test('ios bridge runs sdk destroy before resolving the destroy request', async (
     destroyMatch[0],
     /dispatchResponse\(\[\s*"requestId": requestId,\s*"ok": true,\s*\]\)/,
   );
+  assert.match(bridgeContent, /private let destroyQueue = DispatchQueue\(label: "io\.agora\.cocos\.rtc\.destroy", qos: \.utility\)/);
+  assert.match(destroyMatch[0], /destroyQueue\.async \{ \[weak self\] in/);
   assertPatternBefore(
     destroyMatch[0],
     /AgoraRtcEngineKit\.destroy\(\)/,
@@ -1364,6 +1366,8 @@ test('ios bridge template runs native engine teardown inside destroy', async () 
   assert.ok(destroyMatch);
   assert.match(destroyMatch[0], /dispatchResponse\(\[/);
   assert.doesNotMatch(destroyMatch[0], /case "finalizeDestroy"/);
+  assert.match(bridgeContent, /private let destroyQueue = DispatchQueue\(label: "io\.agora\.cocos\.rtc\.destroy", qos: \.utility\)/);
+  assert.match(destroyMatch[0], /destroyQueue\.async \{ \[weak self\] in/);
   assertPatternBefore(
     destroyMatch[0],
     /AgoraRtcEngineKit\.destroy\(\)/,
@@ -1909,7 +1913,7 @@ test('ios bridge template leaves runtime permission ownership to callers', async
   assert.doesNotMatch(handleJoinChannelWithUserAccountMatch[0], /ensureRtcPermissions\(/);
 });
 
-test('ios bridge template keeps request handlers synchronous and marshals only JS dispatch to the main queue', async () => {
+test('ios bridge template keeps request handlers direct and confines explicit queue hops', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
     'utf8',
@@ -1945,6 +1949,7 @@ test('ios bridge template keeps request handlers synchronous and marshals only J
   assert.ok(destroyMatch);
   assert.doesNotMatch(destroyMatch[0], /runOnMainQueue/);
   assert.doesNotMatch(destroyMatch[0], /case "finalizeDestroy"/);
+  assert.match(destroyMatch[0], /destroyQueue\.async \{ \[weak self\] in/);
   assertPatternBefore(
     destroyMatch[0],
     /AgoraRtcEngineKit\.destroy\(\)/,
