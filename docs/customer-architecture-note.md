@@ -20,7 +20,7 @@ For the full API list and verification boundary, see:
 The project can be understood as three cooperating parts:
 
 - **Cocos** owns the page, scene, buttons, status area, and final composition.
-- **Agora RTC SDK** provides the real audio and video communication capability.
+- **Agora RTC SDK** provides the native RTC capability selected by the configured Android artifact and iOS Swift package.
 - **This SDK** connects Agora RTC to Cocos and exposes a unified JavaScript API for business code and the example project.
 
 It does not embed an Agora app inside Cocos. Cocos controls the experience, and Agora provides the RTC engine.
@@ -105,15 +105,15 @@ This layer turns video frames into Cocos textures.
 
 Android:
 
-- `io.agora.rtc:full-sdk:4.5.3`
+- `io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1`
 
 iOS:
 
-- `AgoraRtcEngine_iOS 4.5.3`
+- `AgoraAudio_iOS 4.5.3-a1`
 
 Responsibilities:
 
-- real RTC audio and video
+- RTC media capabilities exposed by the selected native dependency
 - join, leave, events, encoding, capture, decoding, effects, and related native capabilities
 
 This is the underlying RTC engine.
@@ -199,13 +199,11 @@ Tradeoffs:
 
 ### Android
 
-The main Android delivery path includes:
+The current Android dependency is the special voice artifact:
 
-- local video display
-- remote video display
-- working `engine-texture`
+- `io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1`
 
-Android is not limited to audio join validation; video can enter the Cocos texture system.
+That artifact is the current Android delivery dependency, not the full video package. The bridge and JS APIs keep the video and `engine-texture` integration points, but Android video display should only be claimed after switching to an Agora artifact that includes the required video capability and re-validating the device flow.
 
 ### iOS
 
@@ -273,8 +271,7 @@ These capabilities are not part of the current public delivery focus:
 The current repository includes:
 
 - unified JavaScript API
-- Android and iOS native bridges
-- Android and iOS local and remote video display
+- Android and iOS native bridges with the configured native dependencies
 - reference example project
 - export scripts
 - automated tests
@@ -293,4 +290,4 @@ It is no longer only an integration prototype. It can be used for customer integ
 
 The core architecture is: Cocos owns the scene and UI, Agora owns RTC, and the JavaScript SDK plus native bridges connect the two.
 
-The current delivery scope includes Android and iOS unified APIs, local and remote video display, a QA example, and the baseline integration and verification tooling.
+The current delivery scope includes Android and iOS unified APIs, a QA example, and the baseline integration and verification tooling. Media capability claims should follow the native dependency selected in `sdk-config.json`.

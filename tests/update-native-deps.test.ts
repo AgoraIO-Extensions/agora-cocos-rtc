@@ -12,11 +12,6 @@ const execFileAsync = promisify(execFile);
 const baseConfig = {
   android: {
     dependencies: ['io.agora.rtc:agora-special-voice:4.5.3.0.BASIC1'],
-    gradlePluginVersion: '8.13.1',
-    gradleDistributionUrl:
-      'https\\://services.gradle.org/distributions/gradle-8.13-bin.zip',
-    localMavenRelativePath: '../../../local-maven',
-    targetPackageName: 'io.agora.cocos.example',
   },
   ios: {
     packageUrl: 'https://github.com/AgoraIO/AgoraAudio_iOS.git',
@@ -71,7 +66,6 @@ test('dependencies-content preserves unrelated config fields', async () => {
 
   assert.equal(config.ios.integrationMode, 'swift-package-manager');
   assert.deepEqual(config.ios.packageProducts, ['RtcBasic']);
-  assert.equal(config.android.targetPackageName, 'io.agora.cocos.example');
 });
 
 test('dependencies-content collects multiple Android coordinates', async () => {

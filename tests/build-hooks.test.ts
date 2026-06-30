@@ -10,7 +10,6 @@ const {
   applyAndroidGradleDependencies,
   copyIosTemplateFiles,
   ensureAndroidAppActivityBridgeAttachment,
-  ensureAgoraLocalMavenRepository,
   ensureAndroidRtcPermissions,
   ensureIosCMakeRtcBridgeSources,
   ensureIosXcodeProjectNativeSources,
@@ -30,8 +29,6 @@ const {
   patchIosXcodeProjectSwiftPackage,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,
-  rewriteAndroidGradlePluginVersion,
-  rewriteGradleDistributionUrl,
   sdkConfig,
 } = require('../sdk/agora-rtc/dist/hooks.js');
 
@@ -52,39 +49,6 @@ test('applyAndroidGradleDependencies injects Agora artifacts once', () => {
     assert.match(once, new RegExp(dependency.replaceAll('.', '\\.')));
   }
   assert.equal(once, twice);
-});
-
-test('rewriteAndroidGradlePluginVersion upgrades AGP to the pinned cached version', () => {
-  const original = "classpath 'com.android.tools.build:gradle:8.10.1'";
-  const rewritten = rewriteAndroidGradlePluginVersion(original);
-
-  assert.match(
-    rewritten,
-    new RegExp(sdkConfig.android.gradlePluginVersion.replaceAll('.', '\\.')),
-  );
-  assert.doesNotMatch(rewritten, /8\.10\.1/);
-});
-
-test('ensureAgoraLocalMavenRepository injects project-local Maven mirror once', () => {
-  const original = `allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-  }`;
-
-  const once = ensureAgoraLocalMavenRepository(original);
-  const twice = ensureAgoraLocalMavenRepository(once);
-
-  assert.match(once, /local-maven/);
-  assert.equal(once, twice);
-});
-
-test('rewriteGradleDistributionUrl pins the wrapper to Gradle 8.13', () => {
-  const original = 'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-bin.zip';
-  const rewritten = rewriteGradleDistributionUrl(original);
-
-  assert.equal(rewritten, `distributionUrl=${sdkConfig.android.gradleDistributionUrl}`);
 });
 
 test('findFirstExistingPath returns the first matching candidate', async () => {
@@ -906,4 +870,156 @@ test('google-play is treated as an android-like platform for export integration'
   const content = await readFile(manifestPath, 'utf8');
   assert.match(content, /android\.permission\.CAMERA/);
   assert.match(content, /android\.permission\.RECORD_AUDIO/);
+});
+
+test('android export integration only syncs app dependencies without rewriting project toolchain', async () => {
+  const {
+    onAfterBuild,
+  } = require('../sdk/agora-rtc/dist/hooks.js');
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-android-export-'));
+  const gradlePath = path.join(root, 'native/engine/android/build.gradle');
+  const appGradlePath = path.join(root, 'native/engine/android/app/build.gradle');
+  const wrapperPath = path.join(root, 'proj/gradle/wrapper/gradle-wrapper.properties');
+  await mkdir(path.dirname(gradlePath), { recursive: true });
+  await mkdir(path.dirname(appGradlePath), { recursive: true });
+  await mkdir(path.dirname(wrapperPath), { recursive: true });
+  await writeFile(
+    gradlePath,
+    `buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.10.1'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+`,
+    'utf8',
+  );
+  await writeFile(
+    appGradlePath,
+    `plugins {
+    id 'com.android.application'
+}
+
+dependencies {
+    implementation "com.google.code.gson:gson:2.10.1"
+}
+`,
+    'utf8',
+  );
+  await writeFile(
+    wrapperPath,
+    'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-bin.zip\n',
+    'utf8',
+  );
+
+  await onAfterBuild({ platform: 'android' }, { dest: root });
+  const rootGradle = await readFile(gradlePath, 'utf8');
+  const appGradle = await readFile(appGradlePath, 'utf8');
+  const wrapper = await readFile(wrapperPath, 'utf8');
+
+  assert.match(rootGradle, /com\.android\.tools\.build:gradle:8\.10\.1/);
+  assert.doesNotMatch(rootGradle, /local-maven/);
+  assert.doesNotMatch(rootGradle, /localAgoraRepo/);
+  assert.equal(
+    wrapper,
+    'distributionUrl=https\\://services.gradle.org/distributions/gradle-8.11.1-bin.zip\n',
+  );
+  for (const dependency of sdkConfig.android.dependencies) {
+    assert.match(appGradle, new RegExp(dependency.replaceAll('.', '\\.')));
+  }
+});
+
+test('onAfterBuild resolves the exported Android project from Cocos result.dest', async () => {
+  const {
+    onAfterBuild,
+  } = require('../sdk/agora-rtc/dist/hooks.js');
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-result-dest-'));
+  const appGradlePath = path.join(root, 'native/engine/android/app/build.gradle');
+  await mkdir(path.dirname(appGradlePath), { recursive: true });
+  await writeFile(
+    appGradlePath,
+    `plugins {
+    id 'com.android.application'
+}
+
+dependencies {
+    implementation "com.google.code.gson:gson:2.10.1"
+}
+`,
+    'utf8',
+  );
+
+  await onAfterBuild({ platform: 'android' }, { dest: root });
+  const appGradle = await readFile(appGradlePath, 'utf8');
+
+  for (const dependency of sdkConfig.android.dependencies) {
+    assert.match(appGradle, new RegExp(dependency.replaceAll('.', '\\.')));
+  }
+});
+
+test('onBeforeMake syncs Android dependencies when Cocos passes the native project root', async () => {
+  const {
+    onBeforeMake,
+  } = require('../sdk/agora-rtc/dist/hooks.js');
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-android-make-'));
+  const appGradlePath = path.join(root, 'app/build.gradle');
+  await mkdir(path.dirname(appGradlePath), { recursive: true });
+  await writeFile(
+    appGradlePath,
+    `plugins {
+    id 'com.android.application'
+}
+
+dependencies {
+    implementation "com.google.code.gson:gson:2.10.1"
+}
+`,
+    'utf8',
+  );
+
+  await onBeforeMake(root, { platform: 'android' });
+  const appGradle = await readFile(appGradlePath, 'utf8');
+
+  for (const dependency of sdkConfig.android.dependencies) {
+    assert.match(appGradle, new RegExp(dependency.replaceAll('.', '\\.')));
+  }
+});
+
+test('onBeforeMake detects Android export roots from app Gradle even without platform options', async () => {
+  const {
+    onBeforeMake,
+  } = require('../sdk/agora-rtc/dist/hooks.js');
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-android-path-only-'));
+  const androidRoot = path.join(root, 'android', 'proj');
+  const appGradlePath = path.join(androidRoot, 'app/build.gradle');
+  await mkdir(path.dirname(appGradlePath), { recursive: true });
+  await writeFile(
+    appGradlePath,
+    `plugins {
+    id 'com.android.application'
+}
+
+dependencies {
+    implementation "com.google.code.gson:gson:2.10.1"
+}
+`,
+    'utf8',
+  );
+
+  await onBeforeMake(androidRoot);
+  const appGradle = await readFile(appGradlePath, 'utf8');
+
+  for (const dependency of sdkConfig.android.dependencies) {
+    assert.match(appGradle, new RegExp(dependency.replaceAll('.', '\\.')));
+  }
 });

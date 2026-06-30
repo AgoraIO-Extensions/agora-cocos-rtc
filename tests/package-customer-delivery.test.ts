@@ -131,6 +131,22 @@ test('package-customer-delivery script copies the checked-in native engine templ
   }
 });
 
+test('customer-delivery Android template uses remote Agora dependency without local Maven', async () => {
+  const rootGradle = await readFile(
+    path.join(repoRoot, 'customer-delivery/example-basic-call/native/engine/android/build.gradle'),
+    'utf8',
+  );
+  const appGradle = await readFile(
+    path.join(repoRoot, 'customer-delivery/example-basic-call/native/engine/android/app/build.gradle'),
+    'utf8',
+  );
+
+  assert.doesNotMatch(rootGradle, /local-maven/);
+  assert.doesNotMatch(rootGradle, /localAgoraRepo/);
+  assert.match(appGradle, /implementation 'io\.agora\.rtc:agora-special-voice:4\.5\.3\.1\.BASIC1'/);
+  assert.doesNotMatch(appGradle, /io\.agora\.rtc:full-sdk:4\.5\.3/);
+});
+
 test('customer-delivery template map defines directory-level sync boundaries', async () => {
   const templateMap = JSON.parse(
     await readFile(
