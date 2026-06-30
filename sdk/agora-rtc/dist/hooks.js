@@ -814,10 +814,9 @@ function patchIosXcodeProjectSwiftPackage(content) {
 }
 
 function syncAndroidGradleDependencies(content) {
-  const allowed = new Set(sdkConfig.android.dependencies);
   let next = content.replace(
-    /^\s*implementation\s+'(io\.agora\.rtc:[^']+)'\s*\n/gm,
-    (match, coordinate) => (allowed.has(coordinate) ? match : ''),
+    /^[ \t]*(implementation|api)\s*(?:\(\s*)?(['"])(io\.agora\.rtc:[^'"]+)\2\s*\)?\s*(?:\/\/.*)?(?:\r?\n|$)/gm,
+    '',
   );
 
   const dependencyLines = sdkConfig.android.dependencies.map(
