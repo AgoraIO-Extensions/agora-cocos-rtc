@@ -746,6 +746,21 @@ test('demo root swallows handled async action failures after logging them so nat
   assert.match(content, /await Promise\.resolve\(handler\.call\(this\)\);/);
 });
 
+test('demo root serializes session actions so rapid native taps cannot overlap join and leave', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /private sessionActionQueue: Promise<void> = Promise\.resolve\(\);/);
+  assert.match(content, /private async enqueueSessionAction\(task: \(\) => Promise<void>\): Promise<void>/);
+  assert.match(content, /const run = this\.sessionActionQueue\.then\(task, task\);/);
+  assert.match(content, /this\.sessionActionQueue = run\.catch\(\(\) => \{\}\);/);
+  assert.match(content, /return this\.enqueueSessionAction\(async \(\) => \{/);
+  assert.doesNotMatch(content, /const state = this\.getSessionState\(\);[\s\S]*state\.joined \? session\.leaveRtcChannel\(\) : session\.joinRtcChannel\(\)/);
+  assert.match(content, /session\.getState\(\)\.joined \? session\.leaveRtcChannel\(\) : session\.joinRtcChannel\(\)/);
+});
+
 test('audio effect mixing case wires flutter-required controls', async () => {
   const actionsContent = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/actions.ts`,

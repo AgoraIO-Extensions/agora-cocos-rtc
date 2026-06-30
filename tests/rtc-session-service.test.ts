@@ -376,6 +376,85 @@ test('joinRtcChannel skips demo-owned permission requests for subscriber-only jo
   assert.equal(pickRequests(transport, 'joinChannel').length, 1);
 });
 
+test('joinRtcChannel marks joined only after native joinChannelSuccess callback', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      autoSubscribeVideo: false,
+    })),
+  );
+
+  await service.joinRtcChannel();
+  await service.joinRtcChannel();
+
+  assert.equal(service.getState().joined, false);
+  assert.equal(pickRequests(transport, 'joinChannel').length, 1);
+
+  transport.emit('agora:event', JSON.stringify({
+    eventName: 'joinChannelSuccess',
+    payload: {
+      channelId: 'demo-channel',
+      uid: 123,
+      elapsed: 10,
+    },
+  }));
+
+  assert.equal(service.getState().joined, true);
+});
+
+test('leaveRtcChannel does not call native leave when already outside the channel', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      autoSubscribeVideo: false,
+    })),
+  );
+
+  await service.leaveRtcChannel();
+
+  assert.equal(pickRequests(transport, 'leaveChannel').length, 0);
+});
+
+test('leaveRtcChannel cancels pending join so a late joinChannelSuccess does not mark joined', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      autoSubscribeVideo: false,
+    })),
+  );
+
+  await service.joinRtcChannel();
+  await service.leaveRtcChannel();
+
+  assert.equal(pickRequests(transport, 'leaveChannel').length, 1);
+
+  transport.emit('agora:event', JSON.stringify({
+    eventName: 'joinChannelSuccess',
+    payload: {
+      channelId: 'demo-channel',
+      uid: 123,
+      elapsed: 10,
+    },
+  }));
+
+  assert.equal(service.getState().joined, false);
+});
+
 test('startLocalPreview skips encoder config when deferVideoEncoderConfiguration is set', async () => {
   const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
   const transport = new AutoResponseTransport();
