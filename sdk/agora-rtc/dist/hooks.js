@@ -813,6 +813,90 @@ function patchIosXcodeProjectSwiftPackage(content) {
   return patchIosXcodeProjectBuildSettingsForSwiftPackage(next);
 }
 
+function identifierBeforeBrace(content, braceIndex) {
+  let end = braceIndex - 1;
+  while (end >= 0 && /\s/.test(content[end])) {
+    end -= 1;
+  }
+
+  let start = end;
+  while (start >= 0 && /[A-Za-z0-9_-]/.test(content[start])) {
+    start -= 1;
+  }
+
+  return content.slice(start + 1, end + 1);
+}
+
+function findTopLevelGradleBlockOpening(content, blockName) {
+  let depth = 0;
+  let state = 'normal';
+  let quote = '';
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    const next = content[index + 1];
+
+    if (state === 'line-comment') {
+      if (char === '\n' || char === '\r') {
+        state = 'normal';
+      }
+      continue;
+    }
+
+    if (state === 'block-comment') {
+      if (char === '*' && next === '/') {
+        state = 'normal';
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === 'string') {
+      if (char === '\\') {
+        index += 1;
+        continue;
+      }
+      if (char === quote) {
+        state = 'normal';
+        quote = '';
+      }
+      continue;
+    }
+
+    if (char === '/' && next === '/') {
+      state = 'line-comment';
+      index += 1;
+      continue;
+    }
+
+    if (char === '/' && next === '*') {
+      state = 'block-comment';
+      index += 1;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      state = 'string';
+      quote = char;
+      continue;
+    }
+
+    if (char === '{') {
+      if (depth === 0 && identifierBeforeBrace(content, index) === blockName) {
+        return index;
+      }
+      depth += 1;
+      continue;
+    }
+
+    if (char === '}') {
+      depth = Math.max(0, depth - 1);
+    }
+  }
+
+  return -1;
+}
+
 function syncAndroidGradleDependencies(content) {
   let next = content.replace(
     /^[ \t]*(implementation|api)\s*(?:\(\s*)?(['"])(io\.agora\.rtc:[^'"]+)\2\s*\)?\s*(?:\/\/.*)?(?:\r?\n|$)/gm,
@@ -829,8 +913,9 @@ function syncAndroidGradleDependencies(content) {
 
   const injection = dependencyLines.map((dependency) => `    ${dependency}`).join('\n');
 
-  if (/dependencies\s*\{/.test(next)) {
-    return next.replace(/dependencies\s*\{/, (match) => `${match}\n${injection}`);
+  const dependenciesOpening = findTopLevelGradleBlockOpening(next, 'dependencies');
+  if (dependenciesOpening !== -1) {
+    return `${next.slice(0, dependenciesOpening + 1)}\n${injection}${next.slice(dependenciesOpening + 1)}`;
   }
 
   return `${next.trimEnd()}\n\ndependencies {\n${injection}\n}\n`;

@@ -77,6 +77,36 @@ test('applyAndroidGradleDependencies replaces stale Agora app artifacts', () => 
   assert.equal(once, twice);
 });
 
+test('applyAndroidGradleDependencies does not inject app artifacts into buildscript dependencies', () => {
+  const original = `buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.google.gms:google-services:4.4.2'
+    }
+}
+
+apply plugin: 'com.android.application'
+apply plugin: 'com.google.gms.google-services'
+
+dependencies {
+    implementation "com.google.code.gson:gson:2.10.1"
+}
+`;
+
+  const once = applyAndroidGradleDependencies(original);
+  const buildscriptSection = once.slice(0, once.indexOf("apply plugin: 'com.android.application'"));
+  const appDependenciesSection = once.slice(once.lastIndexOf('dependencies {'));
+
+  assert.doesNotMatch(buildscriptSection, /implementation\s+['"]io\.agora\.rtc:/);
+  for (const dependency of sdkConfig.android.dependencies) {
+    assert.match(appDependenciesSection, new RegExp(dependency.replaceAll('.', '\\.')));
+  }
+  assert.equal(once, applyAndroidGradleDependencies(once));
+});
+
 test('findFirstExistingPath returns the first matching candidate', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-paths-'));
   const target = path.join(root, 'proj', 'android', 'app', 'build.gradle');
