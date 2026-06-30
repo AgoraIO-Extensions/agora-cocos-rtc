@@ -17,7 +17,7 @@ function parseZipListing(stdout: string) {
     .filter((entry): entry is string => Boolean(entry));
 }
 
-test('package-sdk script creates a distributable zip with plugin manifests', async () => {
+test('package-sdk script creates a distributable extension zip without native plugin autoload manifest', async () => {
   const outputDir = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-package-'));
   const script = path.join(repoRoot, 'scripts/package-sdk.sh');
 
@@ -30,7 +30,7 @@ test('package-sdk script creates a distributable zip with plugin manifests', asy
   const entries = parseZipListing(stdout);
 
   assert.match(stdout, /agora-rtc\/package\.json/);
-  assert.match(stdout, /agora-rtc\/cc_plugin\.json/);
+  assert.doesNotMatch(stdout, /agora-rtc\/cc_plugin\.json/);
   assert.match(stdout, /agora-rtc\/dist\/hooks\.js/);
   assert.match(stdout, /agora-rtc\/README\.md/);
   assert.match(stdout, /agora-rtc\/templates\/common\/Classes\/agora\/AgoraEngineTextureBridge\.h/);

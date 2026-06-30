@@ -66,7 +66,6 @@ test('package-customer-delivery script assembles sdk zip and example assets with
     'example-basic-call/README.md',
     'example-basic-call/assets',
     'example-basic-call/build-configs',
-    'example-basic-call/native/agora-rtc/cc_plugin.json',
     'example-basic-call/native/agora-rtc/ios/AgoraRtcBridge.swift',
     'example-basic-call/package.json',
     'example-basic-call/settings/v2/packages/project.json',
@@ -89,6 +88,7 @@ test('package-customer-delivery script assembles sdk zip and example assets with
     /^example-basic-call\/library\//,
     /^example-basic-call\/temp\//,
     /^example-basic-call\/assets\/resources\/agora-config\.build\.json(?:\.meta)?$/,
+    /^example-basic-call\/native\/agora-rtc\/cc_plugin\.json$/,
     /\.(?:mobileprovision|p12|jks|keystore)$/,
   ];
 
