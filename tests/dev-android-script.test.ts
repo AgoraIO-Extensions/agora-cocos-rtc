@@ -16,8 +16,7 @@ test('dev-android script exports current source with Cocos CLI instead of old ru
   assert.match(content, /ANDROID_NDK_HOME="\$\{ANDROID_NDK_HOME:-\$\{ANDROID_NDK_ROOT:-\}\}"/);
   assert.match(content, /resolve_android_ndk_path\(\)/);
   assert.match(content, /write_android_cocos_build_config\(\)/);
-  assert.match(content, /sdkPath/);
-  assert.match(content, /ndkPath/);
+  assert.match(content, /write-cocos-native-build-config\.mjs/);
   assert.match(content, /--build "configPath=\$ANDROID_COCOS_BUILD_CONFIG"/);
   assert.match(content, /sync-android-app-bridge\.mjs/);
   assert.doesNotMatch(content, /ANDROID_RUNTIME_JAVA_DIR=/);

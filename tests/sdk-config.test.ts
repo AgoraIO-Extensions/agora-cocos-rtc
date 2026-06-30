@@ -1,48 +1,33 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-
-const EXPECTED_IOS_PACKAGE_PRODUCTS = [
-  'RtcBasic',
-  'AINS',
-  'AINSLL',
-  'AudioBeauty',
-  'ClearVision',
-  'ContentInspect',
-  'SpatialAudio',
-  'VirtualBackground',
-  'AIAEC',
-  'AIAECLL',
-  'VQA',
-  'FaceDetection',
-  'FaceCapture',
-  'LipSync',
-  'VideoCodecEnc',
-  'VideoAv1CodecEnc',
-  'ReplayKit',
-];
+const repoRoot = process.cwd();
+const sourceConfig = JSON.parse(
+  readFileSync(path.join(repoRoot, 'sdk/agora-rtc/sdk-config.json'), 'utf8'),
+);
 
 test('sdk native dependency config is exposed from a single source of truth', () => {
   const sdkConfig = require('../sdk/agora-rtc/dist/sdk-config.js');
 
-  assert.deepEqual(sdkConfig.android.dependencies, [
-    'io.agora.rtc:full-sdk:4.5.3',
-  ]);
-  assert.equal(sdkConfig.android.gradlePluginVersion, '8.13.1');
-  assert.equal(sdkConfig.android.targetPackageName, 'io.agora.cocos.example');
+  assert.deepEqual(sdkConfig.android.dependencies, sourceConfig.android.dependencies);
+  assert.equal(sdkConfig.android.gradlePluginVersion, sourceConfig.android.gradlePluginVersion);
+  assert.equal(sdkConfig.android.targetPackageName, sourceConfig.android.targetPackageName);
   assert.equal(
     sdkConfig.android.gradleDistributionUrl,
-    'https\\://services.gradle.org/distributions/gradle-8.13-bin.zip',
+    sourceConfig.android.gradleDistributionUrl,
   );
-  assert.equal(sdkConfig.ios.packageVersion, '4.5.3');
-  assert.equal(
-    sdkConfig.ios.packageUrl,
-    'https://github.com/AgoraIO/AgoraRtcEngine_iOS.git',
+  assert.equal(sdkConfig.ios.packageVersion, sourceConfig.ios.packageVersion);
+  assert.equal(sdkConfig.ios.packageUrl, sourceConfig.ios.packageUrl);
+  assert.deepEqual(sdkConfig.ios.packageProducts, sourceConfig.ios.packageProducts);
+  assert.deepEqual(
+    sdkConfig.ios.productCompilationFlags,
+    sourceConfig.ios.productCompilationFlags,
   );
-  assert.deepEqual(sdkConfig.ios.packageProducts, EXPECTED_IOS_PACKAGE_PRODUCTS);
-  assert.equal(sdkConfig.ios.podName, 'AgoraRtcEngine_iOS');
-  assert.equal(sdkConfig.ios.deploymentTarget, '13.0');
-  assert.equal(sdkConfig.ios.integrationMode, 'swift-package-manager');
+  assert.equal(sdkConfig.ios.podName, sourceConfig.ios.podName);
+  assert.equal(sdkConfig.ios.deploymentTarget, sourceConfig.ios.deploymentTarget);
+  assert.equal(sdkConfig.ios.integrationMode, sourceConfig.ios.integrationMode);
 });

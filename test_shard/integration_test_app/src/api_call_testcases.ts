@@ -1,6 +1,18 @@
-import type { AgoraRtcClient } from '../../../extensions/agora-rtc/js/agora.ts';
+import {
+  AgoraAudioProfile,
+  AgoraAudioScenario,
+  type AgoraRtcClient,
+} from '../../../extensions/agora-rtc/js/agora.ts';
 
 export type ApiEvidenceKind = 'response' | 'event' | 'error' | 'value';
+export type ApiTestCapability = 'video' | 'render' | 'contentInspect';
+export type ApiTestCapabilities = Record<ApiTestCapability, boolean>;
+
+export const DEFAULT_API_TEST_CAPABILITIES: ApiTestCapabilities = {
+  video: true,
+  render: true,
+  contentInspect: true,
+};
 
 export type ApiTestContext = {
   appId: string;
@@ -16,6 +28,7 @@ export type ApiCallCase = {
   method: string;
   expectedParams: Record<string, unknown>;
   requiredEvidence: ApiEvidenceKind[];
+  requiredCapabilities?: ApiTestCapability[];
   run: (client: AgoraRtcClient, context: ApiTestContext) => Promise<unknown>;
 };
 
@@ -149,6 +162,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'channel.join',
     method: 'joinChannel',
+    requiredCapabilities: ['video'],
     expectedParams: {
       token: '<TEST_TOKEN>',
       channelId: '<TEST_CHANNEL_ID>',
@@ -221,9 +235,12 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'audio.profile',
     method: 'setAudioProfile',
-    expectedParams: { profile: 0, scenario: 1 },
+    expectedParams: { profile: 5, scenario: 3 },
     requiredEvidence: ['response'],
-    run: (client) => client.setAudioProfile(0, 1),
+    run: (client) => client.setAudioProfile(
+      AgoraAudioProfile.MusicHighQualityStereo,
+      AgoraAudioScenario.GameStreaming,
+    ),
   },
   {
     id: 'audio.volume-indication',
@@ -277,6 +294,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.enable',
     method: 'enableVideo',
+    requiredCapabilities: ['video'],
     expectedParams: { enabled: true },
     requiredEvidence: ['response'],
     run: (client) => client.enableVideo(true),
@@ -284,6 +302,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.enable-local',
     method: 'enableLocalVideo',
+    requiredCapabilities: ['video'],
     expectedParams: { enabled: true },
     requiredEvidence: ['response'],
     run: (client) => client.enableLocalVideo(true),
@@ -291,6 +310,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.mute-local',
     method: 'muteLocalVideoStream',
+    requiredCapabilities: ['video'],
     expectedParams: { muted: false },
     requiredEvidence: ['response'],
     run: (client) => client.muteLocalVideoStream(false),
@@ -298,6 +318,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.mute-remote',
     method: 'muteRemoteVideoStream',
+    requiredCapabilities: ['video'],
     expectedParams: { uid: remoteUid, muted: true },
     requiredEvidence: ['response'],
     run: (client) => client.muteRemoteVideoStream(remoteUid, true),
@@ -305,6 +326,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.mute-all-remote',
     method: 'muteAllRemoteVideoStreams',
+    requiredCapabilities: ['video'],
     expectedParams: { muted: false },
     requiredEvidence: ['response'],
     run: (client) => client.muteAllRemoteVideoStreams(false),
@@ -312,6 +334,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.encoder-config',
     method: 'setVideoEncoderConfiguration',
+    requiredCapabilities: ['video'],
     expectedParams: { width: 640, height: 360, frameRate: 15, bitrate: 0, orientationMode: 0 },
     requiredEvidence: ['response'],
     run: (client) => client.setVideoEncoderConfiguration({
@@ -325,6 +348,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'render.setup-local-view',
     method: 'setupLocalVideoView',
+    requiredCapabilities: ['render'],
     expectedParams: canvas,
     requiredEvidence: ['response'],
     run: (client) => client.setupLocalVideoView(canvas),
@@ -332,6 +356,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'render.setup-remote-view',
     method: 'setupRemoteVideoView',
+    requiredCapabilities: ['render'],
     expectedParams: { uid: remoteUid, ...canvas },
     requiredEvidence: ['response'],
     run: (client) => client.setupRemoteVideoView(remoteUid, canvas),
@@ -339,6 +364,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'render.update-local-view',
     method: 'updateLocalVideoView',
+    requiredCapabilities: ['render'],
     expectedParams: { ...canvas, x: 36 },
     requiredEvidence: ['response'],
     run: (client) => client.updateLocalVideoView({ ...canvas, x: 36 }),
@@ -346,6 +372,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'render.update-remote-view',
     method: 'updateRemoteVideoView',
+    requiredCapabilities: ['render'],
     expectedParams: { uid: remoteUid, ...canvas, x: 48 },
     requiredEvidence: ['response'],
     run: (client) => client.updateRemoteVideoView(remoteUid, { ...canvas, x: 48 }),
@@ -353,6 +380,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'render.suspend-overlay',
     method: 'setNativeVideoOverlaySuspended',
+    requiredCapabilities: ['render'],
     expectedParams: { suspended: false },
     requiredEvidence: ['response'],
     run: (client) => client.setNativeVideoOverlaySuspended(false),
@@ -360,6 +388,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.start-preview',
     method: 'startPreview',
+    requiredCapabilities: ['video'],
     expectedParams: { sourceType: 0 },
     requiredEvidence: ['response', 'event'],
     run: (client) => client.startPreview(0),
@@ -367,6 +396,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.switch-camera',
     method: 'switchCamera',
+    requiredCapabilities: ['video'],
     expectedParams: {},
     requiredEvidence: ['response'],
     run: async (client) => {
@@ -379,6 +409,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.beauty',
     method: 'setBeautyEffectOptions',
+    requiredCapabilities: ['video'],
     expectedParams: {
       enabled: true,
       options: {
@@ -402,6 +433,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.content-inspect',
     method: 'enableContentInspect',
+    requiredCapabilities: ['contentInspect'],
     expectedParams: { enabled: true, config: { module: 0, interval: 10 } },
     requiredEvidence: ['response'],
     run: (client) => client.enableContentInspect(true, { module: 0, interval: 10 }),
@@ -537,6 +569,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'video.stop-preview',
     method: 'stopPreview',
+    requiredCapabilities: ['video'],
     expectedParams: { sourceType: 0 },
     requiredEvidence: ['response'],
     run: (client) => client.stopPreview(0),
@@ -544,6 +577,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'render.remove-remote-view',
     method: 'removeRemoteVideoView',
+    requiredCapabilities: ['render'],
     expectedParams: { uid: remoteUid },
     requiredEvidence: ['response'],
     run: (client) => client.removeRemoteVideoView(remoteUid),
@@ -551,6 +585,7 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
   {
     id: 'render.remove-local-view',
     method: 'removeLocalVideoView',
+    requiredCapabilities: ['render'],
     expectedParams: {},
     requiredEvidence: ['response'],
     run: (client) => client.removeLocalVideoView(),
@@ -580,3 +615,11 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.destroy(),
   },
 ];
+
+export function filterApiCallTestcases(
+  capabilities: ApiTestCapabilities = DEFAULT_API_TEST_CAPABILITIES,
+): ApiCallCase[] {
+  return API_CALL_TESTCASES.filter((testcase) =>
+    (testcase.requiredCapabilities ?? []).every((capability) => capabilities[capability]),
+  );
+}

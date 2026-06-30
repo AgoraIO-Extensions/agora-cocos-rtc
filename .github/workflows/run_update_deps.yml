@@ -8,30 +8,53 @@ on:
         type: string
         required: false
         default: ''
-      android_version:
-        description: 'Android Agora RTC Maven version, for example 4.5.3.'
+      dependencies_content:
+        description: |
+          Native dependency block. Paste whatever the release note gives you, in
+          any order and with any separators (newlines, spaces, pipes, quotes). Each
+          field is detected by its shape:
+            - Android: any group:artifact:version coordinate (implementation/api and
+              quotes optional), e.g. io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1
+            - iOS source: any github.com URL (https or git@), e.g.
+              https://github.com/AgoraIO/AgoraAudio_iOS.git
+            - iOS version: must be labelled tag: or version: (e.g. tag:4.5.3-a1),
+              since a bare version is ambiguous with the Android one
+            - iOS products: mention any of the known product names (RtcBasic, AINS,
+              AudioBeauty, ...) to narrow the linked set; omit to keep the current list
+          Example:
+            github:https://github.com/AgoraIO/AgoraAudio_iOS.git tag:4.5.3-a1 implementation 'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'
         type: string
-        required: false
-        default: ''
-      android_dependencies:
-        description: 'Comma-separated Android Maven coordinates. Overrides android_version when set.'
-        type: string
-        required: false
-        default: ''
-      ios_version:
-        description: 'iOS AgoraRtcEngine_iOS Swift Package/CocoaPods version, for example 4.5.3.'
-        type: string
-        required: false
-        default: ''
+        required: true
 
 jobs:
   update_deps:
     runs-on: macos-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
+      - name: Validate inputs
+        env:
+          DEPENDENCIES_CONTENT: ${{ inputs.dependencies_content }}
+        run: |
+          if [ -z "$DEPENDENCIES_CONTENT" ]; then
+            echo "dependencies_content is required." >&2
+            exit 1
+          fi
+
+      - name: Prepare target branch
+        id: prepare_target_branch
+        env:
+          TARGET_BRANCH: ${{ inputs.target_branch }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          final_target_branch="${TARGET_BRANCH:-$REF_NAME}"
+          echo "final_target_branch=${final_target_branch}" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.target_branch || github.ref_name }}
+          ref: ${{ steps.prepare_target_branch.outputs.final_target_branch }}
           fetch-depth: 1
 
       - name: Setup Node
@@ -44,11 +67,11 @@ jobs:
         run: npm ci
 
       - name: Update native dependency config
+        env:
+          DEPENDENCIES_CONTENT: ${{ inputs.dependencies_content }}
         run: |
           node ./scripts/update-native-deps.mjs \
-            --android-version "${{ inputs.android_version }}" \
-            --android-dependencies "${{ inputs.android_dependencies }}" \
-            --ios-version "${{ inputs.ios_version }}"
+            --dependencies-content "$DEPENDENCIES_CONTENT"
 
       - name: Sync derived SDK version files
         run: npm run sync:version
@@ -57,17 +80,42 @@ jobs:
         run: npm run verify
 
       - name: Commit and create pull request
+        id: create_pull_request
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: 'chore: update native dependencies'
-          branch: deps/native-sdk-update
-          base: ${{ inputs.target_branch || github.ref_name }}
+          commit-message: 'feat: update native dependencies'
+          branch: ${{ steps.prepare_target_branch.outputs.final_target_branch }}-deps
+          base: ${{ steps.prepare_target_branch.outputs.final_target_branch }}
           delete-branch: true
-          title: 'chore: update native dependencies'
+          title: 'feat: update native dependencies'
           body: |
             Updates Agora native dependency versions in `sdk/agora-rtc/sdk-config.json`.
 
-            Android version: `${{ inputs.android_version }}`
-            Android dependencies: `${{ inputs.android_dependencies }}`
-            iOS version: `${{ inputs.ios_version }}`
+            Dependencies content:
+
+            ```
+            ${{ inputs.dependencies_content }}
+            ```
+
+      - name: Report pull request link
+        if: ${{ steps.create_pull_request.outputs.pull-request-number }}
+        env:
+          PR_NUMBER: ${{ steps.create_pull_request.outputs.pull-request-number }}
+          PR_URL: ${{ steps.create_pull_request.outputs.pull-request-url }}
+          PR_OPERATION: ${{ steps.create_pull_request.outputs.pull-request-operation }}
+        run: |
+          {
+            echo "### Native dependency update"
+            echo ""
+            echo "- Pull request: [#${PR_NUMBER}](${PR_URL}) (${PR_OPERATION})"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report no changes
+        if: ${{ !steps.create_pull_request.outputs.pull-request-number }}
+        run: |
+          {
+            echo "### Native dependency update"
+            echo ""
+            echo "No changes detected; the dependencies content matched the current config."
+          } >> "$GITHUB_STEP_SUMMARY"

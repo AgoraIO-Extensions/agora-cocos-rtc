@@ -36,10 +36,12 @@ const runtimeUid = Number.isFinite(runtimeConfig.uid) ? Number(runtimeConfig.uid
 
 const targets = [
   path.join(repoRoot, 'example/basic-call/build-android/android/data/assets/main/index.js'),
+  path.join(repoRoot, 'example/basic-call/build-google-play/google-play/data/assets/main/index.js'),
   path.join(repoRoot, 'example/basic-call/build/android/data/assets/main/index.js'),
 ];
 const applicationTargets = [
   path.join(repoRoot, 'example/basic-call/build-android/android/data/application.js'),
+  path.join(repoRoot, 'example/basic-call/build-google-play/google-play/data/application.js'),
   path.join(repoRoot, 'example/basic-call/build/android/data/application.js'),
 ];
 

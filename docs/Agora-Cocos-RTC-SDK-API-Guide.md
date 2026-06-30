@@ -387,7 +387,7 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `muteLocalAudioStream` | `muteLocalAudioStream(muted: boolean): Promise<void>` | 停发或恢复本地音频上行流。 | 已入会但需要临时静音自己时使用。 |
 | `muteRemoteAudioStream` | `muteRemoteAudioStream(uid: number, muted: boolean): Promise<void>` | 停收或恢复指定远端用户的音频流。 | 需要对个别远端用户做单独静音控制时使用。 |
 | `muteAllRemoteAudioStreams` | `muteAllRemoteAudioStreams(muted: boolean): Promise<void>` | 停收或恢复全部远端音频流。 | 批量静音远端、进入只看不听的场景时使用。 |
-| `setAudioProfile` | `setAudioProfile(profile: number, scenario?: number): Promise<void>` | 设置音频编码档位与场景参数。 | 需要在语聊、音乐、直播等不同音频策略间切换时使用。 |
+| `setAudioProfile` | `setAudioProfile(profile: AgoraAudioProfileValue, scenario?: AgoraAudioScenarioValue): Promise<void>` | 设置音频编码档位与场景参数。建议使用 `AgoraAudioProfile` / `AgoraAudioScenario` 枚举值。 | 需要在语聊、音乐、直播等不同音频策略间切换时使用。 |
 | `enableAudioVolumeIndication` | `enableAudioVolumeIndication(interval: number, smooth?: number, reportVad?: boolean): Promise<void>` | 开启说话人音量与 VAD 回调。 | 需要做音量条、活跃说话人标记或麦位状态展示时使用。 |
 | `setDefaultAudioRouteToSpeakerphone` | `setDefaultAudioRouteToSpeakerphone(enabled: boolean): Promise<void>` | 设置默认音频路由是否优先走扬声器。 | 首次入会时就希望控制默认外放/听筒策略时使用。 |
 | `setEnableSpeakerphone` | `setEnableSpeakerphone(enabled: boolean): Promise<void>` | 动态切换当前扬声器开关状态。 | 通话中切换外放与听筒时使用。 |

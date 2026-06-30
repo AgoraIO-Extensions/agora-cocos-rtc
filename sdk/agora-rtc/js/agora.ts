@@ -40,6 +40,10 @@ import {
   resolveBridgeTransport,
   resolveEngineTextureBridge,
 } from './internal/bridge.ts';
+import type {
+  AgoraAudioProfileValue,
+  AgoraAudioScenarioValue,
+} from './audio_types.ts';
 import {
   AgoraEngineTextureViewController,
 } from './internal/engine_texture_view.ts';
@@ -67,14 +71,25 @@ const PROTECTED_APP_TYPE_PARAMETERS = { 'rtc.set_app_type': 10 } as const;
 type ProtectedParameterMethod = 'initialize' | 'setParameters';
 
 function isIosBridgeRuntime(runtime?: CocosBridgeRuntime): boolean {
-  const platform = runtime?.sys?.platform;
-  if (platform === undefined || platform === null) {
-    return false;
+  const os = runtime?.sys?.os;
+  const iosOs = runtime?.sys?.OS?.IOS;
+  if (os !== undefined && os !== null) {
+    if (iosOs !== undefined && iosOs !== null && os === iosOs) {
+      return true;
+    }
+    if (typeof os === 'string') {
+      return os.toUpperCase() === 'IOS' || os.toUpperCase() === 'I_OS';
+    }
   }
+
+  const platform = runtime?.sys?.platform;
   if (typeof platform === 'string') {
     return platform.toUpperCase() === 'IOS';
   }
-  return platform === 2;
+  if (typeof platform === 'number') {
+    return platform === 2;
+  }
+  return false;
 }
 
 function normalizePlayEffectConfig(
@@ -254,6 +269,14 @@ export {
   isSupportedEngineTextureLocalSourceType,
   ENGINE_TEXTURE_PRIMARY_CAMERA_SOURCE_TYPE,
 } from './internal/engine_texture_mirror.ts';
+export {
+  AgoraAudioProfile,
+  AgoraAudioScenario,
+} from './audio_types.ts';
+export type {
+  AgoraAudioProfileValue,
+  AgoraAudioScenarioValue,
+} from './audio_types.ts';
 export {
   AgoraVideoSourceType,
   AgoraMediaSourceType,
@@ -457,7 +480,7 @@ export class AgoraRtcClient {
     return this.#invoke('muteAllRemoteAudioStreams', { muted }) as Promise<void>;
   }
 
-  setAudioProfile(profile: number, scenario?: number): Promise<void> {
+  setAudioProfile(profile: AgoraAudioProfileValue, scenario?: AgoraAudioScenarioValue): Promise<void> {
     return this.#invoke('setAudioProfile', { profile, scenario }) as Promise<void>;
   }
 

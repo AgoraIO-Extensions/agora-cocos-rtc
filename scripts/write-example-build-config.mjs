@@ -109,6 +109,8 @@ setIfDefined(
   'clientRole',
   parseOptionalEnum('CLIENT_ROLE', ['broadcaster', 'audience']),
 );
+setIfDefined(buildConfig, 'initialLocalAudioEnabled', parseOptionalBoolean('INITIAL_LOCAL_AUDIO_ENABLED'));
+setIfDefined(buildConfig, 'initialLocalAudioMuted', parseOptionalBoolean('INITIAL_LOCAL_AUDIO_MUTED'));
 setIfDefined(
   buildConfig,
   'videoEncoderPresetName',

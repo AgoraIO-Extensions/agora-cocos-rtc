@@ -285,6 +285,7 @@ test('gitignore keeps generated cocos output and local docs out of commits', asy
   assert.match(gitignore, /example\/basic-call\/temp\//);
   assert.match(gitignore, /example\/basic-call\/build\//);
   assert.match(gitignore, /example\/basic-call\/build-android\//);
+  assert.match(gitignore, /example\/basic-call\/build-google-play\//);
   assert.match(gitignore, /example\/basic-call\/build-ios\//);
   assert.match(gitignore, /example\/basic-call\/native\/engine\//);
   assert.match(gitignore, /example\/basic-call\/extensions\/agora-rtc/);

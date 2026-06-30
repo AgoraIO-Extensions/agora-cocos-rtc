@@ -62,11 +62,9 @@ SDK_CONFIG = JSON.parse(
 PROJECT_PATH = File.join(REPO_ROOT, 'example/basic-call/build-ios/ios/proj/agora-cocos-basic-call.xcodeproj')
 APP_DELEGATE_PATH = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/AppDelegate.mm')
 INFO_PLIST_PATH = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/Info.plist')
-COMMON_ENGINE_TEXTURE_BRIDGE_DIR = File.join(REPO_ROOT, 'example/basic-call/native/engine/common/Classes/agora')
 IOS_RUNTIME_PLUGIN_DIR = File.join(REPO_ROOT, 'example/basic-call/native/agora-rtc/ios')
 IOS_NATIVE_PLUGIN_DIR = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/agora-rtc')
 GROUP_NAME = 'agora-rtc'
-COMMON_GROUP_NAME = 'agora-engine-texture'
 PACKAGE_URL = SDK_CONFIG.fetch('ios').fetch('packageUrl')
 PACKAGE_VERSION = SDK_CONFIG.fetch('ios').fetch('packageVersion')
 IOS_CONFIG = SDK_CONFIG.fetch('ios')
@@ -75,6 +73,21 @@ PACKAGE_PRODUCTS = if IOS_CONFIG['packageProducts'].is_a?(Array) && !IOS_CONFIG[
                    else
                      [IOS_CONFIG.fetch('packageProduct')]
                    end
+
+# Some bridge APIs reference native symbols that only exist in an optional Swift
+# Package product. The bridge code guards those references behind a Swift
+# compilation condition so the app still links when the product is not selected
+# in packageProducts. The single source of truth for the product -> flag mapping
+# is sdk-config.json (ios.productCompilationFlags), so this script and hooks.js
+# never drift. To gate a new product, add it there and wrap the matching bridge
+# code in `#if <FLAG> ... #endif`.
+PRODUCT_COMPILATION_FLAGS = (IOS_CONFIG['productCompilationFlags'] || {}).freeze
+
+# The compilation conditions unlocked by the currently selected products.
+ACTIVE_PRODUCT_COMPILATION_FLAGS = PACKAGE_PRODUCTS
+                                   .filter_map { |product| PRODUCT_COMPILATION_FLAGS[product] }
+                                   .uniq
+
 TARGET_NAME = 'agora-cocos-basic-call-mobile'
 WITH_PACKAGE = ARGV.include?('--with-package')
 SKIP_SIMULATOR_LAUNCH_ASSETS = ARGV.include?('--skip-simulator-launch-assets')
@@ -238,6 +251,24 @@ def ensure_app_frameworks_runpath(target)
   end
 end
 
+# Sets SWIFT_ACTIVE_COMPILATION_CONDITIONS so the bridge code guarded behind a
+# product flag only compiles when that product is actually selected. Flags for
+# selected products are added; flags for products that are NOT selected are
+# removed, so toggling a product off in packageProducts cleanly drops its code
+# from the build. Any unrelated existing conditions (and $(inherited)) are kept.
+def apply_product_compilation_conditions(configuration)
+  all_flags = PRODUCT_COMPILATION_FLAGS.values
+  existing = configuration.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS']
+  conditions = existing.is_a?(Array) ? existing.dup : existing.to_s.split(/\s+/)
+  conditions << '$(inherited)' if conditions.empty?
+
+  conditions.reject! { |flag| all_flags.include?(flag) }
+  conditions.concat(ACTIVE_PRODUCT_COMPILATION_FLAGS)
+  conditions.uniq!
+
+  configuration.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] = conditions
+end
+
 def remove_simulator_launch_assets(target)
   launch_asset_names = ['LaunchScreen.storyboard', 'Images.xcassets']
 
@@ -297,18 +328,6 @@ ensure_demo_permissions_plugin_copied
   target.add_file_references([file_ref])
 end
 
-common_group = project.main_group.find_subpath(COMMON_GROUP_NAME, true)
-common_group.set_source_tree('<group>')
-common_group.path = COMMON_GROUP_NAME
-
-['AgoraEngineTextureBridge.h', 'AgoraEngineTextureBridge.cpp'].each do |filename|
-  source_path = File.join(COMMON_ENGINE_TEXTURE_BRIDGE_DIR, filename)
-  next unless File.exist?(source_path)
-
-  file_ref = common_group.files.find { |file| file.path == source_path } || common_group.new_file(source_path)
-  target.add_file_references([file_ref]) unless target.source_build_phase.files_references.include?(file_ref)
-end
-
 target.build_configurations.each do |configuration|
   swift_version = configuration.build_settings['SWIFT_VERSION']
   if swift_version.nil? || swift_version.to_s.strip.empty?
@@ -330,6 +349,8 @@ target.build_configurations.each do |configuration|
   if IOS_CODE_SIGN_IDENTITY && !IOS_CODE_SIGN_IDENTITY.empty?
     configuration.build_settings['CODE_SIGN_IDENTITY'] = IOS_CODE_SIGN_IDENTITY
   end
+
+  apply_product_compilation_conditions(configuration)
 end
 
 package_ref = project.root_object.package_references.find do |reference|

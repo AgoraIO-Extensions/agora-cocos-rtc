@@ -6,7 +6,7 @@
     "typecheck": "tsc --noEmit",
     "sync:version": "node ./scripts/sync-sdk-version.mjs",
     "build:all-platforms": "./scripts/build-all-platforms.sh",
-    "test": "node --test --test-concurrency=1 tests/agora-client.test.ts tests/build-hooks.test.ts tests/native-templates.test.ts tests/package-sdk.test.ts tests/package-customer-delivery.test.ts tests/sdk-config.test.ts tests/example-scene.test.ts tests/rtc-session-service.test.ts tests/example-hud-layout.test.ts tests/dev-android-script.test.ts tests/sync-android-app-bridge.test.ts tests/dev-ios-script.test.ts tests/build-both-platforms-script.test.ts tests/cocos-device-test-shard.test.ts tests/ios-podfile.test.ts tests/productization.test.ts tests/docs-site.test.ts",
+    "test": "node --test --test-concurrency=1 tests/agora-client.test.ts tests/build-hooks.test.ts tests/native-templates.test.ts tests/package-sdk.test.ts tests/package-customer-delivery.test.ts tests/sdk-config.test.ts tests/example-scene.test.ts tests/rtc-session-service.test.ts tests/example-hud-layout.test.ts tests/dev-android-script.test.ts tests/dev-google-play-script.test.ts tests/write-cocos-native-build-config.test.ts tests/update-native-deps.test.ts tests/ios-product-gating.test.ts tests/sync-android-app-bridge.test.ts tests/dev-ios-script.test.ts tests/build-both-platforms-script.test.ts tests/cocos-device-test-shard.test.ts tests/ios-podfile.test.ts tests/productization.test.ts tests/docs-site.test.ts",
     "verify": "npm run typecheck && npm run test && ./scripts/prepare-example.sh >/dev/null && ./scripts/package-sdk.sh ./dist >/dev/null",
     "release": "release-it"
   },

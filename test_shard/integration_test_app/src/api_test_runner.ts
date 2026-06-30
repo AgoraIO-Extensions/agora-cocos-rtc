@@ -2,7 +2,13 @@ import { native, sys } from 'cc';
 
 import { createAgoraRtcClient, type AgoraRtcClient } from '../../../extensions/agora-rtc/js/agora.ts';
 import { resolveBridgeTransport } from '../../../extensions/agora-rtc/js/internal/bridge.ts';
-import { API_CALL_TESTCASES, type ApiCallCase, type ApiTestContext } from './api_call_testcases.ts';
+import {
+  DEFAULT_API_TEST_CAPABILITIES,
+  filterApiCallTestcases,
+  type ApiCallCase,
+  type ApiTestCapabilities,
+  type ApiTestContext,
+} from './api_call_testcases.ts';
 import { getWritablePath, writeJsonReport, type ApiCaseReport, type ApiTestReport } from './api_test_report.ts';
 
 const LOG_PREFIX = '[agora-cocos-test]';
@@ -23,6 +29,21 @@ function readEnv(name: string, fallback = ''): string {
     return globalValue;
   }
   return fallback;
+}
+
+function createCapabilities(platform: string): ApiTestCapabilities {
+  const rawCapabilities = (globalThis as any).AGORA_COCOS_TEST_CAPABILITIES;
+  const platformCapabilities = rawCapabilities?.[platform];
+  if (!platformCapabilities || typeof platformCapabilities !== 'object') {
+    return DEFAULT_API_TEST_CAPABILITIES;
+  }
+
+  return {
+    ...DEFAULT_API_TEST_CAPABILITIES,
+    video: platformCapabilities.video !== false,
+    render: platformCapabilities.render !== false,
+    contentInspect: platformCapabilities.contentInspect !== false,
+  };
 }
 
 function createContext(): ApiTestContext {
@@ -133,6 +154,9 @@ async function runCase(client: AgoraRtcClient, context: ApiTestContext, testcase
 export async function runAgoraCocosApiTests(): Promise<ApiTestReport> {
   const context = createContext();
   const startedAt = new Date().toISOString();
+  const platform = String(sys.os);
+  const capabilities = createCapabilities(platform);
+  const cases = filterApiCallTestcases(capabilities);
 
   if (!context.appId) {
     throw new Error('TEST_APP_ID or APP_ID is required for Cocos API integration tests.');
@@ -144,30 +168,30 @@ export async function runAgoraCocosApiTests(): Promise<ApiTestReport> {
     timeoutMs: 15000,
   });
 
-  console.log(`${LOG_PREFIX} TEST_START mode=api platform=${sys.os} cases=${API_CALL_TESTCASES.length}`);
+  console.log(`${LOG_PREFIX} TEST_START mode=api platform=${platform} cases=${cases.length} capabilities=${stringify(capabilities)}`);
 
-  const cases: ApiCaseReport[] = [];
-  for (const testcase of API_CALL_TESTCASES) {
-    cases.push(await runCase(client, context, testcase));
+  const caseReports: ApiCaseReport[] = [];
+  for (const testcase of cases) {
+    caseReports.push(await runCase(client, context, testcase));
   }
 
-  const failed = cases.filter((entry) => entry.status === 'failed').length;
-  const passed = cases.length - failed;
+  const failed = caseReports.filter((entry) => entry.status === 'failed').length;
+  const passed = caseReports.length - failed;
   const report: ApiTestReport = {
-    platform: String(sys.os),
+    platform,
     mode: 'api',
     startedAt,
     endedAt: new Date().toISOString(),
     totals: {
       passed,
       failed,
-      total: cases.length,
+      total: caseReports.length,
     },
-    cases,
+    cases: caseReports,
   };
   const reportPath = writeJsonReport(report);
   const status = failed === 0 ? 'pass' : 'fail';
-  console.log(`${LOG_PREFIX} TEST_DONE status=${status} passed=${passed} failed=${failed} total=${cases.length} report=${reportPath}`);
+  console.log(`${LOG_PREFIX} TEST_DONE status=${status} passed=${passed} failed=${failed} total=${caseReports.length} report=${reportPath}`);
   return report;
 }
 

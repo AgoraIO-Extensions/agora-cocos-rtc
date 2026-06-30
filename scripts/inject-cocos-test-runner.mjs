@@ -7,13 +7,54 @@ const repoRoot = path.resolve(scriptDir, '..');
 const sourceDir = path.join(repoRoot, 'test_shard/integration_test_app/src');
 const targetDir = path.join(repoRoot, 'example/basic-call/assets/scripts/cocos-device-tests');
 const bootstrapPath = path.join(repoRoot, 'example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts');
+const sdkConfigPath = path.join(repoRoot, 'sdk/agora-rtc/sdk-config.json');
 const mode = process.env.AGORA_COCOS_TEST_MODE || 'api';
+
+async function readSdkConfig() {
+  try {
+    return JSON.parse(await readFile(sdkConfigPath, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function isAndroidAudioOnly(sdkConfig) {
+  const dependencies = Array.isArray(sdkConfig?.android?.dependencies)
+    ? sdkConfig.android.dependencies
+    : [];
+  return dependencies.length > 0 && dependencies.every((dependency) =>
+    typeof dependency === 'string' && /agora-special-voice/i.test(dependency),
+  );
+}
+
+function isIosAudioOnly(sdkConfig) {
+  const ios = sdkConfig?.ios ?? {};
+  const packageUrl = typeof ios.packageUrl === 'string' ? ios.packageUrl : '';
+  const packageProducts = Array.isArray(ios.packageProducts) ? ios.packageProducts : [];
+  return /AgoraAudio_iOS\.git$/i.test(packageUrl)
+    && packageProducts.length === 1
+    && packageProducts[0] === 'RtcBasic';
+}
+
+function capabilitiesForAudioOnly(audioOnly) {
+  return {
+    video: !audioOnly,
+    render: !audioOnly,
+    contentInspect: !audioOnly,
+  };
+}
+
+const sdkConfig = await readSdkConfig();
 const runtimeGlobals = {
   AGORA_COCOS_TEST_MODE: mode,
   TEST_APP_ID: process.env.TEST_APP_ID || process.env.APP_ID || '',
   TEST_TOKEN: process.env.TEST_TOKEN || process.env.TOKEN || '',
   TEST_CHANNEL_ID: process.env.TEST_CHANNEL_ID || process.env.CHANNEL_ID || 'testapi',
   TEST_UID: process.env.TEST_UID || '0',
+  AGORA_COCOS_TEST_CAPABILITIES: {
+    Android: capabilitiesForAudioOnly(isAndroidAudioOnly(sdkConfig)),
+    iOS: capabilitiesForAudioOnly(isIosAudioOnly(sdkConfig)),
+  },
 };
 
 await mkdir(targetDir, { recursive: true });

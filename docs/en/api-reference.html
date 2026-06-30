@@ -106,7 +106,7 @@
             <h3>setChannelProfile</h3>
             <p>Set the channel profile before joining.</p>
             <code class="signature">setChannelProfile(profile: &#x27;communication&#x27; | &#x27;liveBroadcasting&#x27;): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>profile</code>: required profile value.</li></ul></div>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>profile</code>: required channel profile.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
           <article id="method-setClientRole" data-signature="setClientRole(role: &#x27;broadcaster&#x27; | &#x27;audience&#x27;, options?: AgoraClientRoleOptions)">
@@ -186,11 +186,11 @@
             <div class="param-list"><strong>Parameters</strong><ul><li><code>muted</code>: required mute state.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
-          <article id="method-setAudioProfile" data-signature="setAudioProfile(profile: number, scenario?: number)">
+          <article id="method-setAudioProfile" data-signature="setAudioProfile(profile: AgoraAudioProfileValue, scenario?: AgoraAudioScenarioValue)">
             <h3>setAudioProfile</h3>
-            <p>Set audio profile and scenario.</p>
-            <code class="signature">setAudioProfile(profile: number, scenario?: number): Promise&lt;void&gt;</code>
-            <div class="param-list"><strong>Parameters</strong><ul><li><code>profile</code>: required profile value.</li><li><code>scenario</code>: optional scenario value.</li></ul></div>
+            <p>Set audio profile and scenario. Prefer AgoraAudioProfile and AgoraAudioScenario instead of raw numbers.</p>
+            <code class="signature">setAudioProfile(profile: AgoraAudioProfileValue, scenario?: AgoraAudioScenarioValue): Promise&lt;void&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li><code>profile</code>: required audio profile. Prefer <code>AgoraAudioProfile</code> values.</li><li><code>scenario</code>: optional audio scenario. Prefer <code>AgoraAudioScenario</code> values.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
           <article id="method-enableAudioVolumeIndication" data-signature="enableAudioVolumeIndication(interval: number, smooth?: number, reportVad?: boolean)">

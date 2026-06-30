@@ -28,6 +28,12 @@ const engineTextureSlotBridgeTemplate = path.join(
   repoRoot,
   'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/render/AgoraEngineTextureSlotBridge.java',
 );
+const androidBridgeDestroyCopyPaths = [
+  'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+  'example/basic-call/native/agora-rtc/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+  'native/engine/android/app/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+  'customer-delivery/example-basic-call/native/engine/android/app/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+];
 const iosEngineTextureSlotBridgeTemplate = path.join(
   repoRoot,
   'sdk/agora-rtc/templates/ios/AgoraEngineTextureSlotBridge.mm',
@@ -170,6 +176,14 @@ function assertPatternBefore(
     beforeIndex < afterIndex,
     `Expected ${message}: ${beforePattern} before ${afterPattern}`,
   );
+}
+
+function extractIosDispatchEventToScriptMethod(content: string, label: string) {
+  const match = content.match(
+    /\+ \(void\)dispatchEventToScript:\(NSString \*\)eventName payload:\(NSString \*\)payload \{[\s\S]*?\n\}/,
+  );
+  assert.ok(match, `${label} should define dispatchEventToScript`);
+  return match[0];
 }
 
 function normalizeReferenceRotation(rotation: number) {
@@ -603,7 +617,7 @@ test('android bridge template wires supported advanced sdk methods to real Agora
   assert.match(bridgeContent, /rtcEngine\.setDefaultAudioRoutetoSpeakerphone/);
 });
 
-test('android bridge template keeps blocking rtc calls off the Cocos game thread', async () => {
+test('android bridge copies keep request-side rtc calls synchronous and marshal only JS dispatch to the game thread', async () => {
   const bridgeContent = await readFile(
     path.join(
       repoRoot,
@@ -612,19 +626,32 @@ test('android bridge template keeps blocking rtc calls off the Cocos game thread
     'utf8',
   );
 
-  const handleDestroyMatch = bridgeContent.match(
-    /private void handleDestroy[\s\S]*?private void handleSetVideoEncoderConfiguration/,
-  );
-  assert.ok(handleDestroyMatch);
-  assertPatternBefore(
-    handleDestroyMatch[0],
-    /dispatchOk\(requestId\);/,
-    /RtcEngine\.destroy\(\)/,
-    'destroy must resolve the JS request before running the potentially blocking sdk teardown',
-  );
-  assert.match(handleDestroyMatch[0], /new Thread\(\(\) -> \{/);
-  assert.match(handleDestroyMatch[0], /engineToDestroy = rtcEngine/);
-  assert.match(handleDestroyMatch[0], /rtcEngine = null/);
+  for (const relativePath of androidBridgeDestroyCopyPaths) {
+    const androidBridgeContent = await readFile(path.join(repoRoot, relativePath), 'utf8');
+    const handleDestroyMatch = androidBridgeContent.match(
+      /private void handleDestroy[\s\S]*?private void handleSetVideoEncoderConfiguration/,
+    );
+    assert.ok(handleDestroyMatch, `${relativePath} should define handleDestroy`);
+    assertPatternBefore(
+      handleDestroyMatch[0],
+      /RtcEngine\.destroy\(\)/,
+      /dispatchOk\(requestId\);/,
+      `${relativePath} destroy must complete sdk teardown before resolving the JS request`,
+    );
+    assert.doesNotMatch(handleDestroyMatch[0], /new Thread\(\(\) -> \{[\s\S]*RtcEngine\.destroy\(\)/);
+    assert.doesNotMatch(handleDestroyMatch[0], /CocosHelper\.runOnGameThread/);
+    assert.match(handleDestroyMatch[0], /engineToDestroy = rtcEngine/);
+    assert.match(handleDestroyMatch[0], /rtcEngine = null/);
+
+    const cleanupMatch = androidBridgeContent.match(
+      /private void cleanupFailedInitialize[\s\S]*?private RtcEngineConfig buildRtcEngineConfig/,
+    );
+    if (cleanupMatch) {
+      assert.match(cleanupMatch[0], /RtcEngine\.destroy\(\)/);
+      assert.doesNotMatch(cleanupMatch[0], /new Thread\(\(\) -> \{[\s\S]*RtcEngine\.destroy\(\)/);
+      assert.doesNotMatch(cleanupMatch[0], /CocosHelper\.runOnGameThread/);
+    }
+  }
 
   const handleGetAudioMixingCurrentPositionMatch = bridgeContent.match(
     /private void handleGetAudioMixingCurrentPosition[\s\S]*?private void handleSetAudioMixingPosition/,
@@ -632,19 +659,21 @@ test('android bridge template keeps blocking rtc calls off the Cocos game thread
   assert.ok(handleGetAudioMixingCurrentPositionMatch);
   assertPatternBefore(
     handleGetAudioMixingCurrentPositionMatch[0],
-    /new Thread\(\(\) -> \{/,
     /engine\.getAudioMixingCurrentPosition\(\)/,
-    'getAudioMixingCurrentPosition must run the sdk query away from the Cocos game thread',
+    /dispatchResponse\(jsonObject\(/,
+    'getAudioMixingCurrentPosition must resolve synchronously after the sdk query',
   );
   assert.match(handleGetAudioMixingCurrentPositionMatch[0], /final RtcEngine engine = rtcEngine/);
-  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /NATIVE_QUERY_TIMEOUT_MS/);
-  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /AtomicBoolean completed/);
-  assert.match(handleGetAudioMixingCurrentPositionMatch[0], /dispatchNativeMethodError\(/);
+  assert.doesNotMatch(handleGetAudioMixingCurrentPositionMatch[0], /new Thread\(\(\) -> \{/);
+  assert.doesNotMatch(handleGetAudioMixingCurrentPositionMatch[0], /NATIVE_QUERY_TIMEOUT_MS/);
+  assert.doesNotMatch(handleGetAudioMixingCurrentPositionMatch[0], /AtomicBoolean completed/);
   assert.match(handleGetAudioMixingCurrentPositionMatch[0], /dispatchResponse\(jsonObject\(/);
   assert.match(handleGetAudioMixingCurrentPositionMatch[0], /dispatchNativeExceptionError\(requestId, "getAudioMixingCurrentPosition", error\)/);
+  assert.match(bridgeContent, /private void dispatchResponse\(JSONObject response\) \{[\s\S]*?CocosHelper\.runOnGameThread/);
+  assert.match(bridgeContent, /private void dispatchEvent\(String eventName, JSONObject payload\) \{[\s\S]*?CocosHelper\.runOnGameThread/);
 });
 
-test('ios bridge resolves destroy before running sdk teardown', async () => {
+test('ios bridge runs sdk destroy before resolving the destroy request', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
     'utf8',
@@ -652,13 +681,24 @@ test('ios bridge resolves destroy before running sdk teardown', async () => {
 
   const destroyMatch = bridgeContent.match(/case "destroy":[\s\S]*?case "setupLocalVideoView":/);
   assert.ok(destroyMatch);
-  assertPatternBefore(
+  assert.doesNotMatch(destroyMatch[0], /case "finalizeDestroy"/);
+  assert.match(
     destroyMatch[0],
     /dispatchResponse\(\[\s*"requestId": requestId,\s*"ok": true,\s*\]\)/,
-    /AgoraRtcEngineKit\.destroy\(\)/,
-    'iOS destroy must resolve the JS request before running the potentially blocking sdk teardown',
   );
-  assert.match(destroyMatch[0], /DispatchQueue\.global\(qos: \.utility\)\.async/);
+  assert.match(bridgeContent, /private let destroyQueue = DispatchQueue\(label: "io\.agora\.cocos\.rtc\.destroy", qos: \.utility\)/);
+  assert.match(destroyMatch[0], /destroyQueue\.async \{ \[weak self\] in/);
+  assertPatternBefore(
+    destroyMatch[0],
+    /AgoraRtcEngineKit\.destroy\(\)/,
+    /dispatchResponse\(\[/,
+    'iOS destroy must complete sdk teardown before resolving the JS request',
+  );
+  assert.doesNotMatch(destroyMatch[0], /runOnMainQueue/);
+  assert.doesNotMatch(destroyMatch[0], /DispatchQueue\.global\(qos: \.utility\)\.async/);
+  assert.match(bridgeContent, /AgoraRtcEngineKit\.destroy\(\)/);
+  assert.doesNotMatch(bridgeContent, /case "finalizeDestroy"/);
+  assert.doesNotMatch(bridgeContent, /finalizeDestroyEngine/);
 });
 
 test('android bridge template returns errors for bad native requests instead of timing out', async () => {
@@ -1048,6 +1088,7 @@ test('android bridge template maps expanded config objects and reliable results'
   assert.match(bridgeContent, /config\.mLogConfig = logConfig/);
   assert.match(bridgeContent, /config\.addExtension\(extensions\.optString\(index\)\)/);
   assert.match(bridgeContent, /applyProtectedParameters\(rtcEngine, requestId, "initialize", params\)/);
+  assert.match(bridgeContent, /cleanupFailedInitialize\(rtcEngine\)/);
   assert.match(bridgeContent, /clientParams\.put\("rtc\.set_app_type", 10\);/);
   assert.match(bridgeContent, /throw new IllegalArgumentException\("Parameters must be a valid JSON object string\."\);/);
   assert.match(bridgeContent, /dispatchInvalidArgumentError\(requestId, error\.getMessage\(\), method, "parameters", parameterValue\);/);
@@ -1202,6 +1243,34 @@ test('android bridge template maps expanded config objects and reliable results'
   }
 });
 
+test('android initialize failure destroys the created native rtc singleton', async () => {
+  const bridgeContent = await readFile(
+    path.join(
+      repoRoot,
+      'sdk/agora-rtc/templates/android/src/main/java/io/agora/cocos/rtc/AgoraRtcPlugin.java',
+    ),
+    'utf8',
+  );
+
+  const initializeMatch = bridgeContent.match(
+    /private void handleInitialize[\s\S]*?private RtcEngineConfig buildRtcEngineConfig/,
+  );
+  assert.ok(initializeMatch);
+  assert.match(initializeMatch[0], /if \(!applyProtectedParameters\(rtcEngine, requestId, "initialize", params\)\) \{/);
+  assert.match(initializeMatch[0], /cleanupFailedInitialize\(rtcEngine\)/);
+  assert.doesNotMatch(initializeMatch[0], /rtcEngine = null;\s*return;/);
+
+  const cleanupMatch = bridgeContent.match(
+    /private void cleanupFailedInitialize[\s\S]*?private RtcEngineConfig buildRtcEngineConfig/,
+  );
+  assert.ok(cleanupMatch);
+  assert.match(cleanupMatch[0], /rtcEngine = null/);
+  assert.match(cleanupMatch[0], /backendToRelease\.release\(\)/);
+  assert.doesNotMatch(cleanupMatch[0], /CocosHelper\.runOnGameThread/);
+  assert.doesNotMatch(cleanupMatch[0], /new Thread\(\(\) -> \{/);
+  assert.match(cleanupMatch[0], /RtcEngine\.destroy\(\)/);
+});
+
 test('android bridge template maps video encoder enum raw values from rtc 4.5.3', async () => {
   const bridgeContent = await readFile(
     path.join(
@@ -1283,6 +1352,31 @@ test('ios bridge template dispatches expanded sdk methods or explicit unsupporte
   assert.match(bridgeContent, /case "adjustAudioMixingPublishVolume"/);
   assert.match(bridgeContent, /case "adjustAudioMixingPlayoutVolume"/);
   assert.match(bridgeContent, /Unsupported on current platform/);
+});
+
+test('ios bridge template runs native engine teardown inside destroy', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  const destroyMatch = bridgeContent.match(
+    /case "destroy":[\s\S]*?case "setupLocalVideoView":/,
+  );
+  assert.ok(destroyMatch);
+  assert.match(destroyMatch[0], /dispatchResponse\(\[/);
+  assert.doesNotMatch(destroyMatch[0], /case "finalizeDestroy"/);
+  assert.match(bridgeContent, /private let destroyQueue = DispatchQueue\(label: "io\.agora\.cocos\.rtc\.destroy", qos: \.utility\)/);
+  assert.match(destroyMatch[0], /destroyQueue\.async \{ \[weak self\] in/);
+  assertPatternBefore(
+    destroyMatch[0],
+    /AgoraRtcEngineKit\.destroy\(\)/,
+    /dispatchResponse\(\[/,
+    'iOS destroy must call sdk teardown before response',
+  );
+  assert.match(bridgeContent, /AgoraRtcEngineKit\.destroy\(\)/);
+  assert.doesNotMatch(bridgeContent, /case "finalizeDestroy"/);
+  assert.doesNotMatch(bridgeContent, /private func finalizeDestroyEngine\(\)/);
 });
 
 test('ios bridge template wires minimum real rtc engine methods and delegate callbacks', async () => {
@@ -1443,6 +1537,16 @@ test('ios bridge template maps joinChannel media options from request payload', 
   );
 });
 
+test('ios bridge template keeps requireEngine action non-escaping', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  assert.match(bridgeContent, /private func requireEngine\(requestId: String, action: \(AgoraRtcEngineKit\) -> Void\)/);
+  assert.doesNotMatch(bridgeContent, /private func requireEngine\(requestId: String, action: @escaping/);
+});
+
 test('ios bridge template maps expanded configs and callbacks', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
@@ -1542,6 +1646,7 @@ test('ios bridge template maps expanded configs and callbacks', async () => {
   assert.match(bridgeContent, /private func parseContentInspectModulePosition\(_ rawValue: Any\) -> AgoraVideoModulePosition/);
   assert.match(bridgeContent, /module\.setValue\(NSNumber\(value: parseContentInspectModulePosition\(rawValue\)\.rawValue\), forKey: "position"\)/);
   assert.match(bridgeContent, /applyProtectedParameters\(engine: engine, requestId: requestId, method: "initialize", params: params\)/);
+  assert.match(bridgeContent, /cleanupFailedInitialize\(engine\)/);
   assert.match(bridgeContent, /clientParams\["rtc\.set_app_type"\] = 10/);
   assert.match(bridgeContent, /throw AgoraRtcBridgeParameterError\.invalidJsonObjectString/);
   assert.match(bridgeContent, /throw AgoraRtcBridgeParameterError\.missingParameters/);
@@ -1808,6 +1913,77 @@ test('ios bridge template leaves runtime permission ownership to callers', async
   assert.doesNotMatch(handleJoinChannelWithUserAccountMatch[0], /ensureRtcPermissions\(/);
 });
 
+test('ios bridge template keeps request handlers direct and confines explicit queue hops', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  for (const relativePath of iosBridgeMirrorCopyPaths) {
+    const iosBridgeContent = await readFile(path.join(repoRoot, relativePath), 'utf8');
+    assert.doesNotMatch(iosBridgeContent, /private func runOnMainQueue/);
+    assert.doesNotMatch(iosBridgeContent, /runOnMainQueue(Sync)? \{/);
+    assert.doesNotMatch(iosBridgeContent, /DispatchQueue\.main\.sync/);
+  }
+  assert.match(bridgeContent, /private func dispatchResponse\(_ object: \[String: Any\]\) \{[\s\S]*?DispatchQueue\.main\.async/);
+  assert.match(bridgeContent, /private func dispatchResponse\(_ object: \[String: Any\], event: String\) \{[\s\S]*?DispatchQueue\.main\.async/);
+
+  const initializeMatch = bridgeContent.match(
+    /private func handleInitialize\(requestId: String, params: \[String: Any\]\) \{[\s\S]*?private func applyProtectedParameters/,
+  );
+  assert.ok(initializeMatch);
+  assert.doesNotMatch(initializeMatch[0], /runOnMainQueue/);
+  assert.match(initializeMatch[0], /rtcEngine = AgoraRtcEngineKit\.sharedEngine\(with: config, delegate: self\)/);
+
+  const requireEngineMatch = bridgeContent.match(
+    /private func requireEngine\(requestId: String, action: \(AgoraRtcEngineKit\) -> Void\) \{[\s\S]*?private func requiredString/,
+  );
+  assert.ok(requireEngineMatch);
+  assert.doesNotMatch(requireEngineMatch[0], /runOnMainQueue/);
+  assert.match(requireEngineMatch[0], /guard let engine = rtcEngine else/);
+  assert.match(requireEngineMatch[0], /action\(engine\)/);
+
+  const destroyMatch = bridgeContent.match(
+    /case "destroy":[\s\S]*?case "setupLocalVideoView":/,
+  );
+  assert.ok(destroyMatch);
+  assert.doesNotMatch(destroyMatch[0], /runOnMainQueue/);
+  assert.doesNotMatch(destroyMatch[0], /case "finalizeDestroy"/);
+  assert.match(destroyMatch[0], /destroyQueue\.async \{ \[weak self\] in/);
+  assertPatternBefore(
+    destroyMatch[0],
+    /AgoraRtcEngineKit\.destroy\(\)/,
+    /dispatchResponse\(\[/,
+    'iOS destroy must complete sdk teardown before response',
+  );
+  assert.doesNotMatch(bridgeContent, /private func finalizeDestroyEngine\(\)/);
+});
+
+test('ios initialize failure destroys the created native rtc singleton', async () => {
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+
+  const initializeMatch = bridgeContent.match(
+    /private func handleInitialize\(requestId: String, params: \[String: Any\]\) \{[\s\S]*?private func applyProtectedParameters/,
+  );
+  assert.ok(initializeMatch);
+  assert.match(initializeMatch[0], /guard self\.applyProtectedParameters\(engine: engine, requestId: requestId, method: "initialize", params: params\) else \{/);
+  assert.match(initializeMatch[0], /cleanupFailedInitialize\(engine\)/);
+  assert.doesNotMatch(initializeMatch[0], /self\.rtcEngine = nil\s*return/);
+
+  const cleanupMatch = bridgeContent.match(
+    /private func cleanupFailedInitialize[\s\S]*?private func applyProtectedParameters/,
+  );
+  assert.ok(cleanupMatch);
+  assert.match(cleanupMatch[0], /if self\.rtcEngine === engine \{/);
+  assert.match(cleanupMatch[0], /self\.rtcEngine = nil/);
+  assert.match(cleanupMatch[0], /engine\.setVideoFrameDelegate\(nil\)/);
+  assert.match(cleanupMatch[0], /self\.releaseAllTextureSlots\(\)/);
+  assert.match(cleanupMatch[0], /AgoraRtcEngineKit\.destroy\(\)/);
+});
+
 test('ios bridge template routes bridged uid parsing through uintValue helper for native uint calls', async () => {
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
@@ -1872,9 +2048,25 @@ test('ios plugin registrar attaches the js bridge wrapper and forwards responses
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcPlugin.mm'),
     'utf8',
   );
+  const examplePluginContent = await readFile(
+    path.join(repoRoot, 'example/basic-call/native/agora-rtc/ios/AgoraRtcPlugin.mm'),
+    'utf8',
+  );
   const bridgeContent = await readFile(
     path.join(repoRoot, 'sdk/agora-rtc/templates/ios/AgoraRtcBridge.swift'),
     'utf8',
+  );
+  const exampleBridgeContent = await readFile(
+    path.join(repoRoot, 'example/basic-call/native/agora-rtc/ios/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+  const dispatchEventToScriptMethod = extractIosDispatchEventToScriptMethod(
+    pluginContent,
+    'sdk iOS plugin registrar',
+  );
+  const exampleDispatchEventToScriptMethod = extractIosDispatchEventToScriptMethod(
+    examplePluginContent,
+    'example iOS plugin registrar',
   );
 
   assert.match(pluginContent, /JsbBridgeWrapper/);
@@ -1888,17 +2080,47 @@ test('ios plugin registrar attaches the js bridge wrapper and forwards responses
   assert.match(pluginContent, /NSClassFromString\(qualifiedName\)/);
   assert.match(pluginContent, /handleScriptRequest:/);
   assert.match(pluginContent, /#import "apple\/JsbBridge\.h"/);
-  assert.match(pluginContent, /dispatchEventToScript:\(NSString \*\)eventName payload:\(NSString \*\)payload/);
+  assert.doesNotMatch(dispatchEventToScriptMethod, /dispatch_async\(dispatch_get_main_queue\(\)/);
   assert.match(
-    pluginContent,
+    dispatchEventToScriptMethod,
     /\[\[JsbBridgeWrapper sharedInstance\] dispatchEventToScript:eventName arg:payload\]/,
   );
+  assert.doesNotMatch(exampleDispatchEventToScriptMethod, /dispatch_async\(dispatch_get_main_queue\(\)/);
+  assert.match(
+    exampleDispatchEventToScriptMethod,
+    /\[\[JsbBridgeWrapper sharedInstance\] dispatchEventToScript:eventName arg:payload\]/,
+  );
+  assert.match(bridgeContent, /private func dispatchResponse\(_ object: \[String: Any\]\) \{[\s\S]*?DispatchQueue\.main\.async/);
+  assert.match(bridgeContent, /private func dispatchResponse\(_ object: \[String: Any\], event: String\) \{[\s\S]*?DispatchQueue\.main\.async/);
+  assert.match(exampleBridgeContent, /private func dispatchResponse\(_ object: \[String: Any\]\) \{[\s\S]*?DispatchQueue\.main\.async/);
+  assert.match(exampleBridgeContent, /private func dispatchResponse\(_ object: \[String: Any\], event: String\) \{[\s\S]*?DispatchQueue\.main\.async/);
   assert.doesNotMatch(pluginContent, /_bridgeCallback = \^\(NSString \*eventName, NSString \*arg\)/);
   assert.doesNotMatch(pluginContent, /\[\[JsbBridge sharedInstance\] setCallback:_bridgeCallback\]/);
   assert.match(bridgeContent, /dispatchToScript\(event:/);
   assert.match(bridgeContent, /dispatchEventToScript:payload:/);
   assert.match(bridgeContent, /agora:response/);
   assert.match(bridgeContent, /agora:event/);
+});
+
+test('customer delivery ios plugin registrar does not remarshal bridged responses already on the main queue', async () => {
+  const pluginContent = await readFile(
+    path.join(repoRoot, 'customer-delivery/example-basic-call/native/engine/ios/agora-rtc/AgoraRtcPlugin.mm'),
+    'utf8',
+  );
+  const bridgeContent = await readFile(
+    path.join(repoRoot, 'customer-delivery/example-basic-call/native/engine/ios/agora-rtc/AgoraRtcBridge.swift'),
+    'utf8',
+  );
+  const dispatchEventToScriptMethod = extractIosDispatchEventToScriptMethod(
+    pluginContent,
+    'customer delivery iOS plugin registrar',
+  );
+
+  assert.doesNotMatch(dispatchEventToScriptMethod, /dispatch_async\(dispatch_get_main_queue\(\)/);
+  assert.match(dispatchEventToScriptMethod, /\[\[JsbBridge sharedInstance\] sendToScript:eventName arg1:payload\]/);
+  assert.match(bridgeContent, /private func dispatchResponse\(_ object: \[String: Any\]\) \{[\s\S]*?DispatchQueue\.main\.async/);
+  assert.match(bridgeContent, /private func dispatchResponse\(_ object: \[String: Any\], event: String\) \{[\s\S]*?DispatchQueue\.main\.async/);
+  assert.match(pluginContent, /\[\[JsbBridge sharedInstance\] setCallback:_bridgeCallback\]/);
 });
 
 test('ios integration script registers all committed bridge templates in the exported project', async () => {
@@ -1937,6 +2159,8 @@ test('ios integration keeps Swift bridge registration in Xcode rather than CMake
 
   assert.match(integrationScript, /AgoraRtcBridge\.swift/);
   assert.match(integrationScript, /target\.add_file_references\(\[file_ref\]\)/);
+  assert.doesNotMatch(integrationScript, /COMMON_ENGINE_TEXTURE_BRIDGE_DIR/);
+  assert.doesNotMatch(integrationScript, /AgoraEngineTextureBridge\.cpp/);
   assert.match(iosCMakeBlock, /list\(APPEND CC_PROJ_SOURCES/);
   assert.doesNotMatch(iosCMakeBlock, /AgoraRtcBridge\.swift/);
   assert.doesNotMatch(hooksContent, /project\([^)]*\bSwift\b[^)]*\)/);
@@ -1981,12 +2205,16 @@ test('ios integration script removes stale Swift package products for the same r
   );
 });
 
-test('ios sdk config uses the product names declared by the local 4.5.3 Package.swift', async () => {
+test('ios sdk config uses product names declared by the local 4.5.3 Package.swift', async () => {
   const sdkConfig = JSON.parse(
     await readFile(path.join(repoRoot, 'sdk/agora-rtc/sdk-config.json'), 'utf8'),
   );
 
-  assert.deepEqual(sdkConfig.ios.packageProducts, [
+  // The full set of products exported by the 4.5.3 Package.swift. The configured
+  // packageProducts may select any non-empty subset of these (the update-deps
+  // workflow can narrow them), but every entry must be a real product name so the
+  // exported Xcode project never links a product that does not exist.
+  const availableProducts = new Set([
     'RtcBasic',
     'AINS',
     'AINSLL',
@@ -2005,6 +2233,15 @@ test('ios sdk config uses the product names declared by the local 4.5.3 Package.
     'VideoAv1CodecEnc',
     'ReplayKit',
   ]);
+
+  assert.ok(
+    Array.isArray(sdkConfig.ios.packageProducts) && sdkConfig.ios.packageProducts.length > 0,
+    'expected ios.packageProducts to be a non-empty array',
+  );
+  const unknown = sdkConfig.ios.packageProducts.filter(
+    (product) => !availableProducts.has(product),
+  );
+  assert.deepEqual(unknown, [], `unknown iOS package products: ${unknown.join(', ')}`);
 });
 
 test('ios integration script removes Cocos legacy build locations before enabling Swift packages', async () => {
@@ -3252,6 +3489,10 @@ final class AgoraEngineTextureSlotBridge {
   assert.match(pluginSource, /setRenderBackend/);
   assert.match(pluginSource, /AgoraRenderBackendFactory/);
   assert.match(pluginSource, /renderBackendType = "engine-texture"/);
+  assert.match(pluginSource, /private AgoraRenderBackend renderBackend;/);
+  assert.match(pluginSource, /private boolean renderBackendConfigured;/);
+  assert.doesNotMatch(pluginSource, /private AgoraRenderBackend renderBackend = AgoraRenderBackendFactory\.create/);
+  assert.match(pluginSource, /if \(renderBackendConfigured && renderBackend != null\) \{/);
   assert.doesNotMatch(pluginSource, /surface-view/);
   assert.doesNotMatch(pluginSource, /texture-view/);
   const handleJoinChannelMatch = pluginSource.match(

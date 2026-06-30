@@ -298,7 +298,8 @@ test('rtc session service uses runtime-configurable audio, mixing, effect, and d
   const audioControlDemoMatch = content.match(/private async runAudioControlDemo\(\): Promise<void>[\s\S]*?private async runVideoControlDemo/);
   assert.ok(audioControlDemoMatch);
   assert.match(audioControlDemoMatch[0], /const config = this\.options\.getConfig\(\);/);
-  assert.match(audioControlDemoMatch[0], /const audioProfile = config\.audioProfile \?\? \{ profile: 0, scenario: 0 \}/);
+  assert.match(audioControlDemoMatch[0], /profile: AgoraAudioProfile\.Default/);
+  assert.match(audioControlDemoMatch[0], /scenario: AgoraAudioScenario\.Default/);
   assert.match(audioControlDemoMatch[0], /const audioVolumeIndication = config\.audioVolumeIndication \?\? \{ interval: 300, smooth: 3, reportVad: false \}/);
   assert.match(audioControlDemoMatch[0], /const playbackVolume = config\.playbackVolume \?\? 100/);
   assert.match(audioControlDemoMatch[0], /const userPlaybackVolume = config\.userPlaybackVolume \?\? 100/);
@@ -508,6 +509,28 @@ test('demo root loads runtime smoke config and can auto join when requested', as
   assert.match(content, /if \(this\.autoJoin\)[\s\S]*await this\.joinRtcChannel\(\);/);
 });
 
+test('demo root projects audio cases to audio-only runtime media options', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /private isSelectedAudioOnlyCase\(\): boolean/);
+  assert.match(content, /this\.selectedCase\?\.displayMode === 'audio'/);
+  assert.match(
+    content,
+    /autoPreview:\s*this\.isSelectedAudioOnlyCase\(\) \? false : this\.autoPreview/,
+  );
+  assert.match(
+    content,
+    /publishCameraTrack:\s*this\.isSelectedAudioOnlyCase\(\) \? false : this\.publishCameraTrack/,
+  );
+  assert.match(
+    content,
+    /autoSubscribeVideo:\s*this\.isSelectedAudioOnlyCase\(\) \? false : this\.autoSubscribeVideo/,
+  );
+});
+
 test('demo root lays out panels from the landscape visible size', async () => {
   const content = await readFile(
     `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
@@ -711,6 +734,31 @@ test('parameter preset buttons keep success and failure state on the pressed but
   assert.match(content, /async applyMixableAudioParameter\(\): Promise<void> \{[\s\S]*applyParameterPreset\('MixableAudio', \{ 'che\.audio\.enable\.mixable': true \}\)/);
   assert.match(content, /private async applyParameterPreset\(actionName: string, parameters: Record<string, unknown>\): Promise<void>/);
   assert.match(content, /await this\.runSessionAction\(actionName, \(session\) => session\.applyParameterPreset\(parameters\)\);/);
+});
+
+test('demo root swallows handled async action failures after logging them so native taps do not crash JS', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /onAction: \(actionName\) => \{ void this\.invokeAction\(actionName\)\.catch\(\(\) => \{\}\); \},/);
+  assert.match(content, /await Promise\.resolve\(handler\.call\(this\)\);/);
+});
+
+test('demo root serializes session actions so rapid native taps cannot overlap join and leave', async () => {
+  const content = await readFile(
+    `${repoRoot}/example/basic-call/assets/scripts/demo/AgoraRtcDemoRoot.ts`,
+    'utf8',
+  );
+
+  assert.match(content, /private sessionActionQueue: Promise<void> = Promise\.resolve\(\);/);
+  assert.match(content, /private async enqueueSessionAction\(task: \(\) => Promise<void>\): Promise<void>/);
+  assert.match(content, /const run = this\.sessionActionQueue\.then\(task, task\);/);
+  assert.match(content, /this\.sessionActionQueue = run\.catch\(\(\) => \{\}\);/);
+  assert.match(content, /return this\.enqueueSessionAction\(async \(\) => \{/);
+  assert.doesNotMatch(content, /const state = this\.getSessionState\(\);[\s\S]*state\.joined \? session\.leaveRtcChannel\(\) : session\.joinRtcChannel\(\)/);
+  assert.match(content, /session\.getState\(\)\.joined \? session\.leaveRtcChannel\(\) : session\.joinRtcChannel\(\)/);
 });
 
 test('audio effect mixing case wires flutter-required controls', async () => {
