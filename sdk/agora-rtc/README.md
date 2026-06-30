@@ -12,7 +12,8 @@ This package provides the JavaScript API wrapper, Cocos extension runtime, and n
 - `sdk-config.json`: Single source of truth for Android and iOS native dependency versions.
 - `templates/android`: Android bridge template.
 - `templates/ios`: iOS bridge template.
-- `cc_plugin.json`: Cocos native plugin manifest.
+
+The Cocos build integration is registered through `package.json` `contributions.builder`, not a native plugin autoload manifest.
 
 ## Basic Usage
 
