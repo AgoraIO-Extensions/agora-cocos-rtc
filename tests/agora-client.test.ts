@@ -1437,7 +1437,7 @@ test('destroy dispatches the expected native request and detaches listeners', as
   assert.equal(transport.removed.length, 2);
 });
 
-test('destroy defers iOS native engine teardown until after the destroy response resolves', async () => {
+test('destroy does not dispatch an iOS finalizeDestroy follow-up', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
     bridgeRuntime: {
@@ -1469,10 +1469,7 @@ test('destroy defers iOS native engine teardown until after the destroy response
 
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  assert.equal(transport.sent.length, 2);
-  const finalizeRequest = JSON.parse(transport.sent[1].payload);
-  assert.equal(finalizeRequest.method, 'finalizeDestroy');
-  assert.deepEqual(finalizeRequest.params, {});
+  assert.equal(transport.sent.length, 1);
 });
 
 test('setupLocalVideoView dispatches the expected native request', async () => {
