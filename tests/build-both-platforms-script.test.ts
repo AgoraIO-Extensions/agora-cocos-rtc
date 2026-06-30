@@ -49,9 +49,11 @@ test('build-all-platforms script exports selected android apk and ios ipa packag
   assert.doesNotMatch(content, /cp -R "\$.*native\/agora-rtc\/android\/src\/main\/java\/io\/agora\/cocos\/rtc/);
   assert.match(content, /ANDROID_NDK_HOME=/);
   assert.match(content, /resolve_android_ndk_path\(\)/);
-  assert.match(content, /write_android_cocos_build_config\(\)/);
-  assert.match(content, /sdkPath/);
-  assert.match(content, /ndkPath/);
+  assert.match(content, /google-play-release\.json/);
+  assert.match(content, /write_android_like_cocos_build_config\(\)/);
+  assert.match(content, /should_build_platform "google-play"/);
+  assert.match(content, /android\|google-play\|ios/);
+  assert.match(content, /write-cocos-native-build-config\.mjs/);
   assert.match(content, /IOS_BUILD_CONFIG=.*build-configs\/ios-release\.json/);
   assert.match(content, /IOS_SKIP_COCOS_EXPORT="\$\{IOS_SKIP_COCOS_EXPORT:-false\}"/);
   assert.match(content, /fetch-agora-maven\.mjs/);
@@ -161,6 +163,8 @@ test('example build config writer accepts smoke media options', async () => {
         AUTO_SUBSCRIBE_VIDEO: 'true',
         CHANNEL_PROFILE: 'liveBroadcasting',
         CLIENT_ROLE: 'audience',
+        INITIAL_LOCAL_AUDIO_ENABLED: 'false',
+        INITIAL_LOCAL_AUDIO_MUTED: 'true',
         VIDEO_ENCODER_PRESET_NAME: '720p',
         AGORA_BUILD_CONFIG_PATH: buildConfigPath,
       },
@@ -176,6 +180,8 @@ test('example build config writer accepts smoke media options', async () => {
     assert.equal(buildConfig.autoSubscribeVideo, true);
     assert.equal(buildConfig.channelProfile, 'liveBroadcasting');
     assert.equal(buildConfig.clientRole, 'audience');
+    assert.equal(buildConfig.initialLocalAudioEnabled, false);
+    assert.equal(buildConfig.initialLocalAudioMuted, true);
     assert.equal(buildConfig.videoEncoderPresetName, '720p');
   } finally {
     await rm(tempRoot, { recursive: true, force: true });

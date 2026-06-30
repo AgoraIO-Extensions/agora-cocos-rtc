@@ -1,0 +1,12 @@
+{
+  "platform": "google-play",
+  "buildPath": "project://build-google-play",
+  "debug": true,
+  "startScene": "fc1b7f53-7712-4b8c-bd75-c3f7ec540001",
+  "logDest": "project://build-google-play-logs",
+  "packages": {
+    "google-play": {
+      "packageName": "io.agora.cocos.example"
+    }
+  }
+}

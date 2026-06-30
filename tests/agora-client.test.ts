@@ -350,6 +350,44 @@ test('video and media source enums map to distinct native values', async () => {
   assert.notEqual(AgoraVideoSourceType.Camera, AgoraMediaSourceType.PrimaryCamera);
 });
 
+test('audio profile enums map to native bridge values', async () => {
+  const {
+    AgoraAudioProfile,
+    AgoraAudioScenario,
+  } = await import('../sdk/agora-rtc/js/agora.ts');
+
+  assert.equal(AgoraAudioProfile.Default, 0);
+  assert.equal(AgoraAudioProfile.MusicHighQualityStereo, 5);
+  assert.equal(AgoraAudioScenario.Default, 0);
+  assert.equal(AgoraAudioScenario.GameStreaming, 3);
+});
+
+test('setAudioProfile accepts public audio profile enums', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    transport,
+    timeoutMs: 50,
+  });
+  const {
+    AgoraAudioProfile,
+    AgoraAudioScenario,
+  } = await import('../sdk/agora-rtc/js/agora.ts');
+
+  const pending = client.setAudioProfile(
+    AgoraAudioProfile.MusicHighQualityStereo,
+    AgoraAudioScenario.GameStreaming,
+  );
+  const request = JSON.parse(transport.sent[0].payload);
+  assert.equal(request.method, 'setAudioProfile');
+  assert.deepEqual(request.params, {
+    profile: AgoraAudioProfile.MusicHighQualityStereo,
+    scenario: AgoraAudioScenario.GameStreaming,
+  });
+
+  transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true }));
+  await pending;
+});
+
 test('videoSourceType is normalized to explicit bridge fields for preview and canvas APIs', async () => {
   const transport = new MockTransport();
   const client = createAgoraRtcClient({
@@ -1397,6 +1435,41 @@ test('destroy dispatches the expected native request and detaches listeners', as
 
   await pending;
   assert.equal(transport.removed.length, 2);
+});
+
+test('destroy does not dispatch an iOS finalizeDestroy follow-up', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({
+    bridgeRuntime: {
+      sys: {
+        isNative: true,
+        os: 'iOS',
+        OS: {
+          IOS: 'iOS',
+        },
+      },
+    },
+    transport,
+    timeoutMs: 50,
+  });
+
+  const pending = client.destroy();
+  const request = JSON.parse(transport.sent[0].payload);
+
+  transport.emit(
+    'agora:response',
+    JSON.stringify({
+      requestId: request.requestId,
+      ok: true,
+    }),
+  );
+
+  await pending;
+  assert.equal(transport.sent.length, 1);
+
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(transport.sent.length, 1);
 });
 
 test('setupLocalVideoView dispatches the expected native request', async () => {

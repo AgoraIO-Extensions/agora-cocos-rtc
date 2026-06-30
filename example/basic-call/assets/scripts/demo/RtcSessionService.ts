@@ -6,6 +6,8 @@ import {
 } from 'cc';
 
 import {
+  AgoraAudioProfile,
+  AgoraAudioScenario,
   createAgoraRtcClient,
   resolveEngineTextureMirror,
   type AgoraRtcClient,
@@ -53,6 +55,7 @@ export class RtcSessionService {
   private listenersBound = false;
   private initialized = false;
   private joined = false;
+  private joinRequestPending = false;
   private previewStarted = false;
   private activeRemoteUid: number | null = null;
   private remoteUserUids = new Set<number>();
@@ -71,7 +74,7 @@ export class RtcSessionService {
   private defaultAudioRouteToSpeakerphone = false;
   private beautyEffectEnabled = false;
   private contentInspectEnabled = false;
-  private currentAudioProfile = 0;
+  private currentAudioProfile = AgoraAudioProfile.Default;
   private playbackVolume = 100;
   private userPlaybackVolume = 100;
   private speakerphoneEnabled: boolean | null = null;
@@ -146,16 +149,35 @@ export class RtcSessionService {
       return;
     }
     const config = this.options.getConfig();
+    this.applyConfiguredSessionDefaults(config);
     if (!config.appId.trim()) {
       throw new Error('Agora App ID is empty.');
     }
     const client = this.getClient();
-    await client.setRenderBackend(config.renderBackend);
+    const videoRuntimeEnabled = this.isVideoRuntimeEnabled(config);
+    if (videoRuntimeEnabled) {
+      await client.setRenderBackend(config.renderBackend);
+    }
     await client.initialize(config.appId.trim());
     // await client.setParameters({ 'rtc.camera_capture_mirror_mode': 1 });
-    await client.enableVideo(true);
+    if (videoRuntimeEnabled) {
+      await client.enableVideo(true);
+    }
+    if (config.channelProfile) {
+      await client.setChannelProfile(this.selectedChannelProfile);
+    }
+    if (config.clientRole) {
+      await client.setClientRole(this.selectedClientRole);
+    }
+    if (typeof config.initialLocalAudioEnabled === 'boolean') {
+      await client.enableLocalAudio(this.localAudioEnabled);
+    }
+    if (typeof config.initialLocalAudioMuted === 'boolean') {
+      await client.muteLocalAudioStream(this.localAudioMuted);
+    }
     this.initialized = true;
-    this.videoEnabled = true;
+    this.videoEnabled = videoRuntimeEnabled;
+    this.localVideoEnabled = videoRuntimeEnabled;
     this.log('Initialize request sent');
     this.emitState();
   }
@@ -168,27 +190,36 @@ export class RtcSessionService {
       this.log('Already joined');
       return;
     }
+    if (this.joinRequestPending) {
+      this.log('Join already pending');
+      return;
+    }
     const config = this.options.getConfig();
     if (!config.channelId.trim()) {
       throw new Error('Channel ID is empty.');
     }
-    await this.ensureJoinPermissions(config);
-    const client = this.getClient();
-    if (config.publishCameraTrack) {
-      await this.setupLocalVideoView();
-      if (!config.deferVideoEncoderConfiguration) {
-        await this.applyVideoEncoderMirrorConfiguration();
+    this.joinRequestPending = true;
+    try {
+      await this.ensureJoinPermissions(config);
+      const client = this.getClient();
+      if (config.publishCameraTrack) {
+        await this.setupLocalVideoView();
+        if (!config.deferVideoEncoderConfiguration) {
+          await this.applyVideoEncoderMirrorConfiguration();
+        }
       }
+      await client.joinChannel(config.token, config.channelId.trim(), config.uid, {
+        clientRoleType: this.selectedClientRole,
+        channelProfile: this.selectedChannelProfile,
+        publishCameraTrack: config.publishCameraTrack,
+        publishMicrophoneTrack: config.publishMicrophoneTrack,
+        autoSubscribeAudio: config.autoSubscribeAudio,
+        autoSubscribeVideo: config.autoSubscribeVideo,
+      });
+    } catch (error) {
+      this.joinRequestPending = false;
+      throw error;
     }
-    await client.joinChannel(config.token, config.channelId.trim(), config.uid, {
-      clientRoleType: this.selectedClientRole,
-      channelProfile: this.selectedChannelProfile,
-      publishCameraTrack: config.publishCameraTrack,
-      publishMicrophoneTrack: config.publishMicrophoneTrack,
-      autoSubscribeAudio: config.autoSubscribeAudio,
-      autoSubscribeVideo: config.autoSubscribeVideo,
-    });
-    this.joined = true;
     this.log(`Join request sent: ${config.channelId} (${config.uid})`);
     this.emitState();
   }
@@ -201,6 +232,10 @@ export class RtcSessionService {
       this.log('Already joined');
       return;
     }
+    if (this.joinRequestPending) {
+      this.log('Join already pending');
+      return;
+    }
     const config = this.options.getConfig();
     if (!config.channelId.trim()) {
       throw new Error('Channel ID is empty.');
@@ -208,15 +243,22 @@ export class RtcSessionService {
     if (!userAccount.trim()) {
       throw new Error('User account is empty.');
     }
-    const client = this.getClient();
-    await client.enableVideo(false);
-    this.videoEnabled = false;
-    await client.joinChannelWithUserAccount(
-      config.token,
-      config.channelId.trim(),
-      userAccount.trim(),
-    );
-    this.joined = true;
+    this.joinRequestPending = true;
+    try {
+      const client = this.getClient();
+      if (this.isVideoRuntimeEnabled(config)) {
+        await client.enableVideo(false);
+      }
+      this.videoEnabled = false;
+      await client.joinChannelWithUserAccount(
+        config.token,
+        config.channelId.trim(),
+        userAccount.trim(),
+      );
+    } catch (error) {
+      this.joinRequestPending = false;
+      throw error;
+    }
     this.log(`String user account join request sent: ${userAccount.trim()}`);
     this.emitState();
   }
@@ -230,26 +272,46 @@ export class RtcSessionService {
   }
 
   async leaveRtcChannel(): Promise<void> {
-    const client = this.getClient();
     const remoteUids = [...this.remoteUserUids];
+    if (
+      !this.joined
+      && !this.joinRequestPending
+      && !this.previewStarted
+      && !this.localViewAttached
+      && remoteUids.length === 0
+    ) {
+      this.log('Already left');
+      this.emitState();
+      return;
+    }
+    const client = this.getClient();
+    const shouldLeaveChannel = this.joined || this.joinRequestPending;
+    if (this.joinRequestPending) {
+      this.joinRequestPending = false;
+    }
     if (this.previewStarted) {
       await client.stopPreview();
     }
-    await client.leaveChannel();
+    if (shouldLeaveChannel) {
+      await client.leaveChannel();
+    }
     if (this.localViewAttached) {
       await client.removeLocalVideoView();
     }
-    for (const uid of remoteUids) {
-      await client.removeRemoteVideoView(uid);
+    if (this.videoEnabled || this.isVideoRuntimeEnabled()) {
+      for (const uid of remoteUids) {
+        await client.removeRemoteVideoView(uid);
+      }
     }
     this.clearLocalVideoRenderState();
     this.clearRemoteVideoRenderState(remoteUids);
+    this.joinRequestPending = false;
     this.joined = false;
     this.remoteUserUids.clear();
     this.lastRemoteVideoStatsByUid.clear();
     this.activeRemoteUid = null;
     this.options.onRemoteUsersChanged([], null);
-    this.log('Leave request sent');
+    this.log(shouldLeaveChannel ? 'Leave request sent' : 'Already left');
     this.emitState();
   }
 
@@ -266,6 +328,10 @@ export class RtcSessionService {
       return;
     }
     const config = this.options.getConfig();
+    if (!this.isVideoRuntimeEnabled(config)) {
+      this.log('Preview skipped for audio-only config');
+      return;
+    }
     await ensureCameraPermission();
     await this.setupLocalVideoView();
     if (!config.deferVideoEncoderConfiguration) {
@@ -310,6 +376,10 @@ export class RtcSessionService {
   }
 
   async refreshRtcViews(): Promise<void> {
+    if (!this.isVideoRuntimeEnabled()) {
+      this.log('Video views refresh skipped for audio-only config');
+      return;
+    }
     await this.setupLocalVideoView();
     await Promise.all([...this.remoteUserUids].map((uid) => this.setupRemoteVideoView(uid)));
     this.log('Video views refreshed');
@@ -529,7 +599,9 @@ export class RtcSessionService {
   }
 
   async toggleAudioProfile(): Promise<void> {
-    const next = this.currentAudioProfile === 0 ? 1 : 0;
+    const next = this.currentAudioProfile === AgoraAudioProfile.Default
+      ? AgoraAudioProfile.SpeechStandard
+      : AgoraAudioProfile.Default;
     const config = this.options.getConfig();
     const audioProfile = config.audioProfile ?? { profile: next };
     await this.getClient().setAudioProfile(audioProfile.profile, audioProfile.scenario);
@@ -626,7 +698,9 @@ export class RtcSessionService {
     }
     await this.runChannelRoleDemo();
     await this.runAudioControlDemo();
-    await this.runVideoControlDemo();
+    if (this.isVideoRuntimeEnabled()) {
+      await this.runVideoControlDemo();
+    }
     await this.runMixingDemo();
     await this.runEffectDemo();
     await this.runDiagnosticsDemo();
@@ -823,8 +897,13 @@ export class RtcSessionService {
       return;
     }
     const client = this.client;
+    const shouldCleanupVideoViews = this.shouldUseVideoNativeViews();
     try {
-      if (this.joined) {
+      const shouldLeaveChannel = this.joined || this.joinRequestPending;
+      if (this.joinRequestPending) {
+        this.joinRequestPending = false;
+      }
+      if (shouldLeaveChannel) {
         await this.teardownRtcStep('leaveChannel', () => client.leaveChannel());
       }
       if (this.previewStarted) {
@@ -833,16 +912,19 @@ export class RtcSessionService {
       if (this.localViewAttached) {
         await this.teardownRtcStep('removeLocalVideoView', () => client.removeLocalVideoView());
       }
-      for (const uid of this.remoteUserUids) {
-        await this.teardownRtcStep(`removeRemoteVideoView:${uid}`, () =>
-          client.removeRemoteVideoView(uid),
-        );
+      if (shouldCleanupVideoViews) {
+        for (const uid of this.remoteUserUids) {
+          await this.teardownRtcStep(`removeRemoteVideoView:${uid}`, () =>
+            client.removeRemoteVideoView(uid),
+          );
+        }
       }
       await this.teardownRtcStep('destroy', () => client.destroy());
     } finally {
       const remoteUids = [...this.remoteUserUids];
       this.listenersBound = false;
       this.initialized = false;
+      this.joinRequestPending = false;
       this.joined = false;
       this.previewStarted = false;
       this.activeRemoteUid = null;
@@ -879,6 +961,11 @@ export class RtcSessionService {
       return;
     }
     this.client.on('joinChannelSuccess', ({ channelId, uid }) => {
+      if (!this.joinRequestPending) {
+        this.log(`Ignored stale join success: ${channelId} (${uid})`);
+        return;
+      }
+      this.joinRequestPending = false;
       this.joined = true;
       this.log(`Joined channel: ${channelId} (${uid})`);
       this.emitState();
@@ -889,9 +976,11 @@ export class RtcSessionService {
         this.activeRemoteUid = uid;
       }
       this.options.onRemoteUsersChanged([...this.remoteUserUids], this.activeRemoteUid);
-      void this.setupRemoteVideoView(uid).catch((error) => {
-        this.recordAsyncError('Remote view setup failed', error);
-      });
+      if (this.isVideoRuntimeEnabled()) {
+        void this.setupRemoteVideoView(uid).catch((error) => {
+          this.recordAsyncError('Remote view setup failed', error);
+        });
+      }
       this.log(`Remote user joined: ${uid}`);
       this.emitState();
     });
@@ -903,9 +992,11 @@ export class RtcSessionService {
       this.lastRemoteVideoStatsByUid.delete(uid);
       this.clearRemoteVideoRenderState([uid]);
       this.options.onRemoteUsersChanged([...this.remoteUserUids], this.activeRemoteUid);
-      void this.removeRemoteVideoView(uid).catch((error) => {
-        this.recordAsyncError(`Remote view cleanup failed for uid ${uid}`, error);
-      });
+      if (this.videoEnabled || this.isVideoRuntimeEnabled()) {
+        void this.removeRemoteVideoView(uid).catch((error) => {
+          this.recordAsyncError(`Remote view cleanup failed for uid ${uid}`, error);
+        });
+      }
       this.log(`Remote user offline: ${uid} (${reason ?? 'unknown'})`);
       this.emitState();
     });
@@ -951,11 +1042,40 @@ export class RtcSessionService {
       this.log(`Backend[${payload.backend}] ${payload.phase}: ${payload.result}`);
     });
     this.client.on('error', ({ message }) => {
+      if (!this.joined) {
+        this.joinRequestPending = false;
+      }
       this.lastErrorMessage = message;
       this.log(`Native error: ${message}`);
       this.emitState();
     });
     this.listenersBound = true;
+  }
+
+  private applyConfiguredSessionDefaults(config: RuntimeConfigState): void {
+    if (config.channelProfile) {
+      this.selectedChannelProfile = config.channelProfile;
+    }
+    if (config.clientRole) {
+      this.selectedClientRole = config.clientRole;
+    }
+    if (typeof config.initialLocalAudioEnabled === 'boolean') {
+      this.localAudioEnabled = config.initialLocalAudioEnabled;
+    }
+    if (typeof config.initialLocalAudioMuted === 'boolean') {
+      this.localAudioMuted = config.initialLocalAudioMuted;
+    }
+  }
+
+  private isVideoRuntimeEnabled(config: RuntimeConfigState = this.options.getConfig()): boolean {
+    return config.publishCameraTrack || config.autoSubscribeVideo;
+  }
+
+  private shouldUseVideoNativeViews(config: RuntimeConfigState = this.options.getConfig()): boolean {
+    return this.isVideoRuntimeEnabled(config)
+      || this.videoEnabled
+      || this.localViewAttached
+      || this.previewStarted;
   }
 
   private async setupLocalVideoView(): Promise<void> {
@@ -1030,7 +1150,10 @@ export class RtcSessionService {
 
   private async runAudioControlDemo(): Promise<void> {
     const config = this.options.getConfig();
-    const audioProfile = config.audioProfile ?? { profile: 0, scenario: 0 };
+    const audioProfile = config.audioProfile ?? {
+      profile: AgoraAudioProfile.Default,
+      scenario: AgoraAudioScenario.Default,
+    };
     const audioVolumeIndication = config.audioVolumeIndication ?? { interval: 300, smooth: 3, reportVad: false };
     const playbackVolume = config.playbackVolume ?? 100;
     const userPlaybackVolume = config.userPlaybackVolume ?? 100;

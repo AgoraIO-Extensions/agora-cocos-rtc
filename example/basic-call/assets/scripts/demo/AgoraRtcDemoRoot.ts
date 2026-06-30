@@ -124,9 +124,14 @@ export class AgoraRtcDemoRoot extends Component {
   private autoStartupRunning = false;
   private autoStartupCompleted = false;
   private joinLeaveLoopActive = false;
+  private sessionActionQueue: Promise<void> = Promise.resolve();
 
   private get selectedCaseName(): string | null {
     return this.selectedCase?.name ?? null;
+  }
+
+  private isSelectedAudioOnlyCase(): boolean {
+    return this.selectedCase?.displayMode === 'audio';
   }
 
   onLoad(): void {
@@ -138,7 +143,7 @@ export class AgoraRtcDemoRoot extends Component {
       onApplyConfig: (channelId, uid) => this.applyConfig(channelId, uid),
     });
     this.actionPanel?.initialize({
-      onAction: (actionName) => { void this.invokeAction(actionName); },
+      onAction: (actionName) => { void this.invokeAction(actionName).catch(() => {}); },
       onApplyConfig: (config) => this.applyBasicVideoConfig(config),
       onSelectCase: (caseName) => this.selectDemoCase(caseName),
       onBackToCases: () => { void this.backToCaseList(); },
@@ -209,9 +214,8 @@ export class AgoraRtcDemoRoot extends Component {
   }
 
   async toggleJoinChannel(): Promise<void> {
-    const state = this.getSessionState();
     await this.runSessionAction('JoinChannel', (session) =>
-      state.joined ? session.leaveRtcChannel() : session.joinRtcChannel(),
+      session.getState().joined ? session.leaveRtcChannel() : session.joinRtcChannel(),
     );
   }
 
@@ -595,35 +599,45 @@ export class AgoraRtcDemoRoot extends Component {
     actionName: string,
     action: (session: RtcSessionService) => Promise<void>,
   ): Promise<void> {
-    this.createSession();
-    this.setActionResult(actionName, 'idle');
-    this.pushStatus(`${actionName} started`);
-    try {
-      await action(this.session!);
-      this.setActionResult(actionName, 'ok');
-      this.pushStatus(`${actionName} completed`);
-    } catch (error) {
-      this.setActionResult(actionName, 'fail');
-      this.pushStatus(`${actionName} failed: ${String(error)}`);
-      throw error;
-    }
+    return this.enqueueSessionAction(async () => {
+      this.createSession();
+      this.setActionResult(actionName, 'idle');
+      this.pushStatus(`${actionName} started`);
+      try {
+        await action(this.session!);
+        this.setActionResult(actionName, 'ok');
+        this.pushStatus(`${actionName} completed`);
+      } catch (error) {
+        this.setActionResult(actionName, 'fail');
+        this.pushStatus(`${actionName} failed: ${String(error)}`);
+        throw error;
+      }
+    });
+  }
+
+  private async enqueueSessionAction(task: () => Promise<void>): Promise<void> {
+    const run = this.sessionActionQueue.then(task, task);
+    this.sessionActionQueue = run.catch(() => {});
+    await run;
   }
 
   private async runAudioEffectMixingAction(
     actionName: string,
     action: (session: RtcSessionService, assetPath: string) => Promise<void>,
   ): Promise<void> {
-    this.createSession();
-    this.setActionResult(actionName, 'idle');
-    try {
-      const assetPath = await resolveAudioMixingAssetPath();
-      await action(this.session!, assetPath);
-      this.setActionResult(actionName, 'ok');
-    } catch (error) {
-      this.setActionResult(actionName, 'fail');
-      this.pushStatus(`${actionName} failed: ${String(error)}`);
-      throw error;
-    }
+    return this.enqueueSessionAction(async () => {
+      this.createSession();
+      this.setActionResult(actionName, 'idle');
+      try {
+        const assetPath = await resolveAudioMixingAssetPath();
+        await action(this.session!, assetPath);
+        this.setActionResult(actionName, 'ok');
+      } catch (error) {
+        this.setActionResult(actionName, 'fail');
+        this.pushStatus(`${actionName} failed: ${String(error)}`);
+        throw error;
+      }
+    });
   }
 
   private setActionResult(actionName: string, result: ActionResult): void {
@@ -808,12 +822,14 @@ export class AgoraRtcDemoRoot extends Component {
       channelId: this.channelId,
       uid: this.uid,
       renderBackend: this.renderBackend,
-      autoPreview: this.autoPreview,
+      autoPreview: this.isSelectedAudioOnlyCase() ? false : this.autoPreview,
       autoJoin: this.autoJoin,
-      publishCameraTrack: this.publishCameraTrack,
+      publishCameraTrack: this.isSelectedAudioOnlyCase() ? false : this.publishCameraTrack,
       publishMicrophoneTrack: this.publishMicrophoneTrack,
       autoSubscribeAudio: this.autoSubscribeAudio,
-      autoSubscribeVideo: this.autoSubscribeVideo,
+      autoSubscribeVideo: this.isSelectedAudioOnlyCase() ? false : this.autoSubscribeVideo,
+      channelProfile: this.channelProfile,
+      clientRole: this.clientRole,
       previewSourceType: this.previewSourceType,
       localVideoCanvas: this.localVideoCanvas,
       remoteVideoCanvas: this.remoteVideoCanvas,

@@ -140,6 +140,10 @@ const TRANSPILE_TARGETS = [
     outputPath: 'example/basic-call/extensions/agora-rtc/js/source_types.ts',
   },
   {
+    sourcePath: 'sdk/agora-rtc/js/audio_types.ts',
+    outputPath: 'example/basic-call/extensions/agora-rtc/js/audio_types.ts',
+  },
+  {
     sourcePath: 'sdk/agora-rtc/js/internal/bridge.ts',
     outputPath: 'example/basic-call/extensions/agora-rtc/js/internal/bridge.ts',
   },
@@ -372,6 +376,85 @@ test('joinRtcChannel skips demo-owned permission requests for subscriber-only jo
   assert.equal(pickRequests(transport, 'joinChannel').length, 1);
 });
 
+test('joinRtcChannel marks joined only after native joinChannelSuccess callback', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      autoSubscribeVideo: false,
+    })),
+  );
+
+  await service.joinRtcChannel();
+  await service.joinRtcChannel();
+
+  assert.equal(service.getState().joined, false);
+  assert.equal(pickRequests(transport, 'joinChannel').length, 1);
+
+  transport.emit('agora:event', JSON.stringify({
+    eventName: 'joinChannelSuccess',
+    payload: {
+      channelId: 'demo-channel',
+      uid: 123,
+      elapsed: 10,
+    },
+  }));
+
+  assert.equal(service.getState().joined, true);
+});
+
+test('leaveRtcChannel does not call native leave when already outside the channel', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      autoSubscribeVideo: false,
+    })),
+  );
+
+  await service.leaveRtcChannel();
+
+  assert.equal(pickRequests(transport, 'leaveChannel').length, 0);
+});
+
+test('leaveRtcChannel cancels pending join so a late joinChannelSuccess does not mark joined', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      autoSubscribeVideo: false,
+    })),
+  );
+
+  await service.joinRtcChannel();
+  await service.leaveRtcChannel();
+
+  assert.equal(pickRequests(transport, 'leaveChannel').length, 1);
+
+  transport.emit('agora:event', JSON.stringify({
+    eventName: 'joinChannelSuccess',
+    payload: {
+      channelId: 'demo-channel',
+      uid: 123,
+      elapsed: 10,
+    },
+  }));
+
+  assert.equal(service.getState().joined, false);
+});
+
 test('startLocalPreview skips encoder config when deferVideoEncoderConfiguration is set', async () => {
   const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
   const transport = new AutoResponseTransport();
@@ -457,6 +540,124 @@ test('joinRtcChannel publishes derived encoder mirror config before join', async
   assert.ok(
     transport.sent.findIndex((request) => request.method === 'setVideoEncoderConfiguration')
       < transport.sent.findIndex((request) => request.method === 'joinChannel'),
+  );
+});
+
+test('initializeRtc applies configured live-broadcasting broadcaster defaults and pre-join local audio state', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      channelProfile: 'liveBroadcasting',
+      clientRole: 'broadcaster',
+      initialLocalAudioEnabled: false,
+      initialLocalAudioMuted: true,
+    })),
+  );
+
+  await service.initializeRtc();
+
+  assert.deepEqual(
+    transport.sent.map((request) => request.method),
+    [
+      'setRenderBackend',
+      'initialize',
+      'enableVideo',
+      'setChannelProfile',
+      'setClientRole',
+      'enableLocalAudio',
+      'muteLocalAudioStream',
+    ],
+  );
+  assert.deepEqual(pickRequests(transport, 'setChannelProfile')[0]?.params, { profile: 'liveBroadcasting' });
+  assert.deepEqual(pickRequests(transport, 'setClientRole')[0]?.params, { role: 'broadcaster' });
+  assert.deepEqual(pickRequests(transport, 'enableLocalAudio')[0]?.params, { enabled: false });
+  assert.deepEqual(pickRequests(transport, 'muteLocalAudioStream')[0]?.params, { muted: true });
+
+  const state = service.getState();
+  assert.equal(state.channelProfile, 'liveBroadcasting');
+  assert.equal(state.clientRole, 'broadcaster');
+  assert.equal(state.localAudioEnabled, false);
+  assert.equal(state.localAudioMuted, true);
+});
+
+test('audio-only initialize and join skip video backend and enableVideo requests', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      autoPreview: false,
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      autoSubscribeVideo: false,
+    })),
+  );
+
+  await service.joinRtcChannel();
+
+  assert.deepEqual(
+    transport.sent.map((request) => request.method),
+    [
+      'initialize',
+      'joinChannel',
+    ],
+  );
+  assert.deepEqual(
+    pickRequests(transport, 'joinChannel')[0]?.params.options,
+    {
+      clientRoleType: 'broadcaster',
+      channelProfile: 'communication',
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      autoSubscribeAudio: true,
+      autoSubscribeVideo: false,
+    },
+  );
+  assert.deepEqual(
+    transport.permissionRequests.map((request) => request.permission),
+    ['microphone'],
+  );
+
+  const state = service.getState();
+  assert.equal(state.videoEnabled, false);
+  assert.equal(state.localVideoEnabled, false);
+});
+
+test('audio-only teardown skips remote video view cleanup after user callbacks', async () => {
+  const { RtcSessionService, Node, native } = await prepareRtcSessionFixture();
+  const transport = new AutoResponseTransport();
+  native.jsbBridgeWrapper = transport;
+
+  const service = new RtcSessionService(
+    createServiceOptions(Node, () => createConfig({
+      autoPreview: false,
+      publishCameraTrack: false,
+      publishMicrophoneTrack: true,
+      autoSubscribeVideo: false,
+    })),
+  );
+
+  await service.joinRtcChannel();
+  transport.emit('agora:event', JSON.stringify({
+    eventName: 'userJoined',
+    payload: { uid: 4242, elapsed: 0 },
+  }));
+  await service.teardownRtc();
+
+  assert.deepEqual(
+    transport.sent.map((request) => request.method),
+    [
+      'initialize',
+      'joinChannel',
+      'leaveChannel',
+      'destroy',
+    ],
   );
 });
 

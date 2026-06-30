@@ -8,7 +8,6 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.cocos.lib.CocosHelper;
 import com.cocos.lib.GlobalObject;
@@ -39,7 +38,6 @@ public final class AgoraRtcPlugin {
     private static final String CALLBACK_EVENT = "agora:event";
     private static final String REQUEST_EVENT = "agora:request";
     private static final String PROTECTED_APP_TYPE_PARAMETERS = "{\"rtc.set_app_type\":10}";
-    private static final long NATIVE_QUERY_TIMEOUT_MS = 5000L;
     private static final AgoraRtcPlugin INSTANCE = new AgoraRtcPlugin();
 
     private RtcEngine rtcEngine;
@@ -543,7 +541,7 @@ public final class AgoraRtcPlugin {
                 return;
             }
             if (!applyProtectedParameters(rtcEngine, requestId, "initialize", params)) {
-                rtcEngine = null;
+                cleanupFailedInitialize(rtcEngine);
                 return;
             }
             if (renderBackend != null) {
@@ -552,6 +550,21 @@ public final class AgoraRtcPlugin {
             dispatchOk(requestId);
         } catch (Exception error) {
             dispatchError(requestId, "RtcEngine.create failed: " + error.getMessage());
+        }
+    }
+
+    private void cleanupFailedInitialize(RtcEngine engineToDestroy) {
+        final AgoraRenderBackend backendToRelease = renderBackend;
+        renderBackend = AgoraRenderBackendFactory.create(
+                renderBackendType,
+                this::dispatchEvent
+        );
+        rtcEngine = null;
+        if (backendToRelease != null) {
+            backendToRelease.release();
+        }
+        if (engineToDestroy != null) {
+            RtcEngine.destroy();
         }
     }
 
@@ -1289,15 +1302,13 @@ public final class AgoraRtcPlugin {
                 this::dispatchEvent
         );
         rtcEngine = null;
-        dispatchOk(requestId);
         if (backendToRelease != null) {
-            CocosHelper.runOnGameThread(backendToRelease::release);
+            backendToRelease.release();
         }
-        new Thread(() -> {
-            if (engineToDestroy != null) {
-                RtcEngine.destroy();
-            }
-        }).start();
+        if (engineToDestroy != null) {
+            RtcEngine.destroy();
+        }
+        dispatchOk(requestId);
     }
 
     private void handleSetVideoEncoderConfiguration(String requestId, JSONObject params) {
@@ -1467,38 +1478,16 @@ public final class AgoraRtcPlugin {
             dispatchError(requestId, "RtcEngine is not initialized.");
             return;
         }
-        final AtomicBoolean completed = new AtomicBoolean(false);
-        new Thread(() -> {
-            try {
-                int position = engine.getAudioMixingCurrentPosition();
-                if (!completed.compareAndSet(false, true)) {
-                    return;
-                }
-                dispatchResponse(jsonObject(
-                        "requestId", requestId,
-                        "ok", true,
-                        "result", position
-                ));
-            } catch (Exception error) {
-                if (completed.compareAndSet(false, true)) {
-                    dispatchNativeExceptionError(requestId, "getAudioMixingCurrentPosition", error);
-                }
-            }
-        }).start();
-        new Thread(() -> {
-            try {
-                Thread.sleep(NATIVE_QUERY_TIMEOUT_MS);
-            } catch (InterruptedException error) {
-                Thread.currentThread().interrupt();
-            }
-            if (completed.compareAndSet(false, true)) {
-                dispatchNativeMethodError(
-                        requestId,
-                        "getAudioMixingCurrentPosition",
-                        "Native request timed out in Android audio mixing query."
-                );
-            }
-        }).start();
+        try {
+            int position = engine.getAudioMixingCurrentPosition();
+            dispatchResponse(jsonObject(
+                    "requestId", requestId,
+                    "ok", true,
+                    "result", position
+            ));
+        } catch (Exception error) {
+            dispatchNativeExceptionError(requestId, "getAudioMixingCurrentPosition", error);
+        }
     }
 
     private void handleSetAudioMixingPosition(String requestId, JSONObject params) {

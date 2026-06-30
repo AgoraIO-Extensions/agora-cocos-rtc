@@ -1,5 +1,7 @@
 import type { Node, Sprite, SpriteFrame, Texture2D } from 'cc';
 import type {
+  AgoraAudioProfileValue,
+  AgoraAudioScenarioValue,
   AgoraAudioMixingConfig,
   AgoraEngineTextureCameraFacing,
   AgoraVideoEncoderConfiguration,
@@ -47,6 +49,10 @@ export interface RuntimeConfigState {
   publishMicrophoneTrack: boolean;
   autoSubscribeAudio: boolean;
   autoSubscribeVideo: boolean;
+  channelProfile?: ChannelProfile;
+  clientRole?: ClientRole;
+  initialLocalAudioEnabled?: boolean;
+  initialLocalAudioMuted?: boolean;
   previewSourceType?: number;
   localVideoCanvas?: Partial<AgoraRtcVideoCanvas>;
   remoteVideoCanvas?: Partial<AgoraRtcVideoCanvas>;
@@ -59,8 +65,8 @@ export interface RuntimeConfigState {
     reportVad?: boolean;
   };
   audioProfile?: {
-    profile: number;
-    scenario?: number;
+    profile: AgoraAudioProfileValue;
+    scenario?: AgoraAudioScenarioValue;
   };
   audioMixing?: AgoraAudioMixingConfig;
   audioMixingSeekPositionMs?: number;

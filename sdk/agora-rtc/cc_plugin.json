@@ -12,6 +12,7 @@
   ],
   "platforms": [
     "android",
+    "google-play",
     "ios"
   ]
 }

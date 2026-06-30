@@ -3,7 +3,10 @@ import { access, cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const require = createRequire(import.meta.url);
-const { ensureAndroidAppActivityBridgeAttachment } = require('../sdk/agora-rtc/dist/hooks.js');
+const {
+  ANDROID_ENGINE_DIR_NAMES,
+  ensureAndroidAppActivityBridgeAttachment,
+} = require('../sdk/agora-rtc/dist/hooks.js');
 
 const repoRoot = path.resolve(new URL('..', import.meta.url).pathname);
 const exampleRoot = path.join(repoRoot, 'example/basic-call');
@@ -11,14 +14,21 @@ const demoSourceDir = path.join(
   exampleRoot,
   'native/agora-rtc/android/src/main/java/io/agora/cocos/demo',
 );
-const demoDestRoots = [
-  path.join(exampleRoot, 'native/engine/android/app/src/main/java/io/agora/cocos/demo'),
-  path.join(exampleRoot, 'build-android/android/proj/app/src/main/java/io/agora/cocos/demo'),
-];
-const appActivityRoots = [
-  path.join(exampleRoot, 'native/engine/android'),
-  path.join(exampleRoot, 'build-android/android/proj'),
-];
+
+function exampleAndroidEngineRoots() {
+  const roots = [];
+  for (const engineDir of ANDROID_ENGINE_DIR_NAMES) {
+    roots.push(path.join(exampleRoot, 'native/engine', engineDir));
+    roots.push(path.join(exampleRoot, `build-${engineDir}`, engineDir, 'proj'));
+  }
+  return roots;
+}
+
+function exampleDemoDestRoots() {
+  return exampleAndroidEngineRoots().map((rootDir) =>
+    path.join(rootDir, 'app/src/main/java/io/agora/cocos/demo'),
+  );
+}
 
 const AGORA_IMPORT = 'import io.agora.cocos.rtc.AgoraRtcPlugin;';
 const DEMO_IMPORT = 'import io.agora.cocos.demo.DemoPermissionsPlugin;';
@@ -69,17 +79,23 @@ ${DEMO_PERMISSIONS_RESULT}
 }
 
 async function hasAndroidEngineSkeleton() {
-  const appActivityPath = path.join(
-    exampleRoot,
-    'native/engine/android/app/src/com/cocos/game/AppActivity.java',
-  );
+  for (const engineDir of ANDROID_ENGINE_DIR_NAMES) {
+    const appActivityPath = path.join(
+      exampleRoot,
+      'native/engine',
+      engineDir,
+      'app/src/com/cocos/game/AppActivity.java',
+    );
 
-  try {
-    await access(appActivityPath);
-    return true;
-  } catch {
-    return false;
+    try {
+      await access(appActivityPath);
+      return true;
+    } catch {
+      continue;
+    }
   }
+
+  return false;
 }
 
 async function syncExampleDemoJava() {
@@ -91,17 +107,17 @@ async function syncExampleDemoJava() {
 
   if (!(await hasAndroidEngineSkeleton())) {
     console.warn(
-      'Skipped Example demo Java sync because native/engine/android skeleton is missing. Run Cocos export first.',
+      'Skipped Example demo Java sync because native/engine/android or native/engine/google-play skeleton is missing. Run Cocos export first.',
     );
     return;
   }
 
-  for (const demoDestDir of demoDestRoots) {
+  for (const demoDestDir of exampleDemoDestRoots()) {
     try {
       await mkdir(path.dirname(demoDestDir), { recursive: true });
       await cp(demoSourceDir, demoDestDir, { recursive: true, force: true });
     } catch (error) {
-      if (demoDestDir.includes(`${path.sep}build-android${path.sep}`)) {
+      if (demoDestDir.includes(`${path.sep}build-`)) {
         continue;
       }
       throw error;
@@ -110,7 +126,7 @@ async function syncExampleDemoJava() {
 }
 
 let patched = 0;
-for (const rootDir of appActivityRoots) {
+for (const rootDir of exampleAndroidEngineRoots()) {
   const appActivityPath = await ensureAndroidAppActivityBridgeAttachment(rootDir);
   if (!appActivityPath) {
     continue;

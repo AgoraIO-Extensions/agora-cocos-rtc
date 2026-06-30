@@ -48,6 +48,8 @@ test('cocos api test matrix covers every native Agora method and records paramet
 
   assert.match(testcasesContent, /expectedParams:/);
   assert.match(testcasesContent, /requiredEvidence:/);
+  assert.match(testcasesContent, /requiredCapabilities:/);
+  assert.match(testcasesContent, /filterApiCallTestcases/);
   assert.match(testcasesContent, /lighteningContrastLevel/);
   assert.match(testcasesContent, /orientationMode/);
   assert.match(testcasesContent, /loopback/);
@@ -149,6 +151,66 @@ test('cocos api testcases accept native error evidence for platform-sensitive ca
   }
 });
 
+test('cocos api testcases skip video, render, and content inspect coverage for audio-only native deps', async () => {
+  const testcasesContent = await readFile(
+    `${repoRoot}/test_shard/integration_test_app/src/api_call_testcases.ts`,
+    'utf8',
+  );
+  const runnerContent = await readFile(
+    `${repoRoot}/test_shard/integration_test_app/src/api_test_runner.ts`,
+    'utf8',
+  );
+
+  assert.match(testcasesContent, /export type ApiTestCapability = 'video' \| 'render' \| 'contentInspect'/);
+  assert.match(testcasesContent, /DEFAULT_API_TEST_CAPABILITIES/);
+  assert.match(testcasesContent, /filterApiCallTestcases/);
+  assert.match(runnerContent, /createCapabilities/);
+  assert.match(runnerContent, /filterApiCallTestcases\(capabilities\)/);
+  assert.match(runnerContent, /TEST_CAPABILITIES/);
+
+  for (const caseId of [
+    'channel.join',
+    'video.enable',
+    'video.enable-local',
+    'video.mute-local',
+    'video.mute-remote',
+    'video.mute-all-remote',
+    'video.encoder-config',
+    'video.start-preview',
+    'video.switch-camera',
+    'video.beauty',
+    'video.stop-preview',
+  ]) {
+    assert.match(
+      testcasesContent,
+      new RegExp(`id:\\s*'${caseId}'[\\s\\S]*?requiredCapabilities:\\s*\\['video'\\]`),
+      `${caseId} should be skipped when video capability is disabled`,
+    );
+  }
+
+  for (const caseId of [
+    'render.setup-local-view',
+    'render.setup-remote-view',
+    'render.update-local-view',
+    'render.update-remote-view',
+    'render.suspend-overlay',
+    'render.remove-remote-view',
+    'render.remove-local-view',
+  ]) {
+    assert.match(
+      testcasesContent,
+      new RegExp(`id:\\s*'${caseId}'[\\s\\S]*?requiredCapabilities:\\s*\\['render'\\]`),
+      `${caseId} should be skipped when render capability is disabled`,
+    );
+  }
+
+  assert.match(
+    testcasesContent,
+    /id:\s*'video\.content-inspect'[\s\S]*?requiredCapabilities:\s*\['contentInspect'\]/,
+    'content inspect should be skipped when the optional product is absent',
+  );
+});
+
 test('cocos device runner emits structured logs and writes a json report', async () => {
   const runnerContent = await readFile(
     `${repoRoot}/test_shard/integration_test_app/src/api_test_runner.ts`,
@@ -206,6 +268,20 @@ test('cocos runner injection supports the dynamic prefab bootstrap mount point',
     await readFile(`${repoRoot}/example/basic-call/assets/scripts/AgoraRtcExampleBootstrap.ts`, 'utf8'),
     'utf8',
   );
+  await mkdir(`${fixtureRoot}/sdk/agora-rtc`, { recursive: true });
+  await writeFile(
+    `${fixtureRoot}/sdk/agora-rtc/sdk-config.json`,
+    `${JSON.stringify({
+      android: {
+        dependencies: ['io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'],
+      },
+      ios: {
+        packageUrl: 'https://github.com/AgoraIO/AgoraAudio_iOS.git',
+        packageProducts: ['RtcBasic'],
+      },
+    }, null, 2)}\n`,
+    'utf8',
+  );
 
   await execFileAsync('node', ['./scripts/inject-cocos-test-runner.mjs'], {
     cwd: fixtureRoot,
@@ -228,6 +304,10 @@ test('cocos runner injection supports the dynamic prefab bootstrap mount point',
     `${fixtureRoot}/example/basic-call/assets/scripts/cocos-device-tests/api_call_testcases.ts`,
     'utf8',
   );
+  const injectedTestModeContent = await readFile(
+    `${fixtureRoot}/example/basic-call/assets/scripts/cocos-device-tests/test-mode.ts`,
+    'utf8',
+  );
   assert.match(
     bootstrapContent,
     /import \{ runAgoraCocosDeviceTestsWhenReady \} from '\.\/cocos-device-tests\/test-mode\.ts';/,
@@ -238,6 +318,9 @@ test('cocos runner injection supports the dynamic prefab bootstrap mount point',
   assert.match(injectedRunnerContent, /\.\.\/\.\.\/\.\.\/extensions\/agora-rtc\/js\/agora\.ts/);
   assert.match(injectedRunnerContent, /\.\.\/\.\.\/\.\.\/extensions\/agora-rtc\/js\/internal\/bridge\.ts/);
   assert.match(injectedTestcasesContent, /\.\.\/\.\.\/\.\.\/extensions\/agora-rtc\/js\/agora\.ts/);
+  assert.match(injectedTestModeContent, /AGORA_COCOS_TEST_CAPABILITIES/);
+  assert.match(injectedTestModeContent, /"Android":\s*\{\s*"video": false,\s*"render": false,\s*"contentInspect": false\s*\}/);
+  assert.match(injectedTestModeContent, /"iOS":\s*\{\s*"video": false,\s*"render": false,\s*"contentInspect": false\s*\}/);
 });
 
 test('cocos integration scripts build and launch android and ios test apps', async () => {
@@ -362,6 +445,9 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(iosScript, /collect_ios_diagnostics/);
   assert.match(iosScript, /resolve_ios_simulator_udid\(\)/);
   assert.match(iosScript, /IOS_SIMULATOR_UDID="\$\(resolve_ios_simulator_udid\)"/);
+  assert.doesNotMatch(iosScript, /simctl list devices available -j/);
+  assert.doesNotMatch(iosScript, /simctl boot "\$selected_udid"/);
+  assert.doesNotMatch(iosScript, /simctl bootstatus "\$selected_udid" -b/);
   assert.match(iosScript, /simctl privacy "\$IOS_SIMULATOR_UDID" grant camera "\$IOS_BUNDLE_ID"/);
   assert.match(iosScript, /simctl privacy "\$IOS_SIMULATOR_UDID" grant microphone "\$IOS_BUNDLE_ID"/);
   assert.match(iosScript, /rm -f "\$IOS_REPORT_SIM_PATH"/);
@@ -473,6 +559,55 @@ exit 1
   );
 });
 
+test('ios simulator resolver requires an action-provided or already booted simulator', async () => {
+  const iosScript = await readFile(
+    `${repoRoot}/scripts/run_cocos_integration_test_ios.sh`,
+    'utf8',
+  );
+  const functionMatch = iosScript.match(
+    /resolve_ios_simulator_udid\(\) \{[\s\S]*?\n\}\n\nrefresh_ios_report_path/,
+  );
+  assert.ok(functionMatch, 'expected iOS simulator resolver function');
+
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-ios-simulator-resolver-'));
+  const binDir = path.join(tempRoot, 'bin');
+  const reportDir = path.join(tempRoot, 'reports');
+  const commandLog = path.join(tempRoot, 'xcrun.log');
+  await mkdir(binDir, { recursive: true });
+  await mkdir(reportDir, { recursive: true });
+  await writeFile(
+    path.join(binDir, 'xcrun'),
+    `#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "${commandLog}"
+if [[ "$1" == "simctl" && "$2" == "list" && "$3" == "devices" && "$4" == "booted" && "$5" == "-j" ]]; then
+  printf '%s' '{"devices":{"com.apple.CoreSimulator.SimRuntime.iOS-18-5":[]}}'
+  exit 0
+fi
+exit 1
+`,
+    { encoding: 'utf8', mode: 0o755 },
+  );
+
+  const functionSource = functionMatch[0].replace(/\n\nrefresh_ios_report_path$/, '');
+  const result = spawnSync('bash', ['-c', `set -euo pipefail\n${functionSource}\nresolve_ios_simulator_udid`], {
+    encoding: 'utf8',
+    env: {
+      BASH_ENV: '/dev/null',
+      HOME: tempRoot,
+      IOS_SIMULATORS_LOG_PATH: path.join(reportDir, 'ios-simulators.json'),
+      PATH: `${binDir}${path.delimiter}/opt/homebrew/bin${path.delimiter}/usr/bin${path.delimiter}/bin`,
+    },
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /No booted iOS simulator was found/);
+  const commands = await readFile(commandLog, 'utf8');
+  assert.match(commands, /simctl list devices booted -j/);
+  assert.doesNotMatch(commands, /simctl list devices available -j/);
+  assert.doesNotMatch(commands, /simctl boot available-udid/);
+  assert.doesNotMatch(commands, /simctl bootstatus available-udid -b/);
+});
+
 test('android integration script prefers pinned test ndk over ambient ndk env', async () => {
   const androidScript = await readFile(
     `${repoRoot}/scripts/run_cocos_integration_test_android.sh`,
@@ -564,8 +699,17 @@ test('cocos run_test workflow exposes unit and device integration jobs', async (
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_android\.sh/);
   assert.match(workflow, /arch: x86_64/);
   assert.match(workflow, /integration_test_ios:/);
-  assert.match(workflow, /futureware-tech\/simulator-action@v4/);
-  assert.match(workflow, /bash scripts\/run_cocos_integration_test_ios\.sh/);
+  assert.match(workflow, /id: ios-simulator[\s\S]*uses: futureware-tech\/simulator-action@v4/);
+  assert.match(workflow, /os: iOS/);
+  assert.match(workflow, /os_version: '>=14\.0'/);
+  assert.match(workflow, /erase_before_boot: true/);
+  assert.match(workflow, /wait_for_boot: true/);
+  assert.match(workflow, /shutdown_after_job: true/);
+  assert.doesNotMatch(workflow, /model: 'iPhone 16 Pro'/);
+  assert.match(
+    workflow,
+    /run: bash scripts\/run_cocos_integration_test_ios\.sh[\s\S]*IOS_SIMULATOR_UDID: \$\{\{ steps\.ios-simulator\.outputs\.udid \}\}/,
+  );
   assert.match(workflow, /test_shard\/integration_test_app\/reports/);
 });
 
