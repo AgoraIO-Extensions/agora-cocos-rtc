@@ -51,6 +51,32 @@ test('applyAndroidGradleDependencies injects Agora artifacts once', () => {
   assert.equal(once, twice);
 });
 
+test('applyAndroidGradleDependencies replaces stale Agora app artifacts', () => {
+  const original = `plugins {
+    id 'com.android.application'
+  }
+
+  dependencies {
+      implementation 'io.agora.rtc:full-sdk:4.5.3'
+      implementation "io.agora.rtc:full-sdk:4.5.3"
+      api("io.agora.rtc:full-sdk:4.5.3")
+      implementation "com.google.code.gson:gson:2.10.1"
+  }
+  `;
+
+  const once = applyAndroidGradleDependencies(original);
+  const twice = applyAndroidGradleDependencies(once);
+
+  assert.doesNotMatch(once, /io\.agora\.rtc:full-sdk/);
+  for (const dependency of sdkConfig.android.dependencies) {
+    assert.equal(
+      [...once.matchAll(new RegExp(dependency.replaceAll('.', '\\.'), 'g'))].length,
+      1,
+    );
+  }
+  assert.equal(once, twice);
+});
+
 test('findFirstExistingPath returns the first matching candidate', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-paths-'));
   const target = path.join(root, 'proj', 'android', 'app', 'build.gradle');
