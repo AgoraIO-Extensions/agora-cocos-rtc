@@ -28,6 +28,20 @@ await client.initialize(appId);
 await client.joinChannel(token, channelId, uid);
 ```
 
+## Android Gradle Dependency
+
+When the plugin is installed as a Cocos project extension and the project is exported through Cocos Build for Android or Google Play, the Cocos build hook attempts to add the required Agora dependency to the exported module `app/build.gradle`.
+
+If you integrate the SDK manually, reuse an already exported Android project, build directly from Android Studio, or find that the Cocos build hook did not run, add the dependency yourself in the app module:
+
+```gradle
+dependencies {
+    implementation 'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'
+}
+```
+
+The plugin does not rewrite the customer's root `build.gradle`, Android Gradle Plugin version, or Gradle Wrapper version.
+
 ## API Surface
 
 - `initialize`
@@ -92,12 +106,13 @@ await client.joinChannel(token, channelId, uid);
 
 ## Platform Notes
 
-- Android uses `io.agora.rtc:full-sdk:4.5.3` (bundled extensions, aligned with iOS SPM products below).
-- iOS SPM links all extension products from `sdk-config.json` `packageProducts` (same capability set as Android `full-sdk`).
-- iOS uses `AgoraRtcEngine_iOS 4.5.3`.
+- Android dependencies are listed in `sdk-config.json`; the current Android artifact is `io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1`.
+- iOS SPM links the products listed in `sdk-config.json` `packageProducts`.
+- iOS uses the package URL and version listed in `sdk-config.json`.
+- The current Android artifact is the special voice package, not the full video package; validate video and `engine-texture` paths only after switching to an Agora artifact that includes the required video capabilities.
 - Android supports `setDefaultAudioRouteToSpeakerphone`; Android still returns an explicit `unsupported` response for `setAudioSessionOperationRestriction`.
-- Android and iOS 4.5.3 `ChannelMediaOptions` both expose multipath fields; macOS-only screen/camera track fields are not part of the iOS Cocos bridge.
-- Android and iOS 4.5.3 content inspect modules both expose `position`.
+- Android 4.5.3 and iOS `4.5.3-a1` `ChannelMediaOptions` both expose multipath fields; macOS-only screen/camera track fields are not part of the iOS Cocos bridge.
+- Android 4.5.3 and iOS `4.5.3-a1` content inspect modules both expose `position`.
 - `engine-texture` is the main Cocos texture rendering path for video frames.
 - `AudioEffectMixing` effect pause/resume and effect volume map to native audio effect APIs; audio mixing publish/playout volume maps to native audio mixing APIs.
 

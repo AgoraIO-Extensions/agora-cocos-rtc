@@ -32,6 +32,19 @@ function androidEnginePathCandidates(...suffixes) {
   return candidates;
 }
 
+function androidAppGradleCandidates() {
+  return [
+    ...androidEnginePathCandidates('app/build.gradle'),
+    'app/build.gradle',
+    'proj/app/build.gradle',
+    'proj/android/app/build.gradle',
+    'proj/google-play/app/build.gradle',
+    'build/android/proj/app/build.gradle',
+    'build/google-play/proj/app/build.gradle',
+    'android/app/build.gradle',
+  ];
+}
+
 function androidEngineRootCandidates() {
   const candidates = [];
   for (const engineDir of ANDROID_ENGINE_DIR_NAMES) {
@@ -828,41 +841,6 @@ function applyAndroidGradleDependencies(content) {
   return syncAndroidGradleDependencies(content);
 }
 
-function ensureAgoraLocalMavenRepository(content) {
-  if (content.includes('local-maven')) {
-    return content;
-  }
-
-  const localMavenPath = sdkConfig.android.localMavenRelativePath;
-  const header = `def localAgoraRepo = new File(NATIVE_DIR, "${localMavenPath}")\n\n`;
-  const repositoryInjection = [
-    `        if (new File(NATIVE_DIR, "${localMavenPath}").exists()) {`,
-    `            maven { url uri(new File(NATIVE_DIR, "${localMavenPath}")) }`,
-    '        }',
-  ].join('\n');
-
-  let next = content;
-  if (!next.includes('def localAgoraRepo')) {
-    next = header + next;
-  }
-  next = next.replace(/repositories\s*\{/g, (match) => `${match}\n${repositoryInjection}`);
-  return next;
-}
-
-function rewriteAndroidGradlePluginVersion(content) {
-  return content.replace(
-    /com\.android\.tools\.build:gradle:[0-9.]+/g,
-    `com.android.tools.build:gradle:${sdkConfig.android.gradlePluginVersion}`,
-  );
-}
-
-function rewriteGradleDistributionUrl(content) {
-  return content.replace(
-    /distributionUrl=https\\:\/\/services\.gradle\.org\/distributions\/gradle-[^\\]+-bin\.zip/g,
-    `distributionUrl=${sdkConfig.android.gradleDistributionUrl}`,
-  );
-}
-
 async function findFirstExistingPath(rootDir, candidates) {
   for (const candidate of candidates) {
     const absolutePath = path.join(rootDir, candidate);
@@ -875,6 +853,10 @@ async function findFirstExistingPath(rootDir, candidates) {
   }
 
   return null;
+}
+
+async function hasAndroidAppGradle(rootDir) {
+  return Boolean(await findFirstExistingPath(rootDir, androidAppGradleCandidates()));
 }
 
 async function ensureIosSetupGuide(rootDir) {
@@ -1450,43 +1432,11 @@ async function integrateAndroidExport(rootDir) {
     await ensureAndroidRtcPermissions(androidSourceDir);
   }
 
-  const appGradleFile = await findFirstExistingPath(rootDir, [
-    ...androidEnginePathCandidates('app/build.gradle'),
-    'proj/app/build.gradle',
-    'proj/android/app/build.gradle',
-    'proj/google-play/app/build.gradle',
-    'build/android/proj/app/build.gradle',
-    'build/google-play/proj/app/build.gradle',
-    'android/app/build.gradle',
-  ]);
+  const appGradleFile = await findFirstExistingPath(rootDir, androidAppGradleCandidates());
 
   if (appGradleFile) {
     const original = await readFile(appGradleFile, 'utf8');
     await writeFile(appGradleFile, syncAndroidGradleDependencies(original), 'utf8');
-  }
-
-  const rootGradleFiles = [
-    ...(await Promise.all(
-      androidEnginePathCandidates('build.gradle').map((candidate) =>
-        findFirstExistingPath(rootDir, [candidate]),
-      ),
-    )),
-    await findFirstExistingPath(rootDir, ['proj/build.gradle']),
-  ].filter(Boolean);
-
-  for (const gradleFile of rootGradleFiles) {
-    const original = await readFile(gradleFile, 'utf8');
-    const withVersion = rewriteAndroidGradlePluginVersion(original);
-    const withRepo = ensureAgoraLocalMavenRepository(withVersion);
-    await writeFile(gradleFile, withRepo, 'utf8');
-  }
-
-  const wrapperProperties = await findFirstExistingPath(rootDir, [
-    'proj/gradle/wrapper/gradle-wrapper.properties',
-  ]);
-  if (wrapperProperties) {
-    const original = await readFile(wrapperProperties, 'utf8');
-    await writeFile(wrapperProperties, rewriteGradleDistributionUrl(original), 'utf8');
   }
 
   const androidEngineRel = await findAndroidEngineRelativeFromBuildDir(rootDir);
@@ -1565,6 +1515,10 @@ async function onBeforeMake(rootDir, options = {}) {
     options.platform || options.actualPlatform || options.name || '',
   ).toLowerCase();
 
+  if (isAndroidLikePlatform(platform) || (!platform && await hasAndroidAppGradle(rootDir))) {
+    await integrateAndroidExport(rootDir);
+  }
+
   if (platform === 'ios' || rootDir.includes('/ios')) {
     await ensureIosXcodeProjectNativeSources(rootDir);
     await ensureIosXcodeProjectSwiftPackage(rootDir);
@@ -1575,12 +1529,13 @@ async function onBeforeMake(rootDir, options = {}) {
 module.exports = {
   ANDROID_ENGINE_DIR_NAMES,
   applyAndroidGradleDependencies,
-  ensureAgoraLocalMavenRepository,
   ensureIosSetupGuide,
+  androidAppGradleCandidates,
   androidEnginePathCandidates,
   androidEngineRootCandidates,
   findAndroidEngineRelativeFromBuildDir,
   findFirstExistingPath,
+  hasAndroidAppGradle,
   integrateAndroidExport,
   isAndroidLikePlatform,
   integrateIosExport,
@@ -1608,7 +1563,5 @@ module.exports = {
   patchIosAppDelegateBridgeAttachment,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,
-  rewriteAndroidGradlePluginVersion,
-  rewriteGradleDistributionUrl,
   sdkConfig,
 };

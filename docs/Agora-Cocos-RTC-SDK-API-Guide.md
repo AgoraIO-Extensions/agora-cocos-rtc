@@ -41,15 +41,16 @@
 
 - `Cocos Creator 3.8.8`
 - Android / iOS 原生导出工程
-- Agora Native SDK `4.5.3`
+- Android Agora artifact `io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1`
+- iOS Swift package `AgoraAudio_iOS` `4.5.3-a1`
 
 SDK 提供：
 
 - 统一 JavaScript / TypeScript API
 - Android / iOS 原生桥接
-- 音频通话、视频通话、设备控制
-- 本地/远端视频视图绑定
-- `engine-texture` 渲染后端（当前公开 JS 接口暴露的唯一渲染后端）
+- 音频通话、设备控制，以及 JS 层视频/渲染 API
+- 本地/远端视频视图绑定接口
+- `engine-texture` 渲染后端接口（当前公开 JS 接口暴露的唯一渲染后端；实际 Android 视频能力取决于集成的 Agora artifact）
 - 音频混音、音效、日志和诊断接口
 
 ## 3. 集成前提
@@ -81,6 +82,8 @@ SDK 提供：
 2. 确认目标项目中已生成 `extensions/agora-rtc`。
 3. 将目标项目导出为 Android 或 iOS 原生工程。
 
+Android 导出时，插件的 Cocos 构建 hook 会尝试向导出的 app 模块 `app/build.gradle` 写入 Agora 原生依赖。这个动作依赖 Cocos 扩展参与本次 Build；如果客户是在导出后直接用 Android Studio 构建、复用已有 Android 工程、或手动复制 SDK 文件，hook 不会再次自动执行。
+
 ### Option B: Import the unpacked SDK during development
 
 适用于联调、二次开发或直接查看 SDK 源码的场景。
@@ -88,6 +91,18 @@ SDK 提供：
 1. 将 `sdk/agora-rtc` 复制或软链接到目标项目的 `extensions/agora-rtc`。
 2. 重新打开 Cocos 项目，确保扩展已被加载。
 3. 按照下文的集成步骤继续接入。
+
+### Android Gradle dependency fallback
+
+如果客户发现 `app/build.gradle` 没有被 Cocos 构建 hook 自动写入依赖，说明当前接入链路没有触发该 hook，或者构建发生在已导出的 Android 工程内。此时需要在 app 模块手动添加：
+
+```gradle
+dependencies {
+    implementation 'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'
+}
+```
+
+SDK 不会重写客户工程的 root `build.gradle`、Android Gradle Plugin 版本或 `gradle-wrapper.properties`。这些属于客户 app 工具链配置，应由客户工程自行管理。
 
 ## Quick Integration Workflow
 
@@ -701,11 +716,11 @@ const mediaOptions: AgoraChannelMediaOptions = {
 
 ### Android
 
-Android 原生依赖坐标以 `sdk/agora-rtc/sdk-config.json` 为准，当前版本为 `io.agora.rtc:full-sdk:4.5.3` 和 `io.agora.rtc:full-screen-sharing:4.5.3`。当前 Android bridge 对 `setAudioSessionOperationRestriction(restriction)` 返回显式 `unsupported` 响应，业务层不应把该接口作为 Android 能力依赖；扬声器路由控制和 `engine-texture` 渲染接入仍可正常使用。
+Android 原生依赖坐标以 `sdk/agora-rtc/sdk-config.json` 为准，当前版本为 `io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1`。这是当前交付配置的 Android artifact，不是完整视频包；依赖该 artifact 时，业务侧应按音频能力和可用 API 做集成验证，视频与 `engine-texture` 路径需要换用具备对应视频能力的 Agora artifact 后再作为交付能力承诺。当前 Android bridge 对 `setAudioSessionOperationRestriction(restriction)` 返回显式 `unsupported` 响应，业务层不应把该接口作为 Android 能力依赖。
 
 ### iOS
 
-iOS 当前以 Swift Package Manager 集成 Agora RTC 依赖，`sdk/agora-rtc/sdk-config.json` 的仓库基线是 `integrationMode: swift-package-manager`，包地址为 `https://github.com/AgoraIO/AgoraRtcEngine_iOS.git`，版本为 `4.5.3`，产品名为 `RtcBasic`。`AgoraRtcEngine_iOS` 仍可作为依赖命名上下文理解，但不应把 CocoaPods 视为当前仓库的默认集成模式。iOS 支持 `setAudioSessionOperationRestriction(restriction)`。当前对客户公开的渲染后端只有 `engine-texture`，iOS 接入按这一条路径理解即可。
+iOS 当前以 Swift Package Manager 集成 Agora RTC 依赖，`sdk/agora-rtc/sdk-config.json` 的仓库基线是 `integrationMode: swift-package-manager`，包地址为 `https://github.com/AgoraIO/AgoraAudio_iOS.git`，版本为 `4.5.3-a1`，产品名为 `RtcBasic`。不应把 CocoaPods 视为当前仓库的默认集成模式。iOS 支持 `setAudioSessionOperationRestriction(restriction)`。当前对客户公开的渲染后端只有 `engine-texture`，iOS 接入按这一条路径理解即可。
 
 ### Shared Constraints
 
