@@ -42,7 +42,7 @@ async function listTrackedSourceFiles(
 ) {
   const { stdout } = await execFileAsync('git', ['ls-files'], { cwd: root });
 
-  return stdout
+  const trackedFiles = stdout
     .split('\n')
     .filter(Boolean)
     .filter((relativePath) => {
@@ -60,6 +60,18 @@ async function listTrackedSourceFiles(
       }
       return true;
     });
+
+  const existingFiles: string[] = [];
+  for (const relativePath of trackedFiles) {
+    try {
+      await access(path.join(root, relativePath));
+      existingFiles.push(relativePath);
+    } catch {
+      continue;
+    }
+  }
+
+  return existingFiles;
 }
 
 test('root package exposes productization scripts and clean repository name', async () => {
@@ -76,50 +88,26 @@ test('root package exposes productization scripts and clean repository name', as
   assert.ok(packageJson.devDependencies['@release-it/conventional-changelog']);
 });
 
-test('sync-sdk-version copies the sdk package version into plugin manifests', async () => {
+test('sync-sdk-version keeps the sdk package manifest as the version source', async () => {
   const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-version-'));
   const sdkRoot = path.join(fixtureRoot, 'sdk/agora-rtc');
-  const examplePluginRoot = path.join(fixtureRoot, 'example/basic-call/native/agora-rtc');
   await mkdir(sdkRoot, { recursive: true });
-  await mkdir(examplePluginRoot, { recursive: true });
   await writeFile(
     path.join(sdkRoot, 'package.json'),
     JSON.stringify({ name: 'agora-rtc', version: '9.8.7' }, null, 2),
     'utf8',
   );
-  await writeFile(
-    path.join(sdkRoot, 'cc_plugin.json'),
-    JSON.stringify({ name: 'agora-rtc', version: '0.0.0' }, null, 2),
-    'utf8',
-  );
-  await writeFile(
-    path.join(examplePluginRoot, 'cc_plugin.json'),
-    JSON.stringify({ name: 'agora-rtc', version: '0.0.0' }, null, 2),
-    'utf8',
-  );
 
-  await execFileAsync('node', [
+  const { stdout } = await execFileAsync('node', [
     path.join(repoRoot, 'scripts/sync-sdk-version.mjs'),
     '--root',
     fixtureRoot,
   ]);
 
-  const sdkManifest = JSON.parse(await readFile(path.join(sdkRoot, 'cc_plugin.json'), 'utf8'));
-  const exampleManifest = JSON.parse(
-    await readFile(path.join(examplePluginRoot, 'cc_plugin.json'), 'utf8'),
-  );
-  assert.equal(sdkManifest.version, '9.8.7');
-  assert.equal(exampleManifest.version, '9.8.7');
+  assert.match(stdout, /SDK version source is sdk\/agora-rtc\/package\.json/);
 });
 
-test('sdk package version is the checked-in manifest version source', async () => {
-  const sdkPackage = await readJson('sdk/agora-rtc/package.json');
-  const sdkManifest = await readJson('sdk/agora-rtc/cc_plugin.json');
-
-  assert.equal(sdkManifest.version, sdkPackage.version);
-});
-
-test('release-it bumps the sdk package and syncs derived version files', async () => {
+test('release-it bumps the sdk package version source', async () => {
   const releaseConfig = await readJson('.release-it.json');
 
   assert.equal(releaseConfig.git.commitMessage, 'chore: release ${version}');
@@ -265,17 +253,6 @@ test('publishable sources do not contain checked-in secrets or signing identitie
   }
 
   assert.deepEqual(offenders, []);
-});
-
-test('sdk version is single-sourced from sdk package manifest', async () => {
-  const sdkPackage = await readJson('sdk/agora-rtc/package.json');
-  const sdkManifest = await readJson('sdk/agora-rtc/cc_plugin.json');
-  const runtimeManifest = await readJson('example/basic-call/native/agora-rtc/cc_plugin.json');
-  const rootPackage = await readJson('package.json');
-
-  assert.equal(sdkManifest.version, sdkPackage.version);
-  assert.equal(runtimeManifest.version, sdkPackage.version);
-  assert.notEqual(rootPackage.version, sdkPackage.version);
 });
 
 test('gitignore keeps generated cocos output and local docs out of commits', async () => {

@@ -1,4 +1,4 @@
-import { access, readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,19 +23,6 @@ async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, 'utf8'));
 }
 
-async function writeJson(filePath, value) {
-  await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
-}
-
-async function fileExists(filePath) {
-  try {
-    await access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 const { root } = parseArgs(process.argv.slice(2));
 const sdkPackagePath = path.join(root, 'sdk/agora-rtc/package.json');
 const sdkPackage = await readJson(sdkPackagePath);
@@ -45,21 +32,4 @@ if (!sdkVersion || typeof sdkVersion !== 'string') {
   throw new Error(`Missing SDK version in ${sdkPackagePath}`);
 }
 
-const manifestPaths = [
-  path.join(root, 'sdk/agora-rtc/cc_plugin.json'),
-  path.join(root, 'example/basic-call/native/agora-rtc/cc_plugin.json'),
-];
-const synced = [];
-
-for (const manifestPath of manifestPaths) {
-  if (!(await fileExists(manifestPath))) {
-    continue;
-  }
-
-  const manifest = await readJson(manifestPath);
-  manifest.version = sdkVersion;
-  await writeJson(manifestPath, manifest);
-  synced.push(path.relative(root, manifestPath));
-}
-
-console.log(`Synced SDK version ${sdkVersion} to ${synced.join(', ')}`);
+console.log(`SDK version source is sdk/agora-rtc/package.json (${sdkVersion})`);

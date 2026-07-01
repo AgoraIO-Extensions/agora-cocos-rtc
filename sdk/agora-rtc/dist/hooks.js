@@ -17,9 +17,25 @@ function isAndroidLikePlatform(platform) {
   return normalized === 'android' || normalized === 'google-play';
 }
 
+function androidEngineDirNamesForPlatform(platform) {
+  const normalized = String(platform || '').toLowerCase();
+  if (!isAndroidLikePlatform(normalized)) {
+    return ANDROID_ENGINE_DIR_NAMES;
+  }
+
+  return [
+    normalized,
+    ...ANDROID_ENGINE_DIR_NAMES.filter((engineDir) => engineDir !== normalized),
+  ];
+}
+
 function androidEnginePathCandidates(...suffixes) {
+  return androidEnginePathCandidatesForPlatform('', ...suffixes);
+}
+
+function androidEnginePathCandidatesForPlatform(platform, ...suffixes) {
   const candidates = [];
-  for (const engineDir of ANDROID_ENGINE_DIR_NAMES) {
+  for (const engineDir of androidEngineDirNamesForPlatform(platform)) {
     for (const suffix of suffixes) {
       candidates.push(
         `native/engine/${engineDir}/${suffix}`,
@@ -32,9 +48,26 @@ function androidEnginePathCandidates(...suffixes) {
   return candidates;
 }
 
+function androidAppGradleCandidates(platform) {
+  return [
+    ...androidEnginePathCandidatesForPlatform(platform, 'app/build.gradle'),
+    'app/build.gradle',
+    'proj/app/build.gradle',
+    'proj/android/app/build.gradle',
+    'proj/google-play/app/build.gradle',
+    'build/android/proj/app/build.gradle',
+    'build/google-play/proj/app/build.gradle',
+    'android/app/build.gradle',
+  ];
+}
+
 function androidEngineRootCandidates() {
+  return androidEngineRootCandidatesForPlatform('');
+}
+
+function androidEngineRootCandidatesForPlatform(platform) {
   const candidates = [];
-  for (const engineDir of ANDROID_ENGINE_DIR_NAMES) {
+  for (const engineDir of androidEngineDirNamesForPlatform(platform)) {
     candidates.push(
       `../../native/engine/${engineDir}`,
       `../../../native/engine/${engineDir}`,
@@ -45,8 +78,8 @@ function androidEngineRootCandidates() {
   return candidates;
 }
 
-async function findAndroidEngineRelativeFromBuildDir(rootDir) {
-  for (const candidate of androidEngineRootCandidates()) {
+async function findAndroidEngineRelativeFromBuildDir(rootDir, platform = '') {
+  for (const candidate of androidEngineRootCandidatesForPlatform(platform)) {
     try {
       await access(path.join(rootDir, candidate, 'app', 'build.gradle'));
       return candidate;
@@ -800,11 +833,94 @@ function patchIosXcodeProjectSwiftPackage(content) {
   return patchIosXcodeProjectBuildSettingsForSwiftPackage(next);
 }
 
+function identifierBeforeBrace(content, braceIndex) {
+  let end = braceIndex - 1;
+  while (end >= 0 && /\s/.test(content[end])) {
+    end -= 1;
+  }
+
+  let start = end;
+  while (start >= 0 && /[A-Za-z0-9_-]/.test(content[start])) {
+    start -= 1;
+  }
+
+  return content.slice(start + 1, end + 1);
+}
+
+function findTopLevelGradleBlockOpening(content, blockName) {
+  let depth = 0;
+  let state = 'normal';
+  let quote = '';
+
+  for (let index = 0; index < content.length; index += 1) {
+    const char = content[index];
+    const next = content[index + 1];
+
+    if (state === 'line-comment') {
+      if (char === '\n' || char === '\r') {
+        state = 'normal';
+      }
+      continue;
+    }
+
+    if (state === 'block-comment') {
+      if (char === '*' && next === '/') {
+        state = 'normal';
+        index += 1;
+      }
+      continue;
+    }
+
+    if (state === 'string') {
+      if (char === '\\') {
+        index += 1;
+        continue;
+      }
+      if (char === quote) {
+        state = 'normal';
+        quote = '';
+      }
+      continue;
+    }
+
+    if (char === '/' && next === '/') {
+      state = 'line-comment';
+      index += 1;
+      continue;
+    }
+
+    if (char === '/' && next === '*') {
+      state = 'block-comment';
+      index += 1;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      state = 'string';
+      quote = char;
+      continue;
+    }
+
+    if (char === '{') {
+      if (depth === 0 && identifierBeforeBrace(content, index) === blockName) {
+        return index;
+      }
+      depth += 1;
+      continue;
+    }
+
+    if (char === '}') {
+      depth = Math.max(0, depth - 1);
+    }
+  }
+
+  return -1;
+}
+
 function syncAndroidGradleDependencies(content) {
-  const allowed = new Set(sdkConfig.android.dependencies);
   let next = content.replace(
-    /^\s*implementation\s+'(io\.agora\.rtc:[^']+)'\s*\n/gm,
-    (match, coordinate) => (allowed.has(coordinate) ? match : ''),
+    /^[ \t]*(implementation|api)\s*(?:\(\s*)?(['"])(io\.agora\.rtc:[^'"]+)\2\s*\)?\s*(?:\/\/.*)?(?:\r?\n|$)/gm,
+    '',
   );
 
   const dependencyLines = sdkConfig.android.dependencies.map(
@@ -817,8 +933,9 @@ function syncAndroidGradleDependencies(content) {
 
   const injection = dependencyLines.map((dependency) => `    ${dependency}`).join('\n');
 
-  if (/dependencies\s*\{/.test(next)) {
-    return next.replace(/dependencies\s*\{/, (match) => `${match}\n${injection}`);
+  const dependenciesOpening = findTopLevelGradleBlockOpening(next, 'dependencies');
+  if (dependenciesOpening !== -1) {
+    return `${next.slice(0, dependenciesOpening + 1)}\n${injection}${next.slice(dependenciesOpening + 1)}`;
   }
 
   return `${next.trimEnd()}\n\ndependencies {\n${injection}\n}\n`;
@@ -826,41 +943,6 @@ function syncAndroidGradleDependencies(content) {
 
 function applyAndroidGradleDependencies(content) {
   return syncAndroidGradleDependencies(content);
-}
-
-function ensureAgoraLocalMavenRepository(content) {
-  if (content.includes('local-maven')) {
-    return content;
-  }
-
-  const localMavenPath = sdkConfig.android.localMavenRelativePath;
-  const header = `def localAgoraRepo = new File(NATIVE_DIR, "${localMavenPath}")\n\n`;
-  const repositoryInjection = [
-    `        if (new File(NATIVE_DIR, "${localMavenPath}").exists()) {`,
-    `            maven { url uri(new File(NATIVE_DIR, "${localMavenPath}")) }`,
-    '        }',
-  ].join('\n');
-
-  let next = content;
-  if (!next.includes('def localAgoraRepo')) {
-    next = header + next;
-  }
-  next = next.replace(/repositories\s*\{/g, (match) => `${match}\n${repositoryInjection}`);
-  return next;
-}
-
-function rewriteAndroidGradlePluginVersion(content) {
-  return content.replace(
-    /com\.android\.tools\.build:gradle:[0-9.]+/g,
-    `com.android.tools.build:gradle:${sdkConfig.android.gradlePluginVersion}`,
-  );
-}
-
-function rewriteGradleDistributionUrl(content) {
-  return content.replace(
-    /distributionUrl=https\\:\/\/services\.gradle\.org\/distributions\/gradle-[^\\]+-bin\.zip/g,
-    `distributionUrl=${sdkConfig.android.gradleDistributionUrl}`,
-  );
 }
 
 async function findFirstExistingPath(rootDir, candidates) {
@@ -875,6 +957,10 @@ async function findFirstExistingPath(rootDir, candidates) {
   }
 
   return null;
+}
+
+async function hasAndroidAppGradle(rootDir) {
+  return Boolean(await findFirstExistingPath(rootDir, androidAppGradleCandidates()));
 }
 
 async function ensureIosSetupGuide(rootDir) {
@@ -1436,11 +1522,11 @@ async function ensureIosRtcUsageDescriptions(rootDir) {
   return infoPlistPath;
 }
 
-async function integrateAndroidExport(rootDir) {
+async function integrateAndroidExport(rootDir, platform = '') {
   await ensureNativeEngineTextureBridgeForExport(rootDir);
 
   const androidSourceDir = await findFirstExistingPath(rootDir, [
-    ...androidEngineRootCandidates(),
+    ...androidEngineRootCandidatesForPlatform(platform),
     'proj',
     'android/proj',
     'google-play/proj',
@@ -1450,46 +1536,14 @@ async function integrateAndroidExport(rootDir) {
     await ensureAndroidRtcPermissions(androidSourceDir);
   }
 
-  const appGradleFile = await findFirstExistingPath(rootDir, [
-    ...androidEnginePathCandidates('app/build.gradle'),
-    'proj/app/build.gradle',
-    'proj/android/app/build.gradle',
-    'proj/google-play/app/build.gradle',
-    'build/android/proj/app/build.gradle',
-    'build/google-play/proj/app/build.gradle',
-    'android/app/build.gradle',
-  ]);
+  const appGradleFile = await findFirstExistingPath(rootDir, androidAppGradleCandidates(platform));
 
   if (appGradleFile) {
     const original = await readFile(appGradleFile, 'utf8');
     await writeFile(appGradleFile, syncAndroidGradleDependencies(original), 'utf8');
   }
 
-  const rootGradleFiles = [
-    ...(await Promise.all(
-      androidEnginePathCandidates('build.gradle').map((candidate) =>
-        findFirstExistingPath(rootDir, [candidate]),
-      ),
-    )),
-    await findFirstExistingPath(rootDir, ['proj/build.gradle']),
-  ].filter(Boolean);
-
-  for (const gradleFile of rootGradleFiles) {
-    const original = await readFile(gradleFile, 'utf8');
-    const withVersion = rewriteAndroidGradlePluginVersion(original);
-    const withRepo = ensureAgoraLocalMavenRepository(withVersion);
-    await writeFile(gradleFile, withRepo, 'utf8');
-  }
-
-  const wrapperProperties = await findFirstExistingPath(rootDir, [
-    'proj/gradle/wrapper/gradle-wrapper.properties',
-  ]);
-  if (wrapperProperties) {
-    const original = await readFile(wrapperProperties, 'utf8');
-    await writeFile(wrapperProperties, rewriteGradleDistributionUrl(original), 'utf8');
-  }
-
-  const androidEngineRel = await findAndroidEngineRelativeFromBuildDir(rootDir);
+  const androidEngineRel = await findAndroidEngineRelativeFromBuildDir(rootDir, platform);
   if (androidEngineRel) {
     await copyTemplateDirectory(
       rootDir,
@@ -1552,7 +1606,7 @@ async function onAfterBuild(options = {}, result = {}) {
   ).toLowerCase();
 
   if (isAndroidLikePlatform(platform)) {
-    await integrateAndroidExport(buildDir);
+    await integrateAndroidExport(buildDir, platform);
   }
 
   if (platform === 'ios') {
@@ -1565,6 +1619,10 @@ async function onBeforeMake(rootDir, options = {}) {
     options.platform || options.actualPlatform || options.name || '',
   ).toLowerCase();
 
+  if (isAndroidLikePlatform(platform) || (!platform && await hasAndroidAppGradle(rootDir))) {
+    await integrateAndroidExport(rootDir, platform);
+  }
+
   if (platform === 'ios' || rootDir.includes('/ios')) {
     await ensureIosXcodeProjectNativeSources(rootDir);
     await ensureIosXcodeProjectSwiftPackage(rootDir);
@@ -1574,13 +1632,17 @@ async function onBeforeMake(rootDir, options = {}) {
 
 module.exports = {
   ANDROID_ENGINE_DIR_NAMES,
+  androidEngineDirNamesForPlatform,
   applyAndroidGradleDependencies,
-  ensureAgoraLocalMavenRepository,
   ensureIosSetupGuide,
+  androidAppGradleCandidates,
   androidEnginePathCandidates,
+  androidEnginePathCandidatesForPlatform,
   androidEngineRootCandidates,
+  androidEngineRootCandidatesForPlatform,
   findAndroidEngineRelativeFromBuildDir,
   findFirstExistingPath,
+  hasAndroidAppGradle,
   integrateAndroidExport,
   isAndroidLikePlatform,
   integrateIosExport,
@@ -1608,7 +1670,5 @@ module.exports = {
   patchIosAppDelegateBridgeAttachment,
   patchNativeCommonCMakeTextureBridge,
   patchNativeGameTextureBridgeRegistration,
-  rewriteAndroidGradlePluginVersion,
-  rewriteGradleDistributionUrl,
   sdkConfig,
 };
