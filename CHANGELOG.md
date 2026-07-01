@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/AgoraIO-Extensions/agora-cocos-rtc/compare/0.1.0...0.1.1) (2026-07-01)
+
+### Features
+
+* Fix Android SDK hook dependency boundary ([#58](https://github.com/AgoraIO-Extensions/agora-cocos-rtc/issues/58)) ([6365d12](https://github.com/AgoraIO-Extensions/agora-cocos-rtc/commit/6365d120eb02b1eb49738d6e6303179bc9cb7cf2))
+* the cut pure audio native sdk ([#53](https://github.com/AgoraIO-Extensions/agora-cocos-rtc/issues/53)) ([03e1fed](https://github.com/AgoraIO-Extensions/agora-cocos-rtc/commit/03e1fed6d5506e86a248c430cd2b163ae155dbe3))
+
 ## 0.1.0 (2026-06-16)
 
 ### Features
