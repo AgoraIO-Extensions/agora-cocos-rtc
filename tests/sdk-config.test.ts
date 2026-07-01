@@ -14,12 +14,6 @@ test('sdk native dependency config is exposed from a single source of truth', ()
   const sdkConfig = require('../sdk/agora-rtc/dist/sdk-config.js');
 
   assert.deepEqual(sdkConfig.android.dependencies, sourceConfig.android.dependencies);
-  assert.equal(sdkConfig.android.gradlePluginVersion, sourceConfig.android.gradlePluginVersion);
-  assert.equal(sdkConfig.android.targetPackageName, sourceConfig.android.targetPackageName);
-  assert.equal(
-    sdkConfig.android.gradleDistributionUrl,
-    sourceConfig.android.gradleDistributionUrl,
-  );
   assert.equal(sdkConfig.ios.packageVersion, sourceConfig.ios.packageVersion);
   assert.equal(sdkConfig.ios.packageUrl, sourceConfig.ios.packageUrl);
   assert.deepEqual(sdkConfig.ios.packageProducts, sourceConfig.ios.packageProducts);

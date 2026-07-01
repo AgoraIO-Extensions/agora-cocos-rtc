@@ -66,7 +66,6 @@ test('package-customer-delivery script assembles sdk zip and example assets with
     'example-basic-call/README.md',
     'example-basic-call/assets',
     'example-basic-call/build-configs',
-    'example-basic-call/native/agora-rtc/cc_plugin.json',
     'example-basic-call/native/agora-rtc/ios/AgoraRtcBridge.swift',
     'example-basic-call/package.json',
     'example-basic-call/settings/v2/packages/project.json',
@@ -89,6 +88,7 @@ test('package-customer-delivery script assembles sdk zip and example assets with
     /^example-basic-call\/library\//,
     /^example-basic-call\/temp\//,
     /^example-basic-call\/assets\/resources\/agora-config\.build\.json(?:\.meta)?$/,
+    /^example-basic-call\/native\/agora-rtc\/cc_plugin\.json$/,
     /\.(?:mobileprovision|p12|jks|keystore)$/,
   ];
 
@@ -129,6 +129,22 @@ test('package-customer-delivery script copies the checked-in native engine templ
   for (const relativePath of expectedTemplateFiles) {
     await access(path.join(engineTemplateRoot, relativePath));
   }
+});
+
+test('customer-delivery Android template uses remote Agora dependency without local Maven', async () => {
+  const rootGradle = await readFile(
+    path.join(repoRoot, 'customer-delivery/example-basic-call/native/engine/android/build.gradle'),
+    'utf8',
+  );
+  const appGradle = await readFile(
+    path.join(repoRoot, 'customer-delivery/example-basic-call/native/engine/android/app/build.gradle'),
+    'utf8',
+  );
+
+  assert.doesNotMatch(rootGradle, /local-maven/);
+  assert.doesNotMatch(rootGradle, /localAgoraRepo/);
+  assert.match(appGradle, /implementation 'io\.agora\.rtc:agora-special-voice:4\.5\.3\.1\.BASIC1'/);
+  assert.doesNotMatch(appGradle, /io\.agora\.rtc:full-sdk:4\.5\.3/);
 });
 
 test('customer-delivery template map defines directory-level sync boundaries', async () => {

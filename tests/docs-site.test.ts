@@ -358,6 +358,31 @@ test('readmes point users to the new static docs entry pages', async () => {
   assert.match(sdkReadme, /docs\/en\/index\.html/);
 });
 
+test('customer docs explain Android Gradle dependency hook and manual fallback', async () => {
+  const sdkReadme = await readFile(path.join(repoRoot, 'sdk/agora-rtc/README.md'), 'utf8');
+  const apiGuide = await readFile(
+    path.join(repoRoot, 'docs/Agora-Cocos-RTC-SDK-API-Guide.md'),
+    'utf8',
+  );
+  const architectureNote = await readFile(
+    path.join(repoRoot, 'docs/customer-architecture-note.md'),
+    'utf8',
+  );
+
+  for (const content of [sdkReadme, apiGuide]) {
+    assert.match(content, /app\/build\.gradle/);
+    assert.match(content, /implementation 'io\.agora\.rtc:agora-special-voice:4\.5\.3\.1\.BASIC1'/);
+    assert.match(content, /Cocos build hook|Cocos 构建 hook/);
+  }
+  for (const content of [sdkReadme, apiGuide, architectureNote]) {
+    assert.match(content, /special voice|special-voice/);
+    assert.match(content, /not the full video package|不是完整视频包/);
+  }
+  assert.match(apiGuide, /AgoraAudio_iOS\.git/);
+  assert.match(apiGuide, /4\.5\.3-a1/);
+  assert.match(architectureNote, /AgoraAudio_iOS 4\.5\.3-a1/);
+});
+
 test('github pages workflow publishes the docs directory', async () => {
   const workflow = await readFile(path.join(repoRoot, '.github/workflows/deploy-pages.yml'), 'utf8');
 

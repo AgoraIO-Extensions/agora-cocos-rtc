@@ -5,14 +5,11 @@ import { fileURLToPath } from 'node:url';
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(scriptDir, '..');
 const MAVEN_BASE = 'https://repo.maven.apache.org/maven2';
+const LOCAL_AGORA_MAVEN_RELATIVE_PATH = 'example/basic-call/local-maven';
 const sdkConfig = JSON.parse(
   await readFile(path.join(REPO_ROOT, 'sdk/agora-rtc/sdk-config.json'), 'utf8'),
 );
-const OUTPUT_ROOT = path.resolve(
-  REPO_ROOT,
-  'example/basic-call/native/engine/android',
-  sdkConfig.android.localMavenRelativePath,
-);
+const OUTPUT_ROOT = path.resolve(REPO_ROOT, LOCAL_AGORA_MAVEN_RELATIVE_PATH);
 const seeds = sdkConfig.android.dependencies.map((coordinate) => {
   const [groupId, artifactId, version] = coordinate.split(':');
   return { groupId, artifactId, version };

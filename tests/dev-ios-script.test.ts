@@ -13,13 +13,10 @@ test('ios debug build config uses the requested agora example bundle identifier'
   assert.match(content, /"packageName": "io\.agora\.cocos\.example"/);
 });
 
-test('agora native plugin manifest remains disabled because this project uses manual native integration', async () => {
-  const content = await readFile(
-    `${repoRoot}/sdk/agora-rtc/cc_plugin.json`,
-    'utf8',
-  );
+test('agora extension registers Cocos builder hooks through package manifest', async () => {
+  const content = await readFile(`${repoRoot}/sdk/agora-rtc/package.json`, 'utf8');
+  const manifest = JSON.parse(content);
 
-  assert.match(content, /"disabled":\s*true/);
-  assert.match(content, /"engine-version":\s*">=3\.8\.0"/);
-  assert.match(content, /"platforms":\s*\[/);
+  assert.equal(manifest.package_version, 2);
+  assert.equal(manifest.contributions.builder, './dist/builder.js');
 });
