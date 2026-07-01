@@ -1023,6 +1023,36 @@ dependencies {
   }
 });
 
+test('onAfterBuild syncs the selected android platform when android and google-play exports both exist', async () => {
+  const {
+    onAfterBuild,
+  } = require('../sdk/agora-rtc/dist/hooks.js');
+  const root = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-android-platform-order-'));
+  const androidAppGradlePath = path.join(root, 'native/engine/android/app/build.gradle');
+  const googlePlayAppGradlePath = path.join(root, 'native/engine/google-play/app/build.gradle');
+  const appGradle = `plugins {
+    id 'com.android.application'
+}
+
+dependencies {
+    implementation "com.google.code.gson:gson:2.10.1"
+}
+`;
+  await mkdir(path.dirname(androidAppGradlePath), { recursive: true });
+  await mkdir(path.dirname(googlePlayAppGradlePath), { recursive: true });
+  await writeFile(androidAppGradlePath, appGradle, 'utf8');
+  await writeFile(googlePlayAppGradlePath, appGradle, 'utf8');
+
+  await onAfterBuild({ platform: 'android' }, { dest: root });
+  const androidAppGradle = await readFile(androidAppGradlePath, 'utf8');
+  const googlePlayAppGradle = await readFile(googlePlayAppGradlePath, 'utf8');
+
+  for (const dependency of sdkConfig.android.dependencies) {
+    assert.match(androidAppGradle, new RegExp(dependency.replaceAll('.', '\\.')));
+    assert.doesNotMatch(googlePlayAppGradle, new RegExp(dependency.replaceAll('.', '\\.')));
+  }
+});
+
 test('onBeforeMake syncs Android dependencies when Cocos passes the native project root', async () => {
   const {
     onBeforeMake,
