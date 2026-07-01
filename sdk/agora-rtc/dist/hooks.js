@@ -17,9 +17,25 @@ function isAndroidLikePlatform(platform) {
   return normalized === 'android' || normalized === 'google-play';
 }
 
+function androidEngineDirNamesForPlatform(platform) {
+  const normalized = String(platform || '').toLowerCase();
+  if (!isAndroidLikePlatform(normalized)) {
+    return ANDROID_ENGINE_DIR_NAMES;
+  }
+
+  return [
+    normalized,
+    ...ANDROID_ENGINE_DIR_NAMES.filter((engineDir) => engineDir !== normalized),
+  ];
+}
+
 function androidEnginePathCandidates(...suffixes) {
+  return androidEnginePathCandidatesForPlatform('', ...suffixes);
+}
+
+function androidEnginePathCandidatesForPlatform(platform, ...suffixes) {
   const candidates = [];
-  for (const engineDir of ANDROID_ENGINE_DIR_NAMES) {
+  for (const engineDir of androidEngineDirNamesForPlatform(platform)) {
     for (const suffix of suffixes) {
       candidates.push(
         `native/engine/${engineDir}/${suffix}`,
@@ -32,9 +48,9 @@ function androidEnginePathCandidates(...suffixes) {
   return candidates;
 }
 
-function androidAppGradleCandidates() {
+function androidAppGradleCandidates(platform) {
   return [
-    ...androidEnginePathCandidates('app/build.gradle'),
+    ...androidEnginePathCandidatesForPlatform(platform, 'app/build.gradle'),
     'app/build.gradle',
     'proj/app/build.gradle',
     'proj/android/app/build.gradle',
@@ -46,8 +62,12 @@ function androidAppGradleCandidates() {
 }
 
 function androidEngineRootCandidates() {
+  return androidEngineRootCandidatesForPlatform('');
+}
+
+function androidEngineRootCandidatesForPlatform(platform) {
   const candidates = [];
-  for (const engineDir of ANDROID_ENGINE_DIR_NAMES) {
+  for (const engineDir of androidEngineDirNamesForPlatform(platform)) {
     candidates.push(
       `../../native/engine/${engineDir}`,
       `../../../native/engine/${engineDir}`,
@@ -58,8 +78,8 @@ function androidEngineRootCandidates() {
   return candidates;
 }
 
-async function findAndroidEngineRelativeFromBuildDir(rootDir) {
-  for (const candidate of androidEngineRootCandidates()) {
+async function findAndroidEngineRelativeFromBuildDir(rootDir, platform = '') {
+  for (const candidate of androidEngineRootCandidatesForPlatform(platform)) {
     try {
       await access(path.join(rootDir, candidate, 'app', 'build.gradle'));
       return candidate;
@@ -1502,11 +1522,11 @@ async function ensureIosRtcUsageDescriptions(rootDir) {
   return infoPlistPath;
 }
 
-async function integrateAndroidExport(rootDir) {
+async function integrateAndroidExport(rootDir, platform = '') {
   await ensureNativeEngineTextureBridgeForExport(rootDir);
 
   const androidSourceDir = await findFirstExistingPath(rootDir, [
-    ...androidEngineRootCandidates(),
+    ...androidEngineRootCandidatesForPlatform(platform),
     'proj',
     'android/proj',
     'google-play/proj',
@@ -1516,14 +1536,14 @@ async function integrateAndroidExport(rootDir) {
     await ensureAndroidRtcPermissions(androidSourceDir);
   }
 
-  const appGradleFile = await findFirstExistingPath(rootDir, androidAppGradleCandidates());
+  const appGradleFile = await findFirstExistingPath(rootDir, androidAppGradleCandidates(platform));
 
   if (appGradleFile) {
     const original = await readFile(appGradleFile, 'utf8');
     await writeFile(appGradleFile, syncAndroidGradleDependencies(original), 'utf8');
   }
 
-  const androidEngineRel = await findAndroidEngineRelativeFromBuildDir(rootDir);
+  const androidEngineRel = await findAndroidEngineRelativeFromBuildDir(rootDir, platform);
   if (androidEngineRel) {
     await copyTemplateDirectory(
       rootDir,
@@ -1586,7 +1606,7 @@ async function onAfterBuild(options = {}, result = {}) {
   ).toLowerCase();
 
   if (isAndroidLikePlatform(platform)) {
-    await integrateAndroidExport(buildDir);
+    await integrateAndroidExport(buildDir, platform);
   }
 
   if (platform === 'ios') {
@@ -1600,7 +1620,7 @@ async function onBeforeMake(rootDir, options = {}) {
   ).toLowerCase();
 
   if (isAndroidLikePlatform(platform) || (!platform && await hasAndroidAppGradle(rootDir))) {
-    await integrateAndroidExport(rootDir);
+    await integrateAndroidExport(rootDir, platform);
   }
 
   if (platform === 'ios' || rootDir.includes('/ios')) {
@@ -1612,11 +1632,14 @@ async function onBeforeMake(rootDir, options = {}) {
 
 module.exports = {
   ANDROID_ENGINE_DIR_NAMES,
+  androidEngineDirNamesForPlatform,
   applyAndroidGradleDependencies,
   ensureIosSetupGuide,
   androidAppGradleCandidates,
   androidEnginePathCandidates,
+  androidEnginePathCandidatesForPlatform,
   androidEngineRootCandidates,
+  androidEngineRootCandidatesForPlatform,
   findAndroidEngineRelativeFromBuildDir,
   findFirstExistingPath,
   hasAndroidAppGradle,
