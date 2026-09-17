@@ -93,6 +93,9 @@ public final class AgoraRtcPlugin {
             case "setLogFile":
                 handleSetLogFile(requestId, params);
                 break;
+            case "uploadLogFile":
+                handleUploadLogFile(requestId);
+                break;
             case "setChannelProfile":
                 handleSetChannelProfile(requestId, params);
                 break;
@@ -303,6 +306,23 @@ public final class AgoraRtcPlugin {
         dispatchOk(requestId);
     }
 
+    private void handleUploadLogFile(String requestId) {
+        if (rtcEngine == null) {
+            dispatchError(requestId, "RtcEngine is not initialized.");
+            return;
+        }
+        String uploadRequestId = rtcEngine.uploadLogFile();
+        if (uploadRequestId == null || uploadRequestId.isEmpty()) {
+            dispatchError(requestId, "uploadLogFile failed: no upload request ID returned.");
+            return;
+        }
+        dispatchResponse(jsonObject(
+                "requestId", requestId,
+                "ok", true,
+                "result", uploadRequestId
+        ));
+    }
+
     private void handleSetChannelProfile(String requestId, JSONObject params) {
         if (rtcEngine == null) {
             dispatchError(requestId, "RtcEngine is not initialized.");
@@ -405,6 +425,15 @@ public final class AgoraRtcPlugin {
         try {
             RtcEngineConfig config = buildRtcEngineConfig(context, appId, params);
             config.mEventHandler = new IRtcEngineEventHandler() {
+                @Override
+                public void onUploadLogResult(String requestId, boolean success, int reason) {
+                    dispatchEvent("uploadLogResult", jsonObject(
+                            "requestId", requestId,
+                            "success", success,
+                            "reason", reason
+                    ));
+                }
+
                 @Override
                 public void onError(int err) {
                     dispatchEvent("error", jsonObject(

@@ -2920,6 +2920,7 @@ public class VideoFrame {
     `package io.agora.rtc2;
 
 public class IRtcEngineEventHandler {
+    public void onUploadLogResult(String requestId, boolean success, int reason) {}
     public static class AudioVolumeInfo {
         public int uid;
         public int volume;
@@ -3366,6 +3367,7 @@ public class RtcEngine {
 
     public int setLogFilter(int level) { return 0; }
     public int setLogFile(String path) { return 0; }
+    public String uploadLogFile() { return "native-upload-id"; }
     public int setChannelProfile(int profile) { return 0; }
     public int setClientRole(int role) { return 0; }
     public int setClientRole(int role, ClientRoleOptions options) { return 0; }

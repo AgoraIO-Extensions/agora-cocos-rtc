@@ -100,6 +100,13 @@ export const API_CALL_TESTCASES: ApiCallCase[] = [
     run: (client) => client.setParameters('{"che.audio.keep.audiosession":true}'),
   },
   {
+    id: 'engine.upload-log-file',
+    method: 'uploadLogFile',
+    expectedParams: {},
+    requiredEvidence: ['value'],
+    run: (client) => client.uploadLogFile(),
+  },
+  {
     id: 'channel.set-profile',
     method: 'setChannelProfile',
     expectedParams: { profile: 'liveBroadcasting' },
