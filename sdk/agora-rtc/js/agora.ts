@@ -37,6 +37,7 @@ import {
 import {
   AgoraSdkError,
   createRequestId,
+  ensureBridgeEventKeepAlive,
   resolveBridgeTransport,
   resolveEngineTextureBridge,
 } from './internal/bridge.ts';
@@ -1051,6 +1052,11 @@ export class AgoraRtcClient {
   }
 
   #attachTransport(transport: CocosJsbBridgeTransport | null): void {
+    // Install the permanent keep-alive sink first (see CSD-80081). This must run
+    // even when listeners are already attached, so the eventMap key survives a
+    // client being destroyed while the native singleton keeps dispatching.
+    ensureBridgeEventKeepAlive(transport ?? this.#transport);
+
     if (!transport || this.#transportListenersAttached) {
       this.#transport = transport ?? this.#transport;
       return;
@@ -1107,3 +1113,28 @@ export function getAgoraEngineTextureBridge(
     },
   });
 }
+
+/**
+ * Install the CSD-80081 keep-alive sink for the ambient Cocos native bridge.
+ *
+ * Invoked once at module load below. Installing at module load matters: the native
+ * `AgoraRtcPlugin` singleton keeps its `RtcEngine` (and therefore its event
+ * handler) alive across a JS VM restart, so it can dispatch `agora:event` before
+ * any `AgoraRtcClient` has been constructed in the new VM. Registering the sink
+ * as soon as the SDK module is evaluated closes that window.
+ *
+ * Safe to call repeatedly and safe off-device: it no-ops when no native
+ * transport is available. Deliberately NOT exported: it needs no caller, and
+ * keeping it module-local avoids growing the documented public API surface.
+ */
+function installAgoraBridgeEventKeepAlive(
+  runtime?: CocosBridgeRuntime,
+): void {
+  try {
+    ensureBridgeEventKeepAlive(resolveBridgeTransport(runtime));
+  } catch {
+    // Never let a defensive guard break SDK import.
+  }
+}
+
+installAgoraBridgeEventKeepAlive();
