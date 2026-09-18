@@ -102,6 +102,13 @@
             <div class="param-list"><strong>参数说明</strong><ul><li><code>path</code>：必填，本地文件路径。</li></ul></div>
             <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，请求成功后 resolve。</li></ul></div>
           </article>
+          <article id="method-uploadLogFile" data-signature="uploadLogFile()">
+            <h3>uploadLogFile</h3>
+            <p>上传当前 SDK 日志文件，返回原生上传请求 ID。上传最终结果通过 <a href="#event-uploadLogResult">uploadLogResult</a> 事件通知。</p>
+            <code class="signature">uploadLogFile(): Promise&lt;string&gt;</code>
+            <div class="param-list"><strong>参数说明</strong><ul><li>这个方法没有参数。</li></ul></div>
+            <div class="return-note"><strong>返回值</strong><ul><li>返回 Promise，resolve 为字符串结果。</li></ul></div>
+          </article>
           <article id="method-setChannelProfile" data-signature="setChannelProfile(profile: &#x27;communication&#x27; | &#x27;liveBroadcasting&#x27;)">
             <h3>setChannelProfile</h3>
             <p>在入会前设置频道 profile。</p>
@@ -504,6 +511,13 @@
         </section>
         <section class="card">
           <h2 id="events">Priority events</h2>
+          <article id="event-uploadLogResult">
+            <h3>uploadLogResult</h3>
+            <p>日志上传结束时触发，携带请求 ID、是否成功以及失败原因。</p>
+            <code class="signature">on(&#x27;uploadLogResult&#x27;, (payload: AgoraEventMap[&#x27;uploadLogResult&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>监听签名</strong><ul><li>通过客户端事件监听接口订阅这个事件。</li></ul></div>
+            <div class="param-list"><strong>payload 字段</strong><ul><li><code>requestId</code>：<code>string</code>，请结合事件契约理解运行时语义。</li><li><code>success</code>：<code>boolean</code>，请结合事件契约理解运行时语义。</li><li><code>reason</code>：<code>number</code>，原生 SDK 返回的原因码。</li></ul></div>
+          </article>
           <article id="event-joinChannelSuccess">
             <h3>joinChannelSuccess</h3>
             <p>加入频道成功后触发。</p>

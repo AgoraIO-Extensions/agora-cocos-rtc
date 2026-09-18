@@ -436,6 +436,10 @@ export class AgoraRtcDemoRoot extends Component {
     await this.applyParameterPreset('DebugFlag', { 'rtc.debug': true });
   }
 
+  async uploadLogFile(): Promise<void> {
+    await this.runSessionAction('UploadLogFile', (session) => session.uploadLogFile());
+  }
+
   async clearStatusLog(): Promise<void> {
     this.statusLines = [];
     this.refreshLogPanel();

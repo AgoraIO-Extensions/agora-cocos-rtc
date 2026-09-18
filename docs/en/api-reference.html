@@ -102,6 +102,13 @@
             <div class="param-list"><strong>Parameters</strong><ul><li><code>path</code>: required local file path.</li></ul></div>
             <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves when the native request succeeds.</li></ul></div>
           </article>
+          <article id="method-uploadLogFile" data-signature="uploadLogFile()">
+            <h3>uploadLogFile</h3>
+            <p>Upload the current SDK log file and return the native upload request ID. Completion is reported by the <a href="#event-uploadLogResult">uploadLogResult</a> event.</p>
+            <code class="signature">uploadLogFile(): Promise&lt;string&gt;</code>
+            <div class="param-list"><strong>Parameters</strong><ul><li>This method takes no parameters.</li></ul></div>
+            <div class="return-note"><strong>Returns</strong><ul><li>Returns a Promise that resolves to a string result.</li></ul></div>
+          </article>
           <article id="method-setChannelProfile" data-signature="setChannelProfile(profile: &#x27;communication&#x27; | &#x27;liveBroadcasting&#x27;)">
             <h3>setChannelProfile</h3>
             <p>Set the channel profile before joining.</p>
@@ -504,6 +511,13 @@
         </section>
         <section class="card">
           <h2 id="events">Priority events</h2>
+          <article id="event-uploadLogResult">
+            <h3>uploadLogResult</h3>
+            <p>Fires when a log upload finishes, carrying the request ID, success flag, and failure reason.</p>
+            <code class="signature">on(&#x27;uploadLogResult&#x27;, (payload: AgoraEventMap[&#x27;uploadLogResult&#x27;]) =&gt; void)</code>
+            <div class="return-note"><strong>Listener signature</strong><ul><li>Register this event through the client listener API.</li></ul></div>
+            <div class="param-list"><strong>Payload fields</strong><ul><li><code>requestId</code>: <code>string</code> — See the event contract for runtime semantics.</li><li><code>success</code>: <code>boolean</code> — See the event contract for runtime semantics.</li><li><code>reason</code>: <code>number</code> — reason code reported by the native SDK.</li></ul></div>
+          </article>
           <article id="event-joinChannelSuccess">
             <h3>joinChannelSuccess</h3>
             <p>Fires when the channel join succeeds.</p>
