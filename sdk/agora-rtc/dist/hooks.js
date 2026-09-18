@@ -288,8 +288,8 @@ function ensurePbxListItem(objectText, listName, itemLine) {
 
 function patchIosSwiftPackageRequirement(packageRefObject) {
   const requirementBlock = `requirement = {
-\t\t\t\tkind = exactVersion;
-\t\t\t\tversion = ${sdkConfig.ios.packageVersion};
+\t\t\t\tkind = revision;
+\t\t\t\trevision = ${sdkConfig.ios.packageRevision};
 \t\t\t};`;
 
   if (/requirement = \{[\s\S]*?\n\t\t\t\};/.test(packageRefObject.text)) {
@@ -742,8 +742,8 @@ function patchIosXcodeProjectSwiftPackage(content) {
 \t\t\tisa = XCRemoteSwiftPackageReference;
 \t\t\trepositoryURL = "${sdkConfig.ios.packageUrl}";
 \t\t\trequirement = {
-\t\t\t\tkind = exactVersion;
-\t\t\t\tversion = ${sdkConfig.ios.packageVersion};
+\t\t\t\tkind = revision;
+\t\t\t\trevision = ${sdkConfig.ios.packageRevision};
 \t\t\t};
 \t\t};`;
 
@@ -1021,13 +1021,14 @@ async function ensureIosSetupGuide(rootDir) {
 
 Repository: ${sdkConfig.ios.packageUrl}
 Version: ${sdkConfig.ios.packageVersion}
+Revision: ${sdkConfig.ios.packageRevision}
 Products: ${packageProducts.join(', ')}
 
 ## Steps
 
 1. Open the exported Xcode project.
 2. Add a Swift Package dependency from the repository above.
-3. Pin the dependency to tag ${sdkConfig.ios.packageVersion}.
+3. Pin the dependency to revision ${sdkConfig.ios.packageRevision}.
 4. Link the package product to the app target.
 5. Copy the bridge sources from the plugin template into the exported iOS project if they are not already present.
 `;

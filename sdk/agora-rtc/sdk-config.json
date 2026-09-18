@@ -9,6 +9,7 @@
   "ios": {
     "packageUrl": "https://github.com/AgoraIO/AgoraAudio_iOS.git",
     "packageVersion": "4.5.3.5",
+    "packageRevision": "2676a3d2fc5af65af28238dea499cc2d5c07e919",
     "packageProducts": [
       "RtcBasic"
     ],

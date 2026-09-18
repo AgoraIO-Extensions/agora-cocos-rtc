@@ -2166,7 +2166,7 @@ test('ios integration keeps Swift bridge registration in Xcode rather than CMake
   assert.doesNotMatch(hooksContent, /project\([^)]*\bSwift\b[^)]*\)/);
 });
 
-test('ios integration script refreshes the configured Swift package exact version', async () => {
+test('ios integration script pins the configured Swift package revision', async () => {
   const scriptContent = await readFile(
     path.join(repoRoot, 'scripts/integrate-ios-project.rb'),
     'utf8',
@@ -2183,8 +2183,13 @@ test('ios integration script refreshes the configured Swift package exact versio
     scriptContent,
     /unless package_ref[\s\S]+project\.root_object\.package_references << package_ref\s+end\s+package_ref\.requirement =/,
   );
-  assert.match(scriptContent, /'kind' => 'exactVersion'/);
-  assert.match(scriptContent, /'version' => PACKAGE_VERSION/);
+  assert.match(
+    scriptContent,
+    /PACKAGE_REVISION = SDK_CONFIG\.fetch\('ios'\)\.fetch\('packageRevision'\)/,
+  );
+  assert.match(scriptContent, /'kind' => 'revision'/);
+  assert.match(scriptContent, /'revision' => PACKAGE_REVISION/);
+  assert.doesNotMatch(scriptContent, /'kind' => 'exactVersion'/);
 });
 
 test('ios integration script removes stale Swift package products for the same repository', async () => {

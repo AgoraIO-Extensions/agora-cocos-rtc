@@ -140,6 +140,8 @@ test('ensureIosSetupGuide writes an actionable SPM guide', async () => {
     assert.match(content, new RegExp(`\\b${product}\\b`));
   }
   assert.match(content, new RegExp(sdkConfig.ios.packageVersion.replaceAll('.', '\\.')));
+  assert.match(content, new RegExp(sdkConfig.ios.packageRevision));
+  assert.match(content, /Pin the dependency to revision/);
   assert.match(content, /Swift Package Manager/);
 });
 
@@ -517,8 +519,9 @@ test('patchIosXcodeProjectSwiftPackage adds Agora iOS SPM product to the app tar
 
   assert.match(once, /XCRemoteSwiftPackageReference/);
   assert.match(once, new RegExp(sdkConfig.ios.packageUrl.replaceAll('.', '\\.')));
-  assert.match(once, /kind = exactVersion;/);
-  assert.match(once, new RegExp(`version = ${sdkConfig.ios.packageVersion.replaceAll('.', '\\.')};`));
+  assert.match(once, /kind = revision;/);
+  assert.match(once, new RegExp(`revision = ${sdkConfig.ios.packageRevision};`));
+  assert.doesNotMatch(once, /kind = exactVersion;/);
   assert.match(once, /XCSwiftPackageProductDependency/);
   for (const product of sdkConfig.ios.packageProducts) {
     assert.match(once, new RegExp(`productName = ${product};`));
