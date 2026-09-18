@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,13 +18,16 @@ const MAVEN_BASES = [
   sdkConfig.android.mavenRepositoryUrl?.replace(/\/+$/, ''),
   MAVEN_CENTRAL_BASE,
 ].filter(Boolean);
-const OUTPUT_ROOT = path.resolve(REPO_ROOT, LOCAL_AGORA_MAVEN_RELATIVE_PATH);
+const OUTPUT_ROOT = process.env.AGORA_LOCAL_MAVEN_ROOT
+  ? path.resolve(process.env.AGORA_LOCAL_MAVEN_ROOT)
+  : path.resolve(REPO_ROOT, LOCAL_AGORA_MAVEN_RELATIVE_PATH);
 const seeds = sdkConfig.android.dependencies.map((coordinate) => {
   const [groupId, artifactId, version] = coordinate.split(':');
   return { groupId, artifactId, version };
 });
 
-const seen = new Set();
+const mirrored = new Set();
+const checked = new Set();
 
 function tagValue(xml, tagName) {
   const match = xml.match(new RegExp(`<${tagName}>([^<]+)</${tagName}>`));
@@ -53,8 +56,59 @@ function parseDependency(xml) {
   return { groupId, artifactId, version };
 }
 
+function coordinateKey(coordinate) {
+  return `${coordinate.groupId}:${coordinate.artifactId}:${coordinate.version}`;
+}
+
 function mavenPath(groupId, artifactId, version, filename) {
   return path.join(...groupId.split('.'), artifactId, version, filename);
+}
+
+async function requireNonEmptyFile(filePath, label) {
+  let fileStat;
+  try {
+    fileStat = await stat(filePath);
+  } catch {
+    throw new Error(`${label} is missing: ${filePath}`);
+  }
+
+  if (!fileStat.isFile() || fileStat.size === 0) {
+    throw new Error(`${label} is empty or not a file: ${filePath}`);
+  }
+}
+
+async function checkMirroredArtifact(coordinate) {
+  const key = coordinateKey(coordinate);
+  if (checked.has(key)) {
+    return;
+  }
+  checked.add(key);
+
+  const pomName = `${coordinate.artifactId}-${coordinate.version}.pom`;
+  const pomRelativePath = mavenPath(
+    coordinate.groupId,
+    coordinate.artifactId,
+    coordinate.version,
+    pomName,
+  );
+  const pomPath = path.join(OUTPUT_ROOT, pomRelativePath);
+  await requireNonEmptyFile(pomPath, `POM for ${key}`);
+
+  const pomText = await readFile(pomPath, 'utf8');
+  const packaging = tagValue(pomText, 'packaging') ?? 'jar';
+  const artifactName = `${coordinate.artifactId}-${coordinate.version}.${packaging}`;
+  const artifactPath = path.join(
+    OUTPUT_ROOT,
+    mavenPath(coordinate.groupId, coordinate.artifactId, coordinate.version, artifactName),
+  );
+  await requireNonEmptyFile(artifactPath, `artifact for ${key}`);
+
+  for (const block of dependencyBlocks(pomText)) {
+    const dependency = parseDependency(block);
+    if (dependency) {
+      await checkMirroredArtifact(dependency);
+    }
+  }
 }
 
 /**
@@ -96,11 +150,11 @@ async function download(relativePath, destination) {
 }
 
 async function mirrorArtifact(coordinate) {
-  const key = `${coordinate.groupId}:${coordinate.artifactId}:${coordinate.version}`;
-  if (seen.has(key)) {
+  const key = coordinateKey(coordinate);
+  if (mirrored.has(key)) {
     return;
   }
-  seen.add(key);
+  mirrored.add(key);
 
   const pomName = `${coordinate.artifactId}-${coordinate.version}.pom`;
   const pomRelativePath = mavenPath(
@@ -137,10 +191,22 @@ async function mirrorArtifact(coordinate) {
   }
 }
 
-await mkdir(OUTPUT_ROOT, { recursive: true });
+if (process.argv.includes('--check')) {
+  try {
+    for (const seed of seeds) {
+      await checkMirroredArtifact(seed);
+    }
+    console.log(`Agora local Maven mirror is complete at ${OUTPUT_ROOT}`);
+  } catch (error) {
+    console.error(`Agora local Maven mirror is incomplete: ${error.message}`);
+    process.exitCode = 1;
+  }
+} else {
+  await mkdir(OUTPUT_ROOT, { recursive: true });
 
-for (const seed of seeds) {
-  await mirrorArtifact(seed);
+  for (const seed of seeds) {
+    await mirrorArtifact(seed);
+  }
+
+  console.log(`Agora local Maven mirror is ready at ${OUTPUT_ROOT}`);
 }
-
-console.log(`Agora local Maven mirror is ready at ${OUTPUT_ROOT}`);
