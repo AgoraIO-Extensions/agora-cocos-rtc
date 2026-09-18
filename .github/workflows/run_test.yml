@@ -18,6 +18,8 @@ env:
   # Build-number suffix of the installer above. Keep it in sync with the URL so
   # the cached filename, the cache key, and the download all agree.
   COCOS_CREATOR_CACHE_SUFFIX: mac-121518
+  # Cocos Creator 3.8.8 does not compile with the stricter Xcode 26 C++ toolchain.
+  IOS_XCODE_VERSION: '16.4'
 
 jobs:
   cocos_ut:
@@ -143,7 +145,7 @@ jobs:
   integration_test_ios:
     name: Run Cocos iOS Integration Tests
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:skip') }}
-    runs-on: macos-latest
+    runs-on: macos-15
     timeout-minutes: 120
     env:
       TEST_APP_ID: ${{ secrets.APP_ID }}
@@ -153,6 +155,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Select Xcode for iOS
+        run: |
+          sudo xcode-select --switch "/Applications/Xcode_${IOS_XCODE_VERSION}.app/Contents/Developer"
+          xcodebuild -version
       - name: Cache Cocos Creator installer
         uses: actions/cache@v4
         with:

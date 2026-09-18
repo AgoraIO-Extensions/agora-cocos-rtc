@@ -6,6 +6,8 @@ env:
   # Build-number suffix of the installer above. Keep it in sync with the URL so
   # the cached filename, the cache key, and the download all agree.
   COCOS_CREATOR_CACHE_SUFFIX: mac-121518
+  # Cocos Creator 3.8.8 does not compile with the stricter Xcode 26 C++ toolchain.
+  IOS_XCODE_VERSION: '16.4'
 
 on:
   workflow_dispatch:
@@ -26,10 +28,10 @@ on:
         required: false
         default: 'android,ios'
       runner_label:
-        description: 'Runner label(s) for example packages. Use macos-latest or comma-separated self-hosted labels.'
+        description: 'Runner label(s) for example packages. Defaults to macos-15; comma-separated self-hosted labels are also supported.'
         type: string
         required: false
-        default: 'macos-latest'
+        default: 'macos-15'
   workflow_call:
     inputs:
       target_branch:
@@ -47,7 +49,7 @@ on:
       runner_label:
         type: string
         required: false
-        default: 'macos-latest'
+        default: 'macos-15'
     secrets:
       APP_ID:
         required: false
@@ -145,7 +147,7 @@ jobs:
             exit 1
           fi
           if [ "$labels" = "[]" ]; then
-            labels='["macos-latest"]'
+            labels='["macos-15"]'
           fi
           echo "runner_labels=$labels" >> "$GITHUB_OUTPUT"
 
@@ -169,6 +171,12 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - name: Select Xcode for iOS
+        if: ${{ matrix.platform == 'ios' }}
+        run: |
+          sudo xcode-select --switch "/Applications/Xcode_${IOS_XCODE_VERSION}.app/Contents/Developer"
+          xcodebuild -version
 
       - name: Setup JDK for Android
         if: ${{ matrix.platform == 'android' }}
