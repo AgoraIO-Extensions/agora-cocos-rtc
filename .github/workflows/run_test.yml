@@ -14,7 +14,10 @@ on:
 
 env:
   COCOS_CREATOR_VERSION: 3.8.8
-  COCOS_CREATOR_DOWNLOAD_URL: https://download.cocos.org/CocosCreator/v3.8.8/CocosCreator-v3.8.8-mac-010512.zip
+  COCOS_CREATOR_DOWNLOAD_URL: https://download.cocos.com/CocosCreator/v3.8.8/CocosCreator-v3.8.8-mac-121518.zip
+  # Build-number suffix of the installer above. Keep it in sync with the URL so
+  # the cached filename, the cache key, and the download all agree.
+  COCOS_CREATOR_CACHE_SUFFIX: mac-121518
 
 jobs:
   cocos_ut:
@@ -99,12 +102,13 @@ jobs:
       - name: Cache Cocos Creator installer
         uses: actions/cache@v4
         with:
-          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-mac-010512.zip
-          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-010512
+          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-${{ env.COCOS_CREATOR_CACHE_SUFFIX }}.zip
+          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-${{ env.COCOS_CREATOR_CACHE_SUFFIX }}
       - uses: ./.github/actions/setup-cocos-creator
         with:
           version: ${{ env.COCOS_CREATOR_VERSION }}
           download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
+          cache-key-suffix: ${{ env.COCOS_CREATOR_CACHE_SUFFIX }}
       - run: npm ci
       - name: Install ccache
         run: brew install ccache
@@ -152,12 +156,13 @@ jobs:
       - name: Cache Cocos Creator installer
         uses: actions/cache@v4
         with:
-          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-mac-010512.zip
-          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-010512
+          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-${{ env.COCOS_CREATOR_CACHE_SUFFIX }}.zip
+          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-${{ env.COCOS_CREATOR_CACHE_SUFFIX }}
       - uses: ./.github/actions/setup-cocos-creator
         with:
           version: ${{ env.COCOS_CREATOR_VERSION }}
           download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
+          cache-key-suffix: ${{ env.COCOS_CREATOR_CACHE_SUFFIX }}
       - run: npm ci
       - id: ios-simulator
         uses: futureware-tech/simulator-action@v4
