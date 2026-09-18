@@ -1,5 +1,7 @@
 import {
   AgoraErrorCode,
+  BRIDGE_CALLBACK_EVENT,
+  BRIDGE_RESPONSE_EVENT,
   type CocosBridgeRuntime,
   type CocosEngineTextureBridge,
   type CocosJsbBridgeTransport,
@@ -83,4 +85,72 @@ export function resolveEngineTextureBridge(
     globalJsb?.agoraEngineTexture ??
     null
   );
+}
+
+/**
+ * Transports that already hold a keep-alive sink, so at most one is installed
+ * per transport no matter how many clients are created or destroyed.
+ */
+const keepAliveSinks = new WeakMap<
+  CocosJsbBridgeTransport,
+  Record<string, (payload: string) => void>
+>();
+
+/**
+ * Guards against CSD-80081: `agora:event does not exist`.
+ *
+ * The Cocos engine's JS-side bridge wrapper (`cocos/native-binding/impl.ts`)
+ * dispatches native events like this:
+ *
+ *     triggerEvent(eventName, arg) {
+ *         const arr = this.eventMap.get(eventName);
+ *         if (!arr) {
+ *             console.error(`${eventName} does not exist`);
+ *             return;
+ *         }
+ *         arr.map((listener) => listener.call(null, arg));
+ *     }
+ *
+ * The error fires only when the eventMap has **no key** for the event. Note
+ * that `removeNativeEventListener` uses `splice`, so removing the last listener
+ * leaves an empty array behind and the key stays present — that path is already
+ * silent. The error therefore means native dispatched while the JS side had
+ * never registered the key at all, which is what happens when the native
+ * `AgoraRtcPlugin` singleton and its live `RtcEngine` outlive the JS VM (scene
+ * reload, `game.restart()`, Activity recreation): native keeps calling
+ * `dispatchEventToScript` into a fresh VM whose eventMap is empty until a new
+ * client attaches.
+ *
+ * A permanent no-op sink keeps the key present for the whole lifetime of the JS
+ * VM, so early or late native dispatches are dropped silently instead of
+ * spamming `console.error`. Real listeners are appended after this sink and are
+ * unaffected.
+ */
+export function ensureBridgeEventKeepAlive(
+  transport: CocosJsbBridgeTransport | null | undefined,
+): void {
+  if (!transport || keepAliveSinks.has(transport)) {
+    return;
+  }
+
+  const add =
+    typeof transport.addNativeEventListener === 'function'
+      ? transport.addNativeEventListener.bind(transport)
+      : typeof transport.addScriptEventListener === 'function'
+        ? transport.addScriptEventListener.bind(transport)
+        : null;
+
+  if (!add) {
+    return;
+  }
+
+  const sinks: Record<string, (payload: string) => void> = {};
+  for (const eventName of [BRIDGE_CALLBACK_EVENT, BRIDGE_RESPONSE_EVENT]) {
+    // Intentionally does nothing: its only job is to keep the eventMap key alive.
+    const sink = (): void => {};
+    sinks[eventName] = sink;
+    add(eventName, sink);
+  }
+
+  keepAliveSinks.set(transport, sinks);
 }
