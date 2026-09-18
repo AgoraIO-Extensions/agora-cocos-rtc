@@ -15,6 +15,8 @@ test('sdk native dependency config is exposed from a single source of truth', ()
 
   assert.deepEqual(sdkConfig.android.dependencies, sourceConfig.android.dependencies);
   assert.equal(sdkConfig.ios.packageVersion, sourceConfig.ios.packageVersion);
+  assert.equal(sdkConfig.ios.packageRevision, sourceConfig.ios.packageRevision);
+  assert.match(sourceConfig.ios.packageRevision, /^[0-9a-f]{40}$/);
   assert.equal(sdkConfig.ios.packageUrl, sourceConfig.ios.packageUrl);
   assert.deepEqual(sdkConfig.ios.packageProducts, sourceConfig.ios.packageProducts);
   assert.deepEqual(

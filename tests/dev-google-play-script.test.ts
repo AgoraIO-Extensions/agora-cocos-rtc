@@ -19,4 +19,11 @@ test('dev-google-play script exports google-play with Cocos CLI and shared andro
   assert.match(content, /build-google-play\/google-play\/data\/assets\/main\/index\.js/);
   assert.match(content, /sync-android-app-bridge\.mjs/);
   assert.match(content, /LOCAL_AGORA_MAVEN_DIR=.*example\/basic-call\/local-maven/);
+  assert.match(content, /prepare_local_agora_maven\(\)/);
+  assert.match(content, /fetch-agora-maven\.mjs --check/);
+  assert.match(content, /AGORA_MAVEN_OFFLINE_READY=true/);
+  assert.match(content, /mirror refresh failed; Gradle will resolve dependencies online/);
+  assert.match(content, /\.\/gradlew --offline :agora-cocos-basic-call:assembleDebug/);
+  assert.match(content, /\.\/gradlew :agora-cocos-basic-call:assembleDebug/);
+  assert.doesNotMatch(content, /if \[\[ ! -d "\$LOCAL_AGORA_MAVEN_DIR" \]\]; then/);
 });

@@ -285,15 +285,23 @@ test('github build workflow can inject agora secrets and optionally upload platf
   assert.match(content, /matrix:[\s\S]*platform: \$\{\{ fromJson\(needs\.split-platforms\.outputs\.platforms\) \}\}/);
   assert.match(content, /runner_label:/);
   assert.match(content, /runner_label is required when target_platforms is not empty/);
-  assert.match(content, /default: 'macos-latest'/);
+  assert.match(content, /default: 'macos-15'/);
   assert.match(content, /runs-on: \$\{\{ fromJson\(needs\.split-runner-labels\.outputs\.runner_labels\) \}\}/);
+  assert.match(content, /IOS_XCODE_VERSION: '16\.4'/);
+  assert.match(
+    content,
+    /name: Select Xcode for iOS[\s\S]*if: \$\{\{ matrix\.platform == 'ios' \}\}[\s\S]*Xcode_\$\{IOS_XCODE_VERSION\}\.app[\s\S]*xcodebuild -version/,
+  );
   assert.match(content, /COCOS_CREATOR_VERSION: 3\.8\.8/);
-  assert.match(content, /COCOS_CREATOR_DOWNLOAD_URL: https:\/\/download\.cocos\.org\/CocosCreator\/v3\.8\.8\/CocosCreator-v3\.8\.8-mac-010512\.zip/);
+  assert.match(content, /COCOS_CREATOR_DOWNLOAD_URL: https:\/\/download\.cocos\.com\/CocosCreator\/v3\.8\.8\/CocosCreator-v3\.8\.8-mac-121518\.zip/);
+  assert.match(content, /COCOS_CREATOR_CACHE_SUFFIX: mac-121518/);
   assert.match(content, /uses: \.\/\.github\/actions\/setup-cocos-creator/);
   assert.match(content, /version: \$\{\{ env\.COCOS_CREATOR_VERSION \}\}/);
   assert.match(content, /download-url: \$\{\{ env\.COCOS_CREATOR_DOWNLOAD_URL \}\}/);
+  assert.match(content, /cache-key-suffix: \$\{\{ env\.COCOS_CREATOR_CACHE_SUFFIX \}\}/);
   assert.match(content, /name: Cache Cocos Creator installer/);
-  assert.match(content, /key: cocos-creator-\$\{\{ runner\.os \}\}-\$\{\{ env\.COCOS_CREATOR_VERSION \}\}-010512/);
+  assert.match(content, /path: .*\$\{\{ env\.COCOS_CREATOR_CACHE_SUFFIX \}\}\.zip/);
+  assert.match(content, /key: cocos-creator-\$\{\{ runner\.os \}\}-\$\{\{ env\.COCOS_CREATOR_VERSION \}\}-\$\{\{ env\.COCOS_CREATOR_CACHE_SUFFIX \}\}/);
   assert.doesNotMatch(content, /name: Install Cocos Creator/);
   assert.match(setupCocosAction, /name: Setup Cocos Creator/);
   assert.match(setupCocosAction, /outputs:[\s\S]*cocos-cli:/);

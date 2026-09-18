@@ -1,21 +1,33 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(scriptDir, '..');
-const MAVEN_BASE = 'https://repo.maven.apache.org/maven2';
+const MAVEN_CENTRAL_BASE = 'https://repo.maven.apache.org/maven2';
 const LOCAL_AGORA_MAVEN_RELATIVE_PATH = 'example/basic-call/local-maven';
 const sdkConfig = JSON.parse(
   await readFile(path.join(REPO_ROOT, 'sdk/agora-rtc/sdk-config.json'), 'utf8'),
 );
-const OUTPUT_ROOT = path.resolve(REPO_ROOT, LOCAL_AGORA_MAVEN_RELATIVE_PATH);
+
+// Agora-hosted releases are not always mirrored to Maven Central: the special
+// voice builds ship only to the Agora repository. Try the configured hosted
+// repository first, then fall back to Central so transitive third-party
+// dependencies (androidx, kotlin, ...) keep resolving.
+const MAVEN_BASES = [
+  sdkConfig.android.mavenRepositoryUrl?.replace(/\/+$/, ''),
+  MAVEN_CENTRAL_BASE,
+].filter(Boolean);
+const OUTPUT_ROOT = process.env.AGORA_LOCAL_MAVEN_ROOT
+  ? path.resolve(process.env.AGORA_LOCAL_MAVEN_ROOT)
+  : path.resolve(REPO_ROOT, LOCAL_AGORA_MAVEN_RELATIVE_PATH);
 const seeds = sdkConfig.android.dependencies.map((coordinate) => {
   const [groupId, artifactId, version] = coordinate.split(':');
   return { groupId, artifactId, version };
 });
 
-const seen = new Set();
+const mirrored = new Set();
+const checked = new Set();
 
 function tagValue(xml, tagName) {
   const match = xml.match(new RegExp(`<${tagName}>([^<]+)</${tagName}>`));
@@ -44,27 +56,33 @@ function parseDependency(xml) {
   return { groupId, artifactId, version };
 }
 
+function coordinateKey(coordinate) {
+  return `${coordinate.groupId}:${coordinate.artifactId}:${coordinate.version}`;
+}
+
 function mavenPath(groupId, artifactId, version, filename) {
   return path.join(...groupId.split('.'), artifactId, version, filename);
 }
 
-async function download(url, destination) {
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to download ${url}: ${response.status} ${response.statusText}`);
+async function requireNonEmptyFile(filePath, label) {
+  let fileStat;
+  try {
+    fileStat = await stat(filePath);
+  } catch {
+    throw new Error(`${label} is missing: ${filePath}`);
   }
 
-  const arrayBuffer = await response.arrayBuffer();
-  await mkdir(path.dirname(destination), { recursive: true });
-  await writeFile(destination, Buffer.from(arrayBuffer));
+  if (!fileStat.isFile() || fileStat.size === 0) {
+    throw new Error(`${label} is empty or not a file: ${filePath}`);
+  }
 }
 
-async function mirrorArtifact(coordinate) {
-  const key = `${coordinate.groupId}:${coordinate.artifactId}:${coordinate.version}`;
-  if (seen.has(key)) {
+async function checkMirroredArtifact(coordinate) {
+  const key = coordinateKey(coordinate);
+  if (checked.has(key)) {
     return;
   }
-  seen.add(key);
+  checked.add(key);
 
   const pomName = `${coordinate.artifactId}-${coordinate.version}.pom`;
   const pomRelativePath = mavenPath(
@@ -73,16 +91,85 @@ async function mirrorArtifact(coordinate) {
     coordinate.version,
     pomName,
   );
-  const pomUrl = `${MAVEN_BASE}/${pomRelativePath}`;
+  const pomPath = path.join(OUTPUT_ROOT, pomRelativePath);
+  await requireNonEmptyFile(pomPath, `POM for ${key}`);
+
+  const pomText = await readFile(pomPath, 'utf8');
+  const packaging = tagValue(pomText, 'packaging') ?? 'jar';
+  const artifactName = `${coordinate.artifactId}-${coordinate.version}.${packaging}`;
+  const artifactPath = path.join(
+    OUTPUT_ROOT,
+    mavenPath(coordinate.groupId, coordinate.artifactId, coordinate.version, artifactName),
+  );
+  await requireNonEmptyFile(artifactPath, `artifact for ${key}`);
+
+  for (const block of dependencyBlocks(pomText)) {
+    const dependency = parseDependency(block);
+    if (dependency) {
+      await checkMirroredArtifact(dependency);
+    }
+  }
+}
+
+/**
+ * Fetch a repository-relative path from the first base that serves it.
+ *
+ * Returns the successful response together with the URL it came from so the
+ * caller can report which repository supplied the artifact.
+ */
+async function fetchFromAnyBase(relativePath) {
+  const failures = [];
+
+  for (const base of MAVEN_BASES) {
+    const url = `${base}/${relativePath}`;
+    let response;
+    try {
+      response = await fetch(url);
+    } catch (error) {
+      failures.push(`${url}: ${error.message}`);
+      continue;
+    }
+
+    if (response.ok) {
+      return { response, url };
+    }
+
+    failures.push(`${url}: ${response.status} ${response.statusText}`);
+  }
+
+  throw new Error(`Failed to fetch ${relativePath} from any repository:\n  ${failures.join('\n  ')}`);
+}
+
+async function download(relativePath, destination) {
+  const { response, url } = await fetchFromAnyBase(relativePath);
+
+  const arrayBuffer = await response.arrayBuffer();
+  await mkdir(path.dirname(destination), { recursive: true });
+  await writeFile(destination, Buffer.from(arrayBuffer));
+  return url;
+}
+
+async function mirrorArtifact(coordinate) {
+  const key = coordinateKey(coordinate);
+  if (mirrored.has(key)) {
+    return;
+  }
+  mirrored.add(key);
+
+  const pomName = `${coordinate.artifactId}-${coordinate.version}.pom`;
+  const pomRelativePath = mavenPath(
+    coordinate.groupId,
+    coordinate.artifactId,
+    coordinate.version,
+    pomName,
+  );
   const pomDestination = path.join(OUTPUT_ROOT, pomRelativePath);
 
-  const pomResponse = await fetch(pomUrl);
-  if (!pomResponse.ok) {
-    throw new Error(`Failed to fetch POM ${pomUrl}: ${pomResponse.status} ${pomResponse.statusText}`);
-  }
+  const { response: pomResponse, url: pomUrl } = await fetchFromAnyBase(pomRelativePath);
   const pomText = await pomResponse.text();
   await mkdir(path.dirname(pomDestination), { recursive: true });
   await writeFile(pomDestination, pomText, 'utf8');
+  console.log(`mirrored ${pomUrl}`);
 
   const packaging = tagValue(pomText, 'packaging') ?? 'jar';
   const artifactName = `${coordinate.artifactId}-${coordinate.version}.${packaging}`;
@@ -92,9 +179,9 @@ async function mirrorArtifact(coordinate) {
     coordinate.version,
     artifactName,
   );
-  const artifactUrl = `${MAVEN_BASE}/${artifactRelativePath}`;
   const artifactDestination = path.join(OUTPUT_ROOT, artifactRelativePath);
-  await download(artifactUrl, artifactDestination);
+  const artifactUrl = await download(artifactRelativePath, artifactDestination);
+  console.log(`mirrored ${artifactUrl}`);
 
   for (const block of dependencyBlocks(pomText)) {
     const dependency = parseDependency(block);
@@ -104,10 +191,22 @@ async function mirrorArtifact(coordinate) {
   }
 }
 
-await mkdir(OUTPUT_ROOT, { recursive: true });
+if (process.argv.includes('--check')) {
+  try {
+    for (const seed of seeds) {
+      await checkMirroredArtifact(seed);
+    }
+    console.log(`Agora local Maven mirror is complete at ${OUTPUT_ROOT}`);
+  } catch (error) {
+    console.error(`Agora local Maven mirror is incomplete: ${error.message}`);
+    process.exitCode = 1;
+  }
+} else {
+  await mkdir(OUTPUT_ROOT, { recursive: true });
 
-for (const seed of seeds) {
-  await mirrorArtifact(seed);
+  for (const seed of seeds) {
+    await mirrorArtifact(seed);
+  }
+
+  console.log(`Agora local Maven mirror is ready at ${OUTPUT_ROOT}`);
 }
-
-console.log(`Agora local Maven mirror is ready at ${OUTPUT_ROOT}`);

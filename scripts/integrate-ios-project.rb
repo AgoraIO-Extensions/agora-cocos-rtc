@@ -66,7 +66,7 @@ IOS_RUNTIME_PLUGIN_DIR = File.join(REPO_ROOT, 'example/basic-call/native/agora-r
 IOS_NATIVE_PLUGIN_DIR = File.join(REPO_ROOT, 'example/basic-call/native/engine/ios/agora-rtc')
 GROUP_NAME = 'agora-rtc'
 PACKAGE_URL = SDK_CONFIG.fetch('ios').fetch('packageUrl')
-PACKAGE_VERSION = SDK_CONFIG.fetch('ios').fetch('packageVersion')
+PACKAGE_REVISION = SDK_CONFIG.fetch('ios').fetch('packageRevision')
 IOS_CONFIG = SDK_CONFIG.fetch('ios')
 PACKAGE_PRODUCTS = if IOS_CONFIG['packageProducts'].is_a?(Array) && !IOS_CONFIG['packageProducts'].empty?
                      IOS_CONFIG['packageProducts']
@@ -371,8 +371,8 @@ if WITH_PACKAGE
   end
 
   package_ref.requirement = {
-    'kind' => 'exactVersion',
-    'version' => PACKAGE_VERSION,
+    'kind' => 'revision',
+    'revision' => PACKAGE_REVISION,
   }
 
   remove_stale_swift_package_products(target, frameworks_phase, package_ref, PACKAGE_PRODUCTS)

@@ -26,6 +26,7 @@ export type AgoraMethod =
   | 'getErrorDescription'
   | 'setLogFilter'
   | 'setLogFile'
+  | 'uploadLogFile'
   | 'setChannelProfile'
   | 'setClientRole'
   | 'joinChannel'
@@ -414,6 +415,11 @@ export interface AgoraRtcStatsPayload {
  * the listener for that event.
  */
 export interface AgoraEventMap {
+  uploadLogResult: {
+    requestId: string;
+    success: boolean;
+    reason: number;
+  };
   joinChannelSuccess: {
     channelId: string;
     uid: number;

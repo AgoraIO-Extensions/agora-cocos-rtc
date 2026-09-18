@@ -28,8 +28,13 @@ test('dev-android script exports current source with Cocos CLI instead of old ru
   assert.match(content, /ADB_TARGET_ARGS=\(\)/);
   assert.match(content, /ADB_TARGET_ARGS=\(-s "\$TARGET_ANDROID_SERIAL"\)/);
   assert.match(content, /if \[\[ ! -x "\$ADB_BIN" \]\]; then/);
-  assert.match(content, /if \[\[ ! -d "\$LOCAL_AGORA_MAVEN_DIR" \]\]; then/);
-  assert.match(content, /node \.\/scripts\/fetch-agora-maven\.mjs >/);
+  assert.match(content, /prepare_local_agora_maven\(\)/);
+  assert.match(content, /fetch-agora-maven\.mjs --check/);
+  assert.match(content, /AGORA_MAVEN_OFFLINE_READY=true/);
+  assert.match(content, /mirror refresh failed; Gradle will resolve dependencies online/);
+  assert.match(content, /\.\/gradlew --offline :agora-cocos-basic-call:assembleDebug/);
+  assert.match(content, /\.\/gradlew :agora-cocos-basic-call:assembleDebug/);
+  assert.doesNotMatch(content, /if \[\[ ! -d "\$LOCAL_AGORA_MAVEN_DIR" \]\]; then/);
   assert.match(content, /has_example_build_config_env\(\)/);
   assert.match(content, /AUTO_JOIN/);
   assert.match(content, /PUBLISH_CAMERA_TRACK/);

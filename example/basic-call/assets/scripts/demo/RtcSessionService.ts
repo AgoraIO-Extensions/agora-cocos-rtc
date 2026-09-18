@@ -892,6 +892,23 @@ export class RtcSessionService {
     this.log(`Parameters applied: ${JSON.stringify(parameters)}`);
   }
 
+  /**
+   * Uploads the native SDK log file.
+   *
+   * The promise resolves with the native upload request ID, which only means
+   * the request was accepted. Final upload status arrives asynchronously
+   * through the `uploadLogResult` event, so the request ID is logged here and
+   * matched against that event.
+   */
+  async uploadLogFile(): Promise<void> {
+    if (!this.initialized) {
+      await this.initializeRtc();
+    }
+    const uploadRequestId = await this.getClient().uploadLogFile();
+    this.log(`uploadLogFile requestId: ${uploadRequestId}`);
+    this.log('Waiting for uploadLogResult event...');
+  }
+
   async teardownRtc(): Promise<void> {
     if (!this.client) {
       return;
@@ -1040,6 +1057,12 @@ export class RtcSessionService {
     });
     this.client.on('renderBackendState', (payload) => {
       this.log(`Backend[${payload.backend}] ${payload.phase}: ${payload.result}`);
+    });
+    this.client.on('uploadLogResult', ({ requestId, success, reason }) => {
+      this.log(
+        `uploadLogResult[${requestId}] ${success ? 'success' : `failed reason=${reason}`}`,
+      );
+      this.emitState();
     });
     this.client.on('error', ({ message }) => {
       if (!this.joined) {

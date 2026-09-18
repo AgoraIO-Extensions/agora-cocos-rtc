@@ -410,6 +410,11 @@ export class AgoraRtcClient {
     return this.#invoke('setLogFile', { path }) as Promise<void>;
   }
 
+  /** Returns the upload request ID; listen to uploadLogResult for completion. */
+  uploadLogFile(): Promise<string> {
+    return this.#invoke('uploadLogFile', {}) as Promise<string>;
+  }
+
   setChannelProfile(profile: 'communication' | 'liveBroadcasting'): Promise<void> {
     return this.#invoke('setChannelProfile', { profile }) as Promise<void>;
   }

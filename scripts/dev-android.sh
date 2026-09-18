@@ -73,6 +73,23 @@ has_example_build_config_env() {
   [[ -n "${APP_ID:-}${TEST_APP_ID:-}${CHANNEL_ID:-}${TEST_CHANNEL_ID:-}${TOKEN:-}${TEST_TOKEN:-}${TEST_UID:-}${AUTO_PREVIEW:-}${AUTO_JOIN:-}${PUBLISH_CAMERA_TRACK:-}${PUBLISH_MICROPHONE_TRACK:-}${AUTO_SUBSCRIBE_AUDIO:-}${AUTO_SUBSCRIBE_VIDEO:-}" ]]
 }
 
+AGORA_MAVEN_OFFLINE_READY=false
+prepare_local_agora_maven() {
+  if node ./scripts/fetch-agora-maven.mjs --check >/dev/null 2>&1; then
+    AGORA_MAVEN_OFFLINE_READY=true
+    return
+  fi
+
+  echo "Current Agora Maven coordinates are missing from $LOCAL_AGORA_MAVEN_DIR; refreshing the mirror..."
+  if node ./scripts/fetch-agora-maven.mjs >/dev/null \
+    && node ./scripts/fetch-agora-maven.mjs --check >/dev/null 2>&1; then
+    AGORA_MAVEN_OFFLINE_READY=true
+    return
+  fi
+
+  echo "Warning: Agora Maven mirror refresh failed; Gradle will resolve dependencies online." >&2
+}
+
 if [[ ! -x "$ADB_BIN" ]]; then
   echo "adb not found at $ADB_BIN" >&2
   exit 1
@@ -82,9 +99,7 @@ fi
 if has_example_build_config_env; then
   node ./scripts/write-example-build-config.mjs >/dev/null
 fi
-if [[ ! -d "$LOCAL_AGORA_MAVEN_DIR" ]]; then
-  node ./scripts/fetch-agora-maven.mjs >/dev/null
-fi
+prepare_local_agora_maven
 write_android_cocos_build_config
 
 set +e
@@ -105,7 +120,11 @@ fi
 node ./scripts/sync-android-app-bridge.mjs >/dev/null
 
 cd "$ANDROID_PROJECT_DIR"
-./gradlew --offline :agora-cocos-basic-call:assembleDebug
+if [[ "$AGORA_MAVEN_OFFLINE_READY" == "true" ]]; then
+  ./gradlew --offline :agora-cocos-basic-call:assembleDebug
+else
+  ./gradlew :agora-cocos-basic-call:assembleDebug
+fi
 
 # "$ADB_BIN" uninstall "$PACKAGE_NAME" >/dev/null 2>&1 || true
 "$ADB_BIN" "${ADB_TARGET_ARGS[@]}" install -g -r --no-streaming "$APK_PATH"

@@ -241,6 +241,18 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                 "ok": true,
                 "result": AgoraRtcEngineKit.getErrorDescription(code),
             ])
+        case "uploadLogFile":
+            requireEngine(requestId: requestId) { engine in
+                guard let uploadRequestId = engine.uploadLogFile(), !uploadRequestId.isEmpty else {
+                    dispatchError(requestId: requestId, message: "uploadLogFile failed: no upload request ID returned.")
+                    return
+                }
+                dispatchResponse([
+                    "requestId": requestId,
+                    "ok": true,
+                    "result": uploadRequestId,
+                ])
+            }
         case "setRenderBackend":
             guard let requestedBackend = requiredString(
                 params,
@@ -1829,6 +1841,14 @@ final class AgoraRtcBridge: NSObject, AgoraRtcEngineDelegate, AgoraVideoFrameDel
                     "platform": "ios",
                 ],
             ],
+        ])
+    }
+
+    func rtcEngine(_ engine: AgoraRtcEngineKit, uploadLogResultRequestId requestId: String, success: Bool, reason: AgoraUploadErrorReason) {
+        dispatchEvent(name: "uploadLogResult", payload: [
+            "requestId": requestId,
+            "success": success,
+            "reason": reason.rawValue,
         ])
     }
 

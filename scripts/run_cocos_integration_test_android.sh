@@ -264,7 +264,7 @@ write_android_apk_contents_report
 
 log_step "Install and launch Android test app"
 "$ADB_BIN" install -g -r --no-streaming "$APK_PATH"
-"$ADB_BIN" logcat -c
+"$ADB_BIN" logcat -c || echo "Warning: failed to clear logcat; continuing." >&2
 android_test_token="${TEST_TOKEN:-${TOKEN:-}}"
 ANDROID_LAUNCH_ARGS=(
   shell am start -n "$PACKAGE_NAME/$ACTIVITY_NAME"

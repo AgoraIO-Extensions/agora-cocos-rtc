@@ -58,6 +58,7 @@ export const ADVANCED_ACTIONS = [
   { name: 'RestartInterrupted', handler: 'applyRestartInterruptedParameter' },
   { name: 'AutoMirror', handler: 'applyAutoMirrorParameter' },
   { name: 'DebugFlag', handler: 'applyDebugFlagParameter' },
+  { name: 'UploadLogFile', handler: 'uploadLogFile' },
 ] as const;
 
 export const DEFAULT_BUTTON_LAYOUT = [...BASIC_VIDEO_ACTIONS, ...ADVANCED_ACTIONS] as const;
@@ -131,6 +132,7 @@ export const ACTION_LABELS: Record<string, string> = {
   RestartInterrupted: 'Restart Interrupted',
   AutoMirror: 'Auto Mirror',
   DebugFlag: 'Debug Flag',
+  UploadLogFile: 'Upload Log File',
 };
 
 export type DemoActionName = typeof DEFAULT_BUTTON_LAYOUT[number]['name'];

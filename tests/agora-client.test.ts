@@ -95,6 +95,37 @@ class MockTransport {
   }
 }
 
+test('uploadLogFile returns the native upload ID and forwards completion independently', async () => {
+  const transport = new MockTransport();
+  const client = createAgoraRtcClient({ transport });
+  const results: unknown[] = [];
+  client.on('uploadLogResult', (result) => results.push(result));
+
+  const pending = client.uploadLogFile();
+  const request = JSON.parse(transport.sent.at(-1).payload);
+  assert.equal(request.method, 'uploadLogFile');
+  assert.deepEqual(request.params, {});
+  const completion = { requestId: 'native-upload-id', success: true, reason: 0 };
+  // Completion can reach JS before the response containing the upload ID.
+  transport.emit('agora:event', JSON.stringify({ eventName: 'uploadLogResult', payload: completion }));
+  transport.emit('agora:response', JSON.stringify({ requestId: request.requestId, ok: true, result: completion.requestId }));
+  assert.equal(await pending, 'native-upload-id');
+  const failure = { requestId: 'another-upload-id', success: false, reason: 2 };
+  transport.emit('agora:event', JSON.stringify({ eventName: 'uploadLogResult', payload: failure }));
+  assert.deepEqual(results, [completion, failure]);
+
+  for (const message of ['RtcEngine is not initialized.', 'uploadLogFile failed: no upload request ID returned.']) {
+    const rejected = client.uploadLogFile();
+    const nextRequest = JSON.parse(transport.sent.at(-1).payload);
+    transport.emit('agora:response', JSON.stringify({
+      requestId: nextRequest.requestId,
+      ok: false,
+      error: { code: 'native_failure', message },
+    }));
+    await assert.rejects(rejected, { code: 'native_failure', message });
+  }
+});
+
 class MockIosStyleTransport {
   sent: SentMessage[] = [];
   listeners = new Map<string, Array<(payload: unknown) => void>>();

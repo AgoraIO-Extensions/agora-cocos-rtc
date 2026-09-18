@@ -699,6 +699,12 @@ test('cocos run_test workflow exposes unit and device integration jobs', async (
   assert.match(workflow, /bash scripts\/run_cocos_integration_test_android\.sh/);
   assert.match(workflow, /arch: x86_64/);
   assert.match(workflow, /integration_test_ios:/);
+  assert.match(workflow, /integration_test_ios:[\s\S]*runs-on: macos-15/);
+  assert.match(workflow, /IOS_XCODE_VERSION: '16\.4'/);
+  assert.match(
+    workflow,
+    /integration_test_ios:[\s\S]*name: Select Xcode for iOS[\s\S]*Xcode_\$\{IOS_XCODE_VERSION\}\.app[\s\S]*xcodebuild -version/,
+  );
   assert.match(workflow, /id: ios-simulator[\s\S]*uses: futureware-tech\/simulator-action@v4/);
   assert.match(workflow, /os: iOS/);
   assert.match(workflow, /os_version: '>=14\.0'/);
