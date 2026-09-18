@@ -11,6 +11,7 @@ const {
   copyIosTemplateFiles,
   ensureAndroidAppActivityBridgeAttachment,
   ensureAndroidRtcPermissions,
+  ensureAgoraMavenRepository,
   ensureIosCMakeRtcBridgeSources,
   ensureIosXcodeProjectNativeSources,
   ensureIosRtcUsageDescriptions,
@@ -1109,3 +1110,69 @@ dependencies {
     assert.match(appGradle, new RegExp(dependency.replaceAll('.', '\\.')));
   }
 });
+
+test('ensureAgoraMavenRepository injects the Agora-hosted repository once', () => {
+  const original = `plugins {
+    id 'com.android.application'
+}
+
+dependencies {
+    implementation 'io.agora.rtc:agora-special-voice:4.5.3.5'
+}
+`;
+
+  const once = ensureAgoraMavenRepository(original);
+  const twice = ensureAgoraMavenRepository(once);
+
+  assert.match(once, new RegExp(escapeRegExp(sdkConfig.android.mavenRepositoryUrl)));
+  assert.match(once, /repositories \{/);
+  assert.match(once, /includeGroupByRegex/);
+  assert.equal(once, twice, 'injection must be idempotent');
+});
+
+test('ensureAgoraMavenRepository reuses an existing repositories block', () => {
+  const original = `repositories {
+    google()
+}
+
+dependencies {
+    implementation 'io.agora.rtc:agora-special-voice:4.5.3.5'
+}
+`;
+
+  const patched = ensureAgoraMavenRepository(original);
+
+  assert.equal(patched.match(/repositories \{/g).length, 1);
+  assert.match(patched, /google\(\)/);
+  assert.match(patched, new RegExp(escapeRegExp(sdkConfig.android.mavenRepositoryUrl)));
+});
+
+test('ensureAgoraMavenRepository emits Groovy-safe escapes for the group filter', () => {
+  const patched = ensureAgoraMavenRepository(`dependencies {
+}
+`);
+
+  // Groovy single-quoted strings reject unknown escapes such as `\.`, so the
+  // backslash must be emitted doubled. Gradle then reads the literal back as
+  // `io\.agora.*`. Emitting a single backslash makes the file fail to compile.
+  assert.ok(
+    patched.includes("includeGroupByRegex 'io\\\\.agora.*'"),
+    `expected a doubled backslash in the group regex, got: ${patched}`,
+  );
+});
+
+test('applyAndroidGradleDependencies adds both the coordinate and its repository', () => {
+  const patched = applyAndroidGradleDependencies(`dependencies {
+}
+`);
+
+  for (const dependency of sdkConfig.android.dependencies) {
+    assert.match(patched, new RegExp(escapeRegExp(dependency)));
+  }
+  assert.match(patched, new RegExp(escapeRegExp(sdkConfig.android.mavenRepositoryUrl)));
+  assert.equal(patched, applyAndroidGradleDependencies(patched));
+});
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}

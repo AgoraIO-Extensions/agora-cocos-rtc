@@ -2,7 +2,9 @@
   "android": {
     "dependencies": [
       "io.agora.rtc:agora-special-voice:4.5.3.5"
-    ]
+    ],
+    "mavenRepositoryUrl": "https://download.agora.io/maven/",
+    "mavenRepositoryGroupRegex": "io\\.agora.*"
   },
   "ios": {
     "packageUrl": "https://github.com/AgoraIO/AgoraAudio_iOS.git",
