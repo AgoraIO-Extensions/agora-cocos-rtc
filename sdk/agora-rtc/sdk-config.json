@@ -1,12 +1,12 @@
 {
   "android": {
     "dependencies": [
-      "io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1"
+      "io.agora.rtc:agora-special-voice:4.5.3.5"
     ]
   },
   "ios": {
     "packageUrl": "https://github.com/AgoraIO/AgoraAudio_iOS.git",
-    "packageVersion": "4.5.3-a1",
+    "packageVersion": "4.5.3.5",
     "packageProducts": [
       "RtcBasic"
     ],
