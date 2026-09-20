@@ -343,7 +343,10 @@ test('cocos integration scripts build and launch android and ios test apps', asy
   assert.match(androidScript, /logcat/);
   assert.match(androidScript, /TEST_TIMEOUT_SECONDS/);
   assert.match(androidScript, /ANDROID_DIAGNOSTIC_LOG_PATH/);
-  assert.match(androidScript, /ANDROID_SCRIPT_TIMEOUT_SECONDS/);
+  assert.match(
+    androidScript,
+    /ANDROID_SCRIPT_TIMEOUT_SECONDS="\$\{ANDROID_SCRIPT_TIMEOUT_SECONDS:-3600\}"/,
+  );
   assert.match(androidScript, /ANDROID_TEST_SCRIPT_PID/);
   assert.match(androidScript, /ANDROID_TIMEOUT_WATCHDOG_PID/);
   assert.match(androidScript, /collect_android_diagnostics/);
@@ -688,7 +691,7 @@ test('cocos run_test workflow exposes unit and device integration jobs', async (
   assert.match(workflow, /ndk;23\.1\.7779620/);
   assert.match(workflow, /ANDROID_NDK_HOME=/);
   assert.match(workflow, /reactivecircus\/android-emulator-runner@v2/);
-  assert.match(workflow, /Run Android Cocos API tests[\s\S]*timeout-minutes: 45/);
+  assert.match(workflow, /Run Android Cocos API tests[\s\S]*timeout-minutes: 70/);
   // ccache wiring for the Android native build (cross-run object reuse).
   assert.match(workflow, /CCACHE_DIR: \$\{\{ github\.workspace \}\}\/\.ccache/);
   assert.match(workflow, /CCACHE_INIT_SCRIPT: \$\{\{ github\.workspace \}\}\/scripts\/ci\/ccache-init\.gradle/);
