@@ -23,6 +23,8 @@ namespace agora::cocos {
 
 namespace {
 
+std::atomic<bool> gScriptBridgeReady{false};
+
 inline uint8_t clampColor(int value) {
     if (value < 0) {
         return 0;
@@ -704,9 +706,25 @@ static bool js_agoraEngineTexture_isSlotReady(se::State &s) {
 }
 SE_BIND_FUNC(js_agoraEngineTexture_isSlotReady)
 
+static bool js_agoraEngineTexture_setScriptBridgeReady(se::State &s) {
+    const auto &args = s.args();
+    if (args.size() != 1 || !args[0].isBoolean()) {
+        SE_REPORT_ERROR("setScriptBridgeReady expects one boolean argument");
+        return false;
+    }
+
+    gScriptBridgeReady.store(args[0].toBoolean(), std::memory_order_release);
+    return true;
+}
+SE_BIND_FUNC(js_agoraEngineTexture_setScriptBridgeReady)
+
 } // namespace
 
 bool register_all_agora_engine_texture(se::Object *obj) {
+    se::ScriptEngine::getInstance()->addBeforeCleanupHook([]() {
+        reset_agora_engine_texture_registry();
+    });
+
     se::Value jsbValue;
     if (!obj->getProperty("jsb", &jsbValue)) {
         se::HandleObject jsbObject(se::Object::createPlainObject());
@@ -723,12 +741,26 @@ bool register_all_agora_engine_texture(se::Object *obj) {
     }
 
     auto *bridgeObject = bridgeValue.toObject();
-    const bool ok = bridgeObject->defineFunction("getTexture", _SE(js_agoraEngineTexture_getTexture));
-    return ok && bridgeObject->defineFunction("isSlotReady", _SE(js_agoraEngineTexture_isSlotReady));
+    const bool textureOk = bridgeObject->defineFunction("getTexture", _SE(js_agoraEngineTexture_getTexture));
+    const bool slotReadyOk = bridgeObject->defineFunction("isSlotReady", _SE(js_agoraEngineTexture_isSlotReady));
+    const bool scriptReadyOk = bridgeObject->defineFunction(
+        "setScriptBridgeReady",
+        _SE(js_agoraEngineTexture_setScriptBridgeReady)
+    );
+    return textureOk && slotReadyOk && scriptReadyOk;
 }
 
 void reset_agora_engine_texture_registry() {
+    set_agora_script_bridge_ready(false);
     EngineTextureRegistry::getInstance().reset();
+}
+
+void set_agora_script_bridge_ready(bool ready) {
+    gScriptBridgeReady.store(ready, std::memory_order_release);
+}
+
+bool is_agora_script_bridge_ready() {
+    return gScriptBridgeReady.load(std::memory_order_acquire);
 }
 
 int create_agora_engine_texture_slot(int width, int height) {
@@ -810,6 +842,12 @@ void release_agora_engine_texture_slot(int slotId) {
 extern "C" {
 
 #if CC_PLATFORM == CC_PLATFORM_ANDROID
+
+JNIEXPORT jboolean JNICALL Java_io_agora_cocos_rtc_AgoraRtcPlugin_nativeIsScriptBridgeReady(
+    JNIEnv * /*env*/,
+    jclass /*clazz*/) {
+    return agora::cocos::is_agora_script_bridge_ready() ? JNI_TRUE : JNI_FALSE;
+}
 
 JNIEXPORT jint JNICALL Java_io_agora_cocos_rtc_render_AgoraEngineTextureSlotBridge_nativeCreateSlot(
     JNIEnv * /*env*/,

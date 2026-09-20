@@ -6,6 +6,8 @@ namespace agora::cocos {
 
 bool register_all_agora_engine_texture(se::Object *obj);
 void reset_agora_engine_texture_registry();
+void set_agora_script_bridge_ready(bool ready);
+bool is_agora_script_bridge_ready();
 int create_agora_engine_texture_slot(int width, int height);
 bool is_agora_engine_texture_slot_ready(int slotId);
 void update_agora_engine_texture_slot(int slotId, const uint8_t *rgba, size_t rgbaLength, int width, int height);

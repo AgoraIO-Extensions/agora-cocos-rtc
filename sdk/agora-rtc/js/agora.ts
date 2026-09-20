@@ -1077,6 +1077,7 @@ export class AgoraRtcClient {
       );
     }
     this.#transportListenersAttached = true;
+    resolveEngineTextureBridge(this.#bridgeRuntime)?.setScriptBridgeReady?.(true);
   }
 }
 

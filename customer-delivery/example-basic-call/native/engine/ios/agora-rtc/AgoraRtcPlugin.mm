@@ -1,6 +1,7 @@
 #import <Foundation/Foundation.h>
 #import "apple/JsbBridgeWrapper.h"
 #import "apple/JsbBridge.h"
+#include "agora/AgoraEngineTextureBridge.h"
 
 /**
  * Native bridge registrar.
@@ -48,6 +49,9 @@
 }
 
 + (void)dispatchEventToScript:(NSString *)eventName payload:(NSString *)payload {
+    if (!agora::cocos::is_agora_script_bridge_ready()) {
+        return;
+    }
     [[JsbBridge sharedInstance] sendToScript:eventName arg1:payload];
 }
 

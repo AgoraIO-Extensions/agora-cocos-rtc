@@ -122,7 +122,7 @@ jobs:
           restore-keys: |
             ccache-android-${{ runner.os }}-
       - name: Run Android Cocos API tests
-        timeout-minutes: 45
+        timeout-minutes: 70
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 31

@@ -415,6 +415,32 @@ test('engine-texture raw frame path applies orientation before uploading texture
   assert.doesNotMatch(commonBridgeContent, /bool mirror,/);
 });
 
+test('native callbacks wait until the current JS bridge listeners are ready', async () => {
+  const commonBridgeContent = await readFile(
+    path.join(repoRoot, 'sdk/agora-rtc/templates/common/Classes/agora/AgoraEngineTextureBridge.cpp'),
+    'utf8',
+  );
+  assert.match(commonBridgeContent, /gScriptBridgeReady\{false\}/);
+  assert.match(commonBridgeContent, /setScriptBridgeReady/);
+  assert.match(commonBridgeContent, /addBeforeCleanupHook/);
+  assert.match(commonBridgeContent, /set_agora_script_bridge_ready\(false\)/);
+
+  for (const relativePath of androidBridgeDestroyCopyPaths) {
+    const content = await readFile(path.join(repoRoot, relativePath), 'utf8');
+    assert.match(content, /nativeIsScriptBridgeReady/);
+    assert.match(content, /if \(!nativeIsScriptBridgeReady\(\)\) \{/);
+  }
+
+  for (const relativePath of [
+    'sdk/agora-rtc/templates/ios/AgoraRtcPlugin.mm',
+    'example/basic-call/native/agora-rtc/ios/AgoraRtcPlugin.mm',
+    'customer-delivery/example-basic-call/native/engine/ios/agora-rtc/AgoraRtcPlugin.mm',
+  ]) {
+    const content = await readFile(path.join(repoRoot, relativePath), 'utf8');
+    assert.match(content, /is_agora_script_bridge_ready/);
+  }
+});
+
 test('engine-texture local camera preview removes native upload mirror semantics across iOS mirror copies', async () => {
   const androidTemplateContent = await readFile(engineTextureBackendTemplate, 'utf8');
   const androidRuntimeContent = await readFile(engineTextureBackendRuntime, 'utf8');

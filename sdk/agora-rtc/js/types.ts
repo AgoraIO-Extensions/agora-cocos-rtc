@@ -526,6 +526,7 @@ export interface CocosJsbBridgeTransport {
 export interface CocosEngineTextureBridge {
   getTexture(slotId: number): unknown | null;
   isSlotReady?(slotId: number): boolean;
+  setScriptBridgeReady?(ready: boolean): void;
 }
 
 export interface CocosBridgeRuntime {

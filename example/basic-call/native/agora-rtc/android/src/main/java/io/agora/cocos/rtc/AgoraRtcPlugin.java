@@ -39,6 +39,7 @@ public final class AgoraRtcPlugin {
     private static final String REQUEST_EVENT = "agora:request";
     private static final String PROTECTED_APP_TYPE_PARAMETERS = "{\"rtc.set_app_type\":10}";
     private static final AgoraRtcPlugin INSTANCE = new AgoraRtcPlugin();
+    private static native boolean nativeIsScriptBridgeReady();
 
     private RtcEngine rtcEngine;
     private boolean attached;
@@ -1928,9 +1929,14 @@ public final class AgoraRtcPlugin {
     }
 
     private void dispatchResponse(JSONObject response) {
-        CocosHelper.runOnGameThread(() ->
-                JsbBridgeWrapper.getInstance().dispatchEventToScript(RESPONSE_EVENT, response.toString())
-        );
+        if (!nativeIsScriptBridgeReady()) {
+            return;
+        }
+        CocosHelper.runOnGameThread(() -> {
+            if (nativeIsScriptBridgeReady()) {
+                JsbBridgeWrapper.getInstance().dispatchEventToScript(RESPONSE_EVENT, response.toString());
+            }
+        });
     }
 
     private VideoEncoderConfiguration.ORIENTATION_MODE mapOrientationMode(int value) {
@@ -2065,13 +2071,18 @@ public final class AgoraRtcPlugin {
     }
 
     private void dispatchEvent(String eventName, JSONObject payload) {
+        if (!nativeIsScriptBridgeReady()) {
+            return;
+        }
         JSONObject event = jsonObject(
                 "eventName", eventName,
                 "payload", payload
         );
-        CocosHelper.runOnGameThread(() ->
-                JsbBridgeWrapper.getInstance().dispatchEventToScript(CALLBACK_EVENT, event.toString())
-        );
+        CocosHelper.runOnGameThread(() -> {
+            if (nativeIsScriptBridgeReady()) {
+                JsbBridgeWrapper.getInstance().dispatchEventToScript(CALLBACK_EVENT, event.toString());
+            }
+        });
     }
 
     private JSONObject jsonObject(Object... keyValues) {

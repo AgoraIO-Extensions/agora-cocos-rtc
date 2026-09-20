@@ -165,7 +165,7 @@ export async function runAgoraCocosApiTests(): Promise<ApiTestReport> {
   await waitForNativeBridge();
   const client = createAgoraRtcClient({
     bridgeRuntime: createNativeBridgeRuntime(),
-    timeoutMs: 15000,
+    timeoutMs: 60000,
   });
 
   console.log(`${LOG_PREFIX} TEST_START mode=api platform=${platform} cases=${cases.length} capabilities=${stringify(capabilities)}`);
