@@ -14,7 +14,12 @@ on:
 
 env:
   COCOS_CREATOR_VERSION: 3.8.8
-  COCOS_CREATOR_DOWNLOAD_URL: https://download.cocos.org/CocosCreator/v3.8.8/CocosCreator-v3.8.8-mac-010512.zip
+  COCOS_CREATOR_DOWNLOAD_URL: https://download.cocos.com/CocosCreator/v3.8.8/CocosCreator-v3.8.8-mac-121518.zip
+  # Build-number suffix of the installer above. Keep it in sync with the URL so
+  # the cached filename, the cache key, and the download all agree.
+  COCOS_CREATOR_CACHE_SUFFIX: mac-121518
+  # Cocos Creator 3.8.8 does not compile with the stricter Xcode 26 C++ toolchain.
+  IOS_XCODE_VERSION: '16.4'
 
 jobs:
   cocos_ut:
@@ -99,12 +104,13 @@ jobs:
       - name: Cache Cocos Creator installer
         uses: actions/cache@v4
         with:
-          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-mac-010512.zip
-          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-010512
+          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-${{ env.COCOS_CREATOR_CACHE_SUFFIX }}.zip
+          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-${{ env.COCOS_CREATOR_CACHE_SUFFIX }}
       - uses: ./.github/actions/setup-cocos-creator
         with:
           version: ${{ env.COCOS_CREATOR_VERSION }}
           download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
+          cache-key-suffix: ${{ env.COCOS_CREATOR_CACHE_SUFFIX }}
       - run: npm ci
       - name: Install ccache
         run: brew install ccache
@@ -139,7 +145,7 @@ jobs:
   integration_test_ios:
     name: Run Cocos iOS Integration Tests
     if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:skip') }}
-    runs-on: macos-latest
+    runs-on: macos-15
     timeout-minutes: 120
     env:
       TEST_APP_ID: ${{ secrets.APP_ID }}
@@ -149,15 +155,20 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Select Xcode for iOS
+        run: |
+          sudo xcode-select --switch "/Applications/Xcode_${IOS_XCODE_VERSION}.app/Contents/Developer"
+          xcodebuild -version
       - name: Cache Cocos Creator installer
         uses: actions/cache@v4
         with:
-          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-mac-010512.zip
-          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-010512
+          path: ~/Library/Caches/cocos-creator/CocosCreator-v${{ env.COCOS_CREATOR_VERSION }}-${{ env.COCOS_CREATOR_CACHE_SUFFIX }}.zip
+          key: cocos-creator-${{ runner.os }}-${{ env.COCOS_CREATOR_VERSION }}-${{ env.COCOS_CREATOR_CACHE_SUFFIX }}
       - uses: ./.github/actions/setup-cocos-creator
         with:
           version: ${{ env.COCOS_CREATOR_VERSION }}
           download-url: ${{ env.COCOS_CREATOR_DOWNLOAD_URL }}
+          cache-key-suffix: ${{ env.COCOS_CREATOR_CACHE_SUFFIX }}
       - run: npm ci
       - id: ios-simulator
         uses: futureware-tech/simulator-action@v4

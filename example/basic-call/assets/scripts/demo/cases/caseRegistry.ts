@@ -114,6 +114,12 @@ export const DEMO_CASES = [
       'DebugFlag',
     ],
   },
+  {
+    name: 'UploadLogFile',
+    section: 'Advanced',
+    displayMode: 'audio',
+    actions: ['Initialize', 'UploadLogFile'],
+  },
 ] as const satisfies readonly DemoCaseDefinition[];
 
 export type DemoCaseName = typeof DEMO_CASES[number]['name'];

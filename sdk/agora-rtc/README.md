@@ -50,6 +50,7 @@ The plugin does not rewrite the customer's root `build.gradle`, Android Gradle P
 - `getErrorDescription`
 - `setLogFilter`
 - `setLogFile`
+- `uploadLogFile`
 - `setRenderBackend`
 - `setChannelProfile`
 - `setClientRole`
@@ -104,6 +105,19 @@ The plugin does not rewrite the customer's root `build.gradle`, Android Gradle P
 - `stopEffect`
 - `setParameters`
 - `destroy`
+
+## Upload SDK Logs
+
+Register the result listener before starting an upload (the engine must be initialized):
+
+```ts
+client.on('uploadLogResult', ({ requestId, success, reason }) => {
+  console.log('Log upload completed', requestId, success, reason);
+});
+const requestId = await client.uploadLogFile();
+```
+
+The promise returns the Native SDK upload request ID, not upload completion. It rejects if the engine is uninitialized or the SDK returns no request ID. The event reports the final result with the same upload request ID and the native numeric reason.
 
 ## Platform Notes
 

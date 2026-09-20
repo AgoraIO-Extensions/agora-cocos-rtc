@@ -374,6 +374,7 @@ const userInfo = await client.getUserInfoByUserAccount('user-001');
 | `getErrorDescription` | `getErrorDescription(code: number): Promise<string>` | 查询指定错误码在原生 SDK 中的文本描述。 | 需要将错误码转为可读说明，辅助日志或售后排查时使用。 |
 | `setLogFilter` | `setLogFilter(level: number): Promise<void>` | 设置原生日志输出级别。 | 调试桥接、音视频接入或线上问题复现时使用。 |
 | `setLogFile` | `setLogFile(path: string): Promise<void>` | 设置原生日志文件输出路径。 | 需要把 SDK 日志落盘，便于客户现场收集日志时使用。 |
+| `uploadLogFile` | `uploadLogFile(): Promise<string>` | 上传 SDK 日志并返回 Native 上传请求 ID；未初始化或未返回有效 ID 时 reject。 | 先监听 `uploadLogResult` 再调用，Promise 完成不代表上传成功。 |
 | `setParameters` | `setParameters(parameters: string \| Record<string, unknown>): Promise<void>` | 透传 JSON 字符串或对象到原生 `setParameters`。 | 官方常规 API 未覆盖、需开启专项参数或排障开关时使用。 |
 
 - `setRenderBackend(...)` 应在 `initialize(...)` 前调用，否则渲染行为可能与预期不一致。
@@ -687,6 +688,7 @@ const mediaOptions: AgoraChannelMediaOptions = {
 | `volumeIndication` | `{ speakers: Array<{ uid: number; volume: number; vad: number; voicePitch: number }>; totalVolume: number }` | 周期性返回说话人音量、VAD 和总音量。 | 用于活跃说话人高亮、音量条或麦位状态展示；不要把它当作可靠入会判断事件。 |
 | `rtcStats` | `AgoraRtcStatsPayload` | 返回会话级 RTC 统计，包括时长、码率、丢包、CPU、内存等。 | 采样写入调试日志或开发者面板，用于排查卡顿、弱网或设备资源压力。 |
 | `contentInspectResult` | `{ result: number }` | 内容审核模块返回检测结果。 | 根据 `result` 更新业务审核状态，并视业务策略决定提示、降级或中断视频。 |
+| `uploadLogResult` | `{ requestId: string; success: boolean; reason: number }` | SDK 日志上传的最终结果，`reason` 透传 Native 原因码。 | 用 `requestId` 关联上传请求，根据 `success` 判断上传结果。 |
 
 ### Texture and Render Events
 

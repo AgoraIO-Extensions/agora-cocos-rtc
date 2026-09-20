@@ -4,12 +4,12 @@
   "channelId": "<YOUR_CHANNEL_ID>",
   "uid": 0,
   "renderBackend": "engine-texture",
-  "autoPreview": true,
+  "autoPreview": false,
   "autoJoin": false,
-  "publishCameraTrack": true,
+  "publishCameraTrack": false,
   "publishMicrophoneTrack": true,
   "autoSubscribeAudio": true,
-  "autoSubscribeVideo": true,
+  "autoSubscribeVideo": false,
   "localVideoCanvas": {
     "mirrorMode": 0,
     "sourceType": 0

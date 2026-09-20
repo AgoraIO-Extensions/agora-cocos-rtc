@@ -288,8 +288,8 @@ function ensurePbxListItem(objectText, listName, itemLine) {
 
 function patchIosSwiftPackageRequirement(packageRefObject) {
   const requirementBlock = `requirement = {
-\t\t\t\tkind = exactVersion;
-\t\t\t\tversion = ${sdkConfig.ios.packageVersion};
+\t\t\t\tkind = revision;
+\t\t\t\trevision = ${sdkConfig.ios.packageRevision};
 \t\t\t};`;
 
   if (/requirement = \{[\s\S]*?\n\t\t\t\};/.test(packageRefObject.text)) {
@@ -742,8 +742,8 @@ function patchIosXcodeProjectSwiftPackage(content) {
 \t\t\tisa = XCRemoteSwiftPackageReference;
 \t\t\trepositoryURL = "${sdkConfig.ios.packageUrl}";
 \t\t\trequirement = {
-\t\t\t\tkind = exactVersion;
-\t\t\t\tversion = ${sdkConfig.ios.packageVersion};
+\t\t\t\tkind = revision;
+\t\t\t\trevision = ${sdkConfig.ios.packageRevision};
 \t\t\t};
 \t\t};`;
 
@@ -941,8 +941,57 @@ function syncAndroidGradleDependencies(content) {
   return `${next.trimEnd()}\n\ndependencies {\n${injection}\n}\n`;
 }
 
+function escapeGroovySingleQuoted(value) {
+  return value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+/**
+ * Declare the Agora-hosted Maven repository that serves the coordinates in
+ * sdkConfig.android.dependencies.
+ *
+ * The repository is injected into the app module's own `repositories {}` block
+ * rather than the root project's. That keeps the SDK inside the ownership
+ * boundary established in #58: this hook already rewrites app/build.gradle
+ * dependencies, and it never touches root Gradle or the Gradle wrapper, which
+ * remain the integrator's toolchain files.
+ *
+ * The group filter keeps every non-Agora dependency resolving through the
+ * repositories the integrator configured, so this cannot become a general
+ * purpose proxy for the whole build.
+ */
+function ensureAgoraMavenRepository(content) {
+  const repositoryUrl = sdkConfig.android.mavenRepositoryUrl;
+  if (!repositoryUrl || content.includes(repositoryUrl)) {
+    return content;
+  }
+
+  // Groovy single-quoted strings reject unknown escapes such as `\.`, so the
+  // regex backslashes have to survive as literal backslashes in the output.
+  const groupRegex = escapeGroovySingleQuoted(sdkConfig.android.mavenRepositoryGroupRegex);
+  const repositoryLines = [
+    '    maven {',
+    `        url = '${escapeGroovySingleQuoted(repositoryUrl)}'`,
+    `        content { includeGroupByRegex '${groupRegex}' }`,
+    '    }',
+  ].join('\n');
+
+  const repositoriesOpening = findTopLevelGradleBlockOpening(content, 'repositories');
+  if (repositoriesOpening !== -1) {
+    return `${content.slice(0, repositoriesOpening + 1)}\n${repositoryLines}${content.slice(repositoriesOpening + 1)}`;
+  }
+
+  const dependenciesOpening = findTopLevelGradleBlockOpening(content, 'dependencies');
+  const repositoriesBlock = `repositories {\n${repositoryLines}\n}\n\n`;
+  if (dependenciesOpening !== -1) {
+    const blockStart = content.lastIndexOf('dependencies', dependenciesOpening);
+    return `${content.slice(0, blockStart)}${repositoriesBlock}${content.slice(blockStart)}`;
+  }
+
+  return `${content.trimEnd()}\n\n${repositoriesBlock}`;
+}
+
 function applyAndroidGradleDependencies(content) {
-  return syncAndroidGradleDependencies(content);
+  return ensureAgoraMavenRepository(syncAndroidGradleDependencies(content));
 }
 
 async function findFirstExistingPath(rootDir, candidates) {
@@ -972,13 +1021,14 @@ async function ensureIosSetupGuide(rootDir) {
 
 Repository: ${sdkConfig.ios.packageUrl}
 Version: ${sdkConfig.ios.packageVersion}
+Revision: ${sdkConfig.ios.packageRevision}
 Products: ${packageProducts.join(', ')}
 
 ## Steps
 
 1. Open the exported Xcode project.
 2. Add a Swift Package dependency from the repository above.
-3. Pin the dependency to tag ${sdkConfig.ios.packageVersion}.
+3. Pin the dependency to revision ${sdkConfig.ios.packageRevision}.
 4. Link the package product to the app target.
 5. Copy the bridge sources from the plugin template into the exported iOS project if they are not already present.
 `;
@@ -1540,7 +1590,7 @@ async function integrateAndroidExport(rootDir, platform = '') {
 
   if (appGradleFile) {
     const original = await readFile(appGradleFile, 'utf8');
-    await writeFile(appGradleFile, syncAndroidGradleDependencies(original), 'utf8');
+    await writeFile(appGradleFile, applyAndroidGradleDependencies(original), 'utf8');
   }
 
   const androidEngineRel = await findAndroidEngineRelativeFromBuildDir(rootDir, platform);
@@ -1634,6 +1684,7 @@ module.exports = {
   ANDROID_ENGINE_DIR_NAMES,
   androidEngineDirNamesForPlatform,
   applyAndroidGradleDependencies,
+  ensureAgoraMavenRepository,
   ensureIosSetupGuide,
   androidAppGradleCandidates,
   androidEnginePathCandidates,
