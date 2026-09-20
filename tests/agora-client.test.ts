@@ -596,6 +596,39 @@ test('engine texture bridge resolves from global jsb namespace', () => {
   }
 });
 
+test('client enables native callback dispatch only after bridge listeners attach', () => {
+  const order: string[] = [];
+  const transport = {
+    dispatchEventToNative() {},
+    addNativeEventListener(eventName: string) {
+      order.push(`listener:${eventName}`);
+    },
+  };
+
+  createAgoraRtcClient({
+    transport,
+    bridgeRuntime: {
+      native: {
+        agoraEngineTexture: {
+          getTexture() {
+            return null;
+          },
+          setScriptBridgeReady(ready: boolean) {
+            order.push(`ready:${ready}`);
+          },
+        },
+      },
+      sys: { isNative: true },
+    },
+  });
+
+  assert.deepEqual(order, [
+    'listener:agora:response',
+    'listener:agora:event',
+    'ready:true',
+  ]);
+});
+
 test('client engine texture helpers pass slotId to the native texture bridge', () => {
   const observedTextureSlots: number[] = [];
   const observedReadySlots: number[] = [];
