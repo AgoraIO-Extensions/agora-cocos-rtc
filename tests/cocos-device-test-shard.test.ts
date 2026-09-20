@@ -230,11 +230,36 @@ test('cocos device runner emits structured logs and writes a json report', async
   assert.match(runnerContent, /TEST_WAIT_BRIDGE/);
   assert.match(runnerContent, /TEST_BRIDGE_READY/);
   assert.match(runnerContent, /resolveBridgeTransport/);
+  assert.match(runnerContent, /timeoutMs:\s*60000/);
   assert.match(runnerContent, /isNativeErrorEvidence/);
   assert.match(runnerContent, /serializedError\.code === 'native_failure'/);
   assert.match(runnerContent, /serializedError\.details\?\.method === testcase\.method/);
   assert.match(reportContent, /writeJsonReport/);
   assert.match(reportContent, /api-report\.json/);
+});
+
+test('cocos report collector fails the process when a device case fails', async () => {
+  const fixtureRoot = await mkdtemp(path.join(os.tmpdir(), 'agora-cocos-report-'));
+  const scriptsDir = path.join(fixtureRoot, 'scripts');
+  const sourceReport = path.join(fixtureRoot, 'failed-report.json');
+  const collector = path.join(scriptsDir, 'collect-cocos-test-report.mjs');
+
+  await mkdir(scriptsDir, { recursive: true });
+  await cp(`${repoRoot}/scripts/collect-cocos-test-report.mjs`, collector);
+  await writeFile(
+    sourceReport,
+    JSON.stringify({
+      platform: 'Android',
+      mode: 'api',
+      startedAt: '2026-09-20T00:00:00.000Z',
+      endedAt: '2026-09-20T00:00:01.000Z',
+      totals: { passed: 0, failed: 1, total: 1 },
+      cases: [{ id: 'engine.destroy', method: 'destroy', status: 'failed' }],
+    }),
+  );
+
+  const result = spawnSync(process.execPath, [collector, 'android', sourceReport]);
+  assert.equal(result.status, 1);
 });
 
 test('cocos runner injection imports test mode from the example bootstrap', async () => {

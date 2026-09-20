@@ -59,3 +59,7 @@ await writeFile(
 
 console.log(`Wrote ${jsonPath}`);
 console.log(`Wrote ${markdownPath}`);
+
+if (report.totals.failed > 0) {
+  process.exitCode = 1;
+}
