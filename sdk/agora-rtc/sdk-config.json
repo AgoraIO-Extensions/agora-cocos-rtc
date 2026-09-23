@@ -1,7 +1,7 @@
 {
   "android": {
     "dependencies": [
-      "io.agora.rtc:agora-special-voice:4.5.3.5"
+      "io.agora.rtc:agora-special-voice:4.5.3.5.BASIC"
     ],
     "mavenRepositoryUrl": "https://download.agora.io/maven/",
     "mavenRepositoryGroupRegex": "io\\.agora.*"
