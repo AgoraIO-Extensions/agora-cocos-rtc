@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.3](https://github.com/AgoraIO-Extensions/agora-cocos-rtc/compare/0.1.2...0.1.3) (2026-09-23)
+
+### Features
+
+* update native dependencies ([#67](https://github.com/AgoraIO-Extensions/agora-cocos-rtc/issues/67)) ([7688f8f](https://github.com/AgoraIO-Extensions/agora-cocos-rtc/commit/7688f8f7ef405a8322e489460b44468228882713))
+
 ## [0.1.2](https://github.com/AgoraIO-Extensions/agora-cocos-rtc/compare/0.1.1...0.1.2) (2026-09-20)
 
 ### Features
