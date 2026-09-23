@@ -37,7 +37,7 @@ If you integrate the SDK manually, reuse an already exported Android project, bu
 
 ```gradle
 dependencies {
-    implementation 'io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1'
+    implementation 'io.agora.rtc:agora-special-voice:4.5.3.5.BASIC'
 }
 ```
 
@@ -121,9 +121,9 @@ The promise returns the Native SDK upload request ID, not upload completion. It 
 
 ## Platform Notes
 
-- Android dependencies are listed in `sdk-config.json`; the current Android artifact is `io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1`.
-- iOS SPM links the products listed in `sdk-config.json` `packageProducts`.
-- iOS uses the package URL and version listed in `sdk-config.json`.
+- Android dependencies are listed in `sdk-config.json`; the current Android artifact is `io.agora.rtc:agora-special-voice:4.5.3.5.BASIC`.
+- The current iOS export uses CocoaPods with `AgoraAudio_Special_iOS` version `4.5.3.5.BASIC`; run `node scripts/generate-ios-podfile.mjs` after exporting the Cocos project.
+- iOS uses the CocoaPods name and version listed in `sdk-config.json`.
 - The current Android artifact is the special voice package, not the full video package; validate video and `engine-texture` paths only after switching to an Agora artifact that includes the required video capabilities.
 - Android supports `setDefaultAudioRouteToSpeakerphone`; Android still returns an explicit `unsupported` response for `setAudioSessionOperationRestriction`.
 - Android 4.5.3 and iOS `4.5.3-a1` `ChannelMediaOptions` both expose multipath fields; macOS-only screen/camera track fields are not part of the iOS Cocos bridge.

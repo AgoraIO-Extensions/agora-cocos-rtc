@@ -69,6 +69,11 @@ const githubSourceRegex =
 //   tag:4.5.3-a1
 const tagRegex = /\b(?:tag|version)\s*[:=]\s*([A-Za-z0-9_.+-]+)/i;
 
+// CocoaPods dependency declaration. Unlike an SPM package, a Pod carries its
+// consumer product name and version in the same line.
+//   pod 'AgoraAudio_Special_iOS', '4.5.3.5.BASIC'
+const podDependencyRegex = /\bpod\s+['"]([A-Za-z0-9_.-]+)['"]\s*,\s*['"]([A-Za-z0-9_.+-]+)['"]/i;
+
 // iOS Swift Package products to link. A product name is just a bare identifier
 // (RtcBasic, AINS, ...) with no distinctive shape of its own, so — unlike the
 // other fields — it cannot be detected by pattern alone without guessing. We
@@ -110,6 +115,13 @@ function parseDependenciesContent(content) {
   const tagMatch = content.match(tagRegex);
   if (tagMatch) {
     parsed.iosVersion = tagMatch[1].trim();
+  }
+
+  const podMatch = content.match(podDependencyRegex);
+  if (podMatch) {
+    parsed.iosPodName = podMatch[1].trim();
+    parsed.iosVersion = podMatch[2].trim();
+    parsed.iosIntegrationMode = 'cocoapods';
   }
 
   // Select the products listed after a `products:` label, verbatim. No fixed
@@ -154,6 +166,8 @@ const androidDependencies =
     : null;
 const iosPackageUrl = fromContent.iosPackageUrl ?? null;
 const iosVersion = fromContent.iosVersion || args.iosVersion;
+const iosPodName = fromContent.iosPodName ?? null;
+const iosIntegrationMode = fromContent.iosIntegrationMode ?? null;
 const iosPackageProducts =
   fromContent.iosPackageProducts && fromContent.iosPackageProducts.length > 0
     ? fromContent.iosPackageProducts
@@ -178,6 +192,14 @@ if (iosPackageUrl) {
 
 if (iosVersion) {
   sdkConfig.ios.packageVersion = iosVersion;
+}
+
+if (iosPodName) {
+  sdkConfig.ios.podName = iosPodName;
+}
+
+if (iosIntegrationMode) {
+  sdkConfig.ios.integrationMode = iosIntegrationMode;
 }
 
 if (iosPackageProducts) {

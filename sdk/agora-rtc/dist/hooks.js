@@ -1016,6 +1016,24 @@ async function ensureIosSetupGuide(rootDir) {
   const filePath = path.join(rootDir, IOS_GUIDE_RELATIVE_PATH);
   await mkdir(path.dirname(filePath), { recursive: true });
 
+  if (sdkConfig.ios.integrationMode === 'cocoapods') {
+    const content = `# Agora RTC iOS CocoaPods Setup
+
+Pod: ${sdkConfig.ios.podName}
+Version: ${sdkConfig.ios.packageVersion}
+
+## Steps
+
+1. Open the exported Xcode project directory.
+2. Generate the Podfile with \`node scripts/generate-ios-podfile.mjs\`.
+3. Run \`pod install\` in the exported iOS project directory.
+4. Open the generated workspace and build the app target.
+`;
+
+    await writeFile(filePath, content, 'utf8');
+    return filePath;
+  }
+
   const packageProducts = getIosPackageProducts();
   const content = `# Agora RTC iOS Swift Package Manager Setup
 

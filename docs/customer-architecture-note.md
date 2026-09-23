@@ -105,11 +105,11 @@ This layer turns video frames into Cocos textures.
 
 Android:
 
-- `io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1`
+- `io.agora.rtc:agora-special-voice:4.5.3.5.BASIC`
 
 iOS:
 
-- `AgoraAudio_iOS 4.5.3-a1`
+- `AgoraAudio_Special_iOS 4.5.3.5.BASIC`
 
 Responsibilities:
 
@@ -201,7 +201,7 @@ Tradeoffs:
 
 The current Android dependency is the special voice artifact:
 
-- `io.agora.rtc:agora-special-voice:4.5.3.1.BASIC1`
+- `io.agora.rtc:agora-special-voice:4.5.3.5.BASIC`
 
 That artifact is the current Android delivery dependency, not the full video package. The bridge and JS APIs keep the video and `engine-texture` integration points, but Android video display should only be claimed after switching to an Agora artifact that includes the required video capability and re-validating the device flow.
 

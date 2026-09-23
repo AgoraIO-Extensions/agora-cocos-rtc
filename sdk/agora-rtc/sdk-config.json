@@ -1,14 +1,14 @@
 {
   "android": {
     "dependencies": [
-      "io.agora.rtc:agora-special-voice:4.5.3.5"
+      "io.agora.rtc:agora-special-voice:4.5.3.5.BASIC"
     ],
     "mavenRepositoryUrl": "https://download.agora.io/maven/",
     "mavenRepositoryGroupRegex": "io\\.agora.*"
   },
   "ios": {
     "packageUrl": "https://github.com/AgoraIO/AgoraAudio_iOS.git",
-    "packageVersion": "4.5.3.5",
+    "packageVersion": "4.5.3.5.BASIC",
     "packageRevision": "2676a3d2fc5af65af28238dea499cc2d5c07e919",
     "packageProducts": [
       "RtcBasic"
@@ -17,8 +17,8 @@
       "ContentInspect": "AGORA_HAS_CONTENT_INSPECT"
     },
     "swiftVersion": "5.0",
-    "podName": "AgoraRtcEngine_iOS",
+    "podName": "AgoraAudio_Special_iOS",
     "deploymentTarget": "13.0",
-    "integrationMode": "swift-package-manager"
+    "integrationMode": "cocoapods"
   }
 }

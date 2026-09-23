@@ -371,16 +371,16 @@ test('customer docs explain Android Gradle dependency hook and manual fallback',
 
   for (const content of [sdkReadme, apiGuide]) {
     assert.match(content, /app\/build\.gradle/);
-    assert.match(content, /implementation 'io\.agora\.rtc:agora-special-voice:4\.5\.3\.1\.BASIC1'/);
+    assert.match(content, /implementation 'io\.agora\.rtc:agora-special-voice:4\.5\.3\.5\.BASIC'/);
     assert.match(content, /Cocos build hook|Cocos 构建 hook/);
   }
   for (const content of [sdkReadme, apiGuide, architectureNote]) {
     assert.match(content, /special voice|special-voice/);
     assert.match(content, /not the full video package|不是完整视频包/);
   }
-  assert.match(apiGuide, /AgoraAudio_iOS\.git/);
-  assert.match(apiGuide, /4\.5\.3-a1/);
-  assert.match(architectureNote, /AgoraAudio_iOS 4\.5\.3-a1/);
+  assert.match(apiGuide, /AgoraAudio_Special_iOS/);
+  assert.match(apiGuide, /4\.5\.3\.5\.BASIC/);
+  assert.match(architectureNote, /AgoraAudio_Special_iOS 4\.5\.3\.5\.BASIC/);
 });
 
 test('github pages workflow publishes the docs directory', async () => {
